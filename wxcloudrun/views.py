@@ -73,14 +73,18 @@ def get_count():
     return make_succ_response(0) if counter is None else make_succ_response(counter.count)
 
 
-@app.route('/api/getUserInfo', methods=['GET'])
+@app.route('/api/getUserInfo', methods=['POST'])
 def get_user_info():
     """
     获取用户信息并返回token
     :return: token
     """
-    # 获取请求参数
-    code = request.args.get('code')
+    # 获取请求体参数
+    params = request.get_json()
+    if not params:
+        return make_err_response('缺少请求体参数')
+
+    code = params.get('code')
     if not code:
         return make_err_response('缺少code参数')
 
