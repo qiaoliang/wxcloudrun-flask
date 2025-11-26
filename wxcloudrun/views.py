@@ -125,7 +125,7 @@ def login():
         app.logger.info(f'login 返回 data: {data}')
 
         # 返回token
-        return make_succ_response({'token': token,"data":data})
+        return make_succ_response({'token': token})
 
     except Exception as e:
         return make_err_response(f'服务器错误: {str(e)}')
