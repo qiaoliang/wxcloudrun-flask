@@ -134,3 +134,62 @@ def get_user_info():
 
     except Exception as e:
         return make_err_response(f'服务器错误: {str(e)}')
+
+
+@app.route('/api/login', methods=['GET'])
+def login():
+    """
+    登录接口，通过code获取用户信息并返回token
+    :return: token
+    """
+    # 获取URL查询参数
+    code = request.args.get('code')
+    if not code:
+        return make_err_response('缺少code参数')
+    # 在日志中打印code参数
+    app.logger.info(f'login code: {code}')
+    # 微信小程序配置
+    appid = os.getenv('WX_APPID', 'your-appid')
+    secret = os.getenv('WX_SECRET', 'your-secret')
+
+    # 调用微信小程序code2Session API
+    url = f'https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code'
+    try:
+        response = requests.get(url)
+        data = response.json()
+        # 在日志中打印API响应
+        app.logger.info(f'login 微信API响应: {data}')
+
+        # 检查API调用是否成功
+        if 'errcode' in data and data['errcode'] != 0:
+            return make_err_response(f'微信API调用失败: {data.get("errmsg", "未知错误")}')
+
+        # 获取openid和session_key
+        openid = data.get('openid')
+        session_key = data.get('session_key')
+
+        if not openid or not session_key:
+            return make_err_response('获取用户信息失败')
+
+        # 生成JWT token
+        # 注意：实际项目中应该使用更安全的密钥，并设置合理的过期时间
+        token_secret = os.getenv('TOKEN_SECRET', 'your-token-secret')
+        token = jwt.encode(
+            {
+                'openid': openid,
+                'session_key': session_key,
+                'exp': datetime.now().timestamp() + 7 * 24 * 3600  # 7天过期
+            },
+            token_secret,
+            algorithm='HS256'
+        )
+        # 在日志中打印token
+        app.logger.info(f'login 返回 token: {token}')
+        # 在日志中打印data参数
+        app.logger.info(f'login 返回 data: {data}')
+
+        # 返回token
+        return make_succ_response({'token': token,"data":data})
+
+    except Exception as e:
+        return make_err_response(f'服务器错误: {str(e)}')
