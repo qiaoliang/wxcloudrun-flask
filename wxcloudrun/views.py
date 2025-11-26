@@ -72,16 +72,20 @@ def get_count():
     counter = Counters.query.filter(Counters.id == 1).first()
     return make_succ_response(0) if counter is None else make_succ_response(counter.count)
 
-@app.route('/api/login', methods=['GET'])
+@app.route('/api/login', methods=['POST'])
 def login():
     """
     登录接口，通过code获取用户信息并返回token
     :return: token
     """
     # 在日志中打印登录请求
-    app.logger.info(f'login 请求参数: {request.args}')
-    # 获取URL查询参数
-    code = request.args.get('code')
+    app.logger.info(f'login 请求参数: {request.get_json()}')
+    # 获取请求体参数
+    params = request.get_json()
+    if not params:
+        return make_err_response('缺少请求体参数')
+    
+    code = params.get('code')
     if not code:
         return make_err_response('缺少code参数')
     # 在日志中打印code参数
