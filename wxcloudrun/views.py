@@ -119,7 +119,7 @@ def get_user_info():
         )
 
         # 返回token
-        return make_succ_response({'token': token})
+        return make_succ_response({'token': token,"data":data})
 
     except Exception as e:
         return make_err_response(f'服务器错误: {str(e)}')
