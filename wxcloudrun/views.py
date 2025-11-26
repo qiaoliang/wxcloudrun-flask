@@ -1,9 +1,16 @@
 from datetime import datetime
+import requests
+import jwt
+import os
+from dotenv import load_dotenv
 from flask import render_template, request
 from run import app
 from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter, update_counterbyid
 from wxcloudrun.model import Counters
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
+
+# 加载环境变量
+load_dotenv()
 
 
 @app.route('/')
@@ -64,3 +71,55 @@ def get_count():
     """
     counter = Counters.query.filter(Counters.id == 1).first()
     return make_succ_response(0) if counter is None else make_succ_response(counter.count)
+
+
+@app.route('/api/getUserInfo', methods=['GET'])
+def get_user_info():
+    """
+    获取用户信息并返回token
+    :return: token
+    """
+    # 获取请求参数
+    code = request.args.get('code')
+    if not code:
+        return make_err_response('缺少code参数')
+
+    # 微信小程序配置
+    appid = os.getenv('WX_APPID', 'your-appid')
+    secret = os.getenv('WX_SECRET', 'your-secret')
+
+    # 调用微信小程序code2Session API
+    url = f'https://api.weixin.qq.com/sns/jscode2session?appid={appid}&secret={secret}&js_code={code}&grant_type=authorization_code'
+    try:
+        response = requests.get(url)
+        data = response.json()
+
+        # 检查API调用是否成功
+        if 'errcode' in data and data['errcode'] != 0:
+            return make_err_response(f'微信API调用失败: {data.get("errmsg", "未知错误")}')
+
+        # 获取openid和session_key
+        openid = data.get('openid')
+        session_key = data.get('session_key')
+
+        if not openid or not session_key:
+            return make_err_response('获取用户信息失败')
+
+        # 生成JWT token
+        # 注意：实际项目中应该使用更安全的密钥，并设置合理的过期时间
+        token_secret = os.getenv('TOKEN_SECRET', 'your-token-secret')
+        token = jwt.encode(
+            {
+                'openid': openid,
+                'session_key': session_key,
+                'exp': datetime.now().timestamp() + 7 * 24 * 3600  # 7天过期
+            },
+            token_secret,
+            algorithm='HS256'
+        )
+
+        # 返回token
+        return make_succ_response({'token': token})
+
+    except Exception as e:
+        return make_err_response(f'服务器错误: {str(e)}')
