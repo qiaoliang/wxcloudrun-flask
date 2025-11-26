@@ -98,11 +98,17 @@ def login():
 
         # 检查API调用是否成功
         if 'errcode' in data and data['errcode'] != 0:
+            # 在日志中打印错误信息
+            app.logger.error(f'login 微信API调用失败: {data.get("errmsg", "未知错误")}')
             return make_err_response(f'微信API调用失败: {data.get("errmsg", "未知错误")}')
 
         # 获取openid和session_key
         openid = data.get('openid')
+        # 在日志中打印openid
+        app.logger.info(f'login openid: {openid}')
         session_key = data.get('session_key')
+        # 在日志中打印session_key
+        app.logger.info(f'login session_key: {session_key}')
 
         if not openid or not session_key:
             return make_err_response('获取用户信息失败')
