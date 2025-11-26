@@ -83,13 +83,27 @@ def login():
     # 获取请求体参数
     params = request.get_json()
     if not params:
-        return make_err_response('缺少请求体参数')
-    
+        return make_err_response({},'缺少请求体参数')
+
     code = params.get('code')
     if not code:
-        return make_err_response('缺少code参数')
+        return make_err_response({},'缺少code参数')
     # 在日志中打印code参数
     app.logger.info(f'login code: {code}')
-            # 返回token
-    return make_succ_response({'token': 'test_token'})
+
+    # 构造返回数据，包含bannerlist
+    response_data = {
+        'bannerlist': [
+            {
+                'image': 'http://159.75.169.224:5800/comfyUI_00012.png',
+                'title': '长白山上白云飞，疑似瑶池落翠微'
+            },
+            {
+                'image': 'http://159.75.169.224:5800/comfyUI_00011.png',
+                'title': '天池如镜映苍穹，碧水连天接远峰。'
+            }
+        ]
+    }
+    # 返回自定义格式的响应
+    return make_succ_response(response_data)
 
