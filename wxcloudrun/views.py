@@ -87,7 +87,8 @@ def get_user_info():
     code = params.get('code')
     if not code:
         return make_err_response('缺少code参数')
-
+    # 在日志中打印code参数
+    app.logger.info(f'code: {code}')
     # 微信小程序配置
     appid = os.getenv('WX_APPID', 'your-appid')
     secret = os.getenv('WX_SECRET', 'your-secret')
@@ -97,6 +98,8 @@ def get_user_info():
     try:
         response = requests.get(url)
         data = response.json()
+        # 在日志中打印API响应
+        app.logger.info(f'微信API响应: {data}')
 
         # 检查API调用是否成功
         if 'errcode' in data and data['errcode'] != 0:
@@ -121,6 +124,10 @@ def get_user_info():
             token_secret,
             algorithm='HS256'
         )
+        # 在日志中打印token
+        app.logger.info(f'返回 token: {token}')
+        # 在日志中打印data参数
+        app.logger.info(f'返回 data: {data}')
 
         # 返回token
         return make_succ_response({'token': token,"data":data})
