@@ -1,4 +1,5 @@
 from datetime import datetime
+import os
 
 from wxcloudrun import db
 
@@ -26,9 +27,18 @@ class User(db.Model):
     phone_number = db.Column(db.String(20), unique=True, comment='手机号码，可用于登录和联系')
     nickname = db.Column(db.String(100), comment='用户昵称')
     avatar_url = db.Column(db.String(500), comment='用户头像URL')
-    role = db.Column(db.Enum('solo', 'supervisor', 'community', name='user_role'), nullable=False, comment='用户角色：独居者/监护人/社区工作人员')
+    
+    # 根据环境选择列类型以兼容 SQLite（测试）和 MySQL（生产）
+    if os.environ.get('PYTEST_CURRENT_TEST') or os.environ.get('FLASK_ENV') == 'testing':
+        # 在测试环境中使用 String 类型以兼容 SQLite
+        role = db.Column(db.String(20), nullable=False, comment='用户角色：独居者/监护人/社区工作人员')
+        status = db.Column(db.String(20), default='active', comment='用户状态：正常/禁用')
+    else:
+        # 在生产环境中使用 Enum 类型
+        role = db.Column(db.Enum('solo', 'supervisor', 'community', name='user_role'), nullable=False, comment='用户角色：独居者/监护人/社区工作人员')
+        status = db.Column(db.Enum('active', 'disabled', name='user_status'), default='active', comment='用户状态：正常/禁用')
+    
     community_id = db.Column(db.Integer, comment='所属社区ID，仅社区工作人员需要')
-    status = db.Column(db.Enum('active', 'disabled', name='user_status'), default='active', comment='用户状态：正常/禁用')
     created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 

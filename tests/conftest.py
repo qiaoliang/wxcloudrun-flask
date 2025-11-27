@@ -1,14 +1,18 @@
 # tests/conftest.py
 import pytest
-from wxcloudrun import app, db
+import os
+from wxcloudrun import app as original_app, db
 from wxcloudrun.model import Counters
 
 
 @pytest.fixture
 def client():
     """Create a test client for the app."""
+    # 确保测试环境变量已设置
+    os.environ['PYTEST_CURRENT_TEST'] = '1'
+    
+    app = original_app
     app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'  # Use in-memory database for testing
     app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF for testing
     
     with app.test_client() as client:

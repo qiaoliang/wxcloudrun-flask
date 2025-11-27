@@ -53,15 +53,17 @@
 
 #### 响应结果
 
-- `code`：错误码
+- `code`：状态码 (1为成功，0为失败)
 - `data`：当前计数值
+- `msg`：响应消息
 
 ##### 响应结果示例
 
 ```json
 {
-  "code": 0,
-  "data": 42
+  "code": 1,
+  "data": 42,
+  "msg": "success"
 }
 ```
 
@@ -93,15 +95,17 @@ curl https://<云托管服务域名>/api/count
 
 #### 响应结果
 
-- `code`：错误码
+- `code`：状态码 (1为成功，0为失败)
 - `data`：当前计数值
+- `msg`：响应消息
 
 ##### 响应结果示例
 
 ```json
 {
-  "code": 0,
-  "data": 42
+  "code": 1,
+  "data": 43,
+  "msg": "success"
 }
 ```
 
@@ -123,6 +127,18 @@ curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://
 ## 运行自动化测试
 
 项目包含全面的自动化测试套件，使用 pytest 框架。
+
+### 环境准备
+
+测试时建议使用 Python 3.12 虚拟环境 `venv_py312`：
+
+```bash
+# 激活 Python 3.12 虚拟环境
+source venv_py312/bin/activate
+
+# 或者如果使用 Windows
+# venv_py312\Scripts\activate
+```
 
 ### 安装测试依赖
 
@@ -167,6 +183,20 @@ python scripts/run_tests.py --coverage --html-report
 ```bash
 python scripts/run_tests.py tests/test_api.py --coverage
 ```
+
+### 测试结构
+
+项目包含以下测试模块：
+
+- `test_api.py`: API接口测试
+- `test_dao.py`: 数据访问层测试
+- `test_model.py`: 数据模型测试
+- `test_response.py`: 响应处理测试
+- `test_login.py`: 登录功能测试
+- `test_error_handling.py`: 错误处理测试
+- `test_integration.py`: 集成测试
+- `test_user_profile.py`: 用户信息功能测试
+- `conftest.py`: 测试配置和共享fixture
 
 ### 测试配置
 
