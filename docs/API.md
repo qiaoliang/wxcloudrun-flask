@@ -33,94 +33,49 @@
 }
 ```
 
-# API接口列表
+# API接口分类
 
-## 已实现的API接口
+## [API_Authentication.md](./API_Authentication.md)
+- 计数器接口
+- 微信小程序登录
+- 更新用户信息
 
-### 1. 计数器接口
+## [API_UserManagement.md](./API_UserManagement.md)
+- 手机号登录
+- 发送短信验证码
+- 设置用户角色
+- 获取用户信息
+- 社区工作人员身份验证
 
-#### 1.1 获取计数
+## [API_CheckinManagement.md](./API_CheckinManagement.md)
+- 获取今日打卡事项
+- 执行打卡
+- 撤销打卡
+- 获取打卡历史
+- 离线打卡数据同步
+- 打卡规则管理
 
-**状态**: ✅ 已实现  
-**接口地址**: `GET /api/count`  
-**接口描述**: 获取当前计数值  
-**请求参数**: 无  
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": 42,
-  "msg": "success"
-}
-```
+## [API_SupervisorManagement.md](./API_SupervisorManagement.md)
+- 邀请监护人
+- 申请成为监护人
+- 同意/拒绝监护人申请
+- 获取监护人列表
+- 监护人首页数据
+- 获取被监护人详情
+- 获取被监护人打卡记录
+- 监护人通知设置
 
-#### 1.2 更新计数
+## [API_CommunityManagement.md](./API_CommunityManagement.md)
+- 获取社区数据看板
+- 获取未打卡独居者列表
+- 批量发送提醒
+- 标记已联系状态
 
-**状态**: ✅ 已实现  
-**接口地址**: `POST /api/count`  
-**接口描述**: 更新计数值（自增或清零）  
-**请求参数**:
-```json
-{
-  "action": "inc"  // 或 "clear"
-}
-```
-**响应示例** (自增操作):
-```json
-{
-  "code": 1,
-  "data": 43,
-  "msg": "success"
-}
-```
-
-### 2. 用户认证接口
-
-#### 2.1 微信小程序登录
-
-**状态**: ✅ 已实现  
-**接口地址**: `POST /api/login`  
-**接口描述**: 通过微信小程序code获取用户信息并返回JWT token  
-**请求参数**:
-```json
-{
-  "code": "微信小程序登录凭证"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-  },
-  "msg": "success"
-}
-```
-
-#### 2.2 更新用户信息
-
-**状态**: ✅ 已实现（待完善）  
-**接口地址**: `POST /api/user/profile`  
-**接口描述**: 更新用户信息（头像、昵称等）  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "avatar_url": "用户头像URL",
-  "nickname": "用户昵称"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "message": "用户信息更新成功"
-  },
-  "msg": "success"
-}
-```
+## [API_NotificationSystem.md](./API_NotificationSystem.md)
+- 获取通知列表
+- 标记通知已读
+- 发送系统通知
+- 通知设置管理
 
 ## 待实现的API接口
 
