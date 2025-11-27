@@ -22,3 +22,8 @@ from wxcloudrun import views
 
 # 加载配置
 app.config.from_object('config')
+
+# 创建数据库表
+from wxcloudrun.model import Counters
+with app.app_context():
+    db.create_all()
