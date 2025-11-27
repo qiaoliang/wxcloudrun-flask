@@ -120,6 +120,62 @@ curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://
 
 
 
+## 运行自动化测试
+
+项目包含全面的自动化测试套件，使用 pytest 框架。
+
+### 安装测试依赖
+
+```bash
+pip install -r requirements-test.txt
+```
+
+### 运行测试
+
+1. **运行所有测试**:
+
+```bash
+pytest
+```
+
+或使用测试脚本:
+
+```bash
+python scripts/run_tests.py
+```
+
+2. **运行特定测试文件**:
+
+```bash
+pytest tests/test_api.py
+```
+
+3. **运行测试并生成覆盖率报告**:
+
+```bash
+python scripts/run_tests.py --coverage
+```
+
+4. **运行测试并生成 HTML 覆盖率报告**:
+
+```bash
+python scripts/run_tests.py --coverage --html-report
+```
+
+5. **运行特定测试文件并生成覆盖率报告**:
+
+```bash
+python scripts/run_tests.py tests/test_api.py --coverage
+```
+
+### 测试配置
+
+- 测试文件位于 `tests/` 目录
+- 测试文件命名遵循 `test_*.py` 模式
+- 项目使用 pytest 进行测试运行和管理
+- 覆盖率检查最低要求为 80%
+
+
 ## License
 
 [MIT](./LICENSE)
