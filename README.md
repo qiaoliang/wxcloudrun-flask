@@ -260,6 +260,21 @@ python scripts/run_tests.py --coverage --html-report
 python scripts/run_tests.py tests/test_api.py --coverage
 ```
 
+### 集成测试
+
+项目还提供了一个集成测试脚本，使用 docker-compose 启动开发环境并测试 API 功能：
+
+```bash
+# 运行集成测试
+python scripts/integration_test.py
+```
+
+该脚本会：
+- 启动 docker-compose 开发环境
+- 等待服务完全启动
+- 测试计数器 API 的所有功能（获取计数、自增、清零）
+- 自动清理资源
+
 ### 测试结构
 
 项目包含以下测试模块：
@@ -273,6 +288,7 @@ python scripts/run_tests.py tests/test_api.py --coverage
 - `test_integration.py`: 集成测试
 - `test_user_profile.py`: 用户信息功能测试
 - `conftest.py`: 测试配置和共享fixture
+- `integration_test.py`: 完整的集成测试脚本
 
 ### 测试配置
 
