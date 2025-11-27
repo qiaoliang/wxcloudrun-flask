@@ -26,120 +26,65 @@
 
 ## 2. 后端功能规格
 
+API详细接口规范请参考: [API.md](./API.md)
+
 ### 2.1 用户管理模块 (B-USER_001)
 
 #### 2.1.1 用户认证
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/login | 微信小程序登录认证 | POST | P0 |
-| /api/update_user_info | 更新用户基本信息 | POST | P0 |
-| /api/validate_token | Token验证中间件 | - | P0 |
-
-**接口详情**:
-
-**POST /api/login**
-- **功能**: 通过微信小程序 code 获取用户信息并返回 JWT token
-- **请求参数**:
-  ```json
-  {
-    "code": "微信小程序登录凭证"
-  }
-  ```
-- **响应示例**:
-  ```json
-  {
-    "code": 0,
-    "data": {
-      "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-      "openid": "用户微信openid",
-      "session_key": "微信会话密钥"
-    }
-  }
-  ```
-
-**POST /api/update_user_info**
-- **功能**: 更新用户头像和昵称信息
-- **请求参数**:
-  ```json
-  {
-    "token": "JWT令牌",
-    "avatar_url": "用户头像URL",
-    "nickname": "用户昵称"
-  }
-  ```
+- 微信小程序登录认证
+- 更新用户基本信息
+- Token验证中间件
 
 #### 2.1.2 用户角色管理
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/user/role | 设置用户角色 | POST | P0 |
-| /api/user/profile | 获取用户完整信息 | GET | P0 |
-| /api/community/verify | 社区工作人员身份验证 | POST | P1 |
+- 设置用户角色
+- 获取用户完整信息
+- 社区工作人员身份验证
 
 ### 2.2 打卡管理模块 (B-CHECKIN_001)
 
 #### 2.2.1 打卡记录管理
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/checkin | 提交打卡记录 | POST | P0 |
-| /api/checkin/list | 获取用户今日打卡列表 | GET | P0 |
-| /api/checkin/history | 获取历史打卡记录 | GET | P0 |
-| /api/checkin/revoke | 撤销打卡记录 | POST | P1 |
-| /api/checkin/sync | 离线打卡数据同步 | POST | P0 |
+- 提交打卡记录
+- 获取用户今日打卡列表
+- 获取历史打卡记录
+- 撤销打卡记录
+- 离线打卡数据同步
 
 #### 2.2.2 打卡规则管理
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/rules | 获取用户打卡规则 | GET | P0 |
-| /api/rules/create | 创建打卡规则 | POST | P0 |
-| /api/rules/update | 更新打卡规则 | PUT | P0 |
-| /api/rules/delete | 删除打卡规则 | DELETE | P0 |
-| /api/rules/default | 获取默认打卡规则 | GET | P1 |
+- 获取用户打卡规则
+- 创建打卡规则
+- 更新打卡规则
+- 删除打卡规则
+- 获取默认打卡规则
 
 ### 2.3 监护关系管理模块 (B-SUPERVISOR_001)
 
 #### 2.3.1 监护关系操作
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/supervisor/invite | 邀请监护人 | POST | P0 |
-| /api/supervisor/apply | 申请成为监护人 | POST | P1 |
-| /api/supervisor/accept | 同意监护人申请 | POST | P0 |
-| /api/supervisor/reject | 拒绝监护人申请 | POST | P0 |
-| /api/supervisor/list | 获取监护人列表 | GET | P0 |
-| /api/supervisor/remove | 移除监护人关系 | DELETE | P0 |
+- 邀请监护人
+- 申请成为监护人
+- 同意监护人申请
+- 拒绝监护人申请
+- 获取监护人列表
+- 移除监护人关系
 
 #### 2.3.2 监护人功能
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/supervisor/dashboard | 监护人首页数据 | GET | P0 |
-| /api/supervisor/detail | 获取被监护人详情 | GET | P0 |
-| /api/supervisor/records | 获取被监护人打卡记录 | GET | P0 |
-| /api/supervisor/settings | 监护人通知设置 | POST | P0 |
+- 监护人首页数据
+- 获取被监护人详情
+- 获取被监护人打卡记录
+- 监护人通知设置
 
 ### 2.4 社区管理模块 (B-COMMUNITY_001)
 
 #### 2.4.1 数据看板
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/community/dashboard | 社区数据看板 | GET | P0 |
-| /api/community/unchecked | 获取未打卡独居者列表 | GET | P0 |
-| /api/community/notify | 批量发送提醒 | POST | P0 |
-| /api/community/mark_contacted | 标记已联系状态 | POST | P1 |
+- 社区数据看板
+- 获取未打卡独居者列表
+- 批量发送提醒
+- 标记已联系状态
 
 ### 2.5 通知系统模块 (B-NOTIFICATION_001)
-
-| API接口 | 功能描述 | 请求方法 | 优先级 |
-|---------|---------|---------|--------|
-| /api/notifications | 获取用户通知列表 | GET | P0 |
-| /api/notifications/read | 标记通知已读 | POST | P0 |
-| /api/notifications/send | 发送系统通知 | POST | P0 |
-| /api/notifications/settings | 通知设置管理 | POST | P0 |
+- 获取用户通知列表
+- 标记通知已读
+- 发送系统通知
+- 通知设置管理
 
 ## 3. 数据库设计
 
