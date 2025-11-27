@@ -1,6 +1,6 @@
 # wxcloudrun-flask
 [![GitHub license](https://img.shields.io/github/license/WeixinCloud/wxcloudrun-express)](https://github.com/WeixinCloud/wxcloudrun-express)
-![GitHub package.json dependency version (prod)](https://img.shields.io/badge/python-3.7.3-green)
+![GitHub package.json dependency version (prod)](https://img.shields.io/badge/python-3.12.11-green)
 
 微信云托管 python Flask 框架模版，实现简单的计数器读写接口，使用云托管 MySQL 读写、记录计数值。
 
