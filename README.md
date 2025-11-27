@@ -222,18 +222,18 @@ source venv_py312/bin/activate
 pip install -r requirements-test.txt
 ```
 
-### 运行测试
+### 运行单元测试
 
-1. **运行所有测试**:
+1. **运行所有单元测试**:
 
 ```bash
 pytest
 ```
 
-或使用测试脚本:
+或使用单元测试脚本:
 
 ```bash
-python scripts/run_tests.py
+python scripts/unit_tests.py
 ```
 
 2. **运行特定测试文件**:
@@ -242,37 +242,50 @@ python scripts/run_tests.py
 pytest tests/test_api.py
 ```
 
-3. **运行测试并生成覆盖率报告**:
+3. **运行单元测试并生成覆盖率报告**:
 
 ```bash
-python scripts/run_tests.py --coverage
+python scripts/unit_tests.py --coverage
 ```
 
-4. **运行测试并生成 HTML 覆盖率报告**:
+4. **运行单元测试并生成 HTML 覆盖率报告**:
 
 ```bash
-python scripts/run_tests.py --coverage --html-report
+python scripts/unit_tests.py --coverage --html-report
 ```
 
 5. **运行特定测试文件并生成覆盖率报告**:
 
 ```bash
-python scripts/run_tests.py tests/test_api.py --coverage
+python scripts/unit_tests.py tests/test_api.py --coverage
 ```
 
-### 集成测试
+### 运行 Docker 集成测试
 
-项目还提供了一个集成测试脚本，使用 docker-compose 启动开发环境并测试 API 功能：
+项目还包含 Docker 集成测试，使用 docker-compose 启动开发环境并测试 API 功能：
 
 ```bash
-# 运行集成测试
-python scripts/integration_test.py
+# 运行 Docker 集成测试（需要 Docker 环境）
+pytest tests/integration_test_docker.py
 ```
 
-该脚本会：
+或使用集成测试脚本（先运行单元测试，通过后再运行集成测试）:
+
+```bash
+python scripts/run_tests.py
+```
+
+这些测试会：
 - 启动 docker-compose 开发环境
 - 等待服务完全启动
 - 测试计数器 API 的所有功能（获取计数、自增、清零）
+- 自动清理资源
+
+运行完整测试流程并生成覆盖率报告：
+
+```bash
+python scripts/run_tests.py --coverage
+```
 - 自动清理资源
 
 ### 测试结构
@@ -287,8 +300,15 @@ python scripts/integration_test.py
 - `test_error_handling.py`: 错误处理测试
 - `test_integration.py`: 集成测试
 - `test_user_profile.py`: 用户信息功能测试
+- `integration_test_docker.py`: Docker 集成测试
 - `conftest.py`: 测试配置和共享fixture
-- `integration_test.py`: 完整的集成测试脚本
+
+### 测试脚本
+
+项目提供以下测试脚本：
+
+- `scripts/unit_tests.py`: 专门运行单元测试（无需 Docker 环境）
+- `scripts/run_tests.py`: 运行完整测试流程（先运行单元测试，通过后再运行 Docker 集成测试）
 
 ### 测试配置
 
