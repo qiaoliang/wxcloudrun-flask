@@ -39,15 +39,30 @@ def test_login_endpoint(client):
 
 def test_user_profile_endpoint(client):
     """Test the update user info endpoint."""
+    from wxcloudrun.model import User
+    from wxcloudrun import db
+    
     # First, get a valid token by mocking the login
+    openid = 'mock_openid_123_test_user_profile'
     mock_wx_response = {
-        'openid': 'mock_openid_123',
+        'openid': openid,
         'session_key': 'mock_session_key_456'
     }
     
     with patch('wxcloudrun.views.requests.get') as mock_get:
         mock_get.return_value.json.return_value = mock_wx_response
         mock_get.return_value.status_code = 200
+        
+        # Create a user first
+        test_user = User(
+            wechat_openid=openid,
+            nickname='Test User',
+            avatar_url='https://example.com/avatar.jpg',
+            role='solo',
+            status='active'
+        )
+        db.session.add(test_user)
+        db.session.commit()
         
         # Get a token
         login_response = client.post('/api/login', 
@@ -68,6 +83,10 @@ def test_user_profile_endpoint(client):
         data = response.get_json()
         assert data['code'] == 1  # Success code is 1 based on response.py
         assert data['msg'] == 'success'  # Success response has 'msg' field based on response.py
+        
+        # Clean up: remove the test user
+        db.session.delete(test_user)
+        db.session.commit()
 
 
 def test_user_profile_missing_token(client):
@@ -94,7 +113,7 @@ def test_user_profile_missing_token_param(client):
     assert response.status_code == 200
     data = response.get_json()
     assert data['code'] == 0  # Error response code is 0 based on response.py
-    assert '缺少请求体参数' in data['msg']  # Error message for missing params (empty dict is falsy)
+    assert '缺少token参数' in data['msg']  # Error message for missing token (empty dict still missing token)
 
 
 def test_user_profile_invalid_token(client):

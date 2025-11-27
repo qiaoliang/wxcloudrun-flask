@@ -9,9 +9,15 @@ from wxcloudrun.model import User
 
 def test_update_user_profile_endpoint(client):
     """Test the update user profile endpoint."""
-    # Create a test user first
+    # First, clean up any existing user with the same openid
+    existing_user = User.query.filter_by(wechat_openid='test_openid_123_update').first()
+    if existing_user:
+        db.session.delete(existing_user)
+        db.session.commit()
+    
+    # Create a test user first with a unique identifier for this test
     test_user = User(
-        wechat_openid='test_openid_123',
+        wechat_openid='test_openid_123_update',
         nickname='Original Name',
         avatar_url='https://example.com/original.jpg',
         role='solo',
@@ -22,7 +28,7 @@ def test_update_user_profile_endpoint(client):
 
     # Create a valid token
     token_payload = {
-        'openid': 'test_openid_123',
+        'openid': 'test_openid_123_update',  # Match the openid to the test user
         'session_key': 'test_session_key'
     }
     token = jwt.encode(token_payload, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithm='HS256')
@@ -33,30 +39,40 @@ def test_update_user_profile_endpoint(client):
                               'token': token,
                               'nickname': 'Updated Name',
                               'avatar_url': 'https://example.com/updated.jpg',
-                              'phone_number': '13800138000'
+                              'phone_number': '13900139000'  # 使用唯一电话号码
                           },
                           content_type='application/json')
     
     assert response.status_code == 200
     data = response.get_json()
     assert data['code'] == 1  # Success code is 1 based on response.py
-    assert '用户信息更新成功' in data['msg']
+    assert data['msg'] == 'success'
     
     # Verify the user was updated in the database
-    updated_user = User.query.filter_by(wechat_openid='test_openid_123').first()
+    updated_user = User.query.filter_by(wechat_openid='test_openid_123_update').first()
     assert updated_user.nickname == 'Updated Name'
     assert updated_user.avatar_url == 'https://example.com/updated.jpg'
-    assert updated_user.phone_number == '13800138000'
+    assert updated_user.phone_number == '13900139000'
+    
+    # Clean up: remove the test user
+    db.session.delete(updated_user)
+    db.session.commit()
 
 
 def test_update_user_profile_partial_fields(client):
     """Test updating only some fields in user profile."""
-    # Create a test user first
+    # First, clean up any existing user with the same openid
+    existing_user = User.query.filter_by(wechat_openid='test_openid_456_partial').first()
+    if existing_user:
+        db.session.delete(existing_user)
+        db.session.commit()
+    
+    # Create a test user first with a unique identifier for this test
     test_user = User(
-        wechat_openid='test_openid_456',
+        wechat_openid='test_openid_456_partial',
         nickname='Original Name',
         avatar_url='https://example.com/original.jpg',
-        phone_number='13700137000',
+        phone_number='13800138001',  # 使用唯一电话号码
         role='solo',
         status='active'
     )
@@ -65,7 +81,7 @@ def test_update_user_profile_partial_fields(client):
 
     # Create a valid token
     token_payload = {
-        'openid': 'test_openid_456',
+        'openid': 'test_openid_456_partial',  # Match the openid to the test user
         'session_key': 'test_session_key'
     }
     token = jwt.encode(token_payload, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithm='HS256')
@@ -81,13 +97,17 @@ def test_update_user_profile_partial_fields(client):
     assert response.status_code == 200
     data = response.get_json()
     assert data['code'] == 1
-    assert '用户信息更新成功' in data['msg']
+    assert data['msg'] == 'success'
     
     # Verify only nickname was updated
-    updated_user = User.query.filter_by(wechat_openid='test_openid_456').first()
+    updated_user = User.query.filter_by(wechat_openid='test_openid_456_partial').first()
     assert updated_user.nickname == 'Partially Updated Name'
     assert updated_user.avatar_url == 'https://example.com/original.jpg'  # Should remain unchanged
-    assert updated_user.phone_number == '13700137000'  # Should remain unchanged
+    assert updated_user.phone_number == '13800138001'  # Should remain unchanged
+    
+    # Clean up: remove the test user
+    db.session.delete(updated_user)
+    db.session.commit()
 
 
 def test_update_user_profile_missing_token(client):
