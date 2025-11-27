@@ -124,6 +124,56 @@ curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://
 
 
 
+## Docker Compose 本地开发模式
+
+使用本地挂载方式的 Docker Compose 进行开发，可以实现代码实时更新，无需重新构建镜像。
+
+### 环境准备
+
+确保已安装 Docker 和 Docker Compose，并配置必要的环境变量：
+
+```bash
+# 在项目根目录创建 .env 文件，配置环境变量
+echo "MYSQL_PASSWORD=your_mysql_password" >> .env
+echo "WX_APPID=your_wechat_appid" >> .env
+echo "WX_SECRET=your_wechat_secret" >> .env
+echo "TOKEN_SECRET=your_jwt_secret" >> .env
+```
+
+### 本地开发模式运行
+
+使用开发配置文件启动服务，该配置会将本地代码目录挂载到容器中，实现代码实时更新：
+
+```bash
+# 启动开发模式（本地挂载）
+docker-compose -f docker-compose.dev.yml up --build
+
+# 或在后台运行
+docker-compose -f docker-compose.dev.yml up --build -d
+```
+
+### 本地开发模式停止
+
+```bash
+# 停止开发模式服务
+docker-compose -f docker-compose.dev.yml down
+
+# 停止并删除挂载的数据卷
+docker-compose -f docker-compose.dev.yml down -v
+```
+
+### 生产模式运行
+
+如果需要运行生产模式（不使用本地挂载，使用构建的镜像）：
+
+```bash
+# 启动生产模式服务
+docker-compose up --build
+
+# 或在后台运行
+docker-compose up --build -d
+```
+
 ## 运行自动化测试
 
 项目包含全面的自动化测试套件，使用 pytest 框架。
