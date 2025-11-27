@@ -91,19 +91,94 @@ def login():
     # 在日志中打印code参数
     app.logger.info(f'login code: {code}')
 
-    # 构造返回数据，包含bannerlist
+    # 调用微信API获取用户信息
+    try:
+        import config
+        wx_url = f'https://api.weixin.qq.com/sns/jscode2session?appid={config.WX_APPID}&secret={config.WX_SECRET}&js_code={code}&grant_type=authorization_code'
+
+        # 发送请求到微信API
+        wx_response = requests.get(wx_url, timeout=10)
+        wx_data = wx_response.json()
+
+        app.logger.info(f'微信API响应: {wx_data}')
+
+        # 检查微信API返回的错误
+        if 'errcode' in wx_data:
+            app.logger.error(f'微信API返回错误: {wx_data}')
+            return make_err_response({}, f'微信API错误: {wx_data.get("errmsg", "未知错误")}')
+
+        # 获取openid和session_key
+        openid = wx_data.get('openid')
+        session_key = wx_data.get('session_key')
+
+        if not openid or not session_key:
+            app.logger.error(f'微信API返回数据不完整: {wx_data}')
+            return make_err_response({}, '微信API返回数据不完整')
+
+        # 生成JWT token
+        token_payload = {
+            'openid': openid,
+            'session_key': session_key
+        }
+        token = jwt.encode(token_payload, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithm='HS256')
+    except Exception as e:
+        app.logger.error(f'调用微信API时发生错误: {str(e)}')
+        return make_err_response({}, f'调用微信API失败: {str(e)}')
+
+    # 构造返回数据，包含用户的 token
     response_data = {
-        'bannerlist': [
-            {
-                'image': 'http://159.75.169.224:5800/comfyUI_00012.png',
-                'title': '长白山上白云飞，疑似瑶池落翠微'
-            },
-            {
-                'image': 'http://159.75.169.224:5800/comfyUI_00011.png',
-                'title': '天池如镜映苍穹，碧水连天接远峰。'
-            }
-        ]
+        'token': token,
     }
     # 返回自定义格式的响应
     return make_succ_response(response_data)
+
+
+@app.route('/api/update_user_info', methods=['POST'])
+def update_user_info():
+    """
+    更新用户信息接口，接收前端传递的用户头像和昵称
+    :return: 更新结果
+    """
+    # 在日志中打印请求
+    app.logger.info(f'update_user_info 请求参数: {request.get_json()}')
+
+    # 获取请求体参数
+    params = request.get_json()
+    if not params:
+        return make_err_response({}, '缺少请求体参数')
+
+    # 验证token
+    token = params.get('token')
+    if not token:
+        return make_err_response({}, '缺少token参数')
+
+    try:
+        # 解码token
+        token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
+        decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
+        openid = decoded.get('openid')
+
+        if not openid:
+            return make_err_response({}, 'token无效')
+
+        # 获取用户信息
+        avatar_url = params.get('avatar_url')
+        nickname = params.get('nickname')
+
+        if not avatar_url or not nickname:
+            return make_err_response({}, '缺少用户头像或昵称')
+
+        # 更新用户信息（这里可以保存到数据库）
+        # 目前只是返回成功响应
+        app.logger.info(f'用户 {openid} 更新信息: 头像={avatar_url}, 昵称={nickname}')
+
+        return make_succ_response({'message': '用户信息更新成功'})
+
+    except jwt.ExpiredSignatureError:
+        return make_err_response({}, 'token已过期')
+    except jwt.InvalidTokenError:
+        return make_err_response({}, 'token无效')
+    except Exception as e:
+        app.logger.error(f'更新用户信息时发生错误: {str(e)}')
+        return make_err_response({}, f'更新用户信息失败: {str(e)}')
 
