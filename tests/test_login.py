@@ -37,7 +37,7 @@ def test_login_endpoint(client):
         assert decoded['session_key'] == 'mock_session_key_456'
 
 
-def test_update_user_info_endpoint(client):
+def test_user_profile_endpoint(client):
     """Test the update user info endpoint."""
     # First, get a valid token by mocking the login
     mock_wx_response = {
@@ -56,7 +56,7 @@ def test_update_user_info_endpoint(client):
         token = login_response.get_json()['data']['token']
         
         # Now test update user info with the token
-        response = client.post('/api/update_user_info',
+        response = client.post('/api/user/profile',
                               json={
                                   'token': token,
                                   'avatar_url': 'https://example.com/avatar.jpg',
@@ -70,9 +70,9 @@ def test_update_user_info_endpoint(client):
         assert data['msg'] == 'success'  # Success response has 'msg' field based on response.py
 
 
-def test_update_user_info_missing_token(client):
+def test_user_profile_missing_token(client):
     """Test update user info endpoint without token."""
-    response = client.post('/api/update_user_info',
+    response = client.post('/api/user/profile',
                           json={
                               'avatar_url': 'https://example.com/avatar.jpg',
                               'nickname': 'Test User'
@@ -85,9 +85,9 @@ def test_update_user_info_missing_token(client):
     assert '缺少token参数' in data['msg']  # Error message for missing token (not missing params since body is provided)
 
 
-def test_update_user_info_missing_token_param(client):
+def test_user_profile_missing_token_param(client):
     """Test update user info endpoint with empty request body but valid structure."""
-    response = client.post('/api/update_user_info',
+    response = client.post('/api/user/profile',
                           json={},
                           content_type='application/json')
     
@@ -97,9 +97,9 @@ def test_update_user_info_missing_token_param(client):
     assert '缺少请求体参数' in data['msg']  # Error message for missing params (empty dict is falsy)
 
 
-def test_update_user_info_invalid_token(client):
+def test_user_profile_invalid_token(client):
     """Test update user info endpoint with invalid token."""
-    response = client.post('/api/update_user_info',
+    response = client.post('/api/user/profile',
                           json={
                               'token': 'invalid_token',
                               'avatar_url': 'https://example.com/avatar.jpg',
