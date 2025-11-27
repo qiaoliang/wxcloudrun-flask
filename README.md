@@ -265,8 +265,14 @@ python scripts/unit_tests.py tests/test_api.py --coverage
 项目还包含 Docker 集成测试，使用 docker-compose 启动开发环境并测试 API 功能：
 
 ```bash
-# 运行 Docker 集成测试（需要 Docker 环境）
-pytest tests/integration_test_docker.py
+# 运行计数器 API Docker 集成测试（需要 Docker 环境）
+pytest tests/integration_test_counter.py
+
+# 运行登录 API Docker 集成测试（需要 Docker 环境）
+pytest tests/integration_test_login.py
+
+# 运行所有 Docker 集成测试
+pytest tests/integration_test_counter.py tests/integration_test_login.py
 ```
 
 或使用集成测试脚本（先运行单元测试，通过后再运行集成测试）:
@@ -278,7 +284,7 @@ python scripts/run_tests.py
 这些测试会：
 - 启动 docker-compose 开发环境
 - 等待服务完全启动
-- 测试计数器 API 的所有功能（获取计数、自增、清零）
+- 测试相应的 API 功能
 - 自动清理资源
 
 运行完整测试流程并生成覆盖率报告：
@@ -300,7 +306,8 @@ python scripts/run_tests.py --coverage
 - `test_error_handling.py`: 错误处理测试
 - `test_integration.py`: 集成测试
 - `test_user_profile.py`: 用户信息功能测试
-- `integration_test_docker.py`: Docker 集成测试
+- `integration_test_counter.py`: 计数器 API Docker 集成测试
+- `integration_test_login.py`: 登录 API Docker 集成测试
 - `conftest.py`: 测试配置和共享fixture
 
 ### 测试脚本

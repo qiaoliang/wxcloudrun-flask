@@ -42,13 +42,14 @@ def run_complete_test_suite(with_coverage=False, html_report=False, min_coverage
     # 第二步：运行集成测试（仅当单元测试通过时）
     print("\n🐳 运行 Docker 集成测试...")
     
-    integration_test_cmd = [sys.executable, '-m', 'pytest', 'tests/integration_test_docker.py', '-v']
+    integration_test_cmd = [sys.executable, '-m', 'pytest', 'tests/integration_test_counter.py', 'tests/integration_test_login.py', '-v']
     
     if with_coverage:
         # For integration tests, run with coverage
         integration_test_cmd = [sys.executable, '-m', 'pytest']
         integration_test_cmd.extend([
-            'tests/integration_test_docker.py',
+            'tests/integration_test_counter.py',
+            'tests/integration_test_login.py',
             '--cov=wxcloudrun',
             f'--cov-fail-under={min_coverage}'
         ])

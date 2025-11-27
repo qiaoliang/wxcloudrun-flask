@@ -1,5 +1,5 @@
 """
-Docker 集成测试模块：使用 docker-compose 启动开发环境并测试计数器 API 功能
+计数器 API 集成测试模块：使用 docker-compose 启动开发环境并测试计数器 API 功能
 """
 import os
 import time
