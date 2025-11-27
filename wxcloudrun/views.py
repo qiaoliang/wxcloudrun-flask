@@ -5,8 +5,8 @@ import os
 from dotenv import load_dotenv
 from flask import render_template, request
 from wxcloudrun import app
-from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter, update_counterbyid
-from wxcloudrun.model import Counters
+from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter, update_counterbyid, query_user_by_openid, insert_user, update_user_by_id
+from wxcloudrun.model import Counters, User
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
 
 # 加载环境变量
@@ -133,6 +133,96 @@ def login():
     return make_succ_response(response_data)
 
 
+@app.route('/api/user/profile', methods=['GET', 'POST'])
+def user_profile():
+    """
+    用户信息接口，支持获取和更新用户信息
+    GET: 获取用户信息
+    POST: 更新用户信息
+    """
+    # 获取请求体参数
+    params = request.get_json() if request.get_json() else {}
+
+    # 验证token
+    token = params.get('token') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    if not token:
+        return make_err_response({}, '缺少token参数')
+
+    try:
+        # 解码token
+        token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
+        decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
+        openid = decoded.get('openid')
+
+        if not openid:
+            return make_err_response({}, 'token无效')
+
+        # 根据HTTP方法决定操作
+        if request.method == 'GET':
+            # 查询用户信息
+            user = query_user_by_openid(openid)
+            if not user:
+                return make_err_response({}, '用户不存在')
+
+            # 返回用户信息
+            user_data = {
+                'user_id': user.user_id,
+                'wechat_openid': user.wechat_openid,
+                'phone_number': user.phone_number,
+                'nickname': user.nickname,
+                'avatar_url': user.avatar_url,
+                'role': user.role,
+                'community_id': user.community_id,
+                'status': user.status
+            }
+            
+            return make_succ_response(user_data)
+
+        elif request.method == 'POST':
+            # 查询用户
+            user = query_user_by_openid(openid)
+            if not user:
+                return make_err_response({}, '用户不存在')
+
+            # 获取可更新的用户信息（只更新非空字段）
+            nickname = params.get('nickname')
+            avatar_url = params.get('avatar_url')
+            phone_number = params.get('phone_number')
+            role = params.get('role')
+            community_id = params.get('community_id')
+            status = params.get('status')
+
+            # 更新用户信息到数据库
+            if nickname is not None:
+                user.nickname = nickname
+            if avatar_url is not None:
+                user.avatar_url = avatar_url
+            if phone_number is not None:
+                user.phone_number = phone_number
+            if role is not None:
+                user.role = role
+            if community_id is not None:
+                user.community_id = community_id
+            if status is not None:
+                user.status = status
+            user.updated_at = datetime.now()
+
+            # 保存到数据库
+            update_user_by_id(user)
+
+            app.logger.info(f'用户 {openid} 信息更新成功')
+
+            return make_succ_response({'message': '用户信息更新成功'})
+
+    except jwt.ExpiredSignatureError:
+        return make_err_response({}, 'token已过期')
+    except jwt.InvalidTokenError:
+        return make_err_response({}, 'token无效')
+    except Exception as e:
+        app.logger.error(f'处理用户信息时发生错误: {str(e)}')
+        return make_err_response({}, f'处理用户信息失败: {str(e)}')
+
+
 @app.route('/api/update_user_info', methods=['POST'])
 def update_user_info():
     """
@@ -168,8 +258,28 @@ def update_user_info():
         if not avatar_url or not nickname:
             return make_err_response({}, '缺少用户头像或昵称')
 
-        # 更新用户信息（这里可以保存到数据库）
-        # 目前只是返回成功响应
+        # 查询用户
+        user = query_user_by_openid(openid)
+        if not user:
+            # 如果用户不存在，创建新用户
+            from wxcloudrun.dao import insert_user
+            user = User()
+            user.wechat_openid = openid
+            user.nickname = nickname
+            user.avatar_url = avatar_url
+            user.role = 'solo'  # 默认角色
+            user.status = 'active'  # 默认状态
+            insert_user(user)
+        else:
+            # 更新现有用户信息
+            if nickname is not None:
+                user.nickname = nickname
+            if avatar_url is not None:
+                user.avatar_url = avatar_url
+            user.updated_at = datetime.now()
+            
+            update_user_by_id(user)
+
         app.logger.info(f'用户 {openid} 更新信息: 头像={avatar_url}, 昵称={nickname}')
 
         return make_succ_response({'message': '用户信息更新成功'})
