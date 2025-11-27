@@ -174,6 +174,32 @@ docker-compose up --build
 docker-compose up --build -d
 ```
 
+## 数据库配置
+
+本项目支持两种数据库环境：
+
+### 生产环境
+- 使用 MySQL 数据库
+- 角色和状态字段使用整数类型存储
+- 通过环境变量配置数据库连接信息
+
+### 测试环境
+- 使用 SQLite 内存数据库
+- 角色和状态字段同样使用整数类型存储（与生产环境保持一致）
+- 在运行测试时自动设置 `FLASK_ENV=testing` 或 `PYTEST_CURRENT_TEST` 环境变量
+
+### 运行自动化测试
+
+运行测试时，系统会自动使用 SQLite 内存数据库，无需额外配置：
+
+```bash
+# 运行所有测试
+pytest
+
+# 或使用测试脚本
+python scripts/run_tests.py
+```
+
 ## 运行自动化测试
 
 项目包含全面的自动化测试套件，使用 pytest 框架。

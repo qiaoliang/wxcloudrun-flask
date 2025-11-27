@@ -171,9 +171,9 @@ def user_profile():
                 'phone_number': user.phone_number,
                 'nickname': user.nickname,
                 'avatar_url': user.avatar_url,
-                'role': user.role,
+                'role': user.role_name,  # 返回字符串形式的角色名
                 'community_id': user.community_id,
-                'status': user.status
+                'status': user.status_name  # 返回字符串形式的状态名
             }
             
             return make_succ_response(user_data)
@@ -200,11 +200,23 @@ def user_profile():
             if phone_number is not None:
                 user.phone_number = phone_number
             if role is not None:
-                user.role = role
+                # 如果传入的是字符串，转换为对应的整数值
+                if isinstance(role, str):
+                    role_value = User.get_role_value(role)
+                    if role_value is not None:
+                        user.role = role_value
+                elif isinstance(role, int):
+                    user.role = role
             if community_id is not None:
                 user.community_id = community_id
             if status is not None:
-                user.status = status
+                # 如果传入的是字符串，转换为对应的整数值
+                if isinstance(status, str):
+                    status_value = User.get_status_value(status)
+                    if status_value is not None:
+                        user.status = status_value
+                elif isinstance(status, int):
+                    user.status = status
             user.updated_at = datetime.now()
 
             # 保存到数据库

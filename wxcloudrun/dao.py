@@ -119,11 +119,23 @@ def update_user_by_id(user):
         if user.phone_number is not None:
             existing_user.phone_number = user.phone_number
         if user.role is not None:
-            existing_user.role = user.role
+            # 如果传入的是字符串，转换为对应的整数值
+            if isinstance(user.role, str):
+                role_value = User.get_role_value(user.role)
+                if role_value is not None:
+                    existing_user.role = role_value
+            elif isinstance(user.role, int):
+                existing_user.role = user.role
         if user.community_id is not None:
             existing_user.community_id = user.community_id
         if user.status is not None:
-            existing_user.status = user.status
+            # 如果传入的是字符串，转换为对应的整数值
+            if isinstance(user.status, str):
+                status_value = User.get_status_value(user.status)
+                if status_value is not None:
+                    existing_user.status = status_value
+            elif isinstance(user.status, int):
+                existing_user.status = user.status
         existing_user.updated_at = user.updated_at or datetime.now()
         
         db.session.flush()

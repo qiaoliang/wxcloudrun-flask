@@ -28,15 +28,11 @@ class User(db.Model):
     nickname = db.Column(db.String(100), comment='用户昵称')
     avatar_url = db.Column(db.String(500), comment='用户头像URL')
     
-    # 根据环境选择列类型以兼容 SQLite（测试）和 MySQL（生产）
-    if os.environ.get('PYTEST_CURRENT_TEST') or os.environ.get('FLASK_ENV') == 'testing':
-        # 在测试环境中使用 String 类型以兼容 SQLite
-        role = db.Column(db.String(20), nullable=False, comment='用户角色：独居者/监护人/社区工作人员')
-        status = db.Column(db.String(20), default='active', comment='用户状态：正常/禁用')
-    else:
-        # 在生产环境中使用 Enum 类型
-        role = db.Column(db.Enum('solo', 'supervisor', 'community', name='user_role'), nullable=False, comment='用户角色：独居者/监护人/社区工作人员')
-        status = db.Column(db.Enum('active', 'disabled', name='user_status'), default='active', comment='用户状态：正常/禁用')
+    # 使用整数类型存储角色和状态，避免在不同数据库间使用不同字段类型
+    # 角色: 1-独居者, 2-监护人, 3-社区工作人员
+    role = db.Column(db.Integer, nullable=False, comment='用户角色：1-独居者/2-监护人/3-社区工作人员')
+    # 状态: 1-正常, 2-禁用
+    status = db.Column(db.Integer, default=1, comment='用户状态：1-正常/2-禁用')
     
     community_id = db.Column(db.Integer, comment='所属社区ID，仅社区工作人员需要')
     created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
@@ -48,3 +44,42 @@ class User(db.Model):
         db.Index('idx_phone', 'phone_number'),    # 手机号索引，支持手机号登录
         db.Index('idx_role', 'role'),             # 角色索引，支持按角色查询
     )
+
+    # 角色映射
+    ROLE_MAPPING = {
+        1: 'solo',
+        2: 'supervisor',
+        3: 'community'
+    }
+
+    # 状态映射
+    STATUS_MAPPING = {
+        1: 'active',
+        2: 'disabled'
+    }
+
+    @property
+    def role_name(self):
+        """获取角色名称"""
+        return self.ROLE_MAPPING.get(self.role, 'unknown')
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
+
+    @classmethod
+    def get_role_value(cls, role_name):
+        """根据角色名称获取角色值"""
+        for value, name in cls.ROLE_MAPPING.items():
+            if name == role_name:
+                return value
+        return None
+
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
+                return value
+        return None
