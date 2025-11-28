@@ -88,6 +88,11 @@ def login():
     code = params.get('code')
     if not code:
         return make_err_response({},'缺少code参数')
+        
+    # 获取可能传递的用户信息
+    nickname = params.get('nickname')
+    avatar_url = params.get('avatar_url')
+    
     # 在日志中打印code参数
     app.logger.info(f'login code: {code}')
 
@@ -115,6 +120,35 @@ def login():
             app.logger.error(f'微信API返回数据不完整: {wx_data}')
             return make_err_response({}, '微信API返回数据不完整')
 
+        # 检查用户是否已存在
+        existing_user = query_user_by_openid(openid)
+        is_new = not bool(existing_user)
+        
+        if not existing_user:
+            # 创建新用户
+            user = User(
+                wechat_openid=openid,
+                nickname=nickname,
+                avatar_url=avatar_url,
+                role=1,  # 默认为独居者角色
+                status=1  # 默认为正常状态
+            )
+            insert_user(user)
+            app.logger.info(f'新用户创建成功，openid: {openid}')
+        else:
+            # 更新现有用户信息（如果提供了新的头像或昵称）
+            user = existing_user
+            updated = False
+            if nickname and user.nickname != nickname:
+                user.nickname = nickname
+                updated = True
+            if avatar_url and user.avatar_url != avatar_url:
+                user.avatar_url = avatar_url
+                updated = True
+            if updated:
+                update_user_by_id(user)
+                app.logger.info(f'用户信息更新成功，openid: {openid}')
+
         # 生成JWT token
         token_payload = {
             'openid': openid,
@@ -128,6 +162,8 @@ def login():
     # 构造返回数据，包含用户的 token
     response_data = {
         'token': token,
+        'user_id': user.user_id,
+        'is_new_user': is_new  # 标识是否为新用户
     }
     # 返回自定义格式的响应
     return make_succ_response(response_data)
