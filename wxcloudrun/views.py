@@ -373,6 +373,20 @@ def user_profile():
         app.logger.error(f'token已过期: {str(e)}')
         return make_err_response({}, 'token已过期')
     except jwt.InvalidTokenError as e:
+        # 关键：打印具体错误类型和描述
+        error_type = type(e).__name__
+        error_msg = str(e)
+        app.logger.error(f"具体错误类型：{error_type}")
+        app.logger.error(f"错误描述：{error_msg}")
+
+        # 针对性处理示例（根据错误类型分支）
+        if error_type == "ExpiredSignatureError":
+            app.logger.error("解决方案：Token 已过期，需重新获取")
+        elif error_type == "InvalidSignatureError":
+            app.logger.error("解决方案：检查密钥是否一致、是否有不可见字符")
+        elif error_type == "DecodeError":
+            app.logger.error("解决方案：检查 Token 格式是否为完整三段式")
+
         app.logger.error(f'token无效: {str(e)}')
         return make_err_response({}, 'token无效')
     except Exception as e:
