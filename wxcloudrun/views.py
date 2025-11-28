@@ -101,8 +101,8 @@ def login():
         import config
         wx_url = f'https://api.weixin.qq.com/sns/jscode2session?appid={config.WX_APPID}&secret={config.WX_SECRET}&js_code={code}&grant_type=authorization_code'
 
-        # 发送请求到微信API
-        wx_response = requests.get(wx_url, timeout=10)
+        # 发送请求到微信API，禁用SSL验证以解决证书问题（仅用于开发测试环境）
+        wx_response = requests.get(wx_url, timeout=10, verify=False)
         wx_data = wx_response.json()
 
         app.logger.info(f'微信API响应: {wx_data}')
