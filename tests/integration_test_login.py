@@ -87,9 +87,14 @@ def test_user_profile_api(docker_compose_env: str):
     base_url = docker_compose_env
     
     # 先尝试获取一个不存在的用户信息（使用模拟的 token）
+    import datetime
     fake_token = jwt.encode(
-        {'openid': 'nonexistent_openid', 'session_key': 'fake_key'},
-        os.environ.get('TOKEN_SECRET', 'test_token_secret'),
+        {
+            'openid': 'nonexistent_openid', 
+            'session_key': 'fake_key',
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 设置7天过期时间
+        },
+        '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f',
         algorithm='HS256'
     )
     

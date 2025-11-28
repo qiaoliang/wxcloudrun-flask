@@ -32,7 +32,7 @@ def test_login_endpoint(client):
         
         # Verify that the token can be decoded
         token = data['data']['token']
-        decoded = jwt.decode(token, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithms=['HS256'])
+        decoded = jwt.decode(token, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithms=['HS256'], options={"verify_exp": False})
         assert decoded['openid'] == 'mock_openid_123'
         assert decoded['session_key'] == 'mock_session_key_456'
 

@@ -185,15 +185,17 @@ def login():
         app.logger.info('开始生成JWT token...')
 
         # 生成JWT token
+        import datetime
         token_payload = {
             'openid': openid,
-            'session_key': session_key
+            'session_key': session_key,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 设置7天过期时间
         }
         app.logger.info(f'JWT token payload: {token_payload}')
 
-        token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
-        app.logger.info(f'环境变量TOKEN_SECRET: {token_secret}')
-        app.logger.info(f'使用的TOKEN_SECRET前缀: {token_secret[:10]}...')
+        # 临时使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
 
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
 
@@ -267,18 +269,21 @@ def user_profile():
 
     try:
         # 解码token
-        token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
-        app.logger.info(f'环境变量TOKEN_SECRET: {token_secret}')
-        app.logger.info(f'解码token: {token[:]}')  # 记录token前缀用于调试
-        app.logger.info(f'使用的token secret: {token_secret[:]}... (前10字符)')  # 记录secret前缀用于调试
+        # 使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
+        app.logger.info(f'解码token: {token[:50]}...')  # 记录token前缀用于调试
+        app.logger.info(f'使用的token secret: {token_secret[:10]}... (前10字符)')  # 记录secret前缀用于调试
 
-        # decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
-        # 临时关闭过期验证
+        # 使用硬编码的TOKEN_SECRET进行解码，确保与编码时使用相同的密钥
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        app.logger.info(f'解码时使用的硬编码TOKEN_SECRET: {token_secret[:]}')  # 打印完整密钥用于调试
+
+        # 解码token，启用过期验证
         decoded = jwt.decode(
             token,
             token_secret,
-            algorithms=['HS256'],
-            options={"verify_exp": False}  # 临时关闭过期验证
+            algorithms=['HS256']
         )
         app.logger.info(f'解码后的payload: {decoded}')
         openid = decoded.get('openid')
@@ -372,23 +377,38 @@ def user_profile():
     except jwt.ExpiredSignatureError as e:
         app.logger.error(f'token已过期: {str(e)}')
         return make_err_response({}, 'token已过期')
+    except jwt.InvalidSignatureError as e:
+        app.logger.error(f'token签名验证失败: {str(e)}')
+        app.logger.error('可能原因：TOKEN_SECRET配置不一致、token被篡改或格式错误')
+        return make_err_response({}, 'token签名无效')
+    except jwt.DecodeError as e:
+        app.logger.error(f'token解码失败: {str(e)}')
+        app.logger.error('可能原因：token格式错误（非标准JWT格式）、token被截断或包含非法字符')
+        # 额外调试信息
+        app.logger.info(f'尝试解析的token长度: {len(token) if token else 0}')
+        if token:
+            token_parts = token.split('.')
+            app.logger.info(f'token段数: {len(token_parts)}')
+            if len(token_parts) >= 2:
+                import base64
+                try:
+                    # 尝试解码header部分查看格式
+                    header_part = token_parts[0]
+                    # 补齐Base64 padding
+                    missing_padding = len(header_part) % 4
+                    if missing_padding:
+                        header_part += '=' * (4 - missing_padding)
+                    header_decoded = base64.urlsafe_b64decode(header_part)
+                    app.logger.info(f'token header解码成功: {header_decoded.decode("utf-8")}')
+                except Exception as decode_err:
+                    app.logger.error(f'token header解码失败: {str(decode_err)}')
+        return make_err_response({}, 'token格式错误')
     except jwt.InvalidTokenError as e:
-        # 关键：打印具体错误类型和描述
-        error_type = type(e).__name__
-        error_msg = str(e)
-        app.logger.error(f"具体错误类型：{error_type}")
-        app.logger.error(f"错误描述：{error_msg}")
-
-        # 针对性处理示例（根据错误类型分支）
-        if error_type == "ExpiredSignatureError":
-            app.logger.error("解决方案：Token 已过期，需重新获取")
-        elif error_type == "InvalidSignatureError":
-            app.logger.error("解决方案：检查密钥是否一致、是否有不可见字符")
-        elif error_type == "DecodeError":
-            app.logger.error("解决方案：检查 Token 格式是否为完整三段式")
-
         app.logger.error(f'token无效: {str(e)}')
         return make_err_response({}, 'token无效')
+    except Exception as e:
+        app.logger.error(f'JWT处理时发生未知错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'JWT处理失败: {str(e)}')
     except Exception as e:
         app.logger.error(f'处理用户信息时发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'处理用户信息失败: {str(e)}')

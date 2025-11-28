@@ -82,7 +82,7 @@ def run_complete_test_suite(with_coverage=False, html_report=False, min_coverage
     default_env = {
         'WX_APPID': 'test_appid',  # 默认值，会导致跳过微信API测试
         'WX_SECRET': 'test_secret',  # 默认值，会导致跳过微信API测试
-        'TOKEN_SECRET': 'test_token_secret',
+        'TOKEN_SECRET': '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f',
         'DOCKER_STARTUP_TIMEOUT': '180'  # 默认启动超时时间为180秒
     }
     

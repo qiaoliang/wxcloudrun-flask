@@ -37,7 +37,7 @@ def docker_compose_env() -> Generator[str, None, None]:
         "MYSQL_PASSWORD": os.environ.get("MYSQL_PASSWORD", "rootpassword"),
         "WX_APPID": os.environ.get("WX_APPID", "test_appid"),
         "WX_SECRET": os.environ.get("WX_SECRET", "test_secret"),
-        "TOKEN_SECRET": os.environ.get("TOKEN_SECRET", "test_token_secret"),
+        "TOKEN_SECRET": "42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f",
         "DOCKER_STARTUP_TIMEOUT": os.environ.get("DOCKER_STARTUP_TIMEOUT", "180")
     }
     

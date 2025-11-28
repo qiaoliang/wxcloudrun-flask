@@ -27,11 +27,13 @@ def test_update_user_profile_endpoint(client):
     db.session.commit()
 
     # Create a valid token
+    import datetime
     token_payload = {
         'openid': 'test_openid_123_update',  # Match the openid to the test user
-        'session_key': 'test_session_key'
+        'session_key': 'test_session_key',
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 设置7天过期时间
     }
-    token = jwt.encode(token_payload, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithm='HS256')
+    token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
     
     # Test updating user profile
     response = client.post('/api/user/profile',
@@ -80,11 +82,13 @@ def test_update_user_profile_partial_fields(client):
     db.session.commit()
 
     # Create a valid token
+    import datetime
     token_payload = {
         'openid': 'test_openid_456_partial',  # Match the openid to the test user
-        'session_key': 'test_session_key'
+        'session_key': 'test_session_key',
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 设置7天过期时间
     }
-    token = jwt.encode(token_payload, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithm='HS256')
+    token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
     
     # Test updating only nickname, leaving other fields unchanged
     response = client.post('/api/user/profile',
@@ -144,11 +148,13 @@ def test_update_user_profile_invalid_token(client):
 def test_update_user_profile_user_not_found(client):
     """Test update user profile endpoint with non-existent user."""
     # Create a valid token for non-existent user
+    import datetime
     token_payload = {
         'openid': 'non_existent_openid',
-        'session' : 'test_session_key'
+        'session_key': 'test_session_key',
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 设置7天过期时间
     }
-    token = jwt.encode(token_payload, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithm='HS256')
+    token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
     
     response = client.post('/api/user/profile',
                           json={
