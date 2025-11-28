@@ -272,8 +272,8 @@ def user_profile():
         # 使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
         token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
         app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
-        app.logger.info(f'解码token: {token[:50]}...')  # 记录token前缀用于调试
-        app.logger.info(f'使用的token secret: {token_secret[:10]}... (前10字符)')  # 记录secret前缀用于调试
+        app.logger.info(f'解码token: {token[:]}.')  # 记录token前缀用于调试
+        app.logger.info(f'使用的token secret: {token_secret[:]})')  # 记录secret前缀用于调试
 
         # 使用硬编码的TOKEN_SECRET进行解码，确保与编码时使用相同的密钥
         token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
@@ -378,10 +378,19 @@ def user_profile():
         app.logger.error(f'token已过期: {str(e)}')
         return make_err_response({}, 'token已过期')
     except jwt.InvalidSignatureError as e:
+        error_subclass = type(e).__name__
+        app.logger.error(f"❌  InvalidSignatureError 实际异常子类：{error_subclass}")
+        app.logger.error(f"InvalidSignatureError 详细描述：{str(e)}")
         app.logger.error(f'token签名验证失败: {str(e)}')
         app.logger.error('可能原因：TOKEN_SECRET配置不一致、token被篡改或格式错误')
         return make_err_response({}, 'token签名无效')
     except jwt.DecodeError as e:
+        # 捕获更详细的 DecodeError 的子类错误，打印详细信息
+        # 关键代码：获取实际子类名称
+        error_subclass = type(e).__name__
+        app.logger.error(f"❌ 实际异常子类：{error_subclass}")
+        app.logger.error(f"详细描述：{str(e)}")
+
         app.logger.error(f'token解码失败: {str(e)}')
         app.logger.error('可能原因：token格式错误（非标准JWT格式）、token被截断或包含非法字符')
         # 额外调试信息
