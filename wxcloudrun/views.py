@@ -79,11 +79,11 @@ def login():
     :return: token
     """
     app.logger.info('=== 开始执行登录接口 ===')
-    
+
     # 在日志中打印登录请求
     request_params = request.get_json()
     app.logger.info(f'login 请求参数: {request_params}')
-    
+
     # 获取请求体参数
     params = request.get_json()
     if not params:
@@ -91,29 +91,29 @@ def login():
         return make_err_response({},'缺少请求体参数')
 
     app.logger.info('成功获取请求参数，开始检查code参数')
-    
+
     code = params.get('code')
     if not code:
         app.logger.warning('登录请求缺少code参数')
         return make_err_response({},'缺少code参数')
-    
+
     # 打印code用于调试
     app.logger.info(f'获取到的code: {code}')
-        
+
     # 获取可能传递的用户信息
     nickname = params.get('nickname')
     avatar_url = params.get('avatar_url')
-    
+
     app.logger.info(f'获取到的用户信息 - nickname: {nickname}, avatar_url: {avatar_url}')
 
     app.logger.info('开始调用微信API获取用户openid和session_key')
-    
+
     # 调用微信API获取用户信息
     try:
         import config
         app.logger.info(f'从配置中获取WX_APPID: {config.WX_APPID[:10]}...' if hasattr(config, 'WX_APPID') and config.WX_APPID else 'WX_APPID未配置')
         app.logger.info(f'从配置中获取WX_SECRET: {config.WX_SECRET[:10]}...' if hasattr(config, 'WX_SECRET') and config.WX_SECRET else 'WX_SECRET未配置')
-        
+
         wx_url = f'https://api.weixin.qq.com/sns/jscode2session?appid={config.WX_APPID}&secret={config.WX_SECRET}&js_code={code}&grant_type=authorization_code'
         app.logger.info(f'请求微信API的URL: {wx_url[:100]}...')  # 只打印URL前100个字符以避免敏感信息泄露
 
@@ -121,7 +121,7 @@ def login():
         app.logger.info('正在发送请求到微信API...')
         wx_response = requests.get(wx_url, timeout=30, verify=False)  # 增加超时时间到30秒
         app.logger.info(f'微信API响应状态码: {wx_response.status_code}')
-        
+
         wx_data = wx_response.json()
         app.logger.info(f'微信API响应数据类型: {type(wx_data)}')
         app.logger.info(f'微信API响应内容: {wx_data}')
@@ -144,7 +144,7 @@ def login():
             return make_err_response({}, '微信API返回数据不完整')
 
         app.logger.info('成功获取openid和session_key，开始查询数据库中的用户信息')
-        
+
         # 检查用户是否已存在
         existing_user = query_user_by_openid(openid)
         is_new = not bool(existing_user)
@@ -183,26 +183,26 @@ def login():
                 app.logger.info('用户信息无变化，无需更新')
 
         app.logger.info('开始生成JWT token...')
-        
+
         # 生成JWT token
         token_payload = {
             'openid': openid,
             'session_key': session_key
         }
         app.logger.info(f'JWT token payload: {token_payload}')
-        
+
         token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
         app.logger.info(f'环境变量TOKEN_SECRET: {token_secret}')
         app.logger.info(f'使用的TOKEN_SECRET前缀: {token_secret[:10]}...')
-        
+
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
-        
+
         # 打印生成的token用于调试（只打印前50个字符）
         app.logger.info(f'生成的token前50字符: {token[:50]}...')
         app.logger.info(f'生成的token总长度: {len(token)}')
-        
+
         app.logger.info('JWT token生成成功')
-        
+
     except requests.exceptions.Timeout as e:
         app.logger.error(f'请求微信API超时: {str(e)}')
         return make_err_response({}, f'调用微信API超时: {str(e)}')
@@ -217,19 +217,19 @@ def login():
         return make_err_response({}, f'登录失败: {str(e)}')
 
     app.logger.info('登录流程完成，开始构造响应数据')
-    
+
     # 构造返回数据，包含用户的 token
     response_data = {
         'token': token,
         'user_id': user.user_id,
         'is_new_user': is_new  # 标识是否为新用户
     }
-    
+
     app.logger.info(f'返回的用户ID: {user.user_id}')
     app.logger.info(f'是否为新用户: {is_new}')
     app.logger.info(f'返回的token长度: {len(token)}')
     app.logger.info('=== 登录接口执行完成 ===')
-    
+
     # 返回自定义格式的响应
     return make_succ_response(response_data)
 
@@ -244,7 +244,7 @@ def user_profile():
     app.logger.info('=== 开始执行用户信息接口 ===')
     app.logger.info(f'请求方法: {request.method}')
     app.logger.info(f'请求头信息: {dict(request.headers)}')
-    
+
     # 获取请求体参数
     params = request.get_json() if request.get_json() else {}
     app.logger.info(f'请求体参数: {params}')
@@ -256,11 +256,11 @@ def user_profile():
     else:
         header_token = auth_header
     token = params.get('token') or header_token
-    
+
     # 打印传入的token用于调试
     app.logger.info(f'从请求中获取的token: {token}')
     app.logger.info(f'Authorization header完整内容: {auth_header}')
-    
+
     if not token:
         app.logger.warning('请求中缺少token参数')
         return make_err_response({}, '缺少token参数')
@@ -271,7 +271,15 @@ def user_profile():
         app.logger.info(f'环境变量TOKEN_SECRET: {token_secret}')
         app.logger.info(f'解码token: {token[:50]}... (前50字符)')  # 记录token前缀用于调试
         app.logger.info(f'使用的token secret: {token_secret[:10]}... (前10字符)')  # 记录secret前缀用于调试
-        decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
+
+        # decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
+        # 临时关闭过期验证
+        decoded = jwt.decode(
+            token,
+            token_secret,
+            algorithms=['HS256'],
+            options={"verify_exp": False}  # 临时关闭过期验证
+        )
         app.logger.info(f'解码后的payload: {decoded}')
         openid = decoded.get('openid')
 
@@ -299,7 +307,7 @@ def user_profile():
                 'community_id': user.community_id,
                 'status': user.status_name  # 返回字符串形式的状态名
             }
-            
+
             app.logger.info(f'成功查询到用户信息，用户ID: {user.user_id}')
             return make_succ_response(user_data)
 
@@ -370,7 +378,7 @@ def user_profile():
     except Exception as e:
         app.logger.error(f'处理用户信息时发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'处理用户信息失败: {str(e)}')
-    
+
     app.logger.info('=== 用户信息接口执行完成 ===')
 
 
