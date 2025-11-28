@@ -180,7 +180,12 @@ def user_profile():
     params = request.get_json() if request.get_json() else {}
 
     # 验证token
-    token = params.get('token') or request.headers.get('Authorization', '').replace('Bearer ', '')
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
+    else:
+        header_token = auth_header
+    token = params.get('token') or header_token
     if not token:
         return make_err_response({}, '缺少token参数')
 
