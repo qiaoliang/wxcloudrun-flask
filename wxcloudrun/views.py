@@ -269,8 +269,8 @@ def user_profile():
         # 解码token
         token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
         app.logger.info(f'环境变量TOKEN_SECRET: {token_secret}')
-        app.logger.info(f'解码token: {token[:50]}... (前50字符)')  # 记录token前缀用于调试
-        app.logger.info(f'使用的token secret: {token_secret[:10]}... (前10字符)')  # 记录secret前缀用于调试
+        app.logger.info(f'解码token: {token[:]}')  # 记录token前缀用于调试
+        app.logger.info(f'使用的token secret: {token_secret[:]}... (前10字符)')  # 记录secret前缀用于调试
 
         # decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
         # 临时关闭过期验证
