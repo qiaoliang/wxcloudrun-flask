@@ -269,11 +269,16 @@ def user_profile():
 
     try:
         # 解码token
+        # 检查token是否包含额外的引号并去除
+        if token and token.startswith('"') and token.endswith('"'):
+            token = token[1:-1]  # 去除首尾的引号
+            app.logger.info(f'检测到并去除了token的额外引号，处理后的token: {token[:50]}...')
+        
         # 使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
         token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
         app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
-        app.logger.info(f'解码token: {token[:]}.')  # 记录token前缀用于调试
-        app.logger.info(f'使用的token secret: {token_secret[:]})')  # 记录secret前缀用于调试
+        app.logger.info(f'解码token: {token[:50]}...')  # 记录token前缀用于调试
+        app.logger.info(f'使用的token secret: {token_secret[:]}')  # 记录secret前缀用于调试
 
         # 使用硬编码的TOKEN_SECRET进行解码，确保与编码时使用相同的密钥
         token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
