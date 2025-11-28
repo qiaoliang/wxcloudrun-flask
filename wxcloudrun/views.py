@@ -88,14 +88,14 @@ def login():
     code = params.get('code')
     if not code:
         return make_err_response({},'缺少code参数')
-    
+
     # 打印code用于调试
     app.logger.info(f'login code: {code}')
-        
+
     # 获取可能传递的用户信息
     nickname = params.get('nickname')
     avatar_url = params.get('avatar_url')
-    
+
     # 在日志中打印code参数
     app.logger.info(f'login code: {code}')
 
@@ -126,7 +126,7 @@ def login():
         # 检查用户是否已存在
         existing_user = query_user_by_openid(openid)
         is_new = not bool(existing_user)
-        
+
         if not existing_user:
             # 创建新用户
             user = User(
@@ -158,7 +158,7 @@ def login():
             'session_key': session_key
         }
         token = jwt.encode(token_payload, os.environ.get('TOKEN_SECRET', 'your-secret-key'), algorithm='HS256')
-        
+
         # 打印生成的token用于调试
         app.logger.info(f'生成的token: {token}')
     except Exception as e:
@@ -192,17 +192,18 @@ def user_profile():
     else:
         header_token = auth_header
     token = params.get('token') or header_token
-    
+
     # 打印传入的token用于调试
     app.logger.info(f'收到的token: {token}')
     app.logger.info(f'Authorization header: {auth_header}')
-    
+
     if not token:
         return make_err_response({}, '缺少token参数')
 
     try:
         # 解码token
         token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
+        app.logger.info(f'环境变量TOKEN_SECRET: {token_secret[:]}...')  # 记录secret前缀用于调试
         app.logger.info(f'解码token: {token[:50]}... (前50字符)')  # 记录token前缀用于调试
         app.logger.info(f'使用的token secret: {token_secret[:10]}... (前10字符)')  # 记录secret前缀用于调试
         decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
@@ -210,7 +211,7 @@ def user_profile():
         openid = decoded.get('openid')
 
         if not openid:
-            return make_err_response({}, 'token无效')
+            return make_err_response({}, ' decoded.get(openid) token无效')
 
         # 根据HTTP方法决定操作
         if request.method == 'GET':
@@ -230,7 +231,7 @@ def user_profile():
                 'community_id': user.community_id,
                 'status': user.status_name  # 返回字符串形式的状态名
             }
-            
+
             return make_succ_response(user_data)
 
         elif request.method == 'POST':
@@ -282,11 +283,11 @@ def user_profile():
             return make_succ_response({'message': '用户信息更新成功'})
 
     except jwt.ExpiredSignatureError:
-        app.logger.error('token已过期')
-        return make_err_response({}, 'token已过期')
+        app.logger.error(' jwt.ExpiredSignatureErrortoken已过期')
+        return make_err_response({}, 'jwt.ExpiredSignatureError token已过期')
     except jwt.InvalidTokenError as e:
-        app.logger.error(f'token无效: {str(e)}')
-        return make_err_response({}, 'token无效')
+        app.logger.error(f'jwt.InvalidTokenError token无效: {str(e)}')
+        return make_err_response({}, 'jwt.ExpiredSignatureError token无效')
     except Exception as e:
         app.logger.error(f'处理用户信息时发生错误: {str(e)}')
         return make_err_response({}, f'处理用户信息失败: {str(e)}')
