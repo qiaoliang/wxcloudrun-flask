@@ -119,7 +119,7 @@ def login():
 
         # 发送请求到微信API，禁用SSL验证以解决证书问题（仅用于开发测试环境）
         app.logger.info('正在发送请求到微信API...')
-        wx_response = requests.get(wx_url, timeout=10, verify=False)
+        wx_response = requests.get(wx_url, timeout=30, verify=False)  # 增加超时时间到30秒
         app.logger.info(f'微信API响应状态码: {wx_response.status_code}')
         
         wx_data = wx_response.json()
@@ -202,6 +202,9 @@ def login():
         
         app.logger.info('JWT token生成成功')
         
+    except requests.exceptions.Timeout as e:
+        app.logger.error(f'请求微信API超时: {str(e)}')
+        return make_err_response({}, f'调用微信API超时: {str(e)}')
     except requests.exceptions.RequestException as e:
         app.logger.error(f'请求微信API时发生网络错误: {str(e)}')
         return make_err_response({}, f'调用微信API失败: {str(e)}')
@@ -237,8 +240,13 @@ def user_profile():
     GET: 获取用户信息
     POST: 更新用户信息
     """
+    app.logger.info('=== 开始执行用户信息接口 ===')
+    app.logger.info(f'请求方法: {request.method}')
+    app.logger.info(f'请求头信息: {dict(request.headers)}')
+    
     # 获取请求体参数
     params = request.get_json() if request.get_json() else {}
+    app.logger.info(f'请求体参数: {params}')
 
     # 验证token
     auth_header = request.headers.get('Authorization', '')
@@ -247,18 +255,18 @@ def user_profile():
     else:
         header_token = auth_header
     token = params.get('token') or header_token
-
+    
     # 打印传入的token用于调试
-    app.logger.info(f'收到的token: {token}')
-    app.logger.info(f'Authorization header: {auth_header}')
-
+    app.logger.info(f'从请求中获取的token: {token}')
+    app.logger.info(f'Authorization header完整内容: {auth_header}')
+    
     if not token:
+        app.logger.warning('请求中缺少token参数')
         return make_err_response({}, '缺少token参数')
 
     try:
         # 解码token
         token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
-        app.logger.info(f'环境变量TOKEN_SECRET: {token_secret[:]}...')  # 记录secret前缀用于调试
         app.logger.info(f'解码token: {token[:50]}... (前50字符)')  # 记录token前缀用于调试
         app.logger.info(f'使用的token secret: {token_secret[:10]}... (前10字符)')  # 记录secret前缀用于调试
         decoded = jwt.decode(token, token_secret, algorithms=['HS256'])
@@ -266,13 +274,16 @@ def user_profile():
         openid = decoded.get('openid')
 
         if not openid:
-            return make_err_response({}, ' decoded.get(openid) token无效')
+            app.logger.error('解码后的token中未找到openid')
+            return make_err_response({}, 'token无效')
 
         # 根据HTTP方法决定操作
         if request.method == 'GET':
+            app.logger.info(f'GET请求 - 查询用户信息，openid: {openid}')
             # 查询用户信息
             user = query_user_by_openid(openid)
             if not user:
+                app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
                 return make_err_response({}, '用户不存在')
 
             # 返回用户信息
@@ -286,13 +297,16 @@ def user_profile():
                 'community_id': user.community_id,
                 'status': user.status_name  # 返回字符串形式的状态名
             }
-
+            
+            app.logger.info(f'成功查询到用户信息，用户ID: {user.user_id}')
             return make_succ_response(user_data)
 
         elif request.method == 'POST':
+            app.logger.info(f'POST请求 - 更新用户信息，openid: {openid}')
             # 查询用户
             user = query_user_by_openid(openid)
             if not user:
+                app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
                 return make_err_response({}, '用户不存在')
 
             # 获取可更新的用户信息（只更新非空字段）
@@ -303,14 +317,20 @@ def user_profile():
             community_id = params.get('community_id')
             status = params.get('status')
 
+            app.logger.info(f'待更新的用户信息 - nickname: {nickname}, avatar_url: {avatar_url}, phone_number: {phone_number}, role: {role}')
+
             # 更新用户信息到数据库
             if nickname is not None:
+                app.logger.info(f'更新nickname: {user.nickname} -> {nickname}')
                 user.nickname = nickname
             if avatar_url is not None:
+                app.logger.info(f'更新avatar_url: {user.avatar_url} -> {avatar_url}')
                 user.avatar_url = avatar_url
             if phone_number is not None:
+                app.logger.info(f'更新phone_number: {user.phone_number} -> {phone_number}')
                 user.phone_number = phone_number
             if role is not None:
+                app.logger.info(f'更新role: {user.role} -> {role}')
                 # 如果传入的是字符串，转换为对应的整数值
                 if isinstance(role, str):
                     role_value = User.get_role_value(role)
@@ -319,8 +339,10 @@ def user_profile():
                 elif isinstance(role, int):
                     user.role = role
             if community_id is not None:
+                app.logger.info(f'更新community_id: {user.community_id} -> {community_id}')
                 user.community_id = community_id
             if status is not None:
+                app.logger.info(f'更新status: {user.status} -> {status}')
                 # 如果传入的是字符串，转换为对应的整数值
                 if isinstance(status, str):
                     status_value = User.get_status_value(status)
@@ -337,14 +359,16 @@ def user_profile():
 
             return make_succ_response({'message': '用户信息更新成功'})
 
-    except jwt.ExpiredSignatureError:
-        app.logger.error(' jwt.ExpiredSignatureErrortoken已过期')
-        return make_err_response({}, 'jwt.ExpiredSignatureError token已过期')
+    except jwt.ExpiredSignatureError as e:
+        app.logger.error(f'token已过期: {str(e)}')
+        return make_err_response({}, 'token已过期')
     except jwt.InvalidTokenError as e:
-        app.logger.error(f'jwt.InvalidTokenError token无效: {str(e)}')
-        return make_err_response({}, 'jwt.ExpiredSignatureError token无效')
+        app.logger.error(f'token无效: {str(e)}')
+        return make_err_response({}, 'token无效')
     except Exception as e:
-        app.logger.error(f'处理用户信息时发生错误: {str(e)}')
+        app.logger.error(f'处理用户信息时发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'处理用户信息失败: {str(e)}')
+    
+    app.logger.info('=== 用户信息接口执行完成 ===')
 
 
