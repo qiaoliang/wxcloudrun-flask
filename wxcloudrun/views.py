@@ -69,7 +69,7 @@ def get_count():
     """
     :return: 计数的值
     """
-    counter = Counters.query.filter(Counters.id == 1).first()
+    counter = query_counterbyid(1)
     return make_succ_response(0) if counter is None else make_succ_response(counter.count)
 
 @app.route('/api/login', methods=['POST'])

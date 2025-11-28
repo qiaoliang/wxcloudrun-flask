@@ -55,9 +55,12 @@ def update_counterbyid(counter):
     :param counter实体
     """
     try:
-        counter = query_counterbyid(counter.id)
-        if counter is None:
+        existing_counter = query_counterbyid(counter.id)
+        if existing_counter is None:
             return
+        # 更新现有记录的值
+        existing_counter.count = counter.count
+        existing_counter.updated_at = counter.updated_at
         db.session.flush()
         db.session.commit()
     except OperationalError as e:

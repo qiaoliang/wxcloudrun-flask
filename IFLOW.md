@@ -142,7 +142,7 @@ py-safeClockin/
 - Token 有效期为 7 天
 - Token 包含 openid 和 session_key 信息
 
-## 环境变量
+### 环境变量
 
 项目依赖以下环境变量：
 
@@ -154,6 +154,7 @@ py-safeClockin/
 | WX_APPID | 微信小程序 AppID | your-appid |
 | WX_SECRET | 微信小程序 Secret | your-secret |
 | TOKEN_SECRET | JWT 签名密钥 | your-token-secret |
+| DOCKER_STARTUP_TIMEOUT | Docker容器启动超时时间（秒） | 180 |
 
 ## 注意事项
 

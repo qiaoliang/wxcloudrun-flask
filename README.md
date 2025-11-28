@@ -200,129 +200,123 @@ pytest
 python scripts/run_tests.py
 ```
 
-## 运行自动化测试
+## 运行测试
 
-项目包含全面的自动化测试套件，使用 pytest 框架。
+项目包含全面的自动化测试套件，使用 pytest 框架。根据测试需求和环境不同，有三种运行方式，通过不同的环境变量配置文件实现：
 
-### 环境准备
-
-测试时建议使用 Python 3.12 虚拟环境 `venv_py312`：
+### 1. 单元测试（使用SQLite）
+在单元测试环境中，系统自动使用SQLite内存数据库，无需外部依赖：
 
 ```bash
-# 激活 Python 3.12 虚拟环境
+# 激活Python 3.12虚拟环境
 source venv_py312/bin/activate
 
-# 或者如果使用 Windows
-# venv_py312\Scripts\activate
-```
-
-### 安装测试依赖
-
-```bash
+# 安装测试依赖
 pip install -r requirements-test.txt
-```
 
-### 运行单元测试
+# 创建单元测试环境变量文件（可选，脚本有默认值）
+cat > .env.unit << EOF
+USE_SQLITE_FOR_TESTING=true  # 启用测试模式，使用SQLite内存数据库
+FLASK_ENV=testing            # Flask环境设置
+WX_APPID=test_appid          # 微信小程序AppID（测试值会跳过微信API测试）
+WX_SECRET=test_secret        # 微信小程序Secret（测试值会跳过微信API测试）
+TOKEN_SECRET=test_token      # JWT令牌密钥
+EOF
 
-1. **运行所有单元测试**:
-
-```bash
+# 运行所有单元测试
 pytest
-```
 
-或使用单元测试脚本:
-
-```bash
+# 或使用单元测试脚本（推荐，会自动加载.env.unit）
 python scripts/unit_tests.py
-```
 
-2. **运行特定测试文件**:
-
-```bash
-pytest tests/test_api.py
-```
-
-3. **运行单元测试并生成覆盖率报告**:
-
-```bash
+# 生成覆盖率报告
 python scripts/unit_tests.py --coverage
 ```
 
-4. **运行单元测试并生成 HTML 覆盖率报告**:
+### 2. 自动集成测试（使用MySQL，跳过微信API测试）
+在CI/CD等自动测试环境中，使用MySQL数据库，但跳过需要真实微信凭证的测试：
 
 ```bash
-python scripts/unit_tests.py --coverage --html-report
-```
+# 创建集成测试环境变量文件（可选，脚本有默认值）
+cat > .env.integration << EOF
+MYSQL_PASSWORD=rootpassword       # MySQL数据库密码
+MYSQL_USERNAME=root               # MySQL数据库用户名
+MYSQL_ADDRESS=127.0.0.1:3306      # MySQL数据库地址
+USE_REAL_WECHAT_CREDENTIALS=false # 是否使用真实微信凭证（false=跳过微信API测试，true=使用真实凭证）
+WX_APPID=test_appid               # 微信小程序AppID（当USE_REAL_WECHAT_CREDENTIALS=false时使用）
+WX_SECRET=test_secret             # 微信小程序Secret（当USE_REAL_WECHAT_CREDENTIALS=false时使用）
+TOKEN_SECRET=test_token           # JWT令牌密钥
+RUN_DOCKER_INTEGRATION_TESTS=true # 是否运行Docker集成测试（true=启动Docker环境，false=跳过Docker启动）
+EOF
 
-5. **运行特定测试文件并生成覆盖率报告**:
-
-```bash
-python scripts/unit_tests.py tests/test_api.py --coverage
-```
-
-### 运行 Docker 集成测试
-
-项目还包含 Docker 集成测试，使用 docker-compose 启动开发环境并测试 API 功能：
-
-```bash
-# 运行计数器 API Docker 集成测试（需要 Docker 环境）
-pytest tests/integration_test_counter.py
-
-# 运行登录 API Docker 集成测试（需要 Docker 环境）
-pytest tests/integration_test_login.py
-
-# 运行所有 Docker 集成测试
-pytest tests/integration_test_counter.py tests/integration_test_login.py
-```
-
-或使用集成测试脚本（先运行单元测试，通过后再运行集成测试）:
-
-```bash
+# 运行完整测试流程（单元测试 + 集成测试）
 python scripts/run_tests.py
 ```
 
-这些测试会：
-- 启动 docker-compose 开发环境
-- 等待服务完全启动
-- 测试相应的 API 功能
-- 自动清理资源
-
-运行完整测试流程并生成覆盖率报告：
+### 3. 手动集成测试（使用真实微信凭证）
+在手动测试环境中，使用真实微信凭证，不跳过任何测试：
 
 ```bash
-python scripts/run_tests.py --coverage
+# 创建手动测试环境变量文件
+cat > .env.manual << EOF
+MYSQL_PASSWORD=your_mysql_password      # MySQL数据库密码
+MYSQL_USERNAME=root                     # MySQL数据库用户名
+MYSQL_ADDRESS=127.0.0.1:3306          # MySQL数据库地址
+USE_REAL_WECHAT_CREDENTIALS=true        # 是否使用真实微信凭证（true=启用真实微信API测试）
+WX_APPID=your_real_appid               # 真实微信小程序AppID
+WX_SECRET=your_real_secret             # 真实微信小程序Secret
+TOKEN_SECRET=your_real_token_secret    # JWT令牌密钥
+RUN_DOCKER_INTEGRATION_TESTS=true      # 是否运行Docker集成测试（true=启动Docker环境）
+EOF
+
+# 运行手动集成测试（脚本会自动加载.env.manual文件）
+./manual_test.sh
 ```
-- 自动清理资源
+
+### 环境变量说明
+
+以下是在不同测试场景中使用的环境变量及其含义：
+
+#### 数据库相关变量
+- `MYSQL_USERNAME`: MySQL数据库用户名（默认: root）
+- `MYSQL_PASSWORD`: MySQL数据库密码
+- `MYSQL_ADDRESS`: MySQL数据库地址和端口（格式: host:port，默认: 127.0.0.1:3306）
+- `USE_SQLITE_FOR_TESTING`: 是否为测试模式（true/false，默认: 根据测试类型自动设置）
+- `FLASK_ENV`: Flask环境（testing/production等，默认: 根据测试类型自动设置）
+- `USE_REAL_WECHAT_CREDENTIALS`: 是否使用真实微信凭证进行测试（true/false，默认: false）
+- `RUN_DOCKER_INTEGRATION_TESTS`: 是否运行Docker集成测试（true/false，默认: false）
+
+#### 微信API相关变量
+- `WX_APPID`: 微信小程序AppID
+  - 测试环境：使用包含"test"的值会跳过微信API相关测试
+  - 手动测试：使用真实值会执行完整的微信API测试
+- `WX_SECRET`: 微信小程序Secret
+  - 测试环境：使用包含"test"的值会跳过微信API相关测试
+  - 手动测试：使用真实值会执行完整的微信API测试
+- `TOKEN_SECRET`: JWT令牌签名密钥
+
+#### 脚本相关变量
+- `.env.unit`: 单元测试环境变量文件
+- `.env.integration`: 自动集成测试环境变量文件
+- `.env.manual`: 手动集成测试环境变量文件
+- `DOCKER_STARTUP_TIMEOUT`: Docker容器启动超时时间（秒，默认: 180）
 
 ### 测试结构
 
 项目包含以下测试模块：
 
-- `test_api.py`: API接口测试
-- `test_dao.py`: 数据访问层测试
-- `test_model.py`: 数据模型测试
-- `test_response.py`: 响应处理测试
-- `test_login.py`: 登录功能测试
-- `test_error_handling.py`: 错误处理测试
-- `test_integration.py`: 集成测试
-- `test_user_profile.py`: 用户信息功能测试
-- `integration_test_counter.py`: 计数器 API Docker 集成测试
-- `integration_test_login.py`: 登录 API Docker 集成测试
-- `conftest.py`: 测试配置和共享fixture
-
-### 测试脚本
-
-项目提供以下测试脚本：
-
-- `scripts/unit_tests.py`: 专门运行单元测试（无需 Docker 环境）
-- `scripts/run_tests.py`: 运行完整测试流程（先运行单元测试，通过后再运行 Docker 集成测试）
+- `tests/test_*.py`: 单元测试（API、DAO、模型、响应、登录等）
+- `tests/integration_test_*.py`: 集成测试（使用MySQL，根据环境变量决定是否跳过微信API测试）
+- `tests/conftest.py`: 测试配置和共享fixture
 
 ### 测试配置
 
 - 测试文件位于 `tests/` 目录
-- 测试文件命名遵循 `test_*.py` 模式
 - 项目使用 pytest 进行测试运行和管理
+- 脚本会自动加载 `.env.unit` (单元测试) 或 `.env.integration` (集成测试) 文件
 - 覆盖率检查最低要求为 80%
+- 单元测试自动使用SQLite，集成测试使用MySQL
+- 微信API测试根据WX_APPID和WX_SECRET值决定是否跳过
 
 
 ## License

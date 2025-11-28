@@ -6,6 +6,14 @@
 import sys
 import subprocess
 import argparse
+import os
+from pathlib import Path
+
+# 添加脚本目录到路径，以便导入load_env
+script_dir = Path(__file__).parent
+sys.path.insert(0, str(script_dir))
+
+from load_env import load_env_file, get_env_with_defaults
 
 
 def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_coverage=80):
@@ -18,6 +26,24 @@ def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_c
         html_report (bool): Whether to generate HTML coverage report
         min_coverage (int): Minimum required coverage percentage
     """
+    # 加载环境变量配置
+    load_env_file(".env.unit")  # 单元测试专用环境变量文件
+    
+    # 设置默认环境变量
+    default_env = {
+        'USE_SQLITE_FOR_TESTING': 'true',  # 确保使用SQLite进行单元测试
+        'FLASK_ENV': 'testing',
+        'WX_APPID': 'test_appid',  # 默认测试值，会导致跳过微信API测试
+        'WX_SECRET': 'test_secret'  # 默认测试值，会导致跳过微信API测试
+    }
+    
+    # 获取环境变量，未设置的使用默认值
+    env_vars = get_env_with_defaults(default_env)
+    
+    # 创建环境变量副本并更新
+    env = os.environ.copy()
+    env.update(env_vars)
+    
     cmd = [sys.executable, '-m', 'pytest']
     
     # 排除 Docker 集成测试，只运行单元测试
@@ -44,7 +70,7 @@ def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_c
     cmd.append('-v')
     
     print(f"Running unit tests command: {' '.join(cmd)}")
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, env=env)
     return result.returncode
 
 
