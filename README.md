@@ -2,6 +2,9 @@
 [![GitHub license](https://img.shields.io/github/license/WeixinCloud/wxcloudrun-express)](https://github.com/WeixinCloud/wxcloudrun-express)
 ![GitHub package.json dependency version (prod)](https://img.shields.io/badge/python-3.12.11-green)
 
+## 重要说明：Python版本要求
+**本项目必须使用 Python 3.12 版本**。项目经过专门针对 Python 3.12 环境配置和测试，使用其他版本可能会导致兼容性问题。
+
 微信云托管 python Flask 框架模版，实现简单的计数器读写接口，使用云托管 MySQL 读写、记录计数值。
 
 ![](https://qcloudimg.tencent-cloud.cn/raw/be22992d297d1b9a1a5365e606276781.png)
@@ -192,9 +195,14 @@ docker-compose up --build -d
 
 ### 运行自动化测试
 
+**重要：请确保使用 Python 3.12 环境运行测试。**
+
 运行测试时，系统会自动使用 SQLite 内存数据库，无需额外配置：
 
 ```bash
+# 激活Python 3.12虚拟环境
+source venv_py312/bin/activate
+
 # 运行所有测试
 pytest
 
