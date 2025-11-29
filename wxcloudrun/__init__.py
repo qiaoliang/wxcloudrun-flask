@@ -50,7 +50,8 @@ if not is_testing:
     while not db_connected and retry_count < max_retries:
         try:
             with app.app_context():
-                # 使用Flask-Migrate进行数据库初始化，不再手动执行SQL脚本
+                # 为确保数据库表结构是最新的，可以在这里应用挂起的迁移
+                # 但这通常应在部署脚本中完成，而不是在应用启动时
                 # db.create_all() 调用将被Flask-Migrate接管
                 db_connected = True
                 app.logger.info("数据库连接成功！")
@@ -70,3 +71,24 @@ if not is_testing:
     
     if not db_connected:
         app.logger.error("无法连接到数据库，应用可能无法正常工作。")
+
+# 在应用启动时检查并应用挂起的迁移
+def run_pending_migrations():
+    """运行挂起的数据库迁移"""
+    import subprocess
+    import sys
+    try:
+        # 使用 Flask CLI 运行迁移
+        result = subprocess.run([sys.executable, '-m', 'flask', 'db', 'upgrade'], 
+                                capture_output=True, text=True, cwd=os.path.dirname(__file__))
+        if result.returncode != 0:
+            app.logger.error(f"数据库迁移失败: {result.stderr}")
+        else:
+            app.logger.info("数据库迁移成功完成")
+    except Exception as e:
+        app.logger.error(f"尝试运行数据库迁移时出错: {str(e)}")
+
+# 根据环境变量决定是否自动运行迁移（默认为true）
+if not is_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'true').lower() != 'false':
+    with app.app_context():
+        run_pending_migrations()
