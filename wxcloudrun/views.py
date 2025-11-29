@@ -263,6 +263,8 @@ def login():
         'refresh_token': refresh_token,  # 添加refresh token
         'user_id': user.user_id,
         'is_new_user': is_new,  # 标识是否为新用户
+        'role': user.role_name,  # 返回用户角色名称
+        'is_verified': user.verification_status == 2,  # 返回验证状态（仅对社区工作人员有意义）
         'expires_in': 7200  # 2小时（秒）
     }
 
