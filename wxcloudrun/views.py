@@ -23,7 +23,10 @@ def index():
     :return: 返回index页面
     """
     app.logger.info("主页访问")
-    return render_template('index.html')
+    from flask import make_response
+    response = make_response(render_template('index.html'))
+    response.headers['Content-Type'] = 'text/html; charset=utf-8'
+    return response
 
 
 @app.route('/api/count', methods=['POST'])
@@ -105,36 +108,36 @@ def login():
     """
     app.logger.info('=== 开始执行登录接口 ===')
 
-    # 在日志中打印登录请求
-    request_params = request.get_json()
-    app.logger.info(f'login 请求参数: {request_params}')
-
-    # 获取请求体参数
-    params = request.get_json()
-    if not params:
-        app.logger.warning('登录请求缺少请求体参数')
-        return make_err_response({},'缺少请求体参数')
-
-    app.logger.info('成功获取请求参数，开始检查code参数')
-
-    code = params.get('code')
-    if not code:
-        app.logger.warning('登录请求缺少code参数')
-        return make_err_response({},'缺少code参数')
-
-    # 打印code用于调试
-    app.logger.info(f'获取到的code: {code}')
-
-    # 获取可能传递的用户信息（首次登录时会包含这些信息）
-    nickname = params.get('nickname')
-    avatar_url = params.get('avatar_url')
-
-    app.logger.info(f'获取到的用户信息 - nickname: {nickname}, avatar_url: {avatar_url}')
-
-    app.logger.info('开始调用微信API获取用户openid和session_key')
-
-    # 调用微信API获取用户信息
     try:
+        # 在日志中打印登录请求
+        request_params = request.get_json()
+        app.logger.info(f'login 请求参数: {request_params}')
+
+        # 获取请求体参数
+        params = request.get_json()
+        if not params:
+            app.logger.warning('登录请求缺少请求体参数')
+            return make_err_response({},'缺少请求体参数')
+
+        app.logger.info('成功获取请求参数，开始检查code参数')
+
+        code = params.get('code')
+        if not code:
+            app.logger.warning('登录请求缺少code参数')
+            return make_err_response({},'缺少code参数')
+
+        # 打印code用于调试
+        app.logger.info(f'获取到的code: {code}')
+
+        # 获取可能传递的用户信息（首次登录时会包含这些信息）
+        nickname = params.get('nickname')
+        avatar_url = params.get('avatar_url')
+
+        app.logger.info(f'获取到的用户信息 - nickname: {nickname}, avatar_url: {avatar_url}')
+
+        app.logger.info('开始调用微信API获取用户openid和session_key')
+
+        # 调用微信API获取用户信息
         import config
         app.logger.info(f'从配置中获取WX_APPID: {config.WX_APPID[:10]}...' if hasattr(config, 'WX_APPID') and config.WX_APPID else 'WX_APPID未配置')
         app.logger.info(f'从配置中获取WX_SECRET: {config.WX_SECRET[:10]}...' if hasattr(config, 'WX_SECRET') and config.WX_SECRET else 'WX_SECRET未配置')
@@ -220,9 +223,9 @@ def login():
         }
         app.logger.info(f'JWT token payload: {token_payload}')
 
-        # 从配置文件获取TOKEN_SECRET，如果不存在则使用硬编码的值（开发用）
         import config
-        token_secret = getattr(config, 'TOKEN_SECRET', '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f')
+        # 使用配置文件中的TOKEN_SECRET进行编码
+        token_secret = config.TOKEN_SECRET
         app.logger.info(f'使用的TOKEN_SECRET: {token_secret[:10]}...')  # 只记录部分信息用于调试
 
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
@@ -292,43 +295,49 @@ def user_profile():
     app.logger.info('=== 开始执行用户信息接口 ===')
     app.logger.info(f'请求方法: {request.method}')
     app.logger.info(f'请求头信息: {dict(request.headers)}')
-
-    # 获取请求体参数
-    params = request.get_json() if request.get_json() else {}
-    app.logger.info(f'请求体参数: {params}')
-
-    # 验证token
-    auth_header = request.headers.get('Authorization', '')
-    if auth_header.startswith('Bearer '):
-        header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
-    else:
-        header_token = auth_header
-    token = params.get('token') or header_token
-
-    # 打印传入的token用于调试
-    app.logger.info(f'从请求中获取的token: {token}')
-    app.logger.info(f'Authorization header完整内容: {auth_header}')
-
-    if not token:
-        app.logger.warning('请求中缺少token参数')
-        return make_err_response({}, '缺少token参数')
+    app.logger.info(f'请求URL: {request.url}')
+    app.logger.info(f'Content-Type: {request.content_type}')
 
     try:
+        # 获取请求体参数，增加对不同Content-Type的处理
+        params = {}
+        if request.method == 'POST' and request.content_type and 'application/json' in request.content_type:
+            params = request.get_json() or {}
+        elif request.method == 'POST':
+            # 如果不是JSON格式，尝试解析为form data（虽然不太可能从前端发送）
+            params = dict(request.form) or {}
+        else:
+            params = {}
+        
+        app.logger.info(f'解析后的请求体参数: {params}')
+
+        # 验证token - 优先从Authorization header获取，其次从请求参数获取
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
+        else:
+            header_token = auth_header
+        token = header_token or params.get('token')  # 优先使用header中的token
+
+        # 打印传入的token用于调试
+        app.logger.info(f'从请求中获取的token: {token}')
+        app.logger.info(f'Authorization header完整内容: {auth_header}')
+
+        if not token:
+            app.logger.warning('请求中缺少token参数')
+            return make_err_response({}, '缺少token参数')
+
         # 解码token
         # 检查token是否包含额外的引号并去除
         if token and token.startswith('"') and token.endswith('"'):
             token = token[1:-1]  # 去除首尾的引号
             app.logger.info(f'检测到并去除了token的额外引号，处理后的token: {token[:50]}...')
         
-        # 使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
-        app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
+        import config
+        # 使用配置文件中的TOKEN_SECRET确保编码和解码使用相同的密钥
+        token_secret = getattr(config, 'TOKEN_SECRET', '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f')
+        app.logger.info(f'使用的TOKEN_SECRET: {token_secret}')
         app.logger.info(f'解码token: {token[:50]}...')  # 记录token前缀用于调试
-        app.logger.info(f'使用的token secret: {token_secret[:]}')  # 记录secret前缀用于调试
-
-        # 使用硬编码的TOKEN_SECRET进行解码，确保与编码时使用相同的密钥
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
-        app.logger.info(f'解码时使用的硬编码TOKEN_SECRET: {token_secret[:]}')  # 打印完整密钥用于调试
 
         # 解码token，启用过期验证
         decoded = jwt.decode(
@@ -361,7 +370,8 @@ def user_profile():
                 'avatar_url': user.avatar_url,
                 'role': user.role_name,  # 返回字符串形式的角色名
                 'community_id': user.community_id,
-                'status': user.status_name  # 返回字符串形式的状态名
+                'status': user.status_name,  # 返回字符串形式的状态名
+                'is_verified': user.verification_status == 2  # 返回验证状态（仅对社区工作人员有意义）
             }
 
             app.logger.info(f'成功查询到用户信息，用户ID: {user.user_id}')
@@ -469,9 +479,6 @@ def user_profile():
     except Exception as e:
         app.logger.error(f'JWT处理时发生未知错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'JWT处理失败: {str(e)}')
-    except Exception as e:
-        app.logger.error(f'处理用户信息时发生错误: {str(e)}', exc_info=True)
-        return make_err_response({}, f'处理用户信息失败: {str(e)}')
 
     app.logger.info('=== 用户信息接口执行完成 ===')
 
@@ -490,15 +497,16 @@ def verify_token():
         header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
     else:
         header_token = auth_header
-    token = params.get('token') or header_token
+    token = header_token or params.get('token')  # 优先使用header中的token
 
     if not token:
         app.logger.warning('请求中缺少token参数')
         return None, make_err_response({}, '缺少token参数')
 
     try:
-        # 使用硬编码的TOKEN_SECRET进行解码
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        import config
+        # 使用配置文件中的TOKEN_SECRET进行解码
+        token_secret = config.TOKEN_SECRET
         
         # 解码token
         decoded = jwt.decode(
@@ -1073,7 +1081,8 @@ def refresh_token():
             'user_id': user.user_id,
             'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)  # 设置2小时过期时间
         }
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        import config
+        token_secret = config.TOKEN_SECRET
         new_token = jwt.encode(token_payload, token_secret, algorithm='HS256')
         
         # 生成新的refresh token（可选：也可以继续使用现有的refresh token）
@@ -1110,8 +1119,7 @@ def query_user_by_refresh_token(refresh_token):
     根据refresh token查询用户
     """
     try:
-        from .dao import session
-        user = session.query(User).filter(User.refresh_token == refresh_token).first()
+        user = db.session.query(User).filter(User.refresh_token == refresh_token).first()
         return user
     except Exception as e:
         app.logger.error(f'查询用户失败: {str(e)}')
@@ -1144,5 +1152,33 @@ def logout(decoded):
     except Exception as e:
         app.logger.error(f'登出过程中发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'登出失败: {str(e)}')
+
+
+@app.errorhandler(404)
+def handle_404(e):
+    """
+    处理404错误，确保API路径返回正确的错误格式
+    """
+    from flask import request
+    # 检查是否是API请求
+    if request.path.startswith('/api/'):
+        app.logger.warning(f'API路径未找到: {request.path}')
+        return make_err_response({}, 'API路径未找到'), 404
+    # 对于非API路径，返回HTML页面
+    return render_template('index.html'), 404
+
+
+@app.errorhandler(500)
+def handle_500(e):
+    """
+    处理500错误，确保返回JSON格式
+    """
+    from flask import request
+    app.logger.error(f'服务器内部错误: {str(e)}', exc_info=True)
+    # 检查是否是API请求
+    if request.path.startswith('/api/'):
+        return make_err_response({}, '服务器内部错误'), 500
+    # 对于非API路径，返回HTML页面
+    return render_template('index.html'), 500
 
 
