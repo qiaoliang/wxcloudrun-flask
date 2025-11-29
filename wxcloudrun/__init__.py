@@ -47,6 +47,29 @@ if not is_testing:
         try:
             with app.app_context():
                 db.create_all()
+                
+                # 运行数据库迁移脚本以确保表结构是最新的
+                try:
+                    import os
+                    migration_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'init_db.sql')
+                    if os.path.exists(migration_script_path):
+                        with open(migration_script_path, 'r', encoding='utf-8') as f:
+                            migration_sql = f.read()
+                        
+                        # 执行迁移脚本
+                        from sqlalchemy import text
+                        with db.engine.connect() as connection:
+                            # 分割SQL语句并执行
+                            statements = [stmt.strip() for stmt in migration_sql.split(';') if stmt.strip()]
+                            for stmt in statements:
+                                if stmt:
+                                    connection.execute(text(stmt))
+                            connection.commit()
+                        
+                        app.logger.info("数据库迁移脚本执行完成")
+                except Exception as migration_error:
+                    app.logger.error(f"数据库迁移脚本执行失败: {str(migration_error)}")
+                
             db_connected = True
             app.logger.info("数据库连接成功！")
             # 检查 Counters 表是否已创建
