@@ -2,6 +2,7 @@ import os
 import time
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_migrate import Migrate
 import pymysql
 import config
 
@@ -29,6 +30,9 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # 初始化DB操作对象
 db = SQLAlchemy(app)
 
+# 初始化Flask-Migrate
+migrate = Migrate(app, db)
+
 # 加载配置
 app.config.from_object('config')
 
@@ -46,41 +50,19 @@ if not is_testing:
     while not db_connected and retry_count < max_retries:
         try:
             with app.app_context():
-                db.create_all()
-                
-                # 运行数据库迁移脚本以确保表结构是最新的
-                try:
-                    import os
-                    migration_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'init_db.sql')
-                    if os.path.exists(migration_script_path):
-                        with open(migration_script_path, 'r', encoding='utf-8') as f:
-                            migration_sql = f.read()
-                        
-                        # 执行迁移脚本
-                        from sqlalchemy import text
-                        with db.engine.connect() as connection:
-                            # 分割SQL语句并执行
-                            statements = [stmt.strip() for stmt in migration_sql.split(';') if stmt.strip()]
-                            for stmt in statements:
-                                if stmt:
-                                    connection.execute(text(stmt))
-                            connection.commit()
-                        
-                        app.logger.info("数据库迁移脚本执行完成")
-                except Exception as migration_error:
-                    app.logger.error(f"数据库迁移脚本执行失败: {str(migration_error)}")
-                
-            db_connected = True
-            app.logger.info("数据库连接成功！")
-            # 检查 Counters 表是否已创建
-            from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            tables = inspector.get_table_names()
-            app.logger.info(f"数据库中已存在的表: {tables}")
-            if 'Counters' not in tables:
-                app.logger.warning("警告: Counters 表不存在")
-            else:
-                app.logger.info("Counters 表已存在")
+                # 使用Flask-Migrate进行数据库初始化，不再手动执行SQL脚本
+                # db.create_all() 调用将被Flask-Migrate接管
+                db_connected = True
+                app.logger.info("数据库连接成功！")
+                # 检查 Counters 表是否已创建
+                from sqlalchemy import inspect
+                inspector = inspect(db.engine)
+                tables = inspector.get_table_names()
+                app.logger.info(f"数据库中已存在的表: {tables}")
+                if 'Counters' not in tables:
+                    app.logger.warning("警告: Counters 表不存在")
+                else:
+                    app.logger.info("Counters 表已存在")
         except Exception as e:
             retry_count += 1
             app.logger.error(f"数据库连接失败，正在重试 ({retry_count}/{max_retries}): {str(e)}")

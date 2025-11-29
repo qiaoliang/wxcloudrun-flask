@@ -589,49 +589,9 @@ def community_verify():
         return make_err_response({}, f'身份验证失败: {str(e)}')
 
 
-# 扩展User模型以支持身份验证相关字段
-# 注意：由于无法直接修改已导入的模型，我们在数据库层面处理
-from sqlalchemy import text
 
-def add_verification_fields():
-    """
-    为用户表添加身份验证相关字段
-    """
-    try:
-        # 检查并添加必要的字段
-        with db.engine.connect() as conn:
-            # 检查是否已存在验证相关字段
-            # 添加姓名字段
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN name VARCHAR(100) COMMENT '真实姓名'"))
-            except:
-                pass  # 字段可能已存在
-            
-            # 添加工号字段
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN work_id VARCHAR(50) COMMENT '工号或身份证号'"))
-            except:
-                pass  # 字段可能已存在
-            
-            # 添加验证状态字段
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN verification_status INTEGER DEFAULT 0 COMMENT '验证状态：0-未申请/1-待审核/2-已通过/3-已拒绝'"))
-            except:
-                pass  # 字段可能已存在
-            
-            # 添加验证材料字段
-            try:
-                conn.execute(text("ALTER TABLE users ADD COLUMN verification_materials TEXT COMMENT '验证材料URL'"))
-            except:
-                pass  # 字段可能已存在
-            
-            conn.commit()
-    except Exception as e:
-        app.logger.error(f'添加验证字段时发生错误: {str(e)}')
 
-# 应用启动时自动添加验证字段
-with app.app_context():
-    add_verification_fields()
+
 
 
 @app.route('/api/checkin/today', methods=['GET'])

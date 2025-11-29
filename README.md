@@ -210,6 +210,44 @@ pytest
 python scripts/run_tests.py
 ```
 
+## 数据库迁移
+
+项目现在使用 Flask-Migrate 进行数据库迁移管理，替代了原有的 init_db.sql 脚本和 views.py 中的 add_verification_fields() 函数。
+
+### 初始化迁移环境
+
+```bash
+# 激活Python 3.12虚拟环境
+source venv_py312/bin/activate
+
+# 安装依赖（包含Flask-Migrate）
+pip install -r requirements.txt
+
+# 初始化数据库表
+python run_migrations.py init
+
+# 为当前数据库结构创建初始迁移
+flask db init
+flask db migrate -m "Initial migration"
+flask db upgrade
+```
+
+### 日常迁移操作
+
+```bash
+# 当修改模型后，生成新的迁移脚本
+flask db migrate -m "描述性迁移信息"
+
+# 应用迁移到数据库
+flask db upgrade
+
+# 查看当前迁移状态
+flask db current
+
+# 回滚到上一个版本
+flask db downgrade
+```
+
 ## 运行测试
 
 项目包含全面的自动化测试套件，使用 pytest 框架。根据测试需求和环境不同，有三种运行方式，通过不同的环境变量配置文件实现：
