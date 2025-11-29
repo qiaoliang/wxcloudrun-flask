@@ -17,9 +17,13 @@ def query_counterbyid(id):
     :return: Counter实体
     """
     try:
-        return Counters.query.filter(Counters.id == id).first()
+        result = Counters.query.filter(Counters.id == id).first()
+        logger.info(f"query_counterbyid: 查询ID {id} 的结果 - {'找到计数器' if result else '未找到计数器'}")
+        if result:
+            logger.info(f"query_counterbyid: 计数器值为 {result.count}")
+        return result
     except OperationalError as e:
-        logger.info("query_counterbyid errorMsg= {} ".format(e))
+        logger.error("query_counterbyid errorMsg= {} ".format(e))
         return None
 
 
@@ -29,13 +33,17 @@ def delete_counterbyid(id):
     :param id: Counter的ID
     """
     try:
+        logger.info(f"delete_counterbyid: 准备删除ID为 {id} 的计数器")
         counter = Counters.query.get(id)
         if counter is None:
+            logger.warning(f"delete_counterbyid: 未找到ID为 {id} 的计数器进行删除")
             return
+        logger.info(f"delete_counterbyid: 找到计数器，值为 {counter.count}")
         db.session.delete(counter)
         db.session.commit()
+        logger.info(f"delete_counterbyid: 成功删除ID为 {id} 的计数器")
     except OperationalError as e:
-        logger.info("delete_counterbyid errorMsg= {} ".format(e))
+        logger.error("delete_counterbyid errorMsg= {} ".format(e))
 
 
 def insert_counter(counter):
@@ -44,10 +52,12 @@ def insert_counter(counter):
     :param counter: Counters实体
     """
     try:
+        logger.info(f"insert_counter: 准备插入计数器，ID: {counter.id}, 值: {counter.count}")
         db.session.add(counter)
         db.session.commit()
+        logger.info(f"insert_counter: 成功插入计数器，ID: {counter.id}, 值: {counter.count}")
     except OperationalError as e:
-        logger.info("insert_counter errorMsg= {} ".format(e))
+        logger.error("insert_counter errorMsg= {} ".format(e))
 
 
 def update_counterbyid(counter):
@@ -56,16 +66,22 @@ def update_counterbyid(counter):
     :param counter实体
     """
     try:
+        logger.info(f"update_counterbyid: 准备更新计数器，ID: {counter.id}, 新值: {counter.count}")
         existing_counter = query_counterbyid(counter.id)
         if existing_counter is None:
+            logger.warning(f"update_counterbyid: 未找到ID为 {counter.id} 的计数器进行更新")
             return
+        logger.info(f"update_counterbyid: 找到现有计数器，当前值: {existing_counter.count}")
         # 更新现有记录的值
         existing_counter.count = counter.count
         existing_counter.updated_at = counter.updated_at
+        logger.info(f"update_counterbyid: 设置新值为 {existing_counter.count}")
         db.session.flush()
+        logger.info("update_counterbyid: 执行session flush")
         db.session.commit()
+        logger.info(f"update_counterbyid: 成功提交更新，ID: {counter.id}, 值: {existing_counter.count}")
     except OperationalError as e:
-        logger.info("update_counterbyid errorMsg= {} ".format(e))
+        logger.error("update_counterbyid errorMsg= {} ".format(e))
 
 
 def query_user_by_openid(openid):

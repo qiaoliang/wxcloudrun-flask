@@ -33,37 +33,53 @@ def count():
 
     # 获取请求体参数
     params = request.get_json()
+    app.logger.info(f"接收到计数器POST请求，参数: {params}")
 
     # 检查action参数
     if 'action' not in params:
+        app.logger.warning("请求中缺少action参数")
         return make_err_response('缺少action参数')
 
     # 按照不同的action的值，进行不同的操作
     action = params['action']
+    app.logger.info(f"执行操作: {action}")
 
     # 执行自增操作
     if action == 'inc':
+        app.logger.info("开始执行计数器自增操作")
         counter = query_counterbyid(1)
+        app.logger.info(f"查询到的计数器: {counter.count if counter else 'None'}")
+        
         if counter is None:
+            app.logger.info("计数器不存在，创建新的计数器，值设为1")
             counter = Counters()
             counter.id = 1
             counter.count = 1
             counter.created_at = datetime.now()
             counter.updated_at = datetime.now()
             insert_counter(counter)
+            app.logger.info("新计数器已插入数据库")
         else:
+            app.logger.info(f"计数器存在，当前值: {counter.count}，即将递增")
             counter.count += 1
+            app.logger.info(f"递增后值: {counter.count}")
             counter.updated_at = datetime.now()
             update_counterbyid(counter)
+            app.logger.info("计数器已更新")
+        
+        app.logger.info(f"返回计数值: {counter.count}")
         return make_succ_response(counter.count)
 
     # 执行清0操作
     elif action == 'clear':
+        app.logger.info("执行清零操作")
         delete_counterbyid(1)
+        app.logger.info("计数器已清零")
         return make_succ_empty_response()
 
     # action参数错误
     else:
+        app.logger.warning(f"无效的action参数: {action}")
         return make_err_response('action参数错误')
 
 
@@ -72,8 +88,11 @@ def get_count():
     """
     :return: 计数的值
     """
+    app.logger.info("接收到计数器GET请求")
     counter = query_counterbyid(1)
-    return make_succ_response(0) if counter is None else make_succ_response(counter.count)
+    count_value = 0 if counter is None else counter.count
+    app.logger.info(f"查询到的计数器值: {count_value}")
+    return make_succ_response(count_value)
 
 @app.route('/api/login', methods=['POST'])
 def login():
