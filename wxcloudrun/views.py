@@ -52,7 +52,6 @@ def count():
             counter.updated_at = datetime.now()
             insert_counter(counter)
         else:
-            counter.id = 1
             counter.count += 1
             counter.updated_at = datetime.now()
             update_counterbyid(counter)
