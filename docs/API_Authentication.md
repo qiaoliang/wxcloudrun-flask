@@ -81,7 +81,15 @@
 **状态**: ✅ 已实现  
 **接口地址**: `POST /api/login`  
 **接口描述**: 通过微信小程序code获取用户信息并返回JWT token  
-**请求参数**:
+**首次登录请求参数**:
+```json
+{
+  "code": "微信小程序登录凭证",
+  "avatar_url": "用户头像URL",
+  "nickname": "用户昵称"
+}
+```
+**非首次登录请求参数**:
 ```json
 {
   "code": "微信小程序登录凭证"
@@ -92,7 +100,13 @@
 {
   "code": 1,
   "data": {
-    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "refresh_token_string",
+    "user_id": 123,
+    "is_new_user": true,
+    "role": "solo",
+    "is_verified": false,
+    "expires_in": 7200
   },
   "msg": "success"
 }

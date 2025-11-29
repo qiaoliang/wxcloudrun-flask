@@ -99,7 +99,9 @@ def get_count():
 def login():
     """
     登录接口，通过code获取用户信息并返回token
-    :return: token
+    首次登录：前端传code、avatarUrl、nickName
+    非首次登录：前端仅传code
+    :return: 登录结果
     """
     app.logger.info('=== 开始执行登录接口 ===')
 
@@ -123,7 +125,7 @@ def login():
     # 打印code用于调试
     app.logger.info(f'获取到的code: {code}')
 
-    # 获取可能传递的用户信息
+    # 获取可能传递的用户信息（首次登录时会包含这些信息）
     nickname = params.get('nickname')
     avatar_url = params.get('avatar_url')
 
@@ -175,7 +177,7 @@ def login():
 
         if not existing_user:
             app.logger.info('用户不存在，创建新用户...')
-            # 创建新用户
+            # 创建新用户，根据是否提供了用户信息来决定初始角色
             user = User(
                 wechat_openid=openid,
                 nickname=nickname,
@@ -218,9 +220,10 @@ def login():
         }
         app.logger.info(f'JWT token payload: {token_payload}')
 
-        # 临时使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
-        app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
+        # 从配置文件获取TOKEN_SECRET，如果不存在则使用硬编码的值（开发用）
+        import config
+        token_secret = getattr(config, 'TOKEN_SECRET', '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f')
+        app.logger.info(f'使用的TOKEN_SECRET: {token_secret[:10]}...')  # 只记录部分信息用于调试
 
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
 
@@ -258,11 +261,12 @@ def login():
     app.logger.info('登录流程完成，开始构造响应数据')
 
     # 构造返回数据，包含用户的 token 和 refresh token
+    # 根据登录流程图，返回格式应该与登录流程图一致
     response_data = {
         'token': token,
         'refresh_token': refresh_token,  # 添加refresh token
         'user_id': user.user_id,
-        'is_new_user': is_new,  # 标识是否为新用户
+        'is_new_user': is_new,  # 标识是否为新用户，符合登录流程图要求
         'role': user.role_name,  # 返回用户角色名称
         'is_verified': user.verification_status == 2,  # 返回验证状态（仅对社区工作人员有意义）
         'expires_in': 7200  # 2小时（秒）
@@ -274,7 +278,7 @@ def login():
     app.logger.info(f'返回的refresh_token长度: {len(refresh_token)}')
     app.logger.info('=== 登录接口执行完成 ===')
 
-    # 返回自定义格式的响应
+    # 返回自定义格式的响应，符合统一响应格式
     return make_succ_response(response_data)
 
 
