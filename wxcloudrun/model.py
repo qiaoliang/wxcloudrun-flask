@@ -15,19 +15,7 @@ class Counters(db.Model):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
-class User(db.Model):
-    __tablename__ = 'User'
 
-    user_id = Column(Integer, primary_key=True, autoincrement=True)
-    wechat_openid = Column(String(255), unique=True, nullable=False)
-    nickname = Column(String(255))
-    avatar_url = Column(String(500))
-    role = Column(Integer, default=1)  # 1: 独居者, 2: 监护人, 3: 社区工作人员
-    status = Column(Integer, default=1)  # 1: 正常, 2: 禁用
-    created_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    refresh_token = Column(String(500))  # 新增刷新token字段
-    refresh_token_expire = Column(DateTime)  # 新增刷新token过期时间
 
 
 # 用户表
