@@ -22,6 +22,7 @@ def index():
     """
     :return: 返回index页面
     """
+    app.logger.info("主页访问")
     return render_template('index.html')
 
 

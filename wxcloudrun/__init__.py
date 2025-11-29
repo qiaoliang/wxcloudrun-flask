@@ -36,7 +36,7 @@ app.config.from_object('config')
 from wxcloudrun import views
 
 # 创建数据库表（仅在非测试环境或明确需要时创建）
-from wxcloudrun.model import Counters
+from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
 if not is_testing:
     # 添加数据库连接重试机制
     max_retries = 30  # 最多等待30次（30秒）
@@ -48,11 +48,20 @@ if not is_testing:
             with app.app_context():
                 db.create_all()
             db_connected = True
-            print("数据库连接成功！")
+            app.logger.info("数据库连接成功！")
+            # 检查 Counters 表是否已创建
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            app.logger.info(f"数据库中已存在的表: {tables}")
+            if 'Counters' not in tables:
+                app.logger.warning("警告: Counters 表不存在")
+            else:
+                app.logger.info("Counters 表已存在")
         except Exception as e:
             retry_count += 1
-            print(f"数据库连接失败，正在重试 ({retry_count}/{max_retries}): {str(e)}")
+            app.logger.error(f"数据库连接失败，正在重试 ({retry_count}/{max_retries}): {str(e)}")
             time.sleep(1)  # 等待1秒后重试
     
     if not db_connected:
-        print("无法连接到数据库，应用可能无法正常工作。")
+        app.logger.error("无法连接到数据库，应用可能无法正常工作。")
