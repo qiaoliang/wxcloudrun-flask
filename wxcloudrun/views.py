@@ -1,13 +1,17 @@
-from datetime import datetime, date, time, timedelta
-import requests
+import logging
+from flask import Flask, render_template, request
+from flask_cors import CORS
+import json
+import time
+from datetime import datetime, date, timedelta
 import jwt
-import os
-from dotenv import load_dotenv
-from flask import render_template, request
-from wxcloudrun import app
-from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter, update_counterbyid, query_user_by_openid, insert_user, update_user_by_id, query_checkin_rules_by_user_id, insert_checkin_rule, update_checkin_rule_by_id, delete_checkin_rule_by_id, query_checkin_rule_by_id, query_checkin_records_by_user_id_and_date, insert_checkin_record, update_checkin_record_by_id, query_checkin_record_by_id, query_checkin_records_by_user_and_date_range, query_unchecked_users_by_date, query_checkin_records_by_rule_id_and_date
+import requests
+from functools import wraps
+from dotenv import load_dotenv  # 添加缺失的导入
+from wxcloudrun import db, app  # 从wxcloudrun导入app对象
 from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
+from wxcloudrun.dao import *
 
 # 加载环境变量
 load_dotenv()
@@ -182,14 +186,16 @@ def login():
             else:
                 app.logger.info('用户信息无变化，无需更新')
 
-        app.logger.info('开始生成JWT token...')
+        app.logger.info('开始生成JWT token和refresh token...')
 
-        # 生成JWT token
         import datetime
+        import secrets
+        
+        # 生成JWT token (access token)，设置2小时过期时间
         token_payload = {
             'openid': openid,
-            'session_key': session_key,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 设置7天过期时间
+            'user_id': user.user_id,  # 添加用户ID到token中
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)  # 设置2小时过期时间
         }
         app.logger.info(f'JWT token payload: {token_payload}')
 
@@ -199,11 +205,23 @@ def login():
 
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
 
+        # 生成refresh token
+        refresh_token = secrets.token_urlsafe(32)
+        app.logger.info(f'生成的refresh_token: {refresh_token[:20]}...')
+
+        # 设置refresh token过期时间为7天
+        refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
+
+        # 更新用户信息，保存refresh token
+        user.refresh_token = refresh_token
+        user.refresh_token_expire = refresh_token_expire
+        update_user_by_id(user)
+
         # 打印生成的token用于调试（只打印前50个字符）
         app.logger.info(f'生成的token前50字符: {token[:50]}...')
         app.logger.info(f'生成的token总长度: {len(token)}')
 
-        app.logger.info('JWT token生成成功')
+        app.logger.info('JWT token和refresh token生成成功')
 
     except requests.exceptions.Timeout as e:
         app.logger.error(f'请求微信API超时: {str(e)}')
@@ -220,16 +238,19 @@ def login():
 
     app.logger.info('登录流程完成，开始构造响应数据')
 
-    # 构造返回数据，包含用户的 token
+    # 构造返回数据，包含用户的 token 和 refresh token
     response_data = {
         'token': token,
+        'refresh_token': refresh_token,  # 添加refresh token
         'user_id': user.user_id,
-        'is_new_user': is_new  # 标识是否为新用户
+        'is_new_user': is_new,  # 标识是否为新用户
+        'expires_in': 7200  # 2小时（秒）
     }
 
     app.logger.info(f'返回的用户ID: {user.user_id}')
     app.logger.info(f'是否为新用户: {is_new}')
     app.logger.info(f'返回的token长度: {len(token)}')
+    app.logger.info(f'返回的refresh_token长度: {len(refresh_token)}')
     app.logger.info('=== 登录接口执行完成 ===')
 
     # 返回自定义格式的响应
@@ -480,6 +501,20 @@ def verify_token():
         return None, make_err_response({}, f'JWT验证失败: {str(e)}')
 
 
+def login_required(f):
+    """
+    统一的登录认证装饰器
+    """
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        decoded, error_response = verify_token()
+        if error_response:
+            return error_response
+        # 将解码后的用户信息传递给被装饰的函数
+        return f(decoded, *args, **kwargs)
+    return decorated_function
+
+
 @app.route('/api/community/verify', methods=['POST'])
 def community_verify():
     """
@@ -581,16 +616,12 @@ with app.app_context():
 
 
 @app.route('/api/checkin/today', methods=['GET'])
-def get_today_checkin_items():
+@login_required
+def get_today_checkin_items(decoded):
     """
     获取用户今日打卡事项列表
     """
     app.logger.info('=== 开始执行获取今日打卡事项接口 ===')
-    
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
     
     openid = decoded.get('openid')
     user = query_user_by_openid(openid)
@@ -673,16 +704,12 @@ def get_today_checkin_items():
 
 
 @app.route('/api/checkin', methods=['POST'])
-def perform_checkin():
+@login_required
+def perform_checkin(decoded):
     """
     执行打卡操作
     """
     app.logger.info('=== 开始执行打卡接口 ===')
-    
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
     
     openid = decoded.get('openid')
     user = query_user_by_openid(openid)
@@ -768,16 +795,12 @@ def perform_checkin():
 
 
 @app.route('/api/checkin/cancel', methods=['POST'])
-def cancel_checkin():
+@login_required
+def cancel_checkin(decoded):
     """
     撤销打卡操作（仅限30分钟内）
     """
     app.logger.info('=== 开始执行撤销打卡接口 ===')
-    
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
     
     openid = decoded.get('openid')
     user = query_user_by_openid(openid)
@@ -823,16 +846,12 @@ def cancel_checkin():
 
 
 @app.route('/api/checkin/history', methods=['GET'])
-def get_checkin_history():
+@login_required
+def get_checkin_history(decoded):
     """
-    获取用户打卡历史记录
+    获取打卡历史记录
     """
     app.logger.info('=== 开始执行获取打卡历史接口 ===')
-    
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
     
     openid = decoded.get('openid')
     user = query_user_by_openid(openid)
@@ -882,7 +901,8 @@ def get_checkin_history():
 
 
 @app.route('/api/checkin/rules', methods=['GET', 'POST', 'PUT', 'DELETE'])
-def manage_checkin_rules():
+@login_required
+def manage_checkin_rules(decoded):
     """
     打卡规则管理接口
     GET: 获取打卡规则列表
@@ -891,11 +911,6 @@ def manage_checkin_rules():
     DELETE: 删除打卡规则
     """
     app.logger.info(f'=== 开始执行打卡规则管理接口: {request.method} ===')
-    
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
     
     openid = decoded.get('openid')
     user = query_user_by_openid(openid)
@@ -1025,5 +1040,124 @@ def manage_checkin_rules():
     except Exception as e:
         app.logger.error(f'打卡规则管理时发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'打卡规则管理失败: {str(e)}')
+
+
+@app.route('/api/refresh_token', methods=['POST'])
+def refresh_token():
+    """
+    刷新token接口，使用refresh token获取新的access token
+    """
+    app.logger.info('=== 开始执行刷新Token接口 ===')
+    
+    try:
+        # 获取请求体参数
+        params = request.get_json()
+        if not params:
+            app.logger.warning('刷新Token请求缺少请求体参数')
+            return make_err_response({}, '缺少请求体参数')
+        
+        refresh_token = params.get('refresh_token')
+        if not refresh_token:
+            app.logger.warning('刷新Token请求缺少refresh_token参数')
+            return make_err_response({}, '缺少refresh_token参数')
+        
+        app.logger.info('开始验证refresh token...')
+        
+        # 从数据库中查找用户信息
+        user = query_user_by_refresh_token(refresh_token)
+        if not user or not user.refresh_token or user.refresh_token != refresh_token:
+            app.logger.warning(f'无效的refresh_token: {refresh_token[:20]}...')
+            return make_err_response({}, '无效的refresh_token')
+        
+        # 检查refresh token是否过期
+        from datetime import datetime
+        if user.refresh_token_expire and user.refresh_token_expire < datetime.now():
+            app.logger.warning(f'refresh_token已过期，用户ID: {user.user_id}')
+            # 清除过期的refresh token
+            user.refresh_token = None
+            user.refresh_token_expire = None
+            update_user_by_id(user)
+            return make_err_response({}, 'refresh_token已过期')
+        
+        app.logger.info(f'找到用户，正在为用户ID: {user.user_id} 生成新token')
+        
+        # 生成新的JWT token（access token）
+        import datetime as dt
+        token_payload = {
+            'openid': user.wechat_openid,
+            'user_id': user.user_id,
+            'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)  # 设置2小时过期时间
+        }
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        new_token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+        
+        # 生成新的refresh token（可选：也可以继续使用现有的refresh token）
+        import secrets
+        new_refresh_token = secrets.token_urlsafe(32)
+        # 设置新的refresh token过期时间（7天）
+        new_refresh_token_expire = datetime.now() + dt.timedelta(days=7)
+        
+        # 更新数据库中的refresh token
+        user.refresh_token = new_refresh_token
+        user.refresh_token_expire = new_refresh_token_expire
+        update_user_by_id(user)
+        
+        app.logger.info(f'成功为用户ID: {user.user_id} 刷新token')
+        
+        response_data = {
+            'token': new_token,
+            'refresh_token': new_refresh_token,
+            'expires_in': 7200  # 2小时（秒）
+        }
+        
+        return make_succ_response(response_data)
+        
+    except jwt.PyJWTError as e:
+        app.logger.error(f'JWT处理错误: {str(e)}')
+        return make_err_response({}, f'JWT处理失败: {str(e)}')
+    except Exception as e:
+        app.logger.error(f'刷新Token过程中发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'刷新Token失败: {str(e)}')
+
+
+def query_user_by_refresh_token(refresh_token):
+    """
+    根据refresh token查询用户
+    """
+    try:
+        from .dao import session
+        user = session.query(User).filter(User.refresh_token == refresh_token).first()
+        return user
+    except Exception as e:
+        app.logger.error(f'查询用户失败: {str(e)}')
+        return None
+
+
+@app.route('/api/logout', methods=['POST'])
+@login_required
+def logout(decoded):
+    """
+    用户登出接口，清除refresh token
+    """
+    app.logger.info('=== 开始执行登出接口 ===')
+    
+    try:
+        openid = decoded.get('openid')
+        if not openid:
+            return make_err_response({}, 'token无效')
+        
+        # 根据openid查找用户并清除refresh token
+        user = query_user_by_openid(openid)
+        if user:
+            user.refresh_token = None
+            user.refresh_token_expire = None
+            update_user_by_id(user)
+            app.logger.info(f'成功清除用户ID: {user.user_id} 的refresh token')
+        
+        return make_succ_response({'message': '登出成功'})
+        
+    except Exception as e:
+        app.logger.error(f'登出过程中发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'登出失败: {str(e)}')
 
 

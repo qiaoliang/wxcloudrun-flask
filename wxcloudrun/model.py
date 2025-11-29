@@ -1,19 +1,33 @@
 from datetime import datetime
 import os
 
-from wxcloudrun import db
+from sqlalchemy import Column, Integer, String, DateTime, Text
+from wxcloudrun import db  # 导入db对象
+from datetime import datetime
 
 
-# 计数表
 class Counters(db.Model):
-    # 设置结构体表格名称
     __tablename__ = 'Counters'
 
-    # 设定结构体对应表格的字段
-    id = db.Column(db.Integer, primary_key=True)
-    count = db.Column(db.Integer, default=1)
-    created_at = db.Column('createdAt', db.TIMESTAMP, nullable=False, default=datetime.now)
-    updated_at = db.Column('updatedAt', db.TIMESTAMP, nullable=False, default=datetime.now)
+    id = Column(Integer, primary_key=True)
+    count = Column(Integer, default=1)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class User(db.Model):
+    __tablename__ = 'User'
+
+    user_id = Column(Integer, primary_key=True, autoincrement=True)
+    wechat_openid = Column(String(255), unique=True, nullable=False)
+    nickname = Column(String(255))
+    avatar_url = Column(String(500))
+    role = Column(Integer, default=1)  # 1: 独居者, 2: 监护人, 3: 社区工作人员
+    status = Column(Integer, default=1)  # 1: 正常, 2: 禁用
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    refresh_token = Column(String(500))  # 新增刷新token字段
+    refresh_token_expire = Column(DateTime)  # 新增刷新token过期时间
 
 
 # 用户表
