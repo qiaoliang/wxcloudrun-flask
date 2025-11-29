@@ -1,12 +1,12 @@
-from datetime import datetime
+from datetime import datetime, date, time, timedelta
 import requests
 import jwt
 import os
 from dotenv import load_dotenv
 from flask import render_template, request
 from wxcloudrun import app
-from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter, update_counterbyid, query_user_by_openid, insert_user, update_user_by_id
-from wxcloudrun.model import Counters, User
+from wxcloudrun.dao import delete_counterbyid, query_counterbyid, insert_counter, update_counterbyid, query_user_by_openid, insert_user, update_user_by_id, query_checkin_rules_by_user_id, insert_checkin_rule, update_checkin_rule_by_id, delete_checkin_rule_by_id, query_checkin_rule_by_id, query_checkin_records_by_user_id_and_date, insert_checkin_record, update_checkin_record_by_id, query_checkin_record_by_id, query_checkin_records_by_user_and_date_range, query_unchecked_users_by_date, query_checkin_records_by_rule_id_and_date
+from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
 
 # 加载环境变量
@@ -428,5 +428,602 @@ def user_profile():
         return make_err_response({}, f'处理用户信息失败: {str(e)}')
 
     app.logger.info('=== 用户信息接口执行完成 ===')
+
+
+# 辅助函数：验证JWT token
+def verify_token():
+    """
+    验证JWT token并返回解码后的用户信息
+    """
+    # 获取请求体参数
+    params = request.get_json() if request.get_json() else {}
+    
+    # 验证token
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
+    else:
+        header_token = auth_header
+    token = params.get('token') or header_token
+
+    if not token:
+        app.logger.warning('请求中缺少token参数')
+        return None, make_err_response({}, '缺少token参数')
+
+    try:
+        # 使用硬编码的TOKEN_SECRET进行解码
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        
+        # 解码token
+        decoded = jwt.decode(
+            token,
+            token_secret,
+            algorithms=['HS256']
+        )
+        openid = decoded.get('openid')
+
+        if not openid:
+            app.logger.error('解码后的token中未找到openid')
+            return None, make_err_response({}, 'token无效')
+
+        return decoded, None
+    except jwt.ExpiredSignatureError:
+        return None, make_err_response({}, 'token已过期')
+    except jwt.InvalidSignatureError:
+        return None, make_err_response({}, 'token签名无效')
+    except jwt.DecodeError:
+        return None, make_err_response({}, 'token格式错误')
+    except jwt.InvalidTokenError:
+        return None, make_err_response({}, 'token无效')
+    except Exception as e:
+        app.logger.error(f'JWT验证时发生错误: {str(e)}', exc_info=True)
+        return None, make_err_response({}, f'JWT验证失败: {str(e)}')
+
+
+@app.route('/api/community/verify', methods=['POST'])
+def community_verify():
+    """
+    社区工作人员身份验证接口
+    """
+    app.logger.info('=== 开始执行社区工作人员身份验证接口 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取请求参数
+        params = request.get_json()
+        name = params.get('name')
+        work_id = params.get('workId')  # 注意：前端使用驼峰命名
+        work_proof = params.get('workProof')  # 工作证明照片URL或base64
+        
+        if not name or not work_id or not work_proof:
+            return make_err_response({}, '缺少必要参数：姓名、工号或工作证明')
+        
+        # 这里应该实现身份验证逻辑
+        # 1. 保存验证信息到数据库
+        # 2. 设置用户验证状态
+        # 3. 模拟验证过程
+        
+        # 更新用户信息，设置验证状态
+        user.name = name  # 添加姓名字段（如果模型中没有需要扩展）
+        user.work_id = work_id  # 添加工号字段（如果模型中没有需要扩展）
+        user.verification_status = 1  # 设置为待审核状态
+        user.verification_materials = work_proof  # 保存验证材料
+        user.updated_at = datetime.now()
+        
+        update_user_by_id(user)
+        
+        response_data = {
+            'message': '身份验证申请已提交，请耐心等待审核',
+            'verification_status': 'pending'
+        }
+        
+        app.logger.info(f'用户 {user.user_id} 身份验证申请已提交')
+        return make_succ_response(response_data)
+        
+    except Exception as e:
+        app.logger.error(f'身份验证时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'身份验证失败: {str(e)}')
+
+
+# 扩展User模型以支持身份验证相关字段
+# 注意：由于无法直接修改已导入的模型，我们在数据库层面处理
+from sqlalchemy import text
+
+def add_verification_fields():
+    """
+    为用户表添加身份验证相关字段
+    """
+    try:
+        # 检查并添加必要的字段
+        with db.engine.connect() as conn:
+            # 检查是否已存在验证相关字段
+            # 添加姓名字段
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN name VARCHAR(100) COMMENT '真实姓名'"))
+            except:
+                pass  # 字段可能已存在
+            
+            # 添加工号字段
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN work_id VARCHAR(50) COMMENT '工号或身份证号'"))
+            except:
+                pass  # 字段可能已存在
+            
+            # 添加验证状态字段
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_status INTEGER DEFAULT 0 COMMENT '验证状态：0-未申请/1-待审核/2-已通过/3-已拒绝'"))
+            except:
+                pass  # 字段可能已存在
+            
+            # 添加验证材料字段
+            try:
+                conn.execute(text("ALTER TABLE users ADD COLUMN verification_materials TEXT COMMENT '验证材料URL'"))
+            except:
+                pass  # 字段可能已存在
+            
+            conn.commit()
+    except Exception as e:
+        app.logger.error(f'添加验证字段时发生错误: {str(e)}')
+
+# 应用启动时自动添加验证字段
+with app.app_context():
+    add_verification_fields()
+
+
+@app.route('/api/checkin/today', methods=['GET'])
+def get_today_checkin_items():
+    """
+    获取用户今日打卡事项列表
+    """
+    app.logger.info('=== 开始执行获取今日打卡事项接口 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取用户的打卡规则
+        checkin_rules = query_checkin_rules_by_user_id(user.user_id)
+        
+        # 生成今天的打卡计划
+        today = date.today()
+        checkin_items = []
+        for rule in checkin_rules:
+            # 根据规则频率类型判断今天是否需要打卡
+            should_checkin_today = True
+            
+            if rule.frequency_type == 1:  # 每周
+                # 根据week_days位掩码判断今天是否需要打卡
+                today_weekday = today.weekday()  # 0是周一，6是周日
+                if not (rule.week_days & (1 << today_weekday)):
+                    should_checkin_today = False
+            elif rule.frequency_type == 2:  # 工作日
+                if today.weekday() >= 5:  # 周六日
+                    should_checkin_today = False
+            
+            if should_checkin_today:
+                # 查询今天该规则的打卡记录
+                today_records = query_checkin_records_by_rule_id_and_date(rule.rule_id, today)
+                
+                # 计算计划打卡时间
+                if rule.time_slot_type == 4 and rule.custom_time:  # 自定义时间
+                    planned_time = datetime.combine(today, rule.custom_time)
+                elif rule.time_slot_type == 1:  # 上午
+                    planned_time = datetime.combine(today, time(9, 0))  # 默认上午9点
+                elif rule.time_slot_type == 2:  # 下午
+                    planned_time = datetime.combine(today, time(14, 0))  # 默认下午2点
+                else:  # 晚上，默认晚上8点
+                    planned_time = datetime.combine(today, time(20, 0))
+                
+                # 确定打卡状态
+                checkin_status = 'unchecked'
+                checkin_time = None
+                record_id = None
+                
+                for record in today_records:
+                    if record.status == 1:  # 已打卡
+                        checkin_status = 'checked'
+                        checkin_time = record.checkin_time.strftime('%H:%M:%S') if record.checkin_time else None
+                        record_id = record.record_id
+                        break
+                    elif record.status == 2:  # 已撤销
+                        checkin_status = 'unchecked'
+                        checkin_time = None
+                        record_id = record.record_id
+                        break
+                
+                checkin_items.append({
+                    'rule_id': rule.rule_id,
+                    'record_id': record_id,
+                    'rule_name': rule.rule_name,
+                    'icon_url': rule.icon_url,
+                    'planned_time': planned_time.strftime('%H:%M:%S'),
+                    'status': checkin_status,  # unchecked, checked
+                    'checkin_time': checkin_time
+                })
+        
+        response_data = {
+            'date': today.strftime('%Y-%m-%d'),
+            'checkin_items': checkin_items
+        }
+        
+        app.logger.info(f'成功获取今日打卡事项，用户ID: {user.user_id}, 事项数量: {len(checkin_items)}')
+        return make_succ_response(response_data)
+        
+    except Exception as e:
+        app.logger.error(f'获取今日打卡事项时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取今日打卡事项失败: {str(e)}')
+
+
+@app.route('/api/checkin', methods=['POST'])
+def perform_checkin():
+    """
+    执行打卡操作
+    """
+    app.logger.info('=== 开始执行打卡接口 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取请求参数
+        params = request.get_json()
+        rule_id = params.get('rule_id')
+        
+        if not rule_id:
+            return make_err_response({}, '缺少rule_id参数')
+        
+        # 验证打卡规则是否存在且属于当前用户
+        rule = query_checkin_rule_by_id(rule_id)
+        if not rule or rule.solo_user_id != user.user_id:
+            return make_err_response({}, '打卡规则不存在或无权限')
+        
+        # 检查今天是否已有打卡记录（防止重复打卡）
+        today = date.today()
+        existing_records = query_checkin_records_by_rule_id_and_date(rule_id, today)
+        
+        # 查找当天已有的打卡记录（状态为已打卡）
+        existing_checkin = None
+        for record in existing_records:
+            if record.status == 1:  # 已打卡
+                # 不允许重复打卡
+                return make_err_response({}, '今日该事项已打卡，请勿重复打卡')
+            elif record.status == 0:  # 未打卡状态的记录，可以更新为已打卡
+                existing_checkin = record
+                break
+            elif record.status == 2:  # 已撤销的记录，可以重新打卡
+                # 创建新的打卡记录
+                existing_checkin = None
+                break
+        
+        # 记录打卡时间
+        checkin_time = datetime.now()
+        
+        if existing_checkin:
+            # 更新已有记录的打卡时间和状态
+            existing_checkin.checkin_time = checkin_time
+            existing_checkin.status = 1  # 已打卡
+            update_checkin_record_by_id(existing_checkin)
+            record_id = existing_checkin.record_id
+        else:
+            # 计算计划打卡时间
+            if rule.time_slot_type == 4 and rule.custom_time:  # 自定义时间
+                planned_time = datetime.combine(today, rule.custom_time)
+            elif rule.time_slot_type == 1:  # 上午
+                planned_time = datetime.combine(today, time(9, 0))  # 默认上午9点
+            elif rule.time_slot_type == 2:  # 下午
+                planned_time = datetime.combine(today, time(14, 0))  # 默认下午2点
+            else:  # 晚上，默认晚上8点
+                planned_time = datetime.combine(today, time(20, 0))
+            
+            # 创建新的打卡记录
+            new_record = CheckinRecord(
+                rule_id=rule_id,
+                solo_user_id=user.user_id,
+                checkin_time=checkin_time,
+                status=1,  # 已打卡
+                planned_time=planned_time
+            )
+            insert_checkin_record(new_record)
+            record_id = new_record.record_id
+        
+        response_data = {
+            'rule_id': rule_id,
+            'record_id': record_id,
+            'checkin_time': checkin_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'message': '打卡成功'
+        }
+        
+        app.logger.info(f'用户 {user.user_id} 打卡成功，规则ID: {rule_id}')
+        return make_succ_response(response_data)
+        
+    except Exception as e:
+        app.logger.error(f'打卡时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'打卡失败: {str(e)}')
+
+
+@app.route('/api/checkin/cancel', methods=['POST'])
+def cancel_checkin():
+    """
+    撤销打卡操作（仅限30分钟内）
+    """
+    app.logger.info('=== 开始执行撤销打卡接口 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取请求参数
+        params = request.get_json()
+        record_id = params.get('record_id')
+        
+        if not record_id:
+            return make_err_response({}, '缺少record_id参数')
+        
+        # 验证打卡记录是否存在且属于当前用户
+        record = query_checkin_record_by_id(record_id)
+        if not record or record.solo_user_id != user.user_id:
+            return make_err_response({}, '打卡记录不存在或无权限')
+        
+        # 检查打卡时间是否在30分钟内（防止撤销过期打卡）
+        if record.checkin_time:
+            time_diff = datetime.now() - record.checkin_time
+            if time_diff.total_seconds() > 30 * 60:  # 30分钟
+                return make_err_response({}, '只能撤销30分钟内的打卡记录')
+        
+        # 更新记录状态为已撤销
+        record.status = 2  # 已撤销
+        record.checkin_time = None  # 清除打卡时间
+        update_checkin_record_by_id(record)
+        
+        response_data = {
+            'record_id': record_id,
+            'message': '撤销打卡成功'
+        }
+        
+        app.logger.info(f'用户 {user.user_id} 撤销打卡成功，记录ID: {record_id}')
+        return make_succ_response(response_data)
+        
+    except Exception as e:
+        app.logger.error(f'撤销打卡时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'撤销打卡失败: {str(e)}')
+
+
+@app.route('/api/checkin/history', methods=['GET'])
+def get_checkin_history():
+    """
+    获取用户打卡历史记录
+    """
+    app.logger.info('=== 开始执行获取打卡历史接口 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取查询参数
+        params = request.args
+        start_date_str = params.get('start_date', (date.today() - timedelta(days=7)).strftime('%Y-%m-%d'))
+        end_date_str = params.get('end_date', date.today().strftime('%Y-%m-%d'))
+        
+        # 解析日期
+        start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+        end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+        
+        # 获取打卡记录
+        records = query_checkin_records_by_user_and_date_range(user.user_id, start_date, end_date)
+        
+        # 转换为响应格式
+        history_data = []
+        for record in records:
+            history_data.append({
+                'record_id': record.record_id,
+                'rule_id': record.rule_id,
+                'rule_name': record.rule.rule_name,
+                'icon_url': record.rule.icon_url,
+                'planned_time': record.planned_time.strftime('%Y-%m-%d %H:%M:%S'),
+                'checkin_time': record.checkin_time.strftime('%Y-%m-%d %H:%M:%S') if record.checkin_time else None,
+                'status': record.status_name,  # 使用模型中的状态名称
+                'created_at': record.created_at.strftime('%Y-%m-%d %H:%M:%S')
+            })
+        
+        response_data = {
+            'start_date': start_date_str,
+            'end_date': end_date_str,
+            'history': history_data
+        }
+        
+        app.logger.info(f'成功获取打卡历史，用户ID: {user.user_id}, 记录数量: {len(history_data)}')
+        return make_succ_response(response_data)
+        
+    except Exception as e:
+        app.logger.error(f'获取打卡历史时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取打卡历史失败: {str(e)}')
+
+
+@app.route('/api/checkin/rules', methods=['GET', 'POST', 'PUT', 'DELETE'])
+def manage_checkin_rules():
+    """
+    打卡规则管理接口
+    GET: 获取打卡规则列表
+    POST: 创建打卡规则
+    PUT: 更新打卡规则
+    DELETE: 删除打卡规则
+    """
+    app.logger.info(f'=== 开始执行打卡规则管理接口: {request.method} ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        if request.method == 'GET':
+            # 获取用户的所有打卡规则
+            rules = query_checkin_rules_by_user_id(user.user_id)
+            
+            rules_data = []
+            for rule in rules:
+                rules_data.append({
+                    'rule_id': rule.rule_id,
+                    'rule_name': rule.rule_name,
+                    'icon_url': rule.icon_url,
+                    'frequency_type': rule.frequency_type,
+                    'time_slot_type': rule.time_slot_type,
+                    'custom_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else None,
+                    'week_days': rule.week_days,
+                    'status': rule.status,
+                    'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                })
+            
+            response_data = {
+                'rules': rules_data
+            }
+            
+            app.logger.info(f'成功获取打卡规则列表，用户ID: {user.user_id}, 规则数量: {len(rules_data)}')
+            return make_succ_response(response_data)
+            
+        elif request.method == 'POST':
+            # 创建打卡规则
+            params = request.get_json()
+            
+            rule_name = params.get('rule_name')
+            if not rule_name:
+                return make_err_response({}, '缺少rule_name参数')
+            
+            # 创建新的打卡规则
+            new_rule = CheckinRule(
+                solo_user_id=user.user_id,
+                rule_name=rule_name,
+                icon_url=params.get('icon_url', ''),
+                frequency_type=params.get('frequency_type', 0),  # 默认每天
+                time_slot_type=params.get('time_slot_type', 4),  # 默认自定义时间
+                custom_time=datetime.strptime(params['custom_time'], '%H:%M:%S').time() if params.get('custom_time') else None,
+                week_days=params.get('week_days', 127),  # 默认周一到周日
+                status=params.get('status', 1)  # 默认启用
+            )
+            
+            insert_checkin_rule(new_rule)
+            
+            response_data = {
+                'rule_id': new_rule.rule_id,
+                'message': '创建打卡规则成功'
+            }
+            
+            app.logger.info(f'成功创建打卡规则，用户ID: {user.user_id}, 规则ID: {new_rule.rule_id}')
+            return make_succ_response(response_data)
+            
+        elif request.method == 'PUT':
+            # 更新打卡规则
+            params = request.get_json()
+            
+            rule_id = params.get('rule_id')
+            if not rule_id:
+                return make_err_response({}, '缺少rule_id参数')
+            
+            # 验证规则是否存在且属于当前用户
+            rule = query_checkin_rule_by_id(rule_id)
+            if not rule or rule.solo_user_id != user.user_id:
+                return make_err_response({}, '打卡规则不存在或无权限')
+            
+            # 更新规则信息
+            if 'rule_name' in params:
+                rule.rule_name = params['rule_name']
+            if 'icon_url' in params:
+                rule.icon_url = params['icon_url']
+            if 'frequency_type' in params:
+                rule.frequency_type = params['frequency_type']
+            if 'time_slot_type' in params:
+                rule.time_slot_type = params['time_slot_type']
+            if 'custom_time' in params:
+                rule.custom_time = datetime.strptime(params['custom_time'], '%H:%M:%S').time() if params['custom_time'] else None
+            if 'week_days' in params:
+                rule.week_days = params['week_days']
+            if 'status' in params:
+                rule.status = params['status']
+            
+            update_checkin_rule_by_id(rule)
+            
+            response_data = {
+                'rule_id': rule.rule_id,
+                'message': '更新打卡规则成功'
+            }
+            
+            app.logger.info(f'成功更新打卡规则，用户ID: {user.user_id}, 规则ID: {rule.rule_id}')
+            return make_succ_response(response_data)
+            
+        elif request.method == 'DELETE':
+            # 删除打卡规则
+            params = request.get_json()
+            
+            rule_id = params.get('rule_id')
+            if not rule_id:
+                return make_err_response({}, '缺少rule_id参数')
+            
+            # 验证规则是否存在且属于当前用户
+            rule = query_checkin_rule_by_id(rule_id)
+            if not rule or rule.solo_user_id != user.user_id:
+                return make_err_response({}, '打卡规则不存在或无权限')
+            
+            delete_checkin_rule_by_id(rule_id)
+            
+            response_data = {
+                'rule_id': rule_id,
+                'message': '删除打卡规则成功'
+            }
+            
+            app.logger.info(f'成功删除打卡规则，用户ID: {user.user_id}, 规则ID: {rule_id}')
+            return make_succ_response(response_data)
+            
+    except Exception as e:
+        app.logger.error(f'打卡规则管理时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'打卡规则管理失败: {str(e)}')
 
 

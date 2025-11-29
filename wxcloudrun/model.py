@@ -27,12 +27,18 @@ class User(db.Model):
     phone_number = db.Column(db.String(20), unique=True, comment='手机号码，可用于登录和联系')
     nickname = db.Column(db.String(100), comment='用户昵称')
     avatar_url = db.Column(db.String(500), comment='用户头像URL')
+    name = db.Column(db.String(100), comment='真实姓名')
+    work_id = db.Column(db.String(50), comment='工号或身份证号')
     
     # 使用整数类型存储角色和状态，避免在不同数据库间使用不同字段类型
     # 角色: 1-独居者, 2-监护人, 3-社区工作人员
     role = db.Column(db.Integer, nullable=False, comment='用户角色：1-独居者/2-监护人/3-社区工作人员')
     # 状态: 1-正常, 2-禁用
     status = db.Column(db.Integer, default=1, comment='用户状态：1-正常/2-禁用')
+    
+    # 验证状态: 0-未申请, 1-待审核, 2-已通过, 3-已拒绝
+    verification_status = db.Column(db.Integer, default=0, comment='验证状态：0-未申请/1-待审核/2-已通过/3-已拒绝')
+    verification_materials = db.Column(db.Text, comment='验证材料URL')
     
     community_id = db.Column(db.Integer, comment='所属社区ID，仅社区工作人员需要')
     created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
@@ -54,8 +60,10 @@ class User(db.Model):
 
     # 状态映射
     STATUS_MAPPING = {
-        1: 'active',
-        2: 'disabled'
+        0: 'not_applied',
+        1: 'pending',
+        2: 'verified',
+        3: 'rejected'
     }
 
     @property
@@ -75,6 +83,94 @@ class User(db.Model):
             if name == role_name:
                 return value
         return None
+
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
+                return value
+        return None
+
+
+# 打卡规则表
+class CheckinRule(db.Model):
+    # 设置结构体表格名称
+    __tablename__ = 'checkin_rules'
+
+    # 设定结构体对应表格的字段
+    rule_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    solo_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='独居者用户ID')
+    rule_name = db.Column(db.String(100), nullable=False, comment='打卡规则名称，如：起床打卡、早餐打卡等')
+    icon_url = db.Column(db.String(500), comment='打卡事项图标URL')
+    
+    # 频率类型: 0-每天, 1-每周, 2-工作日, 3-自定义
+    frequency_type = db.Column(db.Integer, nullable=False, default=0, comment='打卡频率类型：0-每天/1-每周/2-工作日/3-自定义')
+    
+    # 时间段类型: 1-上午, 2-下午, 3-晚上, 4-自定义时间
+    time_slot_type = db.Column(db.Integer, nullable=False, default=4, comment='时间段类型：1-上午/2-下午/3-晚上/4-自定义时间')
+    
+    # 自定义时间（当time_slot_type为4时使用）
+    custom_time = db.Column(db.Time, comment='自定义打卡时间')
+    
+    # 一周中的天（当frequency_type为1时使用，使用位掩码表示周几）
+    week_days = db.Column(db.Integer, default=127, comment='一周中的天（位掩码表示）：默认127表示周一到周日')
+    
+    # 规则状态：1-启用, 0-禁用
+    status = db.Column(db.Integer, default=1, comment='规则状态：1-启用/0-禁用')
+    
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联用户
+    user = db.relationship('User', backref=db.backref('checkin_rules', lazy=True))
+
+    # 索引
+    __table_args__ = (
+        db.Index('idx_solo_user', 'solo_user_id'),  # 用户ID索引
+    )
+
+
+# 打卡记录表
+class CheckinRecord(db.Model):
+    # 设置结构体表格名称
+    __tablename__ = 'checkin_records'
+
+    # 设定结构体对应表格的字段
+    record_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    rule_id = db.Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=False, comment='打卡规则ID')
+    solo_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='独居者用户ID')
+    checkin_time = db.Column(db.TIMESTAMP, comment='实际打卡时间')
+    
+    # 状态: 1-checked(已打卡), 0-missed(未打卡), 2-revoked(已撤销)
+    status = db.Column(db.Integer, default=0, comment='状态：0-未打卡/1-已打卡/2-已撤销')
+    
+    planned_time = db.Column(db.TIMESTAMP, nullable=False, comment='计划打卡时间')
+    created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联规则和用户
+    rule = db.relationship('CheckinRule', backref=db.backref('checkin_records', lazy=True))
+    user = db.relationship('User', backref=db.backref('checkin_records', lazy=True))
+
+    # 索引
+    __table_args__ = (
+        db.Index('idx_rule', 'rule_id'),  # 规则ID索引
+        db.Index('idx_solo_user', 'solo_user_id'),  # 用户ID索引
+        db.Index('idx_planned_time', 'planned_time'),  # 计划时间索引
+    )
+
+    # 状态映射
+    STATUS_MAPPING = {
+        0: 'missed',
+        1: 'checked',
+        2: 'revoked'
+    }
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
 
     @classmethod
     def get_status_value(cls, status_name):

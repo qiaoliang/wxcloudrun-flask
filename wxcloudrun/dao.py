@@ -1,9 +1,10 @@
 import logging
-from datetime import datetime
+from datetime import datetime, date
 from sqlalchemy.exc import OperationalError
+from sqlalchemy import and_, or_
 
 from wxcloudrun import db
-from wxcloudrun.model import Counters, User
+from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
 
 # 初始化日志
 logger = logging.getLogger('log')
@@ -119,6 +120,10 @@ def update_user_by_id(user):
             existing_user.nickname = user.nickname
         if user.avatar_url is not None:
             existing_user.avatar_url = user.avatar_url
+        if user.name is not None:
+            existing_user.name = user.name
+        if user.work_id is not None:
+            existing_user.work_id = user.work_id
         if user.phone_number is not None:
             existing_user.phone_number = user.phone_number
         if user.role is not None:
@@ -129,6 +134,10 @@ def update_user_by_id(user):
                     existing_user.role = role_value
             elif isinstance(user.role, int):
                 existing_user.role = user.role
+        if user.verification_status is not None:
+            existing_user.verification_status = user.verification_status
+        if user.verification_materials is not None:
+            existing_user.verification_materials = user.verification_materials
         if user.community_id is not None:
             existing_user.community_id = user.community_id
         if user.status is not None:
@@ -145,3 +154,265 @@ def update_user_by_id(user):
         db.session.commit()
     except OperationalError as e:
         logger.info("update_user_by_id errorMsg= {} ".format(e))
+
+
+# 打卡规则相关数据访问方法
+def query_checkin_rules_by_user_id(user_id):
+    """
+    根据用户ID查询打卡规则列表
+    :param user_id: 用户ID
+    :return: 打卡规则列表
+    """
+    try:
+        return CheckinRule.query.filter(
+            CheckinRule.solo_user_id == user_id,
+            CheckinRule.status == 1  # 只查询启用的规则
+        ).all()
+    except OperationalError as e:
+        logger.info("query_checkin_rules_by_user_id errorMsg= {} ".format(e))
+        return []
+
+
+def query_checkin_rule_by_id(rule_id):
+    """
+    根据规则ID查询打卡规则
+    :param rule_id: 规则ID
+    :return: 打卡规则实体
+    """
+    try:
+        return CheckinRule.query.get(rule_id)
+    except OperationalError as e:
+        logger.info("query_checkin_rule_by_id errorMsg= {} ".format(e))
+        return None
+
+
+def insert_checkin_rule(rule):
+    """
+    插入打卡规则
+    :param rule: 打卡规则实体
+    """
+    try:
+        db.session.add(rule)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("insert_checkin_rule errorMsg= {} ".format(e))
+
+
+def update_checkin_rule_by_id(rule):
+    """
+    根据ID更新打卡规则
+    :param rule: 打卡规则实体
+    """
+    try:
+        existing_rule = query_checkin_rule_by_id(rule.rule_id)
+        if existing_rule is None:
+            return
+        # 更新规则信息
+        if rule.rule_name is not None:
+            existing_rule.rule_name = rule.rule_name
+        if rule.icon_url is not None:
+            existing_rule.icon_url = rule.icon_url
+        if rule.frequency_type is not None:
+            existing_rule.frequency_type = rule.frequency_type
+        if rule.time_slot_type is not None:
+            existing_rule.time_slot_type = rule.time_slot_type
+        if rule.custom_time is not None:
+            existing_rule.custom_time = rule.custom_time
+        if rule.week_days is not None:
+            existing_rule.week_days = rule.week_days
+        if rule.status is not None:
+            existing_rule.status = rule.status
+        existing_rule.updated_at = rule.updated_at or datetime.now()
+        
+        db.session.flush()
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("update_checkin_rule_by_id errorMsg= {} ".format(e))
+
+
+def delete_checkin_rule_by_id(rule_id):
+    """
+    根据ID删除打卡规则
+    :param rule_id: 规则ID
+    """
+    try:
+        rule = CheckinRule.query.get(rule_id)
+        if rule is None:
+            return
+        db.session.delete(rule)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("delete_checkin_rule_by_id errorMsg= {} ".format(e))
+
+
+# 打卡记录相关数据访问方法
+def query_checkin_records_by_user_id_and_date(user_id, checkin_date=None):
+    """
+    根据用户ID和日期查询打卡记录
+    :param user_id: 用户ID
+    :param checkin_date: 打卡日期，默认为今天
+    :return: 打卡记录列表
+    """
+    try:
+        if checkin_date is None:
+            checkin_date = date.today()
+        
+        # 查询当天的打卡记录
+        return CheckinRecord.query.filter(
+            CheckinRecord.solo_user_id == user_id,
+            db.func.date(CheckinRecord.planned_time) == checkin_date
+        ).all()
+    except OperationalError as e:
+        logger.info("query_checkin_records_by_user_id_and_date errorMsg= {} ".format(e))
+        return []
+
+
+def query_checkin_records_by_rule_id_and_date(rule_id, checkin_date=None):
+    """
+    根据规则ID和日期查询打卡记录
+    :param rule_id: 规则ID
+    :param checkin_date: 打卡日期，默认为今天
+    :return: 打卡记录列表
+    """
+    try:
+        if checkin_date is None:
+            checkin_date = date.today()
+        
+        # 查询当天该规则的打卡记录
+        return CheckinRecord.query.filter(
+            CheckinRecord.rule_id == rule_id,
+            db.func.date(CheckinRecord.planned_time) == checkin_date
+        ).all()
+    except OperationalError as e:
+        logger.info("query_checkin_records_by_rule_id_and_date errorMsg= {} ".format(e))
+        return []
+
+
+def query_checkin_record_by_id(record_id):
+    """
+    根据记录ID查询打卡记录
+    :param record_id: 记录ID
+    :return: 打卡记录实体
+    """
+    try:
+        return CheckinRecord.query.get(record_id)
+    except OperationalError as e:
+        logger.info("query_checkin_record_by_id errorMsg= {} ".format(e))
+        return None
+
+
+def insert_checkin_record(record):
+    """
+    插入打卡记录
+    :param record: 打卡记录实体
+    """
+    try:
+        db.session.add(record)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("insert_checkin_record errorMsg= {} ".format(e))
+
+
+def update_checkin_record_by_id(record):
+    """
+    根据ID更新打卡记录
+    :param record: 打卡记录实体
+    """
+    try:
+        existing_record = query_checkin_record_by_id(record.record_id)
+        if existing_record is None:
+            return
+        # 更新记录信息
+        if record.checkin_time is not None:
+            existing_record.checkin_time = record.checkin_time
+        if record.status is not None:
+            existing_record.status = record.status
+        existing_record.updated_at = record.updated_at or datetime.now()
+        
+        db.session.flush()
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("update_checkin_record_by_id errorMsg= {} ".format(e))
+
+
+def query_checkin_records_by_user_and_date_range(user_id, start_date, end_date):
+    """
+    根据用户ID和日期范围查询打卡记录
+    :param user_id: 用户ID
+    :param start_date: 开始日期
+    :param end_date: 结束日期
+    :return: 打卡记录列表
+    """
+    try:
+        return CheckinRecord.query.filter(
+            CheckinRecord.solo_user_id == user_id,
+            CheckinRecord.planned_time >= start_date,
+            CheckinRecord.planned_time <= end_date
+        ).order_by(CheckinRecord.planned_time.desc()).all()
+    except OperationalError as e:
+        logger.info("query_checkin_records_by_user_and_date_range errorMsg= {} ".format(e))
+        return []
+
+
+def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start_date, end_date):
+    """
+    根据监护人ID和日期范围查询被监护人的打卡记录
+    :param supervisor_user_id: 监护人用户ID
+    :param start_date: 开始日期
+    :param end_date: 结束日期
+    :return: 打卡记录列表
+    """
+    # 注意：这需要关联SupervisionRelation表，目前未实现，暂返回空列表
+    # 未来需要实现监护关系表后，才能查询被监护人的打卡记录
+    try:
+        # 这里只是一个占位实现，实际需要关联监护关系表
+        return []
+    except OperationalError as e:
+        logger.info("query_checkin_records_by_supervisor_and_date_range errorMsg= {} ".format(e))
+        return []
+
+
+def query_unchecked_users_by_date(checkin_date=None):
+    """
+    查询指定日期未打卡的用户
+    :param checkin_date: 检查日期，默认为今天
+    :return: 未打卡用户列表
+    """
+    try:
+        if checkin_date is None:
+            checkin_date = date.today()
+        
+        # 获取所有当天应打卡的规则
+        rules_for_date = db.session.query(
+            CheckinRule.solo_user_id,
+            CheckinRule.rule_id
+        ).join(
+            User
+        ).filter(
+            # 只考虑独居者
+            User.role == 1,
+            # 规则启用
+            CheckinRule.status == 1
+        ).all()
+        
+        # 对于每个规则，检查是否已打卡
+        unchecked_users = []
+        for rule in rules_for_date:
+            # 检查该规则当天的打卡情况
+            records = CheckinRecord.query.filter(
+                CheckinRecord.rule_id == rule.rule_id,
+                db.func.date(CheckinRecord.planned_time) == checkin_date,
+                CheckinRecord.status == 1  # 已打卡
+            ).count()
+            
+            # 如果没有打卡记录，则该用户该规则未打卡
+            if records == 0:
+                unchecked_users.append({
+                    'user_id': rule.solo_user_id,
+                    'rule_id': rule.rule_id
+                })
+        
+        return unchecked_users
+    except OperationalError as e:
+        logger.info("query_unchecked_users_by_date errorMsg= {} ".format(e))
+        return []
