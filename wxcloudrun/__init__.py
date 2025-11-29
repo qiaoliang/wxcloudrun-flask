@@ -75,20 +75,15 @@ if not is_testing:
 # 在应用启动时检查并应用挂起的迁移
 def run_pending_migrations():
     """运行挂起的数据库迁移"""
-    import subprocess
-    import sys
     try:
-        # 使用 Flask CLI 运行迁移
-        result = subprocess.run([sys.executable, '-m', 'flask', 'db', 'upgrade'], 
-                                capture_output=True, text=True, cwd=os.path.dirname(__file__))
-        if result.returncode != 0:
-            app.logger.error(f"数据库迁移失败: {result.stderr}")
-        else:
-            app.logger.info("数据库迁移成功完成")
+        # 使用 Flask-Migrate 的 Python API 而不是子进程调用
+        from flask_migrate import upgrade
+        upgrade()
+        app.logger.info("数据库迁移成功完成")
     except Exception as e:
-        app.logger.error(f"尝试运行数据库迁移时出错: {str(e)}")
+        app.logger.error(f"数据库迁移失败: {str(e)}")
 
-# 根据环境变量决定是否自动运行迁移（默认为true）
+# 根据环境变量决定是否自动运行迁移
 if not is_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'true').lower() != 'false':
     with app.app_context():
         run_pending_migrations()
