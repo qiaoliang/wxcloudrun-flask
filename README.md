@@ -181,11 +181,13 @@ docker-compose up --build -d
 ### 生产环境
 - 使用 MySQL 数据库
 - 角色和状态字段使用整数类型存储
+- 所有时间字段都使用 `db.DateTime` 类型，以确保在 SQLite 和 MySQL 中都有良好的支持
 - 通过环境变量配置数据库连接信息
 
 ### 测试环境
 - 使用 SQLite 内存数据库
 - 角色和状态字段同样使用整数类型存储（与生产环境保持一致）
+- 时间字段同样使用 `db.DateTime` 类型，确保跨数据库兼容性
 - 在运行测试时自动设置 `FLASK_ENV=testing` 或 `PYTEST_CURRENT_TEST` 环境变量
 
 ### 运行自动化测试

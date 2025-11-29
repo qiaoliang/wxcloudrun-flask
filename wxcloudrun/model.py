@@ -1,7 +1,7 @@
 from datetime import datetime
 import os
 
-from sqlalchemy import Column, Integer, String, DateTime, Text
+from sqlalchemy import Column, Integer, String, DateTime, Text, text
 from wxcloudrun import db  # 导入db对象
 from datetime import datetime
 
@@ -43,8 +43,8 @@ class User(db.Model):
     verification_materials = db.Column(db.Text, comment='验证材料URL')
     
     community_id = db.Column(db.Integer, comment='所属社区ID，仅社区工作人员需要')
-    created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
-    updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
     # 索引
     __table_args__ = (
@@ -121,8 +121,8 @@ class CheckinRule(db.Model):
     # 规则状态：1-启用, 0-禁用
     status = db.Column(db.Integer, default=1, comment='规则状态：1-启用/0-禁用')
     
-    created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
-    updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
     # 关联用户
     user = db.relationship('User', backref=db.backref('checkin_rules', lazy=True))
@@ -142,14 +142,14 @@ class CheckinRecord(db.Model):
     record_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     rule_id = db.Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=False, comment='打卡规则ID')
     solo_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='独居者用户ID')
-    checkin_time = db.Column(db.TIMESTAMP, comment='实际打卡时间')
+    checkin_time = db.Column(db.DateTime, comment='实际打卡时间')
     
     # 状态: 1-checked(已打卡), 0-missed(未打卡), 2-revoked(已撤销)
     status = db.Column(db.Integer, default=0, comment='状态：0-未打卡/1-已打卡/2-已撤销')
     
-    planned_time = db.Column(db.TIMESTAMP, nullable=False, comment='计划打卡时间')
-    created_at = db.Column(db.TIMESTAMP, default=datetime.now, comment='创建时间')
-    updated_at = db.Column(db.TIMESTAMP, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    planned_time = db.Column(db.DateTime, nullable=False, comment='计划打卡时间')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
     # 关联规则和用户
     rule = db.relationship('CheckinRule', backref=db.backref('checkin_records', lazy=True))
