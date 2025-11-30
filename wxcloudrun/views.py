@@ -12,7 +12,7 @@ from wxcloudrun import db, app  # 从wxcloudrun导入app对象
 from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
 from wxcloudrun.dao import *
-from wxcloudrun.controllers.user_controller import UserController, CheckinController, CommunityController
+from wxcloudrun.controllers.user_controller import UserController, CheckinController, CommunityController, login_required
 
 # 加载环境变量
 load_dotenv()
