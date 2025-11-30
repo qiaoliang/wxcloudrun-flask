@@ -35,54 +35,11 @@
 
 # 用户管理API接口列表
 
-## 待实现的API接口
+## 已实现的API接口
 
 ### 1. 用户管理接口
 
-#### 1.1 手机号登录
-
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/login_phone`  
-**接口描述**: 通过手机号和验证码进行登录  
-**请求参数**:
-```json
-{
-  "phone": "手机号",
-  "code": "验证码"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "token": "JWT令牌"
-  },
-  "msg": "success"
-}
-```
-
-#### 1.2 发送短信验证码
-
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/send_sms`  
-**接口描述**: 发送手机验证码  
-**请求参数**:
-```json
-{
-  "phone": "手机号"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {},
-  "msg": "验证码发送成功"
-}
-```
-
-#### 1.3 获取用户信息
+#### 1.1 获取用户信息
 
 **状态**: ✅ 已实现  
 **接口地址**: `GET /api/user/profile`  
@@ -98,17 +55,18 @@
     "phone_number": "13800138000",
     "nickname": "用户昵称",
     "avatar_url": "头像URL",
-    "role": "solo",
+    "role": 1,
     "role_name": "solo",
     "community_id": 1,
-    "status": "active",
-    "status_name": "normal"
+    "status": 1,
+    "status_name": "normal",
+    "is_verified": false
   },
   "msg": "success"
 }
 ```
 
-#### 1.4 更新用户信息
+#### 1.2 更新用户信息
 
 **状态**: ✅ 已实现  
 **接口地址**: `POST /api/user/profile`  
@@ -120,7 +78,9 @@
   "nickname": "用户昵称",
   "avatar_url": "用户头像URL",
   "role": "solo|supervisor|community",
-  "phone_number": "手机号码"
+  "phone_number": "手机号码",
+  "community_id": 1,
+  "status": "active|disabled"
 }
 ```
 **响应示例**:
@@ -134,7 +94,7 @@
 }
 ```
 
-#### 1.5 社区工作人员身份验证
+#### 1.3 社区工作人员身份验证
 
 **状态**: ✅ 已实现  
 **接口地址**: `POST /api/community/verify`  
@@ -144,7 +104,7 @@
 ```json
 {
   "name": "姓名",
-  "work_id": "工号",
+  "workId": "工号",
   "workProof": "工作证明图片URL"
 }
 ```
@@ -160,7 +120,11 @@
 }
 ```
 
-#### 1.6 手机号登录
+## 待实现的API接口
+
+### 2. 用户管理接口
+
+#### 2.1 手机号登录
 
 **状态**: ❌ 待实现  
 **接口地址**: `POST /api/login_phone`  
@@ -183,7 +147,7 @@
 }
 ```
 
-#### 1.7 发送短信验证码
+#### 2.2 发送短信验证码
 
 **状态**: ❌ 待实现  
 **接口地址**: `POST /api/send_sms`  

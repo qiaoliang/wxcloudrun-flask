@@ -35,13 +35,13 @@
 
 # 打卡管理API接口列表
 
-## 待实现的API接口
+## 已实现的API接口
 
 ### 1. 打卡相关接口
 
 #### 1.1 获取今日打卡事项
 
-**状态**: ❌ 待实现  
+**状态**: ✅ 已实现  
 **接口地址**: `GET /api/checkin/today`  
 **接口描述**: 获取用户今日需要打卡的事项列表  
 **请求头**: `Authorization: Bearer {token}`  
@@ -50,6 +50,7 @@
 {
   "code": 1,
   "data": {
+    "date": "2023-12-01",
     "checkin_items": [
       {
         "rule_id": 1,
@@ -68,7 +69,7 @@
 
 #### 1.2 执行打卡
 
-**状态**: ❌ 待实现  
+**状态**: ✅ 已实现  
 **接口地址**: `POST /api/checkin`  
 **接口描述**: 用户执行打卡操作  
 **请求头**: `Authorization: Bearer {token}`  
@@ -92,7 +93,7 @@
 
 #### 1.3 撤销打卡
 
-**状态**: ❌ 待实现  
+**状态**: ✅ 已实现  
 **接口地址**: `POST /api/checkin/cancel`  
 **接口描述**: 撤销30分钟内的打卡记录  
 **请求头**: `Authorization: Bearer {token}`  
@@ -113,22 +114,22 @@
 
 #### 1.4 获取打卡历史
 
-**状态**: ❌ 待实现  
+**状态**: ✅ 已实现  
 **接口地址**: `GET /api/checkin/history`  
 **接口描述**: 获取用户打卡历史记录  
 **请求头**: `Authorization: Bearer {token}`  
 **请求参数**:
-- `user_id`: 用户ID（监护人查看时使用）
-- `date_range`: 时间范围（today|yesterday|7days|30days|custom）
-- `start_date`: 开始日期（custom时使用）
-- `end_date`: 结束日期（custom时使用）
+- `start_date`: 开始日期（格式：YYYY-MM-DD，默认为7天前）
+- `end_date`: 结束日期（格式：YYYY-MM-DD，默认为今天）
 
 **响应示例**:
 ```json
 {
   "code": 1,
   "data": {
-    "records": [
+    "start_date": "2023-11-24",
+    "end_date": "2023-12-01",
+    "history": [
       {
         "date": "2023-12-01",
         "items": [
@@ -143,37 +144,6 @@
     ]
   },
   "msg": "success"
-}
-```
-
-#### 1.5 离线打卡数据同步
-
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/checkin/sync`  
-**接口描述**: 离线打卡数据同步  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "sync_data": [
-    {
-      "rule_id": 1,
-      "planned_time": "2023-12-01 08:00:00",
-      "checkin_time": "2023-12-01 08:15:00",
-      "status": "checked"
-    }
-  ]
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "synced_count": 1,
-    "failed_count": 0
-  },
-  "msg": "同步成功"
 }
 ```
 
@@ -307,5 +277,40 @@
     "message": "删除打卡规则成功"
   },
   "msg": "success"
+}
+```
+
+## 待实现的API接口
+
+### 3. 打卡相关接口
+
+#### 3.1 离线打卡数据同步
+
+**状态**: ❌ 待实现  
+**接口地址**: `POST /api/checkin/sync`  
+**接口描述**: 离线打卡数据同步  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+```json
+{
+  "sync_data": [
+    {
+      "rule_id": 1,
+      "planned_time": "2023-12-01 08:00:00",
+      "checkin_time": "2023-12-01 08:15:00",
+      "status": "checked"
+    }
+  ]
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "synced_count": 1,
+    "failed_count": 0
+  },
+  "msg": "同步成功"
 }
 ```

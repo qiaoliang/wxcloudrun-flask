@@ -112,17 +112,45 @@
 }
 ```
 
-#### 2.2 更新用户信息
+#### 2.2 获取或更新用户信息
 
-**状态**: ✅ 已实现（待完善）  
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/user/profile`  
+**接口描述**: 获取用户信息  
+**请求头**: `Authorization: Bearer {token}`  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "user_id": 123,
+    "wechat_openid": "oabcdef123456789",
+    "phone_number": "13800138000",
+    "nickname": "用户昵称",
+    "avatar_url": "头像URL",
+    "role": "solo",
+    "role_name": "solo",
+    "community_id": 1,
+    "status": "active",
+    "status_name": "normal",
+    "is_verified": false
+  },
+  "msg": "success"
+}
+```
+
 **接口地址**: `POST /api/user/profile`  
-**接口描述**: 更新用户信息（头像、昵称等）  
+**接口描述**: 更新用户信息（昵称、头像、角色等）  
 **请求头**: `Authorization: Bearer {token}`  
 **请求参数**:
 ```json
 {
+  "nickname": "用户昵称",
   "avatar_url": "用户头像URL",
-  "nickname": "用户昵称"
+  "role": "solo|supervisor|community",
+  "phone_number": "手机号码",
+  "community_id": 1,
+  "status": "active|disabled"
 }
 ```
 **响应示例**:
@@ -131,6 +159,47 @@
   "code": 1,
   "data": {
     "message": "用户信息更新成功"
+  },
+  "msg": "success"
+}
+```
+
+#### 2.3 刷新Token
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/refresh_token`  
+**接口描述**: 使用refresh token获取新的access token  
+**请求参数**:
+```json
+{
+  "refresh_token": "refresh token"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "token": "new_access_token",
+    "refresh_token": "new_refresh_token",
+    "expires_in": 7200
+  },
+  "msg": "success"
+}
+```
+
+#### 2.4 用户登出
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/logout`  
+**接口描述**: 用户登出，清除refresh token  
+**请求头**: `Authorization: Bearer {token}`  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "message": "登出成功"
   },
   "msg": "success"
 }

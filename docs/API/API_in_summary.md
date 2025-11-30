@@ -77,20 +77,59 @@
 - 发送系统通知
 - 通知设置管理
 
-## 待实现的API接口
+## 已实现的API接口
 
-### 3. 用户管理接口
+### 1. 认证接口
 
-#### 3.1 手机号登录
+#### 1.1 计数器接口
 
 **状态**: ✅ 已实现  
-**接口地址**: `POST /api/login_phone`  
-**接口描述**: 通过手机号和验证码进行登录  
+**接口地址**: `GET /api/count`  
+**接口描述**: 获取当前计数值  
+**请求参数**: 无  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": 42,
+  "msg": "success"
+}
+```
+
+**接口地址**: `POST /api/count`  
+**接口描述**: 更新计数值（自增或清零）  
 **请求参数**:
 ```json
 {
-  "phone": "手机号",
-  "code": "验证码"
+  "action": "inc"  // 或 "clear"
+}
+```
+**响应示例** (自增操作):
+```json
+{
+  "code": 1,
+  "data": 43,
+  "msg": "success"
+}
+```
+
+#### 1.2 微信小程序登录
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/login`  
+**接口描述**: 通过微信小程序code获取用户信息并返回JWT token  
+**首次登录请求参数**:
+```json
+{
+  "code": "微信小程序登录凭证",
+  "avatar_url": "用户头像URL",
+  "nickname": "用户昵称"
+}
+```
+**非首次登录请求参数**:
+```json
+{
+  "code": "微信小程序登录凭证"
 }
 ```
 **响应示例**:
@@ -98,56 +137,19 @@
 {
   "code": 1,
   "data": {
-    "token": "JWT令牌"
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "refresh_token": "refresh_token_string",
+    "user_id": 123,
+    "is_new_user": true,
+    "role": "solo",
+    "is_verified": false,
+    "expires_in": 7200
   },
   "msg": "success"
 }
 ```
 
-#### 3.2 发送短信验证码
-
-**状态**: ✅ 已实现  
-**接口地址**: `POST /api/send_sms`  
-**接口描述**: 发送手机验证码  
-**请求参数**:
-```json
-{
-  "phone": "手机号"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {},
-  "msg": "验证码发送成功"
-}
-```
-
-#### 3.3 设置用户角色
-
-**状态**: ✅ 已实现  
-**接口地址**: `POST /api/user/role`  
-**接口描述**: 设置用户角色（独居者/监护人/社区工作人员）  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "role": "solo|supervisor|community"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "role": "solo"
-  },
-  "msg": "角色设置成功"
-}
-```
-
-#### 3.4 获取用户信息
+#### 1.3 获取或更新用户信息
 
 **状态**: ✅ 已实现  
 **接口地址**: `GET /api/user/profile`  
@@ -163,15 +165,86 @@
     "phone_number": "13800138000",
     "nickname": "用户昵称",
     "avatar_url": "头像URL",
-    "role": "solo",
+    "role": 1,
+    "role_name": "solo",
     "community_id": 1,
-    "status": "active"
+    "status": 1,
+    "status_name": "normal",
+    "is_verified": false
   },
   "msg": "success"
 }
 ```
 
-#### 3.5 社区工作人员身份验证
+**接口地址**: `POST /api/user/profile`  
+**接口描述**: 更新用户信息（昵称、头像、角色等）  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+```json
+{
+  "nickname": "用户昵称",
+  "avatar_url": "用户头像URL",
+  "role": "solo|supervisor|community",
+  "phone_number": "手机号码",
+  "community_id": 1,
+  "status": "active|disabled"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "message": "用户信息更新成功"
+  },
+  "msg": "success"
+}
+```
+
+#### 1.4 刷新Token
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/refresh_token`  
+**接口描述**: 使用refresh token获取新的access token  
+**请求参数**:
+```json
+{
+  "refresh_token": "refresh token"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "token": "new_access_token",
+    "refresh_token": "new_refresh_token",
+    "expires_in": 7200
+  },
+  "msg": "success"
+}
+```
+
+#### 1.5 用户登出
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/logout`  
+**接口描述**: 用户登出，清除refresh token  
+**请求头**: `Authorization: Bearer {token}`  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "message": "登出成功"
+  },
+  "msg": "success"
+}
+```
+
+### 2. 用户管理接口
+
+#### 2.1 社区工作人员身份验证
 
 **状态**: ✅ 已实现  
 **接口地址**: `POST /api/community/verify`  
@@ -181,8 +254,8 @@
 ```json
 {
   "name": "姓名",
-  "work_id": "工号",
-  "proof_image": "工作证明图片URL"
+  "workId": "工号",
+  "workProof": "工作证明图片URL"
 }
 ```
 **响应示例**:
@@ -190,40 +263,16 @@
 {
   "code": 1,
   "data": {
-    "is_verified": true
+    "message": "身份验证申请已提交，请耐心等待审核",
+    "verification_status": "pending"
   },
-  "msg": "身份验证成功"
+  "msg": "success"
 }
 ```
 
-#### 3.5 社区工作人员身份验证
+### 3. 打卡相关接口
 
-**状态**: ✅ 已实现  
-**接口地址**: `POST /api/community/verify`  
-**接口描述**: 社区工作人员身份验证  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "name": "姓名",
-  "work_id": "工号",
-  "proof_image": "工作证明图片URL"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "is_verified": true
-  },
-  "msg": "身份验证成功"
-}
-```
-
-### 4. 打卡相关接口
-
-#### 4.1 获取今日打卡事项
+#### 3.1 获取今日打卡事项
 
 **状态**: ✅ 已实现  
 **接口地址**: `GET /api/checkin/today`  
@@ -234,6 +283,7 @@
 {
   "code": 1,
   "data": {
+    "date": "2023-12-01",
     "checkin_items": [
       {
         "rule_id": 1,
@@ -250,7 +300,7 @@
 }
 ```
 
-#### 4.2 执行打卡
+#### 3.2 执行打卡
 
 **状态**: ✅ 已实现  
 **接口地址**: `POST /api/checkin`  
@@ -274,7 +324,7 @@
 }
 ```
 
-#### 4.3 撤销打卡
+#### 3.3 撤销打卡
 
 **状态**: ✅ 已实现  
 **接口地址**: `POST /api/checkin/cancel`  
@@ -295,24 +345,24 @@
 }
 ```
 
-#### 4.4 获取打卡历史
+#### 3.4 获取打卡历史
 
 **状态**: ✅ 已实现  
 **接口地址**: `GET /api/checkin/history`  
 **接口描述**: 获取用户打卡历史记录  
 **请求头**: `Authorization: Bearer {token}`  
 **请求参数**:
-- `user_id`: 用户ID（监护人查看时使用）
-- `date_range`: 时间范围（today|yesterday|7days|30days|custom）
-- `start_date`: 开始日期（custom时使用）
-- `end_date`: 结束日期（custom时使用）
+- `start_date`: 开始日期（格式：YYYY-MM-DD，默认为7天前）
+- `end_date`: 结束日期（格式：YYYY-MM-DD，默认为今天）
 
 **响应示例**:
 ```json
 {
   "code": 1,
   "data": {
-    "records": [
+    "start_date": "2023-11-24",
+    "end_date": "2023-12-01",
+    "history": [
       {
         "date": "2023-12-01",
         "items": [
@@ -330,40 +380,9 @@
 }
 ```
 
-#### 4.5 离线打卡数据同步
+### 4. 打卡规则接口
 
-**状态**: ✅ 已实现  
-**接口地址**: `POST /api/checkin/sync`  
-**接口描述**: 离线打卡数据同步  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "sync_data": [
-    {
-      "rule_id": 1,
-      "planned_time": "2023-12-01 08:00:00",
-      "checkin_time": "2023-12-01 08:15:00",
-      "status": "checked"
-    }
-  ]
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "synced_count": 1,
-    "failed_count": 0
-  },
-  "msg": "同步成功"
-}
-```
-
-### 5. 打卡规则接口
-
-#### 5.1 获取打卡规则
+#### 4.1 获取打卡规则
 
 **状态**: ✅ 已实现  
 **接口地址**: `GET /api/checkin/rules`  
@@ -393,7 +412,7 @@
 }
 ```
 
-#### 5.2 创建打卡规则
+#### 4.2 创建打卡规则
 
 **状态**: ✅ 已实现  
 **接口地址**: `POST /api/checkin/rules`  
@@ -432,7 +451,7 @@
 }
 ```
 
-#### 5.3 更新打卡规则
+#### 4.3 更新打卡规则
 
 **状态**: ✅ 已实现  
 **接口地址**: `PUT /api/checkin/rules`  
@@ -467,7 +486,7 @@
 }
 ```
 
-#### 5.4 删除打卡规则
+#### 4.4 删除打卡规则
 
 **状态**: ✅ 已实现  
 **接口地址**: `DELETE /api/checkin/rules`  
@@ -492,23 +511,52 @@
   },
   "msg": "success"
 }
-```  
-**请求头**: `Authorization: Bearer {token}`  
+```
+
+## 待实现的API接口
+
+### 5. 用户管理接口
+
+#### 5.1 手机号登录
+
+**状态**: ❌ 待实现  
+**接口地址**: `POST /api/login_phone`  
+**接口描述**: 通过手机号和验证码进行登录  
+**请求参数**:
+```json
+{
+  "phone": "手机号",
+  "code": "验证码"
+}
+```
 **响应示例**:
 ```json
 {
   "code": 1,
   "data": {
-    "default_rules": [
-      {
-        "rule_name": "起床",
-        "icon_url": "icons/get_up.png",
-        "frequency_type": "daily",
-        "time_slot_type": "period"
-      }
-    ]
+    "token": "JWT令牌"
   },
   "msg": "success"
+}
+```
+
+#### 5.2 发送短信验证码
+
+**状态**: ❌ 待实现  
+**接口地址**: `POST /api/send_sms`  
+**接口描述**: 发送手机验证码  
+**请求参数**:
+```json
+{
+  "phone": "手机号"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {},
+  "msg": "验证码发送成功"
 }
 ```
 
@@ -516,7 +564,7 @@
 
 #### 6.1 邀请监护人
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervision/invite`  
 **接口描述**: 独居者邀请监护人  
 **请求头**: `Authorization: Bearer {token}`  
@@ -541,7 +589,7 @@
 
 #### 6.2 申请成为监护人
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/apply`  
 **接口描述**: 主动申请成为监护人  
 **请求头**: `Authorization: Bearer {token}`  
@@ -564,7 +612,7 @@
 
 #### 6.3 邀请监护人
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/invite`  
 **接口描述**: 独居者邀请监护人  
 **请求头**: `Authorization: Bearer {token}`  
@@ -589,7 +637,7 @@
 
 #### 6.4 同意监护人申请
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/accept`  
 **接口描述**: 同意监护人申请  
 **请求头**: `Authorization: Bearer {token}`  
@@ -610,7 +658,7 @@
 
 #### 6.5 拒绝监护人申请
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/reject`  
 **接口描述**: 拒绝监护人申请  
 **请求头**: `Authorization: Bearer {token}`  
@@ -631,7 +679,7 @@
 
 #### 6.6 获取监护人列表
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/list`  
 **接口描述**: 获取监护人列表  
 **请求头**: `Authorization: Bearer {token}`  
@@ -655,7 +703,7 @@
 
 #### 6.7 移除监护人关系
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `DELETE /api/supervisor/remove`  
 **接口描述**: 移除监护人关系  
 **请求头**: `Authorization: Bearer {token}`  
@@ -676,7 +724,7 @@
 
 #### 6.8 监护人首页数据
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/dashboard`  
 **接口描述**: 监护人首页数据  
 **请求头**: `Authorization: Bearer {token}`  
@@ -701,7 +749,7 @@
 
 #### 6.9 获取被监护人详情
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/detail`  
 **接口描述**: 获取被监护人详情  
 **请求头**: `Authorization: Bearer {token}`  
@@ -739,7 +787,7 @@
 
 #### 6.10 获取被监护人打卡记录
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/records`  
 **接口描述**: 获取被监护人打卡记录  
 **请求头**: `Authorization: Bearer {token}`  
@@ -774,7 +822,7 @@
 
 #### 6.11 监护人通知设置
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/settings`  
 **接口描述**: 监护人通知设置  
 **请求头**: `Authorization: Bearer {token}`  
@@ -796,9 +844,9 @@
 }
 ```
 
-#### 6.4 获取监护关系列表
+#### 6.12 获取监护关系列表
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervision/relations`  
 **接口描述**: 获取用户的监护关系列表  
 **请求头**: `Authorization: Bearer {token}`  
@@ -832,7 +880,7 @@
 
 #### 7.1 获取社区数据看板
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/community/dashboard`  
 **接口描述**: 获取社区数据看板信息  
 **请求头**: `Authorization: Bearer {token}`  
@@ -857,7 +905,7 @@
 
 #### 7.2 获取未打卡独居者列表
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/community/unchecked`  
 **接口描述**: 获取未打卡独居者列表  
 **请求头**: `Authorization: Bearer {token}`  
@@ -886,7 +934,7 @@
 
 #### 7.3 批量发送提醒
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/community/notify`  
 **接口描述**: 批量发送提醒  
 **请求头**: `Authorization: Bearer {token}`  
@@ -910,7 +958,7 @@
 
 #### 7.4 标记已联系状态
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/community/mark_contacted`  
 **接口描述**: 标记已联系状态  
 **请求头**: `Authorization: Bearer {token}`  
@@ -929,9 +977,9 @@
 }
 ```
 
-#### 7.3 批量发送提醒
+#### 7.5 批量发送提醒（旧版）
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/community/remind`  
 **接口描述**: 批量发送提醒给未打卡用户  
 **请求头**: `Authorization: Bearer {token}`  
@@ -952,9 +1000,9 @@
 }
 ```
 
-#### 7.4 标记已联系
+#### 7.6 标记已联系
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/community/mark_contacted`  
 **接口描述**: 标记已联系独居者  
 **请求头**: `Authorization: Bearer {token}`  
@@ -977,7 +1025,7 @@
 
 #### 8.1 获取通知列表
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `GET /api/notifications`  
 **接口描述**: 获取用户通知列表  
 **请求头**: `Authorization: Bearer {token}`  
@@ -1002,7 +1050,7 @@
 
 #### 8.2 标记通知已读
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/notifications/read`  
 **接口描述**: 标记通知为已读  
 **请求头**: `Authorization: Bearer {token}`  
@@ -1023,7 +1071,7 @@
 
 #### 8.3 发送系统通知
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/notifications/send`  
 **接口描述**: 发送系统通知  
 **请求头**: `Authorization: Bearer {token}`  
@@ -1049,7 +1097,7 @@
 
 #### 8.4 通知设置管理
 
-**状态**: ✅ 已实现  
+**状态**: ❌ 待实现  
 **接口地址**: `POST /api/notifications/settings`  
 **接口描述**: 通知设置管理  
 **请求头**: `Authorization: Bearer {token}`  
@@ -1071,6 +1119,148 @@
   "msg": "设置更新成功"
 }
 ```
+
+### 9. 打卡相关接口
+
+#### 9.1 离线打卡数据同步
+
+**状态**: ❌ 待实现  
+**接口地址**: `POST /api/checkin/sync`  
+**接口描述**: 离线打卡数据同步  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+```json
+{
+  "sync_data": [
+    {
+      "rule_id": 1,
+      "planned_time": "2023-12-01 08:00:00",
+      "checkin_time": "2023-12-01 08:15:00",
+      "status": "checked"
+    }
+  ]
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "synced_count": 1,
+    "failed_count": 0
+  },
+  "msg": "同步成功"
+}
+```
+
+## 数据模型
+
+### 已实现的数据模型
+
+#### Counters (计数器表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| id | Integer | 计数器ID | 主键 |
+| count | Integer | 计数值 | 默认值: 1 |
+| created_at | TIMESTAMP | 创建时间 | 非空，默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 非空，默认当前时间 |
+
+#### User (用户表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| user_id | Integer | 用户ID | 主键，自增 |
+| wechat_openid | String(128) | 微信OpenID，唯一标识用户 | 唯一，非空 |
+| phone_number | String(20) | 手机号码，可用于登录和联系 | 唯一 |
+| nickname | String(100) | 用户昵称 | |
+| avatar_url | String(500) | 用户头像URL | |
+| role | Integer | 用户角色：1-独居者/2-监护人/3-社区工作人员 | 非空，枚举值：1/2/3 |
+| status | Integer | 用户状态：1-正常/2-禁用 | 默认值：1 |
+| verification_status | Integer | 验证状态：0-未申请/1-待审核/2-已通过/3-已拒绝 | 默认值：0 |
+| verification_materials | Text | 验证材料URL | |
+| community_id | Integer | 所属社区ID，仅社区工作人员需要 | |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+#### CheckinRule (打卡规则表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| rule_id | Integer | 规则ID | 主键，自增 |
+| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
+| rule_name | String(100) | 规则名称 | 非空 |
+| icon_url | String(500) | 规则图标URL | |
+| frequency_type | Integer | 频率类型：0-每天/1-每周/2-工作日/3-自定义 | 默认值：0 |
+| time_slot_type | Integer | 时间段类型：1-上午/2-下午/3-晚上/4-自定义时间 | 默认值：4 |
+| custom_time | Time | 自定义打卡时间 | |
+| week_days | Integer | 一周中的天（位掩码表示）：默认127表示周一到周日 | 默认值：127 |
+| status | Integer | 规则状态：1-启用/0-禁用 | 默认值：1 |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+#### CheckinRecord (打卡记录表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| record_id | Integer | 记录ID | 主键，自增 |
+| rule_id | Integer | 打卡规则ID | 非空，外键，关联checkin_rules表 |
+| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
+| checkin_time | TIMESTAMP | 实际打卡时间 | |
+| status | Integer | 状态：0-未打卡/1-已打卡/2-已撤销 | 默认值：0 |
+| planned_time | TIMESTAMP | 计划打卡时间 | 非空 |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+### 待实现的数据模型
+
+#### Community (社区表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| community_id | Integer | 社区ID | 主键，自增 |
+| community_name | String(200) | 社区名称 | 非空 |
+| address | String(500) | 社区地址 | |
+| contact_person | String(100) | 社区联系人 | |
+| contact_phone | String(20) | 社区联系电话 | |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+#### SupervisionRelation (监督关系表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| relation_id | Integer | 关系ID | 主键，自增 |
+| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
+| supervisor_user_id | Integer | 监护人用户ID | 非空，外键，关联users表 |
+| status | String(20) | 关系状态：待同意/已同意/已拒绝 | 默认值：pending，枚举值：pending/approved/rejected |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+#### Notification (通知表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| notification_id | Integer | 通知ID | 主键，自增 |
+| user_id | Integer | 接收通知的用户ID | 非空，外键，关联users表 |
+| type | String(50) | 通知类型 | 非空，枚举值：missed_checkin/rule_update/supervisor_request/system |
+| title | String(200) | 通知标题 | |
+| content | TEXT | 通知内容 | |
+| related_id | Integer | 关联记录ID，如打卡记录ID、规则ID、监督关系ID | |
+| related_type | String(50) | 关联记录类型 | |
+| is_read | Boolean | 是否已读 | 默认值：false |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+
+#### SystemConfigs (系统配置表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| config_id | Integer | 配置ID | 主键，自增 |
+| config_key | String(100) | 配置键名 | 唯一，非空 |
+| config_value | TEXT | 配置值 | |
+| description | String(500) | 配置描述 | |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
 
 ## 数据模型
 
