@@ -637,8 +637,18 @@ class CheckinController:
                 # 创建新的打卡规则
                 new_rule = self.checkin_rule_service.create_rule(user.user_id, params)
                 
+                # 返回完整的规则信息
                 response_data = {
                     'rule_id': new_rule.rule_id,
+                    'rule_name': new_rule.rule_name,
+                    'icon_url': new_rule.icon_url,
+                    'frequency_type': new_rule.frequency_type,
+                    'time_slot_type': new_rule.time_slot_type,
+                    'custom_time': new_rule.custom_time.strftime('%H:%M:%S') if new_rule.custom_time else None,
+                    'week_days': new_rule.week_days,
+                    'status': new_rule.status,
+                    'created_at': new_rule.created_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'updated_at': new_rule.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'message': '创建打卡规则成功'
                 }
                 
