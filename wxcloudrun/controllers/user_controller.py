@@ -686,6 +686,7 @@ class CommunityController:
     """
     def __init__(self):
         self.user_service = UserService()
+        self.auth_service = AuthService()
 
     def community_verify(self, decoded: Dict[str, Any]):
         """
