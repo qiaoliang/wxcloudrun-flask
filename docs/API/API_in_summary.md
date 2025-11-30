@@ -366,7 +366,7 @@
 #### 5.1 获取打卡规则
 
 **状态**: ✅ 已实现  
-**接口地址**: `GET /api/rules`  
+**接口地址**: `GET /api/checkin/rules`  
 **接口描述**: 获取用户的打卡规则列表  
 **请求头**: `Authorization: Bearer {token}`  
 **响应示例**:
@@ -377,12 +377,15 @@
     "rules": [
       {
         "rule_id": 1,
-        "rule_name": "起床",
-        "icon_url": "icon_url",
-        "frequency_type": "daily",
-        "time_slot_type": "exact",
-        "time_slot_details": "08:00-08:30",
-        "is_active": true
+        "rule_name": "起床打卡",
+        "icon_url": "🌅",
+        "frequency_type": 0,
+        "time_slot_type": 4,
+        "custom_time": "08:00:00",
+        "week_days": 127,
+        "status": 1,
+        "created_at": "2023-12-01 10:30:00",
+        "updated_at": "2023-12-01 10:30:00"
       }
     ]
   },
@@ -393,75 +396,103 @@
 #### 5.2 创建打卡规则
 
 **状态**: ✅ 已实现  
-**接口地址**: `POST /api/rules`  
+**接口地址**: `POST /api/checkin/rules`  
 **接口描述**: 创建新的打卡规则  
 **请求头**: `Authorization: Bearer {token}`  
 **请求参数**:
 ```json
 {
-  "rule_name": "起床",
-  "icon_url": "icon_url",
-  "frequency_type": "daily",
-  "time_slot_type": "exact",
-  "time_slot_details": "08:00-08:30"
+  "rule_name": "起床打卡",
+  "icon_url": "🌅",
+  "frequency_type": 0,
+  "time_slot_type": 4,
+  "custom_time": "08:00:00",
+  "week_days": 127,
+  "status": 1
 }
 ```
+**参数说明**:
+- `rule_name` (string, required): 打卡规则名称，如：起床打卡、早餐打卡等
+- `icon_url` (string, optional): 打卡事项图标，如：🌅、💊 等
+- `frequency_type` (integer, optional): 打卡频率类型：0-每天/1-每周/2-工作日/3-自定义，默认为0
+- `time_slot_type` (integer, optional): 时间段类型：1-上午/2-下午/3-晚上/4-自定义时间，默认为4
+- `custom_time` (string, optional): 自定义打卡时间（HH:MM:SS格式），当time_slot_type为4时使用
+- `week_days` (integer, optional): 一周中的天（位掩码表示），默认127表示周一到周日
+- `status` (integer, optional): 规则状态：1-启用/0-禁用，默认为1
+
 **响应示例**:
 ```json
 {
   "code": 1,
   "data": {
-    "rule_id": 1
+    "rule_id": 1,
+    "message": "创建打卡规则成功"
   },
-  "msg": "创建成功"
+  "msg": "success"
 }
 ```
 
 #### 5.3 更新打卡规则
 
 **状态**: ✅ 已实现  
-**接口地址**: `PUT /api/rules/{rule_id}`  
+**接口地址**: `PUT /api/checkin/rules`  
 **接口描述**: 更新打卡规则  
 **请求头**: `Authorization: Bearer {token}`  
 **请求参数**:
 ```json
 {
-  "rule_name": "起床",
-  "icon_url": "icon_url",
-  "frequency_type": "daily",
-  "time_slot_type": "exact",
-  "time_slot_details": "08:00-08:30"
+  "rule_id": 1,
+  "rule_name": "起床打卡",
+  "icon_url": "🌅",
+  "frequency_type": 0,
+  "time_slot_type": 4,
+  "custom_time": "08:00:00",
+  "week_days": 127,
+  "status": 1
 }
 ```
+**参数说明**:
+- `rule_id` (integer, required): 规则ID
+- 其他参数与创建接口相同，只传递需要更新的字段
+
 **响应示例**:
 ```json
 {
   "code": 1,
-  "data": {},
-  "msg": "更新成功"
+  "data": {
+    "rule_id": 1,
+    "message": "更新打卡规则成功"
+  },
+  "msg": "success"
 }
 ```
 
 #### 5.4 删除打卡规则
 
 **状态**: ✅ 已实现  
-**接口地址**: `DELETE /api/rules/{rule_id}`  
+**接口地址**: `DELETE /api/checkin/rules`  
 **接口描述**: 删除打卡规则  
 **请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+```json
+{
+  "rule_id": 1
+}
+```
+**参数说明**:
+- `rule_id` (integer, required): 规则ID
+
 **响应示例**:
 ```json
 {
   "code": 1,
-  "data": {},
-  "msg": "删除成功"
+  "data": {
+    "rule_id": 1,
+    "message": "删除打卡规则成功"
+  },
+  "msg": "success"
 }
-```
-
-#### 5.5 获取默认打卡规则
-
-**状态**: ✅ 已实现  
-**接口地址**: `GET /api/rules/default`  
-**接口描述**: 获取默认打卡规则  
+```  
 **请求头**: `Authorization: Bearer {token}`  
 **响应示例**:
 ```json
@@ -1332,7 +1363,7 @@ const loginResponse = await authApi.login(code)
 
 // 获取打卡规则
 const rulesResponse = await request({
-  url: '/api/rules',
+  url: '/api/checkin/rules',
   method: 'GET',
   header: {
     'Authorization': `Bearer ${token}`

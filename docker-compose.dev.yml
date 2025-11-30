@@ -9,7 +9,6 @@ services:
       - "3306:3306"
     volumes:
       - mysql_data_dev:/var/lib/mysql
-      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     restart: unless-stopped
 
   app:
@@ -38,7 +37,7 @@ services:
     restart: unless-stopped
     # 开发模式下使用命令覆盖默认启动方式，便于调试
     command: >
-      sh -c "pip install -r requirements.txt && 
+      sh -c "pip install -r requirements.txt &&
              python run.py 0.0.0.0 8080"
 
 volumes:
