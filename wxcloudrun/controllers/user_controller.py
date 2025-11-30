@@ -46,10 +46,12 @@ class BaseController:
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
             header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
+            header_token = header_token.strip()  # 确保去除可能的空白字符
         else:
-            header_token = auth_header
-        token = header_token or params.get('token')  # 优先使用header中的token
-
+            header_token = auth_header.strip()
+        # 优先使用header中的token，只有当header_token非空时才使用它
+        token = header_token if header_token else params.get('token')
+        
         if not token:
             logging.warning('请求中缺少token参数')
             return None, make_err_response({}, '缺少token参数')
