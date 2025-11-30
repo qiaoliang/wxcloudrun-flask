@@ -24,33 +24,14 @@ class BaseController:
         """
         验证JWT token并返回解码后的用户信息
         """
-        # 对于GET请求，不尝试解析JSON数据
-        if request.method == 'GET':
-            params = {}
-        else:
-            # 对于可能包含请求体的请求，安全地获取JSON参数
-            params = {}
-            if request.content_type and 'application/json' in request.content_type:
-                try:
-                    data = request.get_json()
-                    if data is not None:
-                        params = data
-                    else:
-                        params = {}
-                except Exception:
-                    params = {}
-            else:
-                params = {}
-        
-        # 验证token
+        # 验证token - 只从Authorization header获取，不从请求体获取
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
-            header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
-            header_token = header_token.strip()  # 确保去除可能的空白字符
+            token = auth_header[7:]  # 去掉 'Bearer ' 前缀
+            token = token.strip()  # 确保去除可能的空白字符
         else:
-            header_token = auth_header.strip()
-        # 优先使用header中的token，只有当header_token非空时才使用它
-        token = header_token if header_token else params.get('token')
+            # 如果header中没有Bearer前缀，直接使用整个header值（但这种情况应该很少见）
+            token = auth_header.strip()
         
         if not token:
             logging.warning('请求中缺少token参数')
@@ -78,7 +59,15 @@ class BaseController:
             return None, make_err_response({}, 'token已过期')
         except jwt.InvalidSignatureError:
             return None, make_err_response({}, 'token签名无效')
-        except jwt.DecodeError:
+        except jwt.DecodeError as e:
+            logging.error(f'token解码失败: {str(e)}')
+            logging.error(f'尝试解码的token (前50字符): {token[:50] if token else "None"}')
+            logging.error(f'token总长度: {len(token) if token else 0}')
+            if token:
+                token_parts = token.split('.')
+                logging.error(f'token段数: {len(token_parts)}')
+                for i, part in enumerate(token_parts):
+                    logging.error(f'第{i+1}段长度: {len(part)}')
             return None, make_err_response({}, 'token格式错误')
         except jwt.InvalidTokenError:
             return None, make_err_response({}, 'token无效')
