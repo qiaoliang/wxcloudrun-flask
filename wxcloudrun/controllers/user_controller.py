@@ -24,14 +24,25 @@ class BaseController:
         """
         验证JWT token并返回解码后的用户信息
         """
-        # 验证token - 只从Authorization header获取，不从请求体获取
+        # 验证token
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
-            token = auth_header[7:]  # 去掉 'Bearer ' 前缀
-            token = token.strip()  # 确保去除可能的空白字符
+            header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
+            header_token = header_token.strip()  # 确保去除可能的空白字符
+            # 去除可能存在的引号
+            if header_token.startswith('"') and header_token.endswith('"'):
+                header_token = header_token[1:-1]
+            elif header_token.startswith("'") and header_token.endswith("'"):
+                header_token = header_token[1:-1]
         else:
-            # 如果header中没有Bearer前缀，直接使用整个header值（但这种情况应该很少见）
-            token = auth_header.strip()
+            header_token = auth_header.strip()
+            # 去除可能存在的引号
+            if header_token.startswith('"') and header_token.endswith('"'):
+                header_token = header_token[1:-1]
+            elif header_token.startswith("'") and header_token.endswith("'"):
+                header_token = header_token[1:-1]
+        # 优先使用header中的token，只有当header_token非空时才使用它
+        token = header_token if header_token else params.get('token')
         
         if not token:
             logging.warning('请求中缺少token参数')
