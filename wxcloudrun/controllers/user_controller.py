@@ -24,8 +24,11 @@ class BaseController:
         """
         验证JWT token并返回解码后的用户信息
         """
-        # 获取请求体参数
-        params = request.get_json() if request.get_json() else {}
+        # 获取请求体参数，安全地处理可能不存在的JSON数据
+        try:
+            params = request.get_json() or {}
+        except Exception:
+            params = {}
         
         # 验证token
         auth_header = request.headers.get('Authorization', '')
