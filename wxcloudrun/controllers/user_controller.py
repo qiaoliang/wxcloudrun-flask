@@ -483,6 +483,62 @@ class UserController:
 
         app_logger.info('=== 用户信息接口执行完成 ===')
 
+    def refresh_token(self):
+        """
+        刷新token接口
+        """
+        import logging
+        app_logger = logging.getLogger('log')
+        app_logger.info('=== 开始执行刷新Token接口 ===')
+        
+        try:
+            # 获取请求体参数
+            params = request.get_json()
+            if not params:
+                app_logger.warning('刷新Token请求缺少请求体参数')
+                return make_err_response({}, '缺少请求体参数')
+            
+            refresh_token = params.get('refresh_token')
+            if not refresh_token:
+                app_logger.warning('刷新Token请求缺少refresh_token参数')
+                return make_err_response({}, '缺少refresh_token参数')
+            
+            app_logger.info('开始验证refresh token...')
+            
+            result = self.auth_service.refresh_token(refresh_token)
+            
+            app_logger.info('成功刷新token')
+            return make_succ_response(result)
+            
+        except ValueError as e:
+            app_logger.error(f'刷新token时发生错误: {str(e)}')
+            return make_err_response({}, str(e))
+        except Exception as e:
+            app_logger.error(f'刷新Token过程中发生错误: {str(e)}', exc_info=True)
+            return make_err_response({}, f'刷新Token失败: {str(e)}')
+
+    def logout(self, decoded: dict):
+        """
+        用户登出接口
+        """
+        import logging
+        app_logger = logging.getLogger('log')
+        app_logger.info('=== 开始执行登出接口 ===')
+        
+        try:
+            openid = decoded.get('openid')
+            if not openid:
+                return make_err_response({}, 'token无效')
+            
+            result = self.auth_service.logout(openid)
+            
+            app_logger.info('成功登出')
+            return make_succ_response(result)
+            
+        except Exception as e:
+            app_logger.error(f'登出过程中发生错误: {str(e)}', exc_info=True)
+            return make_err_response({}, f'登出失败: {str(e)}')
+
 
 class CheckinController:
     """
@@ -792,59 +848,3 @@ class CommunityController:
         except Exception as e:
             app_logger.error(f'身份验证时发生错误: {str(e)}', exc_info=True)
             return make_err_response({}, f'身份验证失败: {str(e)}')
-
-    def refresh_token(self):
-        """
-        刷新token接口
-        """
-        import logging
-        app_logger = logging.getLogger('log')
-        app_logger.info('=== 开始执行刷新Token接口 ===')
-        
-        try:
-            # 获取请求体参数
-            params = request.get_json()
-            if not params:
-                app_logger.warning('刷新Token请求缺少请求体参数')
-                return make_err_response({}, '缺少请求体参数')
-            
-            refresh_token = params.get('refresh_token')
-            if not refresh_token:
-                app_logger.warning('刷新Token请求缺少refresh_token参数')
-                return make_err_response({}, '缺少refresh_token参数')
-            
-            app_logger.info('开始验证refresh token...')
-            
-            result = self.auth_service.refresh_token(refresh_token)
-            
-            app_logger.info('成功刷新token')
-            return make_succ_response(result)
-            
-        except ValueError as e:
-            app_logger.error(f'刷新token时发生错误: {str(e)}')
-            return make_err_response({}, str(e))
-        except Exception as e:
-            app_logger.error(f'刷新Token过程中发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'刷新Token失败: {str(e)}')
-
-    def logout(self, decoded: dict):
-        """
-        用户登出接口
-        """
-        import logging
-        app_logger = logging.getLogger('log')
-        app_logger.info('=== 开始执行登出接口 ===')
-        
-        try:
-            openid = decoded.get('openid')
-            if not openid:
-                return make_err_response({}, 'token无效')
-            
-            result = self.auth_service.logout(openid)
-            
-            app_logger.info('成功登出')
-            return make_succ_response(result)
-            
-        except Exception as e:
-            app_logger.error(f'登出过程中发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'登出失败: {str(e)}')
