@@ -98,7 +98,52 @@ def login_required(f):
             return error_response
         # 将解码后的用户信息传递给被装饰的函数
         return f(decoded, *args, **kwargs)
+
     return decorated_function
+
+
+def permission_required(permission):
+    """
+    权限验证装饰器
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 先验证token
+            decoded, error_response = BaseController.verify_token()
+            if error_response:
+                return error_response
+            
+            # 获取用户信息并检查权限
+            from wxcloudrun.dao import query_user_by_openid
+            openid = decoded.get('openid')
+            user = query_user_by_openid(openid)
+            
+            if not user:
+                return make_err_response({}, '用户不存在')
+            
+            # 检查权限
+            if not user.has_permission(permission):
+                return make_err_response({}, '权限不足')
+            
+            # 将解码后的用户信息和用户对象传递给被装饰的函数
+            return f(decoded, user, *args, **kwargs)
+        return decorated_function
+    return decorator
+
+
+def community_required(f):
+    """
+    社区工作人员权限验证装饰器
+    """
+    return permission_required('community_worker')(f)
+
+
+def supervisor_required(f):
+    """
+    监护人权限验证装饰器
+    """
+    return permission_required('supervisor')(f)
 
 
 class UserController:

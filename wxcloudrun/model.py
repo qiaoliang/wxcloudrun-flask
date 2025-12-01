@@ -32,9 +32,15 @@ class User(db.Model):
     name = db.Column(db.String(100), comment='真实姓名')
     work_id = db.Column(db.String(50), comment='工号或身份证号')
     
-    # 使用整数类型存储角色和状态，避免在不同数据库间使用不同字段类型
-    # 角色: 1-独居者, 2-监护人, 3-社区工作人员
-    role = db.Column(db.Integer, nullable=False, comment='用户角色：1-独居者/2-监护人/3-社区工作人员')
+    # 用户权限字段，支持多身份组合
+    # 基础身份标识
+    is_solo_user = db.Column(db.Boolean, default=True, comment='是否为独居者（有打卡规则和记录）')
+    is_supervisor = db.Column(db.Boolean, default=False, comment='是否为监护人（有关联的监护关系）')
+    is_community_worker = db.Column(db.Boolean, default=False, comment='是否为社区工作人员（需要身份验证）')
+    
+    # 兼容性字段，暂时保留，后续可移除
+    role = db.Column(db.Integer, default=1, comment='兼容性字段：1-独居者/2-监护人/3-社区工作人员')
+    
     # 状态: 1-正常, 2-禁用
     status = db.Column(db.Integer, default=1, comment='用户状态：1-正常/2-禁用')
     
@@ -70,13 +76,46 @@ class User(db.Model):
 
     @property
     def role_name(self):
-        """获取角色名称"""
+        """获取角色名称（兼容性方法）"""
+        # 优先返回主要角色，如果有多个身份，优先返回独居者
+        if self.is_solo_user:
+            return 'solo'
+        elif self.is_supervisor:
+            return 'supervisor'
+        elif self.is_community_worker:
+            return 'community'
         return self.ROLE_MAPPING.get(self.role, 'unknown')
 
     @property
     def status_name(self):
         """获取状态名称"""
         return self.STATUS_MAPPING.get(self.status, 'unknown')
+
+    @property
+    def has_supervisor_features(self):
+        """是否有监护人功能权限"""
+        return self.is_supervisor or self.is_solo_user
+
+    @property
+    def has_community_features(self):
+        """是否有社区功能权限"""
+        return self.is_community_worker and self.verification_status == 2
+
+    @property
+    def permissions(self):
+        """获取用户权限列表"""
+        permissions = []
+        if self.is_solo_user:
+            permissions.append('solo_user')
+        if self.is_supervisor:
+            permissions.append('supervisor')
+        if self.is_community_worker and self.verification_status == 2:
+            permissions.append('community_worker')
+        return permissions
+
+    def has_permission(self, permission):
+        """检查是否有特定权限"""
+        return permission in self.permissions
 
     @classmethod
     def get_role_value(cls, role_name):
