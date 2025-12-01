@@ -99,6 +99,10 @@ class User(db.Model):
 class CheckinRule(db.Model):
     # 设置结构体表格名称
     __tablename__ = 'checkin_rules'
+    __table_args__ = {
+        'mysql_charset': 'utf8mb4',
+        'mysql_collate': 'utf8mb4_unicode_ci'
+    }
 
     # 设定结构体对应表格的字段
     rule_id = db.Column(db.Integer, primary_key=True, autoincrement=True)

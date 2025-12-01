@@ -20,8 +20,8 @@ if is_testing:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'  # 测试时使用SQLite内存数据库
     app.config['TESTING'] = True
 else:
-    # 设定数据库链接
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo'.format(config.username, config.password,
+    # 设定数据库链接，添加字符集设置
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo?charset=utf8mb4'.format(config.username, config.password,
                                                                                  config.db_address)
 
 # 禁用SQLAlchemy的修改跟踪以避免警告
