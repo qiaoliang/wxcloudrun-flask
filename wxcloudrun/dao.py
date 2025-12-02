@@ -110,6 +110,19 @@ def query_user_by_id(user_id):
         return None
 
 
+def query_user_by_phone(phone_number):
+    """
+    根据手机号码查询用户实体
+    :param phone_number: 手机号码（已加密）
+    :return: User实体
+    """
+    try:
+        return User.query.filter(User.phone_number == phone_number).first()
+    except OperationalError as e:
+        logger.info("query_user_by_phone errorMsg= {} ".format(e))
+        return None
+
+
 def insert_user(user):
     """
     插入一个User实体

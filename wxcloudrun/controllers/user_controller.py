@@ -59,10 +59,13 @@ class BaseController:
                 token_secret,
                 algorithms=['HS256']
             )
+            
+            # 检查是否有openid（微信登录）或user_id（手机登录）
             openid = decoded.get('openid')
-
-            if not openid:
-                logging.error('解码后的token中未找到openid')
+            user_id = decoded.get('user_id')
+            
+            if not openid and not user_id:
+                logging.error('解码后的token中未找到openid或user_id')
                 return None, make_err_response({}, 'token无效')
 
             return decoded, None
@@ -115,9 +118,15 @@ def permission_required(permission):
                 return error_response
 
             # 获取用户信息并检查权限
-            from wxcloudrun.dao import query_user_by_openid
+            from wxcloudrun.dao import query_user_by_openid, query_user_by_id
             openid = decoded.get('openid')
-            user = query_user_by_openid(openid)
+            user_id = decoded.get('user_id')
+            
+            # 优先使用openid查询，如果没有则使用user_id
+            if openid:
+                user = query_user_by_openid(openid)
+            else:
+                user = query_user_by_id(user_id)
 
             if not user:
                 return make_err_response({}, '用户不存在')

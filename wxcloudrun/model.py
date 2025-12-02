@@ -50,6 +50,16 @@ class User(db.Model):
     verification_materials = db.Column(db.Text, comment='验证材料URL')
     
     community_id = db.Column(db.Integer, comment='所属社区ID，仅社区工作人员需要')
+    
+    # 认证类型字段
+    auth_type = db.Column(db.Enum('wechat', 'phone', 'both', name='auth_type_enum'), 
+                         default='wechat', nullable=False, comment='认证类型：wechat/phone/both')
+    linked_accounts = db.Column(db.Text, nullable=True, comment='关联账户信息（JSON格式）')
+    
+    # 刷新令牌字段（支持手机认证）
+    refresh_token = db.Column(db.String(255), nullable=True, comment='刷新令牌')
+    refresh_token_expire = db.Column(db.DateTime, nullable=True, comment='刷新令牌过期时间')
+    
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
@@ -96,6 +106,44 @@ class User(db.Model):
     def has_supervisor_features(self):
         """是否有监护人功能权限"""
         return self.is_supervisor or self.is_solo_user
+
+    def get_linked_accounts(self):
+        """获取关联账户信息"""
+        if not self.linked_accounts:
+            return {}
+        try:
+            import json
+            return json.loads(self.linked_accounts)
+        except:
+            return {}
+
+    def set_linked_accounts(self, accounts_dict):
+        """设置关联账户信息"""
+        import json
+        self.linked_accounts = json.dumps(accounts_dict)
+
+    def add_linked_account(self, account_type, account_id):
+        """添加关联账户"""
+        accounts = self.get_linked_accounts()
+        accounts[account_type] = account_id
+        self.set_linked_accounts(accounts)
+
+    def remove_linked_account(self, account_type):
+        """移除关联账户"""
+        accounts = self.get_linked_accounts()
+        if account_type in accounts:
+            del accounts[account_type]
+            self.set_linked_accounts(accounts)
+
+    @property
+    def has_phone_auth(self):
+        """是否有手机认证"""
+        return self.auth_type in ['phone', 'both'] and hasattr(self, 'phone_auth')
+
+    @property
+    def has_wechat_auth(self):
+        """是否有微信认证"""
+        return self.auth_type in ['wechat', 'both'] and bool(self.wechat_openid)
 
     @property
     def has_community_features(self):
@@ -313,3 +361,99 @@ class RuleSupervision(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'responded_at': self.responded_at.isoformat() if self.responded_at else None
         }
+
+
+# 手机认证表
+class PhoneAuth(db.Model):
+    __tablename__ = 'phone_auth'
+
+    phone_auth_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='关联的用户ID')
+    phone_number = db.Column(db.String(20), unique=True, nullable=False, comment='加密后的手机号码')
+    password_hash = db.Column(db.String(255), nullable=True, comment='密码哈希值')
+    auth_methods = db.Column(db.Enum('password', 'sms', 'both', name='auth_methods_enum'), 
+                           default='sms', nullable=False, comment='认证方式：password/sms/both')
+    is_verified = db.Column(db.Boolean, default=False, nullable=False, comment='是否已验证')
+    is_active = db.Column(db.Boolean, default=True, nullable=False, comment='是否激活')
+    failed_attempts = db.Column(db.Integer, default=0, nullable=False, comment='连续失败次数')
+    locked_until = db.Column(db.DateTime, nullable=True, comment='锁定到期时间')
+    last_login_at = db.Column(db.DateTime, nullable=True, comment='最后登录时间')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联关系
+    user = db.relationship('User', backref=db.backref('phone_auth', uselist=False))
+
+    # 索引
+    __table_args__ = (
+        db.Index('idx_phone_number', 'phone_number'),
+        db.Index('idx_user_id', 'user_id'),
+        db.Index('idx_is_verified', 'is_verified'),
+    )
+
+    # 认证方式映射
+    AUTH_METHODS_MAPPING = {
+        'password': '仅密码',
+        'sms': '仅短信验证码',
+        'both': '密码+短信验证码'
+    }
+
+    @property
+    def auth_method_name(self):
+        """获取认证方式名称"""
+        return self.AUTH_METHODS_MAPPING.get(self.auth_methods, '未知')
+
+    @property
+    def is_locked(self):
+        """检查账户是否被锁定"""
+        if self.locked_until is None:
+            return False
+        return datetime.now() < self.locked_until
+
+    def lock_account(self, hours=1):
+        """锁定账户"""
+        from datetime import timedelta
+        self.locked_until = datetime.now() + timedelta(hours=hours)
+        self.failed_attempts = 0
+
+    def unlock_account(self):
+        """解锁账户"""
+        self.locked_until = None
+        self.failed_attempts = 0
+
+    def increment_failed_attempts(self):
+        """增加失败次数"""
+        self.failed_attempts += 1
+        # 如果失败次数达到5次，锁定账户1小时
+        if self.failed_attempts >= 5:
+            self.lock_account()
+
+    def reset_failed_attempts(self):
+        """重置失败次数"""
+        self.failed_attempts = 0
+
+    def to_dict(self, include_sensitive=False):
+        """转换为字典格式"""
+        data = {
+            'phone_auth_id': self.phone_auth_id,
+            'user_id': self.user_id,
+            'auth_methods': self.auth_methods,
+            'auth_method_name': self.auth_method_name,
+            'is_verified': self.is_verified,
+            'is_active': self.is_active,
+            'is_locked': self.is_locked,
+            'failed_attempts': self.failed_attempts,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+        
+        if self.last_login_at:
+            data['last_login_at'] = self.last_login_at.isoformat()
+        if self.locked_until:
+            data['locked_until'] = self.locked_until.isoformat()
+            
+        # 敏感信息仅在明确要求时包含
+        if include_sensitive:
+            data['phone_number'] = self.phone_number
+            
+        return data

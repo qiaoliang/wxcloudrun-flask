@@ -45,7 +45,7 @@ app.config.from_object('config')
 from wxcloudrun import views
 
 # 创建数据库表（仅在非测试环境或明确需要时创建）
-from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
+from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord, PhoneAuth
 # 在Docker环境中，数据库初始化由init_database.py处理，这里跳过连接检查
 if not is_testing and os.environ.get('DOCKER_ENV') != 'true':
     # 添加数据库连接重试机制
