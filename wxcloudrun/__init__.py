@@ -3,6 +3,7 @@ import time
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_cors import CORS
 import pymysql
 import config
 
@@ -12,6 +13,9 @@ pymysql.install_as_MySQLdb()
 # 初始化web应用
 app = Flask(__name__, instance_relative_config=True)
 app.config['DEBUG'] = config.DEBUG
+
+# 配置CORS以支持跨域请求
+CORS(app)
 
 # 检查是否为测试环境，如果是则使用SQLite，否则使用MySQL
 # 在模块级别检查，以确保在导入时就设置正确的数据库连接
@@ -84,6 +88,6 @@ def run_pending_migrations():
         raise
 
 # 根据环境变量决定是否自动运行迁移
-if not is_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'true').lower() != 'false':
+if not is_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'false').lower() != 'false':
     with app.app_context():
         run_pending_migrations()
