@@ -4,6 +4,10 @@ from logging.config import fileConfig
 from flask import current_app
 
 from alembic import context
+import pymysql
+
+# 因MySQLDB不支持Python3，使用pymysql扩展库代替MySQLDB库
+pymysql.install_as_MySQLdb()
 
 # This is the Alembic Config object
 config = context.config
@@ -15,20 +19,53 @@ logger = logging.getLogger('alembic.env')
 
 
 def get_engine():
-    app = current_app._get_current_object()
-    return app.extensions['migrate'].db.get_engine(app)
+    try:
+        app = current_app._get_current_object()
+        return app.extensions['migrate'].db.get_engine(app)
+    except RuntimeError:
+        # 如果没有应用上下文，则使用配置创建引擎
+        from flask import Flask
+        import config
+        
+        temp_app = Flask(__name__)
+        temp_app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://{}:{}@{}/flask_demo?charset=utf8mb4'.format(
+            config.username, config.password, config.db_address)
+        temp_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
+        from flask_sqlalchemy import SQLAlchemy
+        db = SQLAlchemy(temp_app)
+        return db.get_engine()
 
 
 def get_engine_url():
-    app = current_app._get_current_object()
-    return app.extensions['migrate'].db.get_engine(app).url
+    try:
+        app = current_app._get_current_object()
+        return app.extensions['migrate'].db.get_engine(app).url
+    except RuntimeError:
+        # 如果没有应用上下文，则使用配置创建URL
+        import config
+        return 'mysql+pymysql://{}:{}@{}/flask_demo?charset=utf8mb4'.format(
+            config.username, config.password, config.db_address)
 
 
 # Add your model's MetaData object here
 # for 'autogenerate' support
 def get_metadata():
-    app = current_app._get_current_object()
-    db = app.extensions['migrate'].db
+    try:
+        app = current_app._get_current_object()
+        db = app.extensions['migrate'].db
+    except RuntimeError:
+        # 如果没有应用上下文，则创建临时应用
+        from flask import Flask
+        import config
+        
+        temp_app = Flask(__name__)
+        temp_app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://{}:{}@{}/flask_demo?charset=utf8mb4'.format(
+            config.username, config.password, config.db_address)
+        temp_app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+        
+        from flask_sqlalchemy import SQLAlchemy
+        db = SQLAlchemy(temp_app)
 
     # Import all models to ensure they are registered
     from wxcloudrun import model  # 导入模型确保被识别

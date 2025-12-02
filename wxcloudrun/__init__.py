@@ -26,7 +26,7 @@ if is_testing:
     app.config['TESTING'] = True
 else:
     # 设定数据库链接，添加字符集设置
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo?charset=utf8mb4'.format(config.username, config.password,
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://{}:{}@{}/flask_demo?charset=utf8mb4'.format(config.username, config.password,
                                                                                  config.db_address)
 
 # 禁用SQLAlchemy的修改跟踪以避免警告
@@ -46,7 +46,8 @@ from wxcloudrun import views
 
 # 创建数据库表（仅在非测试环境或明确需要时创建）
 from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
-if not is_testing:
+# 在Docker环境中，数据库初始化由init_database.py处理，这里跳过连接检查
+if not is_testing and os.environ.get('DOCKER_ENV') != 'true':
     # 添加数据库连接重试机制
     max_retries = 30  # 最多等待30次（30秒）
     retry_count = 0
@@ -82,15 +83,29 @@ def run_pending_migrations():
     """运行挂起的数据库迁移"""
     try:
         from flask_migrate import upgrade
-        upgrade()
+        with app.app_context():
+            upgrade()
         app.logger.info("数据库迁移成功完成")
     except Exception as e:
         app.logger.error(f"数据库迁移失败: {str(e)}")
-        raise
+        # 不再抛出异常，允许应用继续启动
+        # raise
 
 # 根据环境变量决定是否自动运行迁移
 # 单元测试使用SQLite内存数据库，不需要迁移
 # 功能测试和生产环境使用MySQL，需要迁移
-if not is_unit_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'false').lower() != 'false':
-    with app.app_context():
+# 注意：在Docker环境中，迁移通过init_database.py脚本处理，不需要在应用启动时运行
+if not is_unit_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'false').lower() != 'false' and os.environ.get('DOCKER_ENV') != 'true':
+    # 延迟执行迁移，确保应用完全启动后再运行
+    import threading
+    import time
+    
+    def delayed_migration():
+        # 等待一段时间确保数据库完全就绪
+        time.sleep(5)
         run_pending_migrations()
+    
+    # 在后台线程中运行迁移
+    migration_thread = threading.Thread(target=delayed_migration)
+    migration_thread.daemon = True
+    migration_thread.start()
