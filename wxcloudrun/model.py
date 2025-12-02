@@ -1,7 +1,8 @@
 from datetime import datetime
 import os
 
-from sqlalchemy import Column, Integer, String, DateTime, Text, text
+from sqlalchemy import Column, Integer, String, DateTime, Text, text, Boolean, ForeignKey, Index
+from sqlalchemy.orm import relationship
 from wxcloudrun import db  # 导入db对象
 from datetime import datetime
 
@@ -228,3 +229,87 @@ class CheckinRecord(db.Model):
             if name == status_name:
                 return value
         return None
+
+
+# 规则监护关系表
+class RuleSupervision(db.Model):
+    __tablename__ = 'rule_supervisions'
+    
+    # 主键
+    rule_supervision_id = db.Column(db.Integer, primary_key=True, autoincrement=True, comment='监护关系ID')
+    
+    # 关联字段
+    rule_id = db.Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=False, comment='打卡规则ID')
+    solo_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='独居者用户ID')
+    supervisor_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='监护人用户ID')
+    
+    # 状态管理
+    status = db.Column(db.Integer, default=0, comment='监护关系状态：0-待确认/1-已确认/2-已拒绝/3-已取消')
+    
+    # 邀请信息
+    invitation_message = db.Column(db.Text, comment='邀请消息')
+    invited_by_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='邀请人ID')
+    
+    # 时间戳
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+    responded_at = db.Column(db.DateTime, comment='响应时间')
+    
+    # 关联关系
+    rule = db.relationship('CheckinRule', backref=db.backref('supervisions', lazy=True))
+    solo_user = db.relationship('User', foreign_keys=[solo_user_id], backref=db.backref('solo_supervisions', lazy=True))
+    supervisor_user = db.relationship('User', foreign_keys=[supervisor_user_id], backref=db.backref('supervisor_rules', lazy=True))
+    invited_by = db.relationship('User', foreign_keys=[invited_by_user_id])
+    
+    # 索引和表选项
+    __table_args__ = (
+        db.Index('idx_rule_supervision', 'rule_id', 'supervisor_user_id'),
+        db.Index('idx_supervisor_invitations', 'supervisor_user_id', 'status'),
+        db.Index('idx_solo_supervisions', 'solo_user_id', 'status'),
+        {
+            'mysql_charset': 'utf8mb4',
+            'mysql_collate': 'utf8mb4_unicode_ci'
+        }
+    )
+
+    # 状态映射
+    STATUS_MAPPING = {
+        0: 'pending',
+        1: 'confirmed',
+        2: 'rejected',
+        3: 'cancelled'
+    }
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
+
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
+                return value
+        return None
+
+    @property
+    def is_active(self):
+        """是否为活跃的监护关系"""
+        return self.status == 1
+
+    def to_dict(self):
+        """转换为字典格式"""
+        return {
+            'rule_supervision_id': self.rule_supervision_id,
+            'rule_id': self.rule_id,
+            'solo_user_id': self.solo_user_id,
+            'supervisor_user_id': self.supervisor_user_id,
+            'status': self.status,
+            'status_name': self.status_name,
+            'invitation_message': self.invitation_message,
+            'invited_by_user_id': self.invited_by_user_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'responded_at': self.responded_at.isoformat() if self.responded_at else None
+        }
