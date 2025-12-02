@@ -11,12 +11,11 @@ import os
 import time
 import requests
 from pathlib import Path
+from dotenv import dotenv_values
 
 # 添加脚本目录到路径，以便导入load_env
 script_dir = Path(__file__).parent
 sys.path.insert(0, str(script_dir))
-
-from load_env import load_env_file, get_env_with_defaults
 
 
 def wait_for_service(base_url: str, timeout: int = 180) -> bool:
@@ -56,27 +55,35 @@ def run_functional_tests(with_coverage=False, html_report=False, min_coverage=80
     """
     print("🚀 开始功能测试（集成测试）...")
     
-    # 加载集成测试环境变量配置
-    load_env_file(".env.integration")  # 集成测试专用环境变量文件
-    load_env_file(".env")  # 加载主环境变量文件
+    # 使用 dotenv 读取 .env.integration 文件
+    print("📋 加载集成测试环境变量配置...")
+    try:
+        env_vars = dotenv_values(".env.integration")
+        if not env_vars:
+            print("❌ 无法读取 .env.integration 文件或文件为空")
+            return 1
+        print(f"✅ 成功读取 .env.integration 文件，包含 {len(env_vars)} 个环境变量")
+    except Exception as e:
+        print(f"❌ 读取 .env.integration 文件时出错: {e}")
+        return 1
     
-    # 设置默认环境变量以跳过微信API测试（自动测试模式）
-    default_env = {
-        'WX_APPID': 'test_appid',  # 默认值，会导致跳过微信API测试
-        'WX_SECRET': 'test_secret',  # 默认值，会导致跳过微信API测试
-        'TOKEN_SECRET': '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f',
-        'DOCKER_STARTUP_TIMEOUT': '180'  # 默认启动超时时间为180秒
-    }
+    # 检查必需的环境变量
+    required_vars = ['MYSQL_USERNAME', 'MYSQL_PASSWORD', 'MYSQL_ADDRESS', 'WX_APPID', 'WX_SECRET', 'TOKEN_SECRET', 'DOCKER_STARTUP_TIMEOUT']
+    missing_vars = [var for var in required_vars if var not in env_vars or not env_vars[var]]
     
-    # 获取环境变量，未设置的使用默认值
-    env_vars = get_env_with_defaults(default_env)
+    if missing_vars:
+        print(f"❌ 缺少必需的环境变量: {', '.join(missing_vars)}")
+        print("请确保 .env.integration 文件包含所有必需的环境变量")
+        return 1
     
     # 创建环境变量副本并更新
     env = os.environ.copy()
     env.update(env_vars)
+    # 设置运行 Docker 集成测试标志
+    env['RUN_DOCKER_INTEGRATION_TESTS'] = 'true'
     
     # 获取Docker启动超时时间
-    docker_startup_timeout = int(env.get('DOCKER_STARTUP_TIMEOUT', '180'))
+    docker_startup_timeout = int(env_vars['DOCKER_STARTUP_TIMEOUT'])
     print(f"⏰ Docker启动超时时间设置为: {docker_startup_timeout} 秒")
     
     # 启动 docker-compose 服务（除非用户指定跳过）
@@ -110,6 +117,15 @@ def run_functional_tests(with_coverage=False, html_report=False, min_coverage=80
             return 1
     else:
         print("\n⏭️ 跳过 Docker 启动（假设服务已运行）...")
+        
+        # 验证 Docker 服务是否真的在运行
+        base_url = "http://localhost:8080"
+        print("🔍 验证 Docker 服务是否已运行...")
+        if not wait_for_service(base_url, timeout=30):
+            print("❌ Docker 服务未运行，无法进行集成测试")
+            print("请先启动 Docker 服务或移除 --skip-docker 参数")
+            return 1
+        print("✅ Docker 服务已运行，继续进行集成测试")
         time.sleep(5)  # 给服务一点时间确保稳定
     
     # 运行集成测试
