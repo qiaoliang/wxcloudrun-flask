@@ -175,8 +175,8 @@ class TestInvitationAPI:
         assert response.status_code == 200
         
         data = json.loads(response.data)
-            assert data['code'] == 0
-            assert "已向该用户发送邀请" in data['msg']
+        assert data['code'] == 0
+        assert "已向该用户发送邀请" in data['msg']
 
 
 @pytest.fixture

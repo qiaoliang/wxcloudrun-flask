@@ -3,7 +3,7 @@ import pytest
 import json
 import jwt
 import datetime
-from wxcloudrun import db
+from wxcloudrun import app, db
 from wxcloudrun.model import User, CheckinRule, RuleSupervision
 
 
@@ -167,10 +167,10 @@ class TestInvitationsListAPI:
         assert 'avatar_url' in solo_user
         
         # 检查邀请人信息
-            invited_by = invitation['invited_by']
-            assert 'user_id' in invited_by
-            assert 'nickname' in invited_by
-            assert 'avatar_url' in invited_by
+        invited_by = invitation['invited_by']
+        assert 'user_id' in invited_by
+        assert 'nickname' in invited_by
+        assert 'avatar_url' in invited_by
 
 
 @pytest.fixture

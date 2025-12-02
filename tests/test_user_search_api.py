@@ -3,7 +3,7 @@ import pytest
 import json
 import jwt
 import datetime
-from wxcloudrun import db
+from wxcloudrun import app, db
 from wxcloudrun.model import User
 
 
@@ -63,15 +63,15 @@ class TestUserSearchAPI:
         data = json.loads(response.data)
         assert data['code'] == 1
         assert 'users' in data['data']
-            assert len(data['data']['users']) > 0
-            
-            # 检查返回的用户数据结构
-            user = data['data']['users'][0]
-            assert 'user_id' in user
-            assert 'nickname' in user
-            assert 'avatar_url' in user
-            assert 'is_supervisor' in user
-            assert 'permissions' in user
+        assert len(data['data']['users']) > 0
+        
+        # 检查返回的用户数据结构
+        user = data['data']['users'][0]
+        assert 'user_id' in user
+        assert 'nickname' in user
+        assert 'avatar_url' in user
+        assert 'is_supervisor' in user
+        assert 'permissions' in user
     
     def test_search_users_exclude_self(self, client, setup_users):
         """测试搜索结果排除自己"""

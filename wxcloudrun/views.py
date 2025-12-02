@@ -245,7 +245,7 @@ def handle_500(e):
 
 @app.route('/api/users/search', methods=['GET'])
 @login_required
-def search_users():
+def search_users(decoded):
     """
     根据昵称搜索用户
     请求参数:
@@ -293,7 +293,7 @@ def search_users():
 
 @app.route('/api/rules/supervision/invite', methods=['POST'])
 @login_required
-def invite_supervisor():
+def invite_supervisor(decoded):
     """
     为指定打卡规则邀请监护人
     请求参数:
@@ -374,7 +374,7 @@ def invite_supervisor():
 
 @app.route('/api/supervision/invitations', methods=['GET'])
 @login_required
-def get_invitations():
+def get_invitations(decoded):
     """
     获取用户的邀请列表
     请求参数:
@@ -440,7 +440,7 @@ def get_invitations():
 
 @app.route('/api/supervision/respond', methods=['POST'])
 @login_required
-def respond_invitation():
+def respond_invitation(decoded):
     """
     响应监护邀请
     请求参数:
@@ -500,7 +500,7 @@ def respond_invitation():
 
 @app.route('/api/rules/supervision/list', methods=['GET'])
 @login_required
-def get_rule_supervisions_api():
+def get_rule_supervisions_api(decoded):
     """
     获取指定规则的监护关系列表
     请求参数:
@@ -546,7 +546,7 @@ def get_rule_supervisions_api():
 
 @app.route('/api/supervisor/rules', methods=['GET'])
 @login_required
-def get_supervisor_rules():
+def get_supervisor_rules(decoded):
     """
     获取监护人负责的所有规则
     """

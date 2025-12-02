@@ -3,7 +3,7 @@ import pytest
 import json
 import jwt
 import datetime
-from wxcloudrun import db
+from wxcloudrun import app, db
 from wxcloudrun.model import User, CheckinRule, RuleSupervision
 
 
@@ -174,7 +174,7 @@ class TestInvitationResponseAPI:
         
         # 检查响应消息是否被添加
         supervision = RuleSupervision.query.filter_by(rule_supervision_id=1).first()
-            assert "我很乐意监督您" in supervision.invitation_message
+        assert "我很乐意监督您" in supervision.invitation_message
 
 
 @pytest.fixture
