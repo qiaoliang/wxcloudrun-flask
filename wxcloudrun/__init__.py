@@ -19,7 +19,8 @@ CORS(app)
 
 # 检查是否为测试环境，如果是则使用SQLite，否则使用MySQL
 # 在模块级别检查，以确保在导入时就设置正确的数据库连接
-is_testing = os.environ.get('FLASK_ENV') == 'testing' or 'PYTEST_CURRENT_TEST' in os.environ or os.environ.get('USE_SQLITE_FOR_TESTING', '').lower() == 'true'
+is_unit_testing = os.environ.get('USE_SQLITE_FOR_TESTING', '').lower() == 'true'
+is_testing = is_unit_testing or os.environ.get('FLASK_ENV') == 'testing' or 'PYTEST_CURRENT_TEST' in os.environ
 if is_testing:
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'  # 测试时使用SQLite内存数据库
     app.config['TESTING'] = True
@@ -88,6 +89,8 @@ def run_pending_migrations():
         raise
 
 # 根据环境变量决定是否自动运行迁移
-if not is_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'false').lower() != 'false':
+# 单元测试使用SQLite内存数据库，不需要迁移
+# 功能测试和生产环境使用MySQL，需要迁移
+if not is_unit_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'false').lower() != 'false':
     with app.app_context():
         run_pending_migrations()

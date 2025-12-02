@@ -1,9 +1,17 @@
 import json
+import pytest
+from wxcloudrun import app
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
 
 
 class TestResponse:
     """Test cases for response module functions"""
+
+    @pytest.fixture(autouse=True)
+    def app_context(self):
+        """Ensure all tests run within application context"""
+        with app.app_context():
+            yield
 
     def test_make_succ_empty_response_default(self):
         """Test make_succ_empty_response with default message"""
