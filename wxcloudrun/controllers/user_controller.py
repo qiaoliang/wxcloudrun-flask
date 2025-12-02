@@ -43,7 +43,7 @@ class BaseController:
                 header_token = header_token[1:-1]
         # 使用header中的token
         token = header_token
-        
+
         if not token:
             logging.warning('请求中缺少token参数')
             return None, make_err_response({}, '缺少token参数')
@@ -52,7 +52,7 @@ class BaseController:
             import config
             # 使用配置文件中的TOKEN_SECRET进行解码
             token_secret = config.TOKEN_SECRET
-            
+
             # 解码token
             decoded = jwt.decode(
                 token,
@@ -113,19 +113,19 @@ def permission_required(permission):
             decoded, error_response = BaseController.verify_token()
             if error_response:
                 return error_response
-            
+
             # 获取用户信息并检查权限
             from wxcloudrun.dao import query_user_by_openid
             openid = decoded.get('openid')
             user = query_user_by_openid(openid)
-            
+
             if not user:
                 return make_err_response({}, '用户不存在')
-            
+
             # 检查权限
             if not user.has_permission(permission):
                 return make_err_response({}, '权限不足')
-            
+
             # 将解码后的用户信息和用户对象传递给被装饰的函数
             return f(decoded, user, *args, **kwargs)
         return decorated_function
@@ -263,7 +263,7 @@ class UserController:
 
             import datetime
             import secrets
-            
+
             # 生成JWT token (access token)，设置2小时过期时间
             token_payload = {
                 'openid': openid,
@@ -355,7 +355,7 @@ class UserController:
                 params = dict(request.form) or {}
             else:
                 params = {}
-            
+
             app_logger.info(f'解析后的请求体参数: {params}')
 
             openid = decoded.get('openid')
@@ -490,26 +490,26 @@ class UserController:
         import logging
         app_logger = logging.getLogger('log')
         app_logger.info('=== 开始执行刷新Token接口 ===')
-        
+
         try:
             # 获取请求体参数
             params = request.get_json()
             if not params:
                 app_logger.warning('刷新Token请求缺少请求体参数')
                 return make_err_response({}, '缺少请求体参数')
-            
+
             refresh_token = params.get('refresh_token')
             if not refresh_token:
                 app_logger.warning('刷新Token请求缺少refresh_token参数')
                 return make_err_response({}, '缺少refresh_token参数')
-            
+
             app_logger.info('开始验证refresh token...')
-            
+
             result = self.auth_service.refresh_token(refresh_token)
-            
+
             app_logger.info('成功刷新token')
             return make_succ_response(result)
-            
+
         except ValueError as e:
             app_logger.error(f'刷新token时发生错误: {str(e)}')
             return make_err_response({}, str(e))
@@ -524,17 +524,17 @@ class UserController:
         import logging
         app_logger = logging.getLogger('log')
         app_logger.info('=== 开始执行登出接口 ===')
-        
+
         try:
             openid = decoded.get('openid')
             if not openid:
                 return make_err_response({}, 'token无效')
-            
+
             result = self.auth_service.logout(openid)
-            
+
             app_logger.info('成功登出')
             return make_succ_response(result)
-            
+
         except Exception as e:
             app_logger.error(f'登出过程中发生错误: {str(e)}', exc_info=True)
             return make_err_response({}, f'登出失败: {str(e)}')
@@ -556,7 +556,7 @@ class CheckinController:
         import logging
         app_logger = logging.getLogger('log')
         app_logger.info('=== 开始执行获取今日打卡事项接口 ===')
-        
+
         openid = decoded.get('openid')
         user = self.user_service.get_user_by_openid(openid)
         if not user:
@@ -565,16 +565,16 @@ class CheckinController:
 
         try:
             checkin_items = self.checkin_record_service.get_today_checkin_items(user.user_id)
-            
+
             from datetime import date
             response_data = {
                 'date': date.today().strftime('%Y-%m-%d'),
                 'checkin_items': checkin_items
             }
-            
+
             app_logger.info(f'成功获取今日打卡事项，用户ID: {user.user_id}, 事项数量: {len(checkin_items)}')
             return make_succ_response(response_data)
-            
+
         except Exception as e:
             app_logger.error(f'获取今日打卡事项时发生错误: {str(e)}', exc_info=True)
             return make_err_response({}, f'获取今日打卡事项失败: {str(e)}')
@@ -586,7 +586,7 @@ class CheckinController:
         import logging
         app_logger = logging.getLogger('log')
         app_logger.info('=== 开始执行打卡接口 ===')
-        
+
         openid = decoded.get('openid')
         user = self.user_service.get_user_by_openid(openid)
         if not user:
@@ -597,15 +597,15 @@ class CheckinController:
             # 获取请求参数
             params = request.get_json()
             rule_id = params.get('rule_id')
-            
+
             if not rule_id:
                 return make_err_response({}, '缺少rule_id参数')
-            
+
             result = self.checkin_record_service.perform_checkin(rule_id, user.user_id)
-            
+
             app_logger.info(f'用户 {user.user_id} 打卡成功，规则ID: {rule_id}')
             return make_succ_response(result)
-            
+
         except ValueError as e:
             return make_err_response({}, str(e))
         except Exception as e:
@@ -619,7 +619,7 @@ class CheckinController:
         import logging
         app_logger = logging.getLogger('log')
         app_logger.info('=== 开始执行撤销打卡接口 ===')
-        
+
         openid = decoded.get('openid')
         user = self.user_service.get_user_by_openid(openid)
         if not user:
@@ -630,15 +630,15 @@ class CheckinController:
             # 获取请求参数
             params = request.get_json()
             record_id = params.get('record_id')
-            
+
             if not record_id:
                 return make_err_response({}, '缺少record_id参数')
-            
+
             result = self.checkin_record_service.cancel_checkin(record_id, user.user_id)
-            
+
             app_logger.info(f'用户 {user.user_id} 撤销打卡成功，记录ID: {record_id}')
             return make_succ_response(result)
-            
+
         except ValueError as e:
             return make_err_response({}, str(e))
         except Exception as e:
@@ -653,7 +653,7 @@ class CheckinController:
         from datetime import datetime, date, timedelta
         app_logger = logging.getLogger('log')
         app_logger.info('=== 开始执行获取打卡历史接口 ===')
-        
+
         openid = decoded.get('openid')
         user = self.user_service.get_user_by_openid(openid)
         if not user:
@@ -665,22 +665,22 @@ class CheckinController:
             params = request.args
             start_date_str = params.get('start_date', (date.today() - timedelta(days=7)).strftime('%Y-%m-%d'))
             end_date_str = params.get('end_date', date.today().strftime('%Y-%m-%d'))
-            
+
             # 解析日期
             start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
             end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
-            
+
             history_data = self.checkin_record_service.get_checkin_history(user.user_id, start_date, end_date)
-            
+
             response_data = {
                 'start_date': start_date_str,
                 'end_date': end_date_str,
                 'history': history_data
             }
-            
+
             app_logger.info(f'成功获取打卡历史，用户ID: {user.user_id}, 记录数量: {len(history_data)}')
             return make_succ_response(response_data)
-            
+
         except Exception as e:
             app_logger.error(f'获取打卡历史时发生错误: {str(e)}', exc_info=True)
             return make_err_response({}, f'获取打卡历史失败: {str(e)}')
@@ -693,7 +693,7 @@ class CheckinController:
         from datetime import datetime as dt
         app_logger = logging.getLogger('log')
         app_logger.info(f'=== 开始执行打卡规则管理接口: {request.method} ===')
-        
+
         openid = decoded.get('openid')
         user = self.user_service.get_user_by_openid(openid)
         if not user:
@@ -704,7 +704,7 @@ class CheckinController:
             if request.method == 'GET':
                 # 获取用户的所有打卡规则
                 rules = self.checkin_rule_service.get_rules_by_user_id(user.user_id)
-                
+
                 rules_data = []
                 for rule in rules:
                     rules_data.append({
@@ -713,31 +713,31 @@ class CheckinController:
                         'icon_url': rule.icon_url,
                         'frequency_type': rule.frequency_type,
                         'time_slot_type': rule.time_slot_type,
-                        'custom_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else None,
+                        'custom_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
                         'week_days': rule.week_days,
                         'status': rule.status,
-                        'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                        'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M:%S')
+                        'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M'),
+                        'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M')
                     })
-                
+
                 response_data = {
                     'rules': rules_data
                 }
-                
+
                 app_logger.info(f'成功获取打卡规则列表，用户ID: {user.user_id}, 规则数量: {len(rules_data)}')
                 return make_succ_response(response_data)
-                
+
             elif request.method == 'POST':
                 # 创建打卡规则
                 params = request.get_json()
-                
+
                 rule_name = params.get('rule_name')
                 if not rule_name:
                     return make_err_response({}, '缺少rule_name参数')
-                
+
                 # 创建新的打卡规则
                 new_rule = self.checkin_rule_service.create_rule(user.user_id, params)
-                
+
                 # 返回完整的规则信息
                 response_data = {
                     'rule_id': new_rule.rule_id,
@@ -745,64 +745,64 @@ class CheckinController:
                     'icon_url': new_rule.icon_url,
                     'frequency_type': new_rule.frequency_type,
                     'time_slot_type': new_rule.time_slot_type,
-                    'custom_time': new_rule.custom_time.strftime('%H:%M:%S') if new_rule.custom_time else None,
+                    'custom_time': new_rule.custom_time.strftime('%H:%M') if new_rule.custom_time else None,
                     'week_days': new_rule.week_days,
                     'status': new_rule.status,
-                    'created_at': new_rule.created_at.strftime('%Y-%m-%d %H:%M:%S'),
-                    'updated_at': new_rule.updated_at.strftime('%Y-%m-%d %H:%M:%S'),
+                    'created_at': new_rule.created_at.strftime('%Y-%m-%d %H:%M'),
+                    'updated_at': new_rule.updated_at.strftime('%Y-%m-%d %H:%M'),
                     'message': '创建打卡规则成功'
                 }
-                
+
                 app_logger.info(f'成功创建打卡规则，用户ID: {user.user_id}, 规则ID: {new_rule.rule_id}')
                 return make_succ_response(response_data)
-                
+
             elif request.method == 'PUT':
                 # 更新打卡规则
                 params = request.get_json()
-                
+
                 rule_id = params.get('rule_id')
                 if not rule_id:
                     return make_err_response({}, '缺少rule_id参数')
-                
+
                 # 验证规则是否存在且属于当前用户
                 rule = self.checkin_rule_service.get_rule_by_id(rule_id)
                 if not rule or rule.solo_user_id != user.user_id:
                     return make_err_response({}, '打卡规则不存在或无权限')
-                
+
                 # 更新规则
                 updated_rule = self.checkin_rule_service.update_rule(rule, params)
-                
+
                 response_data = {
                     'rule_id': updated_rule.rule_id,
                     'message': '更新打卡规则成功'
                 }
-                
+
                 app_logger.info(f'成功更新打卡规则，用户ID: {user.user_id}, 规则ID: {updated_rule.rule_id}')
                 return make_succ_response(response_data)
-                
+
             elif request.method == 'DELETE':
                 # 删除打卡规则
                 params = request.get_json()
-                
+
                 rule_id = params.get('rule_id')
                 if not rule_id:
                     return make_err_response({}, '缺少rule_id参数')
-                
+
                 # 验证规则是否存在且属于当前用户
                 rule = self.checkin_rule_service.get_rule_by_id(rule_id)
                 if not rule or rule.solo_user_id != user.user_id:
                     return make_err_response({}, '打卡规则不存在或无权限')
-                
+
                 self.checkin_rule_service.delete_rule(rule_id)
-                
+
                 response_data = {
                     'rule_id': rule_id,
                     'message': '删除打卡规则成功'
                 }
-                
+
                 app_logger.info(f'成功删除打卡规则，用户ID: {user.user_id}, 规则ID: {rule_id}')
                 return make_succ_response(response_data)
-                
+
         except Exception as e:
             app_logger.error(f'打卡规则管理时发生错误: {str(e)}', exc_info=True)
             return make_err_response({}, f'打卡规则管理失败: {str(e)}')
@@ -823,7 +823,7 @@ class CommunityController:
         import logging
         app_logger = logging.getLogger('log')
         app_logger.info('=== 开始执行社区工作人员身份验证接口 ===')
-        
+
         openid = decoded.get('openid')
         user = self.user_service.get_user_by_openid(openid)
         if not user:
@@ -836,15 +836,15 @@ class CommunityController:
             name = params.get('name')
             work_id = params.get('workId')  # 注意：前端使用驼峰命名
             work_proof = params.get('workProof')  # 工作证明照片URL或base64
-            
+
             if not name or not work_id or not work_proof:
                 return make_err_response({}, '缺少必要参数：姓名、工号或工作证明')
-            
+
             result = self.user_service.verify_community_user(user, name, work_id, work_proof)
-            
+
             app_logger.info(f'用户 {user.user_id} 身份验证申请已提交')
             return make_succ_response(result)
-            
+
         except Exception as e:
             app_logger.error(f'身份验证时发生错误: {str(e)}', exc_info=True)
             return make_err_response({}, f'身份验证失败: {str(e)}')
