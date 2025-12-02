@@ -77,10 +77,12 @@ def run_migrations():
         app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@{MYSQL_ADDRESS}/{DATABASE_NAME}?charset=utf8mb4'
         app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
         
-        logger.info("初始化SQLAlchemy...")
+        logger.info("初始化SQLAlchemy和Migrate...")
         from flask_sqlalchemy import SQLAlchemy
+        from flask_migrate import Migrate
         
         db = SQLAlchemy(app)
+        migrate = Migrate(app, db)
         
         logger.info("导入模型...")
         # 导入模型以确保迁移能找到它们
@@ -88,10 +90,11 @@ def run_migrations():
             from wxcloudrun import model
             logger.info("模型导入成功")
             
-            logger.info("开始创建数据库表...")
-            # 直接创建所有表
-            db.create_all()
-            logger.info("数据库表创建完成")
+            # 使用Flask-Migrate运行迁移
+            logger.info("运行数据库迁移...")
+            from flask_migrate import upgrade
+            upgrade()
+            logger.info("数据库迁移完成")
         return True
     except Exception as e:
         logger.error(f"运行迁移失败: {str(e)}")

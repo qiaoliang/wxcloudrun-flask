@@ -25,7 +25,7 @@ services:
       WX_APPID: ${WX_APPID}
       WX_SECRET: ${WX_SECRET}
       TOKEN_SECRET: ${TOKEN_SECRET}
-      AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-false}
+      AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-true}
       DOCKER_ENV: "true"
     restart: unless-stopped
 
