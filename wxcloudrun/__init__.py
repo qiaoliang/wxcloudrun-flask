@@ -2,7 +2,7 @@ import os
 import time
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+# from flask_migrate import Migrate  # 不再使用迁移功能
 from flask_cors import CORS
 import pymysql
 import config
@@ -35,8 +35,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # 初始化DB操作对象
 db = SQLAlchemy(app)
 
-# 初始化Flask-Migrate
-migrate = Migrate(app, db)
+# 注释掉Flask-Migrate，不再使用迁移功能
+# migrate = Migrate(app, db)
 
 # 加载配置
 app.config.from_object('config')
@@ -78,34 +78,39 @@ if not is_testing and os.environ.get('DOCKER_ENV') != 'true':
     if not db_connected:
         app.logger.error("无法连接到数据库，应用可能无法正常工作。")
 
-# 在应用启动时检查并应用挂起的迁移
-def run_pending_migrations():
-    """运行挂起的数据库迁移"""
+# 在应用启动时检查并创建表（如果需要）
+def create_tables_if_needed():
+    """创建数据库表（如果不存在）"""
     try:
-        from flask_migrate import upgrade
-        with app.app_context():
-            upgrade()
-        app.logger.info("数据库迁移成功完成")
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        
+        # 如果没有任何表，则创建所有表
+        if not tables:
+            db.create_all()
+            app.logger.info("数据库表创建成功")
+        else:
+            app.logger.info(f"数据库表已存在: {tables}")
     except Exception as e:
-        app.logger.error(f"数据库迁移失败: {str(e)}")
+        app.logger.error(f"创建表失败: {str(e)}")
         # 不再抛出异常，允许应用继续启动
-        # raise
 
-# 根据环境变量决定是否自动运行迁移
-# 单元测试使用SQLite内存数据库，不需要迁移
-# 功能测试和生产环境使用MySQL，需要迁移
-# 注意：在Docker环境中，迁移通过init_database.py脚本处理，不需要在应用启动时运行
-if not is_unit_testing and os.environ.get('AUTO_RUN_MIGRATIONS', 'false').lower() != 'false' and os.environ.get('DOCKER_ENV') != 'true':
-    # 延迟执行迁移，确保应用完全启动后再运行
+# 根据环境变量决定是否自动创建表
+# 单元测试使用SQLite内存数据库，不需要创建表
+# 功能测试和生产环境使用MySQL，需要创建表
+# 注意：在Docker环境中，表创建通过init_database.py脚本处理，不需要在应用启动时运行
+if not is_unit_testing and os.environ.get('AUTO_CREATE_TABLES', 'false').lower() != 'false' and os.environ.get('DOCKER_ENV') != 'true':
+    # 延迟执行表创建，确保应用完全启动后再运行
     import threading
     import time
     
-    def delayed_migration():
+    def delayed_table_creation():
         # 等待一段时间确保数据库完全就绪
         time.sleep(5)
-        run_pending_migrations()
+        create_tables_if_needed()
     
-    # 在后台线程中运行迁移
-    migration_thread = threading.Thread(target=delayed_migration)
-    migration_thread.daemon = True
-    migration_thread.start()
+    # 在后台线程中运行表创建
+    table_thread = threading.Thread(target=delayed_table_creation)
+    table_thread.daemon = True
+    table_thread.start()
