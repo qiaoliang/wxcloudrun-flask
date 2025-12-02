@@ -13,6 +13,7 @@ from wxcloudrun.response import make_succ_empty_response, make_succ_response, ma
 from wxcloudrun.dao import *
 from wxcloudrun.controllers.user_controller import UserController, CheckinController, CommunityController, login_required
 from wxcloudrun.controllers.user_controller import BaseController
+from wxcloudrun.services.phone_auth_service import get_phone_auth_service
 
 # 加载环境变量
 load_dotenv()
@@ -564,5 +565,149 @@ def get_supervisor_rules(decoded):
     except Exception as e:
         app.logger.error(f"get_supervisor_rules error: {str(e)}")
         return make_err_response("获取监护规则失败")
+
+
+# ==================== 手机认证相关API ====================
+
+@app.route('/api/send_sms', methods=['POST'])
+def send_sms():
+    """
+    发送短信验证码
+    请求参数:
+    - phone: 手机号码
+    """
+    try:
+        data = request.get_json()
+        phone = data.get('phone', '').strip()
+        
+        if not phone:
+            return make_err_response("手机号码不能为空")
+        
+        phone_auth_service = get_phone_auth_service()
+        success, message, code = phone_auth_service.send_verification_code(phone)
+        
+        if success:
+            # 在开发/测试环境中返回验证码
+            response_data = {'message': message}
+            if app.config.get('ENV') == 'development' or app.config.get('TESTING'):
+                response_data['verification_code'] = code
+            return make_succ_response(response_data)
+        else:
+            return make_err_response(message)
+            
+    except Exception as e:
+        app.logger.error(f"send_sms error: {str(e)}")
+        return make_err_response("发送验证码失败")
+
+
+@app.route('/api/login_phone', methods=['POST'])
+def login_phone():
+    """
+    手机号登录接口
+    支持密码登录和短信验证码登录
+    请求参数:
+    - phone: 手机号码
+    - password: 密码（密码登录时使用）
+    - code: 短信验证码（短信登录时使用）
+    - login_type: 登录类型 'password' 或 'sms'
+    """
+    try:
+        data = request.get_json()
+        phone = data.get('phone', '').strip()
+        login_type = data.get('login_type', 'sms')
+        
+        if not phone:
+            return make_err_response("手机号码不能为空")
+        
+        if login_type not in ['password', 'sms']:
+            return make_err_response("登录类型无效")
+        
+        phone_auth_service = get_phone_auth_service()
+        
+        if login_type == 'password':
+            password = data.get('password', '')
+            if not password:
+                return make_err_response("密码不能为空")
+            success, message, user_info = phone_auth_service.login_with_password(phone, password)
+        else:  # sms login
+            code = data.get('code', '')
+            if not code:
+                return make_err_response("验证码不能为空")
+            success, message, user_info = phone_auth_service.login_with_sms(phone, code)
+        
+        if success:
+            return make_succ_response(user_info)
+        else:
+            return make_err_response(message)
+            
+    except Exception as e:
+        app.logger.error(f"login_phone error: {str(e)}")
+        return make_err_response("登录失败")
+
+
+@app.route('/api/register_phone', methods=['POST'])
+def register_phone():
+    """
+    手机号注册接口
+    请求参数:
+    - phone: 手机号码
+    - code: 短信验证码
+    - nickname: 用户昵称（可选）
+    - avatar_url: 用户头像URL（可选）
+    """
+    try:
+        data = request.get_json()
+        phone = data.get('phone', '').strip()
+        code = data.get('code', '').strip()
+        nickname = data.get('nickname', '').strip()
+        avatar_url = data.get('avatar_url', '').strip()
+        
+        if not phone or not code:
+            return make_err_response("手机号码和验证码不能为空")
+        
+        phone_auth_service = get_phone_auth_service()
+        success, message, user_info = phone_auth_service.verify_code_and_register(
+            phone, code, nickname, avatar_url
+        )
+        
+        if success:
+            return make_succ_response(user_info)
+        else:
+            return make_err_response(message)
+            
+    except Exception as e:
+        app.logger.error(f"register_phone error: {str(e)}")
+        return make_err_response("注册失败")
+
+
+@app.route('/api/set_password', methods=['POST'])
+@login_required
+def set_password(decoded):
+    """
+    设置密码接口
+    请求参数:
+    - password: 新密码
+    """
+    try:
+        data = request.get_json()
+        password = data.get('password', '').strip()
+        
+        if not password:
+            return make_err_response("密码不能为空")
+        
+        if len(password) < 8:
+            return make_err_response("密码长度至少8位")
+        
+        phone_auth_service = get_phone_auth_service()
+        success, message = phone_auth_service.set_password(g.current_user.user_id, password)
+        
+        if success:
+            return make_succ_response({'message': message})
+        else:
+            return make_err_response(message)
+            
+    except Exception as e:
+        app.logger.error(f"set_password error: {str(e)}")
+        return make_err_response("设置密码失败")
 
 

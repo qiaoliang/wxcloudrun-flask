@@ -216,7 +216,10 @@ class SMSService:
         key = self._get_verification_code_key(phone_number)
         try:
             code = self.redis_client.get(key)
-            return code.decode() if code else None
+            # 处理不同Redis客户端返回的类型（真实Redis返回bytes，fakeredis返回str）
+            if isinstance(code, bytes):
+                return code.decode()
+            return code
         except Exception as e:
             logger.error(f"获取验证码失败: {str(e)}")
             return None
@@ -304,12 +307,28 @@ def get_sms_service() -> SMSService:
     if _sms_service is None:
         # 初始化Redis客户端
         try:
-            redis_host = os.getenv('REDIS_HOST', 'localhost')
-            redis_port = int(os.getenv('REDIS_PORT', 6379))
-            redis_db = int(os.getenv('REDIS_DB', 0))
-            redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
-            # 测试连接
-            redis_client.ping()
+            # 检查是否为测试环境
+            is_testing = os.environ.get('USE_SQLITE_FOR_TESTING', '').lower() == 'true' or \
+                       os.environ.get('FLASK_ENV') == 'testing' or \
+                       'PYTEST_CURRENT_TEST' in os.environ
+            
+            if is_testing:
+                # 测试环境使用fakeredis
+                try:
+                    import fakeredis
+                    redis_client = fakeredis.FakeRedis(decode_responses=True)
+                    redis_client.ping()  # 测试连接
+                except ImportError:
+                    logger.warning("fakeredis未安装，测试环境将无法存储验证码")
+                    redis_client = None
+            else:
+                # 生产环境使用真实Redis
+                redis_host = os.getenv('REDIS_HOST', 'localhost')
+                redis_port = int(os.getenv('REDIS_PORT', 6379))
+                redis_db = int(os.getenv('REDIS_DB', 0))
+                redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
+                # 测试连接
+                redis_client.ping()
         except:
             logger.warning("Redis连接失败，SMS服务将无法存储验证码")
             redis_client = None

@@ -4,3 +4,5 @@ pytest-cov==4.1.0
 factory-boy==3.3.0
 Faker==19.13.0
 cryptography==42.0.5
+redis==5.0.1
+fakeredis==2.20.1

@@ -39,7 +39,8 @@ def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_c
         'PYTEST_CURRENT_TEST',
         'WX_APPID',
         'WX_SECRET',
-        'TOKEN_SECRET'
+        'TOKEN_SECRET',
+        'PHONE_ENCRYPTION_KEY'
     ]
     
     missing_vars = []

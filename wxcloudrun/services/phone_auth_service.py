@@ -10,6 +10,10 @@ import logging
 from typing import Dict, Optional, Tuple
 import jwt
 from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+
+# 确保环境变量已加载
+load_dotenv()
 
 from wxcloudrun.utils.phone_encryption import (
     validate_and_normalize_phone,
@@ -18,7 +22,7 @@ from wxcloudrun.utils.phone_encryption import (
 )
 from wxcloudrun.services.sms_service import get_sms_service
 from wxcloudrun.model import User, PhoneAuth
-from wxcloudrun.dao import create_user, update_user_by_id, query_user_by_phone
+from wxcloudrun.dao import insert_user, update_user_by_id, query_user_by_phone
 import config
 
 # 配置日志
@@ -339,8 +343,8 @@ class PhoneAuthService:
                 status=1  # 正常状态
             )
             
-            db.session.add(user)
-            db.session.flush()  # 获取用户ID
+            # 使用DAO插入用户
+            insert_user(user)
             
             # 创建手机认证记录
             phone_auth = PhoneAuth(

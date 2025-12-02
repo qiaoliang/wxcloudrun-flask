@@ -26,7 +26,7 @@ class User(db.Model):
 
     # 设定结构体对应表格的字段
     user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    wechat_openid = db.Column(db.String(128), unique=True, nullable=False, comment='微信OpenID，唯一标识用户')
+    wechat_openid = db.Column(db.String(128), unique=True, nullable=True, comment='微信OpenID，唯一标识用户')
     phone_number = db.Column(db.String(20), unique=True, comment='手机号码，可用于登录和联系')
     nickname = db.Column(db.String(100), comment='用户昵称')
     avatar_url = db.Column(db.String(500), comment='用户头像URL')
