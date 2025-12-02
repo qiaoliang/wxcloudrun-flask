@@ -41,8 +41,8 @@ class BaseController:
                 header_token = header_token[1:-1]
             elif header_token.startswith("'") and header_token.endswith("'"):
                 header_token = header_token[1:-1]
-        # 优先使用header中的token，只有当header_token非空时才使用它
-        token = header_token if header_token else params.get('token')
+        # 使用header中的token
+        token = header_token
         
         if not token:
             logging.warning('请求中缺少token参数')
