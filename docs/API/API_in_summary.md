@@ -519,7 +519,7 @@
 
 #### 5.1 手机号登录
 
-**状态**: ❌ 待实现  
+**状态**: ✅ 已实现  
 **接口地址**: `POST /api/login_phone`  
 **接口描述**: 通过手机号和验证码进行登录  
 **请求参数**:
@@ -542,7 +542,7 @@
 
 #### 5.2 发送短信验证码
 
-**状态**: ❌ 待实现  
+**状态**: ✅ 已实现  
 **接口地址**: `POST /api/send_sms`  
 **接口描述**: 发送手机验证码  
 **请求参数**:
@@ -560,12 +560,89 @@
 }
 ```
 
+#### 5.3 用户搜索
+
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/users/search`  
+**接口描述**: 根据昵称搜索用户  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+- `nickname`: 搜索关键词
+- `limit`: 返回结果数量限制（默认10，最大50）
+
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "users": [
+      {
+        "user_id": 123,
+        "nickname": "用户昵称",
+        "avatar_url": "头像URL",
+        "is_supervisor": true
+      }
+    ]
+  },
+  "msg": "success"
+}
+```
+
+#### 5.4 手机号注册
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/register_phone`  
+**接口描述**: 手机号注册接口  
+**请求参数**:
+```json
+{
+  "phone": "手机号码",
+  "code": "短信验证码",
+  "nickname": "用户昵称（可选）",
+  "avatar_url": "用户头像URL（可选）"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "user_id": 123,
+    "token": "JWT令牌"
+  },
+  "msg": "success"
+}
+```
+
+#### 5.5 设置密码
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/set_password`  
+**接口描述**: 设置密码接口  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+```json
+{
+  "password": "新密码"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "message": "密码设置成功"
+  },
+  "msg": "success"
+}
+```
+
 ### 6. 监护关系接口
 
 #### 6.1 邀请监护人
 
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/supervision/invite`  
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/rules/supervision/invite`  
 **接口描述**: 独居者邀请监护人  
 **请求头**: `Authorization: Bearer {token}`  
 **请求参数**:
@@ -587,7 +664,118 @@
 }
 ```
 
-#### 6.2 申请成为监护人
+#### 6.2 获取邀请列表
+
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/supervision/invitations`  
+**接口描述**: 获取监护邀请列表  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+- `type`: 邀请类型（sent-发送的，received-收到的）
+
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "invitations": [
+      {
+        "invitation_id": 123,
+        "inviter_nickname": "邀请人昵称",
+        "inviter_avatar": "头像URL",
+        "rule_name": "规则名称",
+        "status": "pending",
+        "created_at": "2023-12-01 10:00:00"
+      }
+    ]
+  },
+  "msg": "success"
+}
+```
+
+#### 6.3 响应邀请
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/supervision/respond`  
+**接口描述**: 同意或拒绝监护邀请  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+```json
+{
+  "invitation_id": 123,
+  "action": "accept|reject"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "message": "邀请已处理"
+  },
+  "msg": "success"
+}
+```
+
+#### 6.4 获取监护规则列表
+
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/rules/supervision/list`  
+**接口描述**: 获取监护规则列表  
+**请求头**: `Authorization: Bearer {token}`  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "rules": [
+      {
+        "rule_id": 1,
+        "rule_name": "起床打卡",
+        "supervisor_count": 2,
+        "supervisors": [
+          {
+            "user_id": 123,
+            "nickname": "监护人昵称",
+            "avatar_url": "头像URL"
+          }
+        ]
+      }
+    ]
+  },
+  "msg": "success"
+}
+```
+
+#### 6.5 获取监护人规则
+
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/supervisor/rules`  
+**接口描述**: 获取监护人的监护规则列表  
+**请求头**: `Authorization: Bearer {token}`  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "supervision_rules": [
+      {
+        "rule_id": 1,
+        "rule_name": "起床打卡",
+        "solo_user": {
+          "user_id": 456,
+          "nickname": "被监护人昵称",
+          "avatar_url": "头像URL"
+        },
+        "status": "active"
+      }
+    ]
+  },
+  "msg": "success"
+}
+```
+
+#### 6.6 申请成为监护人
 
 **状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/apply`  
@@ -607,31 +795,6 @@
     "application_id": 456
   },
   "msg": "申请提交成功"
-}
-```
-
-#### 6.3 邀请监护人
-
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/supervisor/invite`  
-**接口描述**: 独居者邀请监护人  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "invite_type": "phone|wechat",
-  "phone": "手机号",
-  "wechat_id": "微信号"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "invitation_id": 123
-  },
-  "msg": "邀请发送成功"
 }
 ```
 
@@ -1000,26 +1163,7 @@
 }
 ```
 
-#### 7.6 标记已联系
 
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/community/mark_contacted`  
-**接口描述**: 标记已联系独居者  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "user_id": 123
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {},
-  "msg": "标记成功"
-}
-```
 
 ### 8. 通知接口
 
@@ -1172,14 +1316,23 @@
 |--------|------|------|------|
 | user_id | Integer | 用户ID | 主键，自增 |
 | wechat_openid | String(128) | 微信OpenID，唯一标识用户 | 唯一，非空 |
-| phone_number | String(20) | 手机号码，可用于登录和联系 | 唯一 |
+| phone_number | String(500) | 手机号码，可用于登录和联系（加密存储） | 唯一 |
 | nickname | String(100) | 用户昵称 | |
 | avatar_url | String(500) | 用户头像URL | |
-| role | Integer | 用户角色：1-独居者/2-监护人/3-社区工作人员 | 非空，枚举值：1/2/3 |
+| name | String(100) | 真实姓名 | |
+| work_id | String(50) | 工号或身份证号 | |
+| is_solo_user | Boolean | 是否为独居者（有打卡规则和记录） | 默认值：true |
+| is_supervisor | Boolean | 是否为监护人（有关联的监护关系） | 默认值：false |
+| is_community_worker | Boolean | 是否为社区工作人员（需要身份验证） | 默认值：false |
+| role | Integer | 兼容性字段：1-独居者/2-监护人/3-社区工作人员 | 默认值：1 |
 | status | Integer | 用户状态：1-正常/2-禁用 | 默认值：1 |
 | verification_status | Integer | 验证状态：0-未申请/1-待审核/2-已通过/3-已拒绝 | 默认值：0 |
 | verification_materials | Text | 验证材料URL | |
 | community_id | Integer | 所属社区ID，仅社区工作人员需要 | |
+| auth_type | Enum | 认证类型：wechat/phone/both | 默认值：wechat |
+| linked_accounts | Text | 关联账户信息（JSON格式） | |
+| refresh_token | String(255) | 刷新令牌 | |
+| refresh_token_expire | DateTime | 刷新令牌过期时间 | |
 | created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
 | updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
 
@@ -1212,136 +1365,65 @@
 | created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
 | updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
 
-### 待实现的数据模型
-
-#### Community (社区表)
+#### RuleSupervision (规则监护关系表)
 
 | 字段名 | 类型 | 描述 | 约束 |
 |--------|------|------|------|
-| community_id | Integer | 社区ID | 主键，自增 |
-| community_name | String(200) | 社区名称 | 非空 |
-| address | String(500) | 社区地址 | |
-| contact_person | String(100) | 社区联系人 | |
-| contact_phone | String(20) | 社区联系电话 | |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
-
-#### SupervisionRelation (监督关系表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| relation_id | Integer | 关系ID | 主键，自增 |
-| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
-| supervisor_user_id | Integer | 监护人用户ID | 非空，外键，关联users表 |
-| status | String(20) | 关系状态：待同意/已同意/已拒绝 | 默认值：pending，枚举值：pending/approved/rejected |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
-
-#### Notification (通知表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| notification_id | Integer | 通知ID | 主键，自增 |
-| user_id | Integer | 接收通知的用户ID | 非空，外键，关联users表 |
-| type | String(50) | 通知类型 | 非空，枚举值：missed_checkin/rule_update/supervisor_request/system |
-| title | String(200) | 通知标题 | |
-| content | TEXT | 通知内容 | |
-| related_id | Integer | 关联记录ID，如打卡记录ID、规则ID、监督关系ID | |
-| related_type | String(50) | 关联记录类型 | |
-| is_read | Boolean | 是否已读 | 默认值：false |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-
-#### SystemConfigs (系统配置表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| config_id | Integer | 配置ID | 主键，自增 |
-| config_key | String(100) | 配置键名 | 唯一，非空 |
-| config_value | TEXT | 配置值 | |
-| description | String(500) | 配置描述 | |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
-
-## 数据模型
-
-### 已实现的数据模型
-
-#### Counters (计数器表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| id | Integer | 计数器ID | 主键 |
-| count | Integer | 计数值 | 默认值: 1 |
-| created_at | TIMESTAMP | 创建时间 | 非空，默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 非空，默认当前时间 |
-
-### 待实现的数据模型
-
-#### User (用户表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| user_id | Integer | 用户ID | 主键，自增 |
-| wechat_openid | String(128) | 微信OpenID，唯一标识用户 | 唯一，非空 |
-| phone_number | String(20) | 手机号码，可用于登录和联系 | 唯一 |
-| nickname | String(100) | 用户昵称 | |
-| avatar_url | String(500) | 用户头像URL | |
-| role | String(20) | 用户角色：独居者/监护人/社区工作人员 | 非空，枚举值：solo/supervisor/community |
-| community_id | Integer | 所属社区ID，仅社区工作人员需要 | 外键，关联communities表 |
-| status | String(20) | 用户状态：正常/禁用 | 默认值：active，枚举值：active/disabled |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
-
-#### Community (社区表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| community_id | Integer | 社区ID | 主键，自增 |
-| community_name | String(200) | 社区名称 | 非空 |
-| address | String(500) | 社区地址 | |
-| contact_person | String(100) | 社区联系人 | |
-| contact_phone | String(20) | 社区联系电话 | |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
-
-#### SupervisionRelation (监督关系表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| relation_id | Integer | 关系ID | 主键，自增 |
-| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
-| supervisor_user_id | Integer | 监护人用户ID | 非空，外键，关联users表 |
-| status | String(20) | 关系状态：待同意/已同意/已拒绝 | 默认值：pending，枚举值：pending/approved/rejected |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
-
-#### CheckinRule (打卡规则表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| rule_id | Integer | 规则ID | 主键，自增 |
-| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
-| rule_name | String(100) | 规则名称 | 非空 |
-| icon_url | String(500) | 规则图标URL | |
-| frequency_type | String(20) | 频率类型：每天/每周/自定义 | 默认值：daily，枚举值：daily/weekly/custom |
-| frequency_details | JSON | 频率详情，如具体的星期几 | |
-| time_slot_type | String(20) | 时间段类型：时段/精确时间 | 默认值：period，枚举值：period/exact |
-| time_slot_details | JSON | 时间段详情，如上午/下午/晚上或具体时间段 | |
-| grace_period_minutes | Integer | 宽限期（分钟），默认30分钟 | 默认值：30 |
-| is_active | Boolean | 是否启用 | 默认值：true |
-| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
-| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
-
-#### CheckinRecord (打卡记录表)
-
-| 字段名 | 类型 | 描述 | 约束 |
-|--------|------|------|------|
-| record_id | Integer | 记录ID | 主键，自增 |
-| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
+| supervision_id | Integer | 监护关系ID | 主键，自增 |
 | rule_id | Integer | 打卡规则ID | 非空，外键，关联checkin_rules表 |
-| checkin_time | TIMESTAMP | 实际打卡时间 | |
-| status | String(20) | 状态：已打卡/未打卡/已撤销 | 默认值：missed，枚举值：checked/missed/revoked |
-| planned_time | TIMESTAMP | 计划打卡时间 | 非空 |
+| supervisor_user_id | Integer | 监护人用户ID | 非空，外键，关联users表 |
+| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
+| status | String(20) | 关系状态：pending/approved/rejected | 默认值：pending |
+| invitation_token | String(255) | 邀请令牌 | |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+#### PhoneAuth (手机认证表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| auth_id | Integer | 认证ID | 主键，自增 |
+| phone_number | String(20) | 手机号码 | 唯一，非空 |
+| user_id | Integer | 用户ID | 外键，关联users表 |
+| password_hash | String(255) | 密码哈希 | |
+| is_active | Boolean | 是否激活 | 默认值：true |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+#### SMSVerificationCode (短信验证码表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| code_id | Integer | 验证码ID | 主键，自增 |
+| phone_number | String(20) | 手机号码 | 非空 |
+| code | String(10) | 验证码 | 非空 |
+| type | String(20) | 验证码类型：login/register/reset_password | 非空 |
+| is_used | Boolean | 是否已使用 | 默认值：false |
+| expires_at | TIMESTAMP | 过期时间 | 非空 |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+
+### 待实现的数据模型
+
+#### Community (社区表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| community_id | Integer | 社区ID | 主键，自增 |
+| community_name | String(200) | 社区名称 | 非空 |
+| address | String(500) | 社区地址 | |
+| contact_person | String(100) | 社区联系人 | |
+| contact_phone | String(20) | 社区联系电话 | |
+| created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
+| updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
+
+#### SupervisionRelation (监督关系表)
+
+| 字段名 | 类型 | 描述 | 约束 |
+|--------|------|------|------|
+| relation_id | Integer | 关系ID | 主键，自增 |
+| solo_user_id | Integer | 独居者用户ID | 非空，外键，关联users表 |
+| supervisor_user_id | Integer | 监护人用户ID | 非空，外键，关联users表 |
+| status | String(20) | 关系状态：待同意/已同意/已拒绝 | 默认值：pending，枚举值：pending/approved/rejected |
 | created_at | TIMESTAMP | 创建时间 | 默认当前时间 |
 | updated_at | TIMESTAMP | 更新时间 | 默认当前时间，自动更新 |
 

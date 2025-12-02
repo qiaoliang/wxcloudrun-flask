@@ -14,3 +14,4 @@ cryptography==42.0.5
 requests==2.32.3  # 升级为支持 Python 3.12 的最新稳定版
 pyjwt==2.4.0
 python-dotenv==0.21.0
+redis==5.0.1

@@ -27,7 +27,7 @@ class User(db.Model):
     # 设定结构体对应表格的字段
     user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     wechat_openid = db.Column(db.String(128), unique=True, nullable=True, comment='微信OpenID，唯一标识用户')
-    phone_number = db.Column(db.String(20), unique=True, comment='手机号码，可用于登录和联系')
+    phone_number = db.Column(db.String(500), unique=True, comment='手机号码，可用于登录和联系（加密存储）')
     nickname = db.Column(db.String(100), comment='用户昵称')
     avatar_url = db.Column(db.String(500), comment='用户头像URL')
     name = db.Column(db.String(100), comment='真实姓名')
@@ -369,7 +369,7 @@ class PhoneAuth(db.Model):
 
     phone_auth_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='关联的用户ID')
-    phone_number = db.Column(db.String(20), unique=True, nullable=False, comment='加密后的手机号码')
+    phone_number = db.Column(db.String(500), unique=True, nullable=False, comment='加密后的手机号码')
     password_hash = db.Column(db.String(255), nullable=True, comment='密码哈希值')
     auth_methods = db.Column(db.Enum('password', 'sms', 'both', name='auth_methods_enum'), 
                            default='sms', nullable=False, comment='认证方式：password/sms/both')
@@ -402,6 +402,39 @@ class PhoneAuth(db.Model):
     def auth_method_name(self):
         """获取认证方式名称"""
         return self.AUTH_METHODS_MAPPING.get(self.auth_methods, '未知')
+
+
+# SMS验证码存储表（Redis不可用时的备用存储）
+class SMSVerificationCode(db.Model):
+    __tablename__ = 'sms_verification_codes'
+    
+    code_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    phone_number = db.Column(db.String(500), nullable=False, comment='手机号码')
+    code = db.Column(db.String(10), nullable=False, comment='验证码')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    expires_at = db.Column(db.DateTime, nullable=False, comment='过期时间')
+    used = db.Column(db.Boolean, default=False, comment='是否已使用')
+    
+    # 索引
+    __table_args__ = (
+        db.Index('idx_phone_code', 'phone_number', 'code'),
+        db.Index('idx_expires_at', 'expires_at'),
+        db.Index('idx_phone_number', 'phone_number'),
+        {
+            'mysql_charset': 'utf8mb4',
+            'mysql_collate': 'utf8mb4_unicode_ci'
+        }
+    )
+    
+    @property
+    def is_expired(self):
+        """检查验证码是否过期"""
+        return datetime.now() > self.expires_at
+    
+    @property
+    def is_valid(self):
+        """检查验证码是否有效（未过期且未使用）"""
+        return not self.used and not self.is_expired
 
     @property
     def is_locked(self):

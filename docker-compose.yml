@@ -11,6 +11,15 @@ services:
       - mysql_data:/var/lib/mysql
     restart: unless-stopped
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+
   app:
     build: .
     container_name: py-safeclockin
@@ -18,6 +27,7 @@ services:
       - "8080:8080"
     depends_on:
       - mysql-db
+      - redis
     environment:
       MYSQL_USERNAME: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
@@ -25,8 +35,13 @@ services:
       WX_APPID: ${WX_APPID}
       WX_SECRET: ${WX_SECRET}
       TOKEN_SECRET: ${TOKEN_SECRET}
+      PHONE_ENCRYPTION_KEY: ${PHONE_ENCRYPTION_KEY:-safeguard_phone_encryption_key_2024}
       AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-true}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
     restart: unless-stopped
 
 volumes:
   mysql_data:
+  redis_data:

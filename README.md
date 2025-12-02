@@ -159,3 +159,18 @@ python init_database.py
 - **生产环境**: 使用 MySQL 8.4.3
 - **开发环境**: 使用 MySQL 或 SQLite（通过环境变量配置）
 - **测试环境**: 自动使用 SQLite 内存数据库
+
+### Redis 配置（可选）
+
+项目支持 Redis 用于以下功能：
+- SMS验证码存储
+- API速率限制
+
+Redis 配置环境变量：
+```bash
+REDIS_HOST=localhost      # Redis主机地址
+REDIS_PORT=6379           # Redis端口
+REDIS_DB=0               # Redis数据库编号
+```
+
+如果未配置 Redis，SMS验证码将使用数据库表作为备用存储，速率限制功能将被禁用。

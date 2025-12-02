@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS Counters (
 CREATE TABLE IF NOT EXISTS users (
     user_id INT PRIMARY KEY AUTO_INCREMENT,
     wechat_openid VARCHAR(128) NOT NULL UNIQUE COMMENT '微信OpenID，唯一标识用户',
-    phone_number VARCHAR(20) UNIQUE COMMENT '手机号码，可用于登录和联系',
+    phone_number VARCHAR(500) UNIQUE COMMENT '手机号码，可用于登录和联系（加密存储）',
     nickname VARCHAR(100) COMMENT '用户昵称',
     avatar_url VARCHAR(500) COMMENT '用户头像URL',
     name VARCHAR(100) COMMENT '真实姓名',

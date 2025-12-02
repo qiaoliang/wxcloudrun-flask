@@ -190,24 +190,3 @@
   "msg": "提醒发送成功"
 }
 ```
-
-#### 2.6 标记已联系
-
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/community/mark_contacted`  
-**接口描述**: 标记已联系独居者  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "user_id": 123
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {},
-  "msg": "标记成功"
-}
-```

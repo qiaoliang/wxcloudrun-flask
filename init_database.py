@@ -90,6 +90,7 @@ def create_tables():
         # 删除所有旧表
         logger.info("删除所有旧表...")
         cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+        cursor.execute("DROP TABLE IF EXISTS sms_verification_codes")
         cursor.execute("DROP TABLE IF EXISTS phone_auth")
         cursor.execute("DROP TABLE IF EXISTS rule_supervisions")
         cursor.execute("DROP TABLE IF EXISTS checkin_records")
@@ -115,7 +116,7 @@ def create_tables():
             CREATE TABLE users (
                 user_id INT AUTO_INCREMENT PRIMARY KEY,
                 wechat_openid VARCHAR(128) UNIQUE,
-                phone_number VARCHAR(20) UNIQUE,
+                phone_number VARCHAR(500) UNIQUE,
                 nickname VARCHAR(100),
                 avatar_url VARCHAR(500),
                 name VARCHAR(100),
@@ -219,7 +220,7 @@ def create_tables():
             CREATE TABLE phone_auth (
                 phone_auth_id INT AUTO_INCREMENT PRIMARY KEY,
                 user_id INT NOT NULL,
-                phone_number VARCHAR(20) UNIQUE NOT NULL,
+                phone_number VARCHAR(500) UNIQUE NOT NULL,
                 password_hash VARCHAR(255),
                 auth_methods ENUM('password', 'sms', 'both') DEFAULT 'sms' NOT NULL,
                 is_verified BOOLEAN DEFAULT FALSE NOT NULL,
@@ -233,6 +234,22 @@ def create_tables():
                 INDEX idx_phone_number (phone_number),
                 INDEX idx_user_id (user_id),
                 INDEX idx_is_verified (is_verified)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        
+        # 创建sms_verification_codes表（Redis不可用时的备用存储）
+        logger.info("创建sms_verification_codes表...")
+        cursor.execute("""
+            CREATE TABLE sms_verification_codes (
+                code_id INT AUTO_INCREMENT PRIMARY KEY,
+                phone_number VARCHAR(500) NOT NULL,
+                code VARCHAR(10) NOT NULL,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME NOT NULL,
+                used BOOLEAN DEFAULT FALSE,
+                INDEX idx_phone_code (phone_number, code),
+                INDEX idx_expires_at (expires_at),
+                INDEX idx_phone_number (phone_number)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
         

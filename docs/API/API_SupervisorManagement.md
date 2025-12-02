@@ -35,14 +35,14 @@
 
 # 监护关系管理API接口列表
 
-## 待实现的API接口
+## 已实现的API接口
 
 ### 1. 监护关系接口
 
 #### 1.1 邀请监护人
 
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/supervision/invite`  
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/rules/supervision/invite`  
 **接口描述**: 独居者邀请监护人  
 **请求头**: `Authorization: Bearer {token}`  
 **请求参数**:
@@ -64,7 +64,122 @@
 }
 ```
 
-#### 1.2 申请成为监护人
+#### 1.2 获取邀请列表
+
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/supervision/invitations`  
+**接口描述**: 获取监护邀请列表  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+- `type`: 邀请类型（sent-发送的，received-收到的）
+
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "invitations": [
+      {
+        "invitation_id": 123,
+        "inviter_nickname": "邀请人昵称",
+        "inviter_avatar": "头像URL",
+        "rule_name": "规则名称",
+        "status": "pending",
+        "created_at": "2023-12-01 10:00:00"
+      }
+    ]
+  },
+  "msg": "success"
+}
+```
+
+#### 1.3 响应邀请
+
+**状态**: ✅ 已实现  
+**接口地址**: `POST /api/supervision/respond`  
+**接口描述**: 同意或拒绝监护邀请  
+**请求头**: `Authorization: Bearer {token}`  
+**请求参数**:
+```json
+{
+  "invitation_id": 123,
+  "action": "accept|reject"
+}
+```
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "message": "邀请已处理"
+  },
+  "msg": "success"
+}
+```
+
+#### 1.4 获取监护规则列表
+
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/rules/supervision/list`  
+**接口描述**: 获取监护规则列表  
+**请求头**: `Authorization: Bearer {token}`  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "rules": [
+      {
+        "rule_id": 1,
+        "rule_name": "起床打卡",
+        "supervisor_count": 2,
+        "supervisors": [
+          {
+            "user_id": 123,
+            "nickname": "监护人昵称",
+            "avatar_url": "头像URL"
+          }
+        ]
+      }
+    ]
+  },
+  "msg": "success"
+}
+```
+
+#### 1.5 获取监护人规则
+
+**状态**: ✅ 已实现  
+**接口地址**: `GET /api/supervisor/rules`  
+**接口描述**: 获取监护人的监护规则列表  
+**请求头**: `Authorization: Bearer {token}`  
+**响应示例**:
+```json
+{
+  "code": 1,
+  "data": {
+    "supervision_rules": [
+      {
+        "rule_id": 1,
+        "rule_name": "起床打卡",
+        "solo_user": {
+          "user_id": 456,
+          "nickname": "被监护人昵称",
+          "avatar_url": "头像URL"
+        },
+        "status": "active"
+      }
+    ]
+  },
+  "msg": "success"
+}
+```
+
+## 待实现的API接口
+
+### 2. 监护关系接口
+
+#### 2.1 申请成为监护人
 
 **状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/apply`  
@@ -87,32 +202,7 @@
 }
 ```
 
-#### 1.3 邀请监护人
-
-**状态**: ❌ 待实现  
-**接口地址**: `POST /api/supervisor/invite`  
-**接口描述**: 独居者邀请监护人  
-**请求头**: `Authorization: Bearer {token}`  
-**请求参数**:
-```json
-{
-  "invite_type": "phone|wechat",
-  "phone": "手机号",
-  "wechat_id": "微信号"
-}
-```
-**响应示例**:
-```json
-{
-  "code": 1,
-  "data": {
-    "invitation_id": 123
-  },
-  "msg": "邀请发送成功"
-}
-```
-
-#### 1.4 同意监护人申请
+#### 2.2 同意监护人申请
 
 **状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/accept`  
@@ -133,7 +223,7 @@
 }
 ```
 
-#### 1.5 拒绝监护人申请
+#### 2.3 拒绝监护人申请
 
 **状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/reject`  
@@ -154,7 +244,7 @@
 }
 ```
 
-#### 1.6 获取监护人列表
+#### 2.4 获取监护人列表
 
 **状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/list`  
@@ -178,7 +268,7 @@
 }
 ```
 
-#### 1.7 移除监护人关系
+#### 2.5 移除监护人关系
 
 **状态**: ❌ 待实现  
 **接口地址**: `DELETE /api/supervisor/remove`  
@@ -199,7 +289,7 @@
 }
 ```
 
-#### 1.8 监护人首页数据
+#### 2.6 监护人首页数据
 
 **状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/dashboard`  
@@ -224,7 +314,7 @@
 }
 ```
 
-#### 1.9 获取被监护人详情
+#### 2.7 获取被监护人详情
 
 **状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/detail`  
@@ -262,7 +352,7 @@
 }
 ```
 
-#### 1.10 获取被监护人打卡记录
+#### 2.8 获取被监护人打卡记录
 
 **状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervisor/records`  
@@ -297,7 +387,7 @@
 }
 ```
 
-#### 1.11 监护人通知设置
+#### 2.9 监护人通知设置
 
 **状态**: ❌ 待实现  
 **接口地址**: `POST /api/supervisor/settings`  
@@ -321,7 +411,7 @@
 }
 ```
 
-#### 1.12 获取监护关系列表
+#### 2.10 获取监护关系列表
 
 **状态**: ❌ 待实现  
 **接口地址**: `GET /api/supervision/relations`  
