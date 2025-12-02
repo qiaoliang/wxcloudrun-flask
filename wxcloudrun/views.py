@@ -1,5 +1,5 @@
 import logging
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, g
 import json
 import time
 from datetime import datetime, date, timedelta
