@@ -138,10 +138,6 @@ class User(db.Model):
 class CheckinRule(db.Model):
     # 设置结构体表格名称
     __tablename__ = 'checkin_rules'
-    __table_args__ = {
-        'mysql_charset': 'utf8mb4',
-        'mysql_collate': 'utf8mb4_unicode_ci'
-    }
 
     # 设定结构体对应表格的字段
     rule_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
@@ -170,9 +166,13 @@ class CheckinRule(db.Model):
     # 关联用户
     user = db.relationship('User', backref=db.backref('checkin_rules', lazy=True))
 
-    # 索引
+    # 索引和表选项
     __table_args__ = (
         db.Index('idx_rule_solo_user', 'solo_user_id'),  # 用户ID索引
+        {
+            'mysql_charset': 'utf8mb4',
+            'mysql_collate': 'utf8mb4_unicode_ci'
+        }
     )
 
 
@@ -198,11 +198,15 @@ class CheckinRecord(db.Model):
     rule = db.relationship('CheckinRule', backref=db.backref('checkin_records', lazy=True))
     user = db.relationship('User', backref=db.backref('checkin_records', lazy=True))
 
-    # 索引
+    # 索引和表选项
     __table_args__ = (
         db.Index('idx_record_rule', 'rule_id'),  # 规则ID索引
         db.Index('idx_record_solo_user', 'solo_user_id'),  # 用户ID索引
         db.Index('idx_planned_time', 'planned_time'),  # 计划时间索引
+        {
+            'mysql_charset': 'utf8mb4',
+            'mysql_collate': 'utf8mb4_unicode_ci'
+        }
     )
 
     # 状态映射
