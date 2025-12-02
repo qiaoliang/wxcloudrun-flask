@@ -1,30 +1,35 @@
 # wxcloudrun-flask
+
 [![GitHub license](https://img.shields.io/github/license/WeixinCloud/wxcloudrun-express)](https://github.com/WeixinCloud/wxcloudrun-express)
 ![GitHub package.json dependency version (prod)](https://img.shields.io/badge/python-3.12.11-green)
 
-## 重要说明：Python版本要求
+## 重要说明：Python 版本要求
+
 **本项目必须使用 Python 3.12 版本**。项目经过专门针对 Python 3.12 环境配置和测试，使用其他版本可能会导致兼容性问题。
 
 ## 微信云托管 python Flask 框架模版，实现简单的计数器读写接口，使用云托管 MySQL 读写、记录计数值。
 
 ![](https://qcloudimg.tencent-cloud.cn/raw/be22992d297d1b9a1a5365e606276781.png)
 
-
 ## 快速开始
+
 前往 [微信云托管快速开始页面](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html)，选择相应语言的模板，根据引导完成部署。
 
 ## 本地调试
+
 下载代码在本地调试，请参考[微信云托管本地调试指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/)
 
 ## 实时开发
+
 代码变动时，不需要重新构建和启动容器，即可查看变动后的效果。请参考[微信云托管实时开发指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/dev.html)
 
-## Dockerfile最佳实践
+## Dockerfile 最佳实践
+
 请参考[如何提高项目构建效率](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/scene/build/speed.html)
 
 ## 目录结构说明
 
-~~~
+```
 .
 ├── Dockerfile dockerfile       dockerfile
 ├── README.md README.md         README.md文件
@@ -40,9 +45,7 @@
     ├── response.py             响应结构构造
     ├── templates               模版目录,包含主页index.html文件
     └── views.py                执行响应的代码所在模块  代码逻辑处理主要地点  项目大部分代码在此编写
-~~~
-
-
+```
 
 ## 服务 API 文档
 
@@ -56,17 +59,17 @@
 
 #### 响应结果
 
-- `code`：状态码 (1为成功，0为失败)
-- `data`：当前计数值
-- `msg`：响应消息
+-   `code`：状态码 (1 为成功，0 为失败)
+-   `data`：当前计数值
+-   `msg`：响应消息
 
 ##### 响应结果示例
 
 ```json
 {
-  "code": 1,
-  "data": 42,
-  "msg": "success"
+    "code": 1,
+    "data": 42,
+    "msg": "success"
 }
 ```
 
@@ -76,17 +79,15 @@
 curl https://<云托管服务域名>/api/count
 ```
 
-
-
 ### `POST /api/count`
 
 更新计数，自增或者清零
 
 #### 请求参数
 
-- `action`：`string` 类型，枚举值
-  - 等于 `"inc"` 时，表示计数加一
-  - 等于 `"clear"` 时，表示计数重置（清零）
+-   `action`：`string` 类型，枚举值
+    -   等于 `"inc"` 时，表示计数加一
+    -   等于 `"clear"` 时，表示计数重置（清零）
 
 ##### 请求参数示例
 
@@ -98,17 +99,17 @@ curl https://<云托管服务域名>/api/count
 
 #### 响应结果
 
-- `code`：状态码 (1为成功，0为失败)
-- `data`：当前计数值
-- `msg`：响应消息
+-   `code`：状态码 (1 为成功，0 为失败)
+-   `data`：当前计数值
+-   `msg`：响应消息
 
 ##### 响应结果示例
 
 ```json
 {
-  "code": 1,
-  "data": 43,
-  "msg": "success"
+    "code": 1,
+    "data": 43,
+    "msg": "success"
 }
 ```
 
@@ -119,13 +120,13 @@ curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://
 ```
 
 ## 使用注意
+
 如果不是通过微信云托管控制台部署模板代码，而是自行复制/下载模板代码后，手动新建一个服务并部署，需要在「服务设置」中补全以下环境变量，才可正常使用，否则会引发无法连接数据库，进而导致部署失败。
-- MYSQL_ADDRESS
-- MYSQL_PASSWORD
-- MYSQL_USERNAME
-以上三个变量的值请按实际情况填写。如果使用云托管内MySQL，可以在控制台MySQL页面获取相关信息。
 
-
+-   MYSQL_ADDRESS
+-   MYSQL_PASSWORD
+-   MYSQL_USERNAME
+    以上三个变量的值请按实际情况填写。如果使用云托管内 MySQL，可以在控制台 MySQL 页面获取相关信息。
 
 ## Docker Compose 本地开发模式
 
@@ -182,33 +183,17 @@ docker-compose up --build -d
 本项目支持两种数据库环境：
 
 ### 生产环境
-- 使用 MySQL 数据库
-- 角色和状态字段使用整数类型存储
-- 所有时间字段都使用 `db.DateTime` 类型，以确保在 SQLite 和 MySQL 中都有良好的支持
-- 通过环境变量配置数据库连接信息
+
+-   使用 MySQL 数据库
+-   角色和状态字段使用整数类型存储
+-   所有时间字段都使用 `db.DateTime` 类型，以确保在 SQLite 和 MySQL 中都有良好的支持
+-   通过环境变量配置数据库连接信息
 
 ### 测试环境
-- 使用 SQLite 内存数据库
-- 角色和状态字段同样使用整数类型存储（与生产环境保持一致）
-- 时间字段同样使用 `db.DateTime` 类型，确保跨数据库兼容性
-- 在运行测试时自动设置 `FLASK_ENV=testing` 或 `PYTEST_CURRENT_TEST` 环境变量
 
-### 运行自动化测试
-
-**重要：请确保使用 Python 3.12 环境运行测试。**
-
-运行测试时，系统会自动使用 SQLite 内存数据库，无需额外配置：
-
-```bash
-# 激活Python 3.12虚拟环境
-source venv_py312/bin/activate
-
-# 运行所有测试
-pytest
-
-# 或使用测试脚本
-python scripts/run_tests.py
-```
+-   角色和状态字段同样使用整数类型存储（与生产环境保持一致）
+-   时间字段同样使用 `db.DateTime` 类型，确保跨数据库兼容性
+-   在运行测试时自动设置 `FLASK_ENV=testing` 或 `PYTEST_CURRENT_TEST` 环境变量
 
 ## 数据库迁移
 
@@ -252,8 +237,9 @@ flask db downgrade
 
 项目包含全面的自动化测试套件，使用 pytest 框架。根据测试需求和环境不同，有三种运行方式，通过不同的环境变量配置文件实现：
 
-### 1. 单元测试（使用SQLite）
-在单元测试环境中，系统自动使用SQLite内存数据库，无需外部依赖：
+### 1. 单元测试（使用 SQLite）
+
+在单元测试环境中，系统自动使用 SQLite 内存数据库，无需外部依赖：
 
 ```bash
 # 激活Python 3.12虚拟环境
@@ -271,9 +257,6 @@ WX_SECRET=test_secret        # 微信小程序Secret（测试值会跳过微信A
 TOKEN_SECRET=test_token      # JWT令牌密钥
 EOF
 
-# 运行所有单元测试
-pytest
-
 # 或使用单元测试脚本（推荐，会自动加载.env.unit）
 python scripts/unit_tests.py
 
@@ -281,8 +264,9 @@ python scripts/unit_tests.py
 python scripts/unit_tests.py --coverage
 ```
 
-### 2. 自动集成测试（使用MySQL，跳过微信API测试）
-在CI/CD等自动测试环境中，使用MySQL数据库，但跳过需要真实微信凭证的测试：
+### 2. 自动集成测试（使用 MySQL，跳过微信 API 测试）
+
+在 CI/CD 等自动测试环境中，使用 MySQL 数据库，但跳过需要真实微信凭证的测试：
 
 ```bash
 # 创建集成测试环境变量文件（可选，脚本有默认值）
@@ -297,11 +281,12 @@ TOKEN_SECRET=test_token           # JWT令牌密钥
 RUN_DOCKER_INTEGRATION_TESTS=true # 是否运行Docker集成测试（true=启动Docker环境，false=跳过Docker启动）
 EOF
 
-# 运行完整测试流程（单元测试 + 集成测试）
-python scripts/run_tests.py
+# 运行完整的集成测试
+python scripts/function_test.py
 ```
 
 ### 3. 手动集成测试（使用真实微信凭证）
+
 在手动测试环境中，使用真实微信凭证，不跳过任何测试：
 
 ```bash
@@ -326,46 +311,48 @@ EOF
 以下是在不同测试场景中使用的环境变量及其含义：
 
 #### 数据库相关变量
-- `MYSQL_USERNAME`: MySQL数据库用户名（默认: root）
-- `MYSQL_PASSWORD`: MySQL数据库密码
-- `MYSQL_ADDRESS`: MySQL数据库地址和端口（格式: host:port，默认: 127.0.0.1:3306）
-- `USE_SQLITE_FOR_TESTING`: 是否为测试模式（true/false，默认: 根据测试类型自动设置）
-- `FLASK_ENV`: Flask环境（testing/production等，默认: 根据测试类型自动设置）
-- `USE_REAL_WECHAT_CREDENTIALS`: 是否使用真实微信凭证进行测试（true/false，默认: false）
-- `RUN_DOCKER_INTEGRATION_TESTS`: 是否运行Docker集成测试（true/false，默认: false）
 
-#### 微信API相关变量
-- `WX_APPID`: 微信小程序AppID
-  - 测试环境：使用包含"test"的值会跳过微信API相关测试
-  - 手动测试：使用真实值会执行完整的微信API测试
-- `WX_SECRET`: 微信小程序Secret
-  - 测试环境：使用包含"test"的值会跳过微信API相关测试
-  - 手动测试：使用真实值会执行完整的微信API测试
-- `TOKEN_SECRET`: JWT令牌签名密钥
+-   `MYSQL_USERNAME`: MySQL 数据库用户名（默认: root）
+-   `MYSQL_PASSWORD`: MySQL 数据库密码
+-   `MYSQL_ADDRESS`: MySQL 数据库地址和端口（格式: host:port，默认: 127.0.0.1:3306）
+-   `USE_SQLITE_FOR_TESTING`: 是否为测试模式（true/false，默认: 根据测试类型自动设置）
+-   `FLASK_ENV`: Flask 环境（testing/production 等，默认: 根据测试类型自动设置）
+-   `USE_REAL_WECHAT_CREDENTIALS`: 是否使用真实微信凭证进行测试（true/false，默认: false）
+-   `RUN_DOCKER_INTEGRATION_TESTS`: 是否运行 Docker 集成测试（true/false，默认: false）
+
+#### 微信 API 相关变量
+
+-   `WX_APPID`: 微信小程序 AppID
+    -   测试环境：使用包含"test"的值会跳过微信 API 相关测试
+    -   手动测试：使用真实值会执行完整的微信 API 测试
+-   `WX_SECRET`: 微信小程序 Secret
+    -   测试环境：使用包含"test"的值会跳过微信 API 相关测试
+    -   手动测试：使用真实值会执行完整的微信 API 测试
+-   `TOKEN_SECRET`: JWT 令牌签名密钥
 
 #### 脚本相关变量
-- `.env.unit`: 单元测试环境变量文件
-- `.env.integration`: 自动集成测试环境变量文件
-- `.env.manual`: 手动集成测试环境变量文件
-- `DOCKER_STARTUP_TIMEOUT`: Docker容器启动超时时间（秒，默认: 180）
+
+-   `.env.unit`: 单元测试环境变量文件
+-   `.env.integration`: 自动集成测试环境变量文件
+-   `.env.manual`: 手动集成测试环境变量文件
+-   `DOCKER_STARTUP_TIMEOUT`: Docker 容器启动超时时间（秒，默认: 180）
 
 ### 测试结构
 
 项目包含以下测试模块：
 
-- `tests/test_*.py`: 单元测试（API、DAO、模型、响应、登录等）
-- `tests/integration_test_*.py`: 集成测试（使用MySQL，根据环境变量决定是否跳过微信API测试）
-- `tests/conftest.py`: 测试配置和共享fixture
+-   `tests/test_*.py`: 单元测试（API、DAO、模型、响应、登录等）
+-   `tests/integration_test_*.py`: 集成测试（使用 MySQL，根据环境变量决定是否跳过微信 API 测试）
+-   `tests/conftest.py`: 测试配置和共享 fixture
 
 ### 测试配置
 
-- 测试文件位于 `tests/` 目录
-- 项目使用 pytest 进行测试运行和管理
-- 脚本会自动加载 `.env.unit` (单元测试) 或 `.env.integration` (集成测试) 文件
-- 覆盖率检查最低要求为 80%
-- 单元测试自动使用SQLite，集成测试使用MySQL
-- 微信API测试根据WX_APPID和WX_SECRET值决定是否跳过
-
+-   测试文件位于 `tests/` 目录
+-   项目使用 pytest 进行测试运行和管理
+-   脚本会自动加载 `.env.unit` (单元测试) 或 `.env.integration` (集成测试) 文件
+-   覆盖率检查最低要求为 80%
+-   单元测试自动使用 SQLite，集成测试使用 MySQL
+-   微信 API 测试根据 WX_APPID 和 WX_SECRET 值决定是否跳过
 
 ## License
 
