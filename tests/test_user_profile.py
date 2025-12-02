@@ -3,12 +3,22 @@ import pytest
 import os
 from unittest.mock import patch
 import jwt
+from dotenv import load_dotenv
+from pathlib import Path
+
+# 在导入任何模块之前，先加载测试环境变量
+env_file = Path(__file__).parent.parent / '.env.unit'
+load_dotenv(env_file, override=True)
+
 from wxcloudrun import db
 from wxcloudrun.model import User
 
 
 def test_update_user_profile_endpoint(client):
     """Test the update user profile endpoint."""
+    # 确保数据库表已创建
+    db.create_all()
+    
     # First, clean up any existing user with the same openid
     existing_user = User.query.filter_by(wechat_openid='test_openid_123_update').first()
     if existing_user:
@@ -37,8 +47,10 @@ def test_update_user_profile_endpoint(client):
     
     # Test updating user profile
     response = client.post('/api/user/profile',
+                          headers={
+                              'Authorization': f'Bearer {token}'
+                          },
                           json={
-                              'token': token,
                               'nickname': 'Updated Name',
                               'avatar_url': 'https://example.com/updated.jpg',
                               'phone_number': '13900139000'  # 使用唯一电话号码
@@ -63,6 +75,9 @@ def test_update_user_profile_endpoint(client):
 
 def test_update_user_profile_partial_fields(client):
     """Test updating only some fields in user profile."""
+    # 确保数据库表已创建
+    db.create_all()
+    
     # First, clean up any existing user with the same openid
     existing_user = User.query.filter_by(wechat_openid='test_openid_456_partial').first()
     if existing_user:
@@ -92,8 +107,10 @@ def test_update_user_profile_partial_fields(client):
     
     # Test updating only nickname, leaving other fields unchanged
     response = client.post('/api/user/profile',
+                          headers={
+                              'Authorization': f'Bearer {token}'
+                          },
                           json={
-                              'token': token,
                               'nickname': 'Partially Updated Name'
                           },
                           content_type='application/json')
@@ -147,6 +164,9 @@ def test_update_user_profile_invalid_token(client):
 
 def test_update_user_profile_user_not_found(client):
     """Test update user profile endpoint with non-existent user."""
+    # 确保数据库表已创建
+    db.create_all()
+    
     # Create a valid token for non-existent user
     import datetime
     token_payload = {
@@ -157,8 +177,10 @@ def test_update_user_profile_user_not_found(client):
     token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
     
     response = client.post('/api/user/profile',
+                          headers={
+                              'Authorization': f'Bearer {token}'
+                          },
                           json={
-                              'token': token,
                               'nickname': 'Should Not Update',
                               'avatar_url': 'https://example.com/test.jpg'
                           },

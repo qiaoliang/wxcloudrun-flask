@@ -3,6 +3,13 @@ import pytest
 import os
 from unittest.mock import patch
 import jwt
+from dotenv import load_dotenv
+from pathlib import Path
+
+# 在导入任何模块之前，先加载测试环境变量
+env_file = Path(__file__).parent.parent / '.env.unit'
+load_dotenv(env_file, override=True)
+
 from wxcloudrun import db
 
 
@@ -14,7 +21,7 @@ def test_login_endpoint(client):
         'session_key': 'mock_session_key_456'
     }
     
-    with patch('wxcloudrun.views.requests.get') as mock_get:
+    with patch('requests.get') as mock_get:
         mock_get.return_value.json.return_value = mock_wx_response
         mock_get.return_value.status_code = 200
         
@@ -34,13 +41,16 @@ def test_login_endpoint(client):
         token = data['data']['token']
         decoded = jwt.decode(token, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithms=['HS256'], options={"verify_exp": False})
         assert decoded['openid'] == 'mock_openid_123'
-        assert decoded['session_key'] == 'mock_session_key_456'
+        assert 'user_id' in decoded  # JWT token包含user_id而不是session_key
 
 
 def test_user_profile_endpoint(client):
     """Test the update user info endpoint."""
     from wxcloudrun.model import User
     from wxcloudrun import db
+    
+    # 确保数据库表已创建
+    db.create_all()
     
     # First, get a valid token by mocking the login
     openid = 'mock_openid_123_test_user_profile'
@@ -49,7 +59,7 @@ def test_user_profile_endpoint(client):
         'session_key': 'mock_session_key_456'
     }
     
-    with patch('wxcloudrun.views.requests.get') as mock_get:
+    with patch('requests.get') as mock_get:
         mock_get.return_value.json.return_value = mock_wx_response
         mock_get.return_value.status_code = 200
         
@@ -72,8 +82,10 @@ def test_user_profile_endpoint(client):
         
         # Now test update user info with the token
         response = client.post('/api/user/profile',
+                              headers={
+                                  'Authorization': f'Bearer {token}'
+                              },
                               json={
-                                  'token': token,
                                   'avatar_url': 'https://example.com/avatar.jpg',
                                   'nickname': 'Test User'
                               },

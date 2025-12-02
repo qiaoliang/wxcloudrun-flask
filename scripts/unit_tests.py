@@ -8,12 +8,7 @@ import subprocess
 import argparse
 import os
 from pathlib import Path
-
-# 添加脚本目录到路径，以便导入load_env
-script_dir = Path(__file__).parent
-sys.path.insert(0, str(script_dir))
-
-from load_env import load_env_file, get_env_with_defaults
+from dotenv import load_dotenv
 
 
 def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_coverage=80):
@@ -26,23 +21,36 @@ def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_c
         html_report (bool): Whether to generate HTML coverage report
         min_coverage (int): Minimum required coverage percentage
     """
-    # 加载环境变量配置
-    load_env_file(".env.unit")  # 单元测试专用环境变量文件
+    # 加载单元测试专用环境变量配置
+    env_file = Path(__file__).parent.parent / '.env.unit'
+    if env_file.exists():
+        load_dotenv(env_file, override=True)
+        print(f"已加载单元测试环境变量配置: {env_file}")
+    else:
+        print(f"警告: 单元测试环境变量文件不存在: {env_file}")
     
-    # 设置默认环境变量
-    default_env = {
-        'USE_SQLITE_FOR_TESTING': 'true',  # 确保使用SQLite进行单元测试
-        'FLASK_ENV': 'testing',
-        'WX_APPID': 'test_appid',  # 默认测试值，会导致跳过微信API测试
-        'WX_SECRET': 'test_secret'  # 默认测试值，会导致跳过微信API测试
-    }
-    
-    # 获取环境变量，未设置的使用默认值
-    env_vars = get_env_with_defaults(default_env)
-    
-    # 创建环境变量副本并更新
+    # 创建环境变量副本用于子进程
     env = os.environ.copy()
-    env.update(env_vars)
+    
+    # 验证必需的环境变量是否已设置
+    required_env_vars = [
+        'USE_SQLITE_FOR_TESTING',
+        'FLASK_ENV', 
+        'PYTEST_CURRENT_TEST',
+        'WX_APPID',
+        'WX_SECRET',
+        'TOKEN_SECRET'
+    ]
+    
+    missing_vars = []
+    for var in required_env_vars:
+        if var not in env or not env[var]:
+            missing_vars.append(var)
+    
+    if missing_vars:
+        print(f"错误: 缺少必需的环境变量: {', '.join(missing_vars)}")
+        print(f"请确保 .env.unit 文件中包含这些环境变量")
+        return 1
     
     cmd = [sys.executable, '-m', 'pytest']
     
