@@ -90,6 +90,7 @@ def create_tables():
         # 删除所有旧表
         logger.info("删除所有旧表...")
         cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
+        cursor.execute("DROP TABLE IF EXISTS phone_auth")
         cursor.execute("DROP TABLE IF EXISTS rule_supervisions")
         cursor.execute("DROP TABLE IF EXISTS checkin_records")
         cursor.execute("DROP TABLE IF EXISTS checkin_rules")
@@ -113,7 +114,7 @@ def create_tables():
         cursor.execute("""
             CREATE TABLE users (
                 user_id INT AUTO_INCREMENT PRIMARY KEY,
-                wechat_openid VARCHAR(128) UNIQUE NOT NULL,
+                wechat_openid VARCHAR(128) UNIQUE,
                 phone_number VARCHAR(20) UNIQUE,
                 nickname VARCHAR(100),
                 avatar_url VARCHAR(500),
@@ -127,13 +128,19 @@ def create_tables():
                 verification_status INT DEFAULT 0,
                 verification_materials TEXT,
                 community_id INT,
+                auth_type ENUM('wechat', 'phone', 'both') DEFAULT 'wechat' NOT NULL,
+                linked_accounts TEXT,
+                refresh_token VARCHAR(255),
+                refresh_token_expire DATETIME,
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 INDEX idx_openid (wechat_openid),
                 INDEX idx_phone (phone_number),
                 INDEX idx_role (role),
                 INDEX idx_status (status),
-                INDEX idx_verification_status (verification_status)
+                INDEX idx_verification_status (verification_status),
+                INDEX idx_users_auth_type (auth_type),
+                INDEX idx_users_refresh_token (refresh_token)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
         
@@ -203,6 +210,29 @@ def create_tables():
                 INDEX idx_rule_supervision (rule_id, supervisor_user_id),
                 INDEX idx_solo_supervisions (solo_user_id, status),
                 INDEX idx_supervisor_invitations (supervisor_user_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """)
+        
+        # 创建phone_auth表
+        logger.info("创建phone_auth表...")
+        cursor.execute("""
+            CREATE TABLE phone_auth (
+                phone_auth_id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                phone_number VARCHAR(20) UNIQUE NOT NULL,
+                password_hash VARCHAR(255),
+                auth_methods ENUM('password', 'sms', 'both') DEFAULT 'sms' NOT NULL,
+                is_verified BOOLEAN DEFAULT FALSE NOT NULL,
+                is_active BOOLEAN DEFAULT TRUE NOT NULL,
+                failed_attempts INT DEFAULT 0 NOT NULL,
+                locked_until DATETIME,
+                last_login_at DATETIME,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+                INDEX idx_phone_number (phone_number),
+                INDEX idx_user_id (user_id),
+                INDEX idx_is_verified (is_verified)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
         

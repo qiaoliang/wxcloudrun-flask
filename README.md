@@ -118,40 +118,44 @@ docker-compose up --build -d
 -   时间字段同样使用 `db.DateTime` 类型，确保跨数据库兼容性
 -   在运行测试时自动设置 `FLASK_ENV=testing` 或 `PYTEST_CURRENT_TEST` 环境变量
 
-## 数据库迁移
+## 数据库管理
 
-项目现在使用 Flask-Migrate 进行数据库迁移管理，替代了原有的 init_db.sql 脚本和 views.py 中的 add_verification_fields() 函数。
+项目使用 `init_database.py` 脚本进行数据库初始化，该脚本会在 Docker 容器启动时自动执行。脚本负责：
 
-### 初始化迁移环境
+- 创建数据库（如果不存在）
+- 创建所有必要的数据表
+- 设置适当的索引和外键约束
+- 插入初始数据
+
+### 数据库表结构
+
+项目包含以下主要数据表：
+
+- **Counters**: 计数器表
+- **users**: 用户表，支持微信和手机认证
+- **checkin_rules**: 打卡规则表
+- **checkin_records**: 打卡记录表
+- **rule_supervisions**: 规则监护关系表
+- **phone_auth**: 手机认证表
+
+### 本地开发数据库设置
 
 ```bash
 # 激活Python 3.12虚拟环境
 source venv_py312/bin/activate
 
-# 安装依赖（包含Flask-Migrate）
+# 安装依赖
 pip install -r requirements.txt
 
-# 初始化数据库表
-python run_migrations.py init
+# 使用Docker启动MySQL数据库
+docker-compose -f docker-compose.dev.yml up -d mysql-db
 
-# 为当前数据库结构创建初始迁移
-flask db init
-flask db migrate -m "Initial migration"
-flask db upgrade
+# 等待MySQL启动后，手动初始化数据库（可选）
+python init_database.py
 ```
 
-### 日常迁移操作
+### 数据库配置说明
 
-```bash
-# 当修改模型后，生成新的迁移脚本
-flask db migrate -m "描述性迁移信息"
-
-# 应用迁移到数据库
-flask db upgrade
-
-# 查看当前迁移状态
-flask db current
-
-# 回滚到上一个版本
-flask db downgrade
-```
+- **生产环境**: 使用 MySQL 8.4.3
+- **开发环境**: 使用 MySQL 或 SQLite（通过环境变量配置）
+- **测试环境**: 自动使用 SQLite 内存数据库
