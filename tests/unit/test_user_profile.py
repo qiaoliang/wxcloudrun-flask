@@ -46,3 +46,25 @@ def test_update_user_profile_endpoint(client):
     updated_user = query_user_by_id(test_user.user_id)
     assert updated_user.nickname == 'Updated Name'
     assert updated_user.avatar_url == 'https://example.com/updated.jpg'
+
+def test_get_user_profile_endpoint(client):
+    """Test the get user profile endpoint."""
+    # Create a test user using factory method
+    test_user = UserBuilder().with_phone_number("13900139000").with_avatar_url('https://example.com/get.jpg').with_nickname('Test GET User').build()
+    insert_user(test_user)
+    # Create a valid token using factory method
+    token = create_jwt_token(test_user.user_id)
+
+    # Test getting user profile
+    response = client.get('/api/user/profile',
+                         headers={
+                             'Authorization': f'Bearer {token}'
+                         })
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['code'] == 1
+    assert 'data' in data
+    assert data['data']['phone_number'] == '13900139000'
+    assert data['data']['nickname'] == 'Test GET User'
+    assert data['data']['avatar_url'] == 'https://example.com/get.jpg'
