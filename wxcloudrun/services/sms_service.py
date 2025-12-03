@@ -308,9 +308,8 @@ def get_sms_service() -> SMSService:
     if _sms_service is None:
         # 初始化Redis客户端
         try:
-            # 检查是否为测试环境
-            if os.environ.get('ENV_TYPE').lower() != 'prod':
-                # 测试环境使用fakeredis
+            # 检查是否为单元测试环境，　如果是，使用fakeredis
+            if cfg.ENV_TYPE.lower() == 'unit':
                 try:
                     import fakeredis
                     redis_client = fakeredis.FakeRedis(decode_responses=True)

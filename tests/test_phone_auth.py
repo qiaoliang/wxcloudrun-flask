@@ -195,11 +195,18 @@ class TestPhoneAuthService(BaseTest):
     
     def setup_method(self):
         """测试前准备"""
-        self.service = PhoneAuthService()
-        
         # 设置测试环境变量
         os.environ['PHONE_ENCRYPTION_KEY'] = 'test_key_12345'
         os.environ['SMS_PROVIDER'] = 'simulation'
+        os.environ['ENV_TYPE'] = 'unit'
+        
+        # 重新导入以使用新的环境变量
+        from wxcloudrun.services.phone_auth_service import PhoneAuthService
+        # 重置全局SMS服务实例
+        import wxcloudrun.services.sms_service as sms_module
+        sms_module._sms_service = None
+        
+        self.service = PhoneAuthService()
     
     @patch('wxcloudrun.services.phone_auth_service.query_user_by_phone')
     def test_send_verification_code_success(self, mock_query_user):
@@ -385,6 +392,7 @@ class TestPhoneAuthIntegration:
         """测试前准备"""
         os.environ['PHONE_ENCRYPTION_KEY'] = 'test_integration_key_12345'
         os.environ['SMS_PROVIDER'] = 'simulation'
+        os.environ['ENV_TYPE'] = 'unit'
     
     def test_complete_registration_flow(self):
         """测试完整注册流程"""
