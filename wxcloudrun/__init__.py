@@ -103,12 +103,16 @@ if not is_unit_testing and os.environ.get('AUTO_CREATE_TABLES', 'false').lower()
     # 延迟执行表创建，确保应用完全启动后再运行
     import threading
     import time
-    
+
     def delayed_table_creation():
         # 等待一段时间确保数据库完全就绪
         time.sleep(5)
-        create_tables_if_needed()
-    
+        try:
+            with app.app_context():
+                create_tables_if_needed()
+        except Exception as e:
+            app.logger.error(f"延迟表创建失败: {str(e)}")
+
     # 在后台线程中运行表创建
     table_thread = threading.Thread(target=delayed_table_creation)
     table_thread.daemon = True
