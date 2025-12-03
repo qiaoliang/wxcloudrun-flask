@@ -68,3 +68,52 @@ def test_get_user_profile_endpoint(client):
     assert data['data']['phone_number'] == '13900139000'
     assert data['data']['nickname'] == 'Test GET User'
     assert data['data']['avatar_url'] == 'https://example.com/get.jpg'
+
+
+def test_user_profile_missing_token(client):
+    """Test update user info endpoint without token."""
+    response = client.post('/api/user/profile',
+                          json={
+                              'avatar_url': 'https://example.com/avatar.jpg',
+                              'nickname': 'Test User'
+                          },
+                          content_type='application/json')
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['code'] == 0  # Error response code is 0 based on response.py
+    assert '缺少token参数' in data['msg']  # Error message for missing token
+
+def test_user_profile_invalid_token(client):
+    """Test update user info endpoint with invalid token."""
+    response = client.post('/api/user/profile',
+                          headers={
+                              'Authorization': 'Bearer invalid_token'
+                          },
+                          json={
+                              'avatar_url': 'https://example.com/avatar.jpg',
+                              'nickname': 'Test User'
+                          },
+                          content_type='application/json')
+
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['code'] == 0
+    assert 'token' in data['msg'].lower() or '无效' in data['msg'] or 'decode' in data['msg'].lower()
+
+def test_user_profile_nonexistent_user(client):
+    """Test updating profile for a non-existent user."""
+    # Create a token with a non-existent user_id
+    token = create_jwt_token(99999)  # Non-existent user ID
+    response = client.post('/api/user/profile',
+                          headers={
+                              'Authorization': f'Bearer {token}'
+                          },
+                          json={
+                              'nickname': 'Should Not Work'
+                          },
+                          content_type='application/json')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert data['code'] == 0  # Should return error for non-existent user
+    assert '用户不存在' in data['msg'] or '不存在' in data['msg']
