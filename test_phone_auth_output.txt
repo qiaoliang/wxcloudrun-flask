@@ -1,0 +1,172 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.11, pytest-7.4.3, pluggy-1.6.0 -- /Users/qiaoliang/working/code/safeGuard/backend/venv_py312/bin/python
+cachedir: .pytest_cache
+rootdir: /Users/qiaoliang/working/code/safeGuard/backend
+configfile: pytest.ini
+plugins: flask-1.3.0, cov-4.1.0, Faker-19.13.0
+collecting ... collected 25 items
+
+tests/test_phone_auth.py::TestPhoneEncryption::test_encrypt_decrypt_phone PASSED [  4%]
+tests/test_phone_auth.py::TestPhoneEncryption::test_phone_hash PASSED    [  8%]
+tests/test_phone_auth.py::TestPhoneEncryption::test_mask_phone PASSED    [ 12%]
+tests/test_phone_auth.py::TestPhoneEncryption::test_invalid_key FAILED   [ 16%]
+tests/test_phone_auth.py::TestPhoneEncryption::test_decrypt_invalid_data PASSED [ 20%]
+tests/test_phone_auth.py::TestPhoneValidator::test_valid_phone_numbers FAILED [ 24%]
+tests/test_phone_auth.py::TestPhoneValidator::test_invalid_phone_numbers PASSED [ 28%]
+tests/test_phone_auth.py::TestPhoneValidator::test_normalize_phone_number FAILED [ 32%]
+tests/test_phone_auth.py::TestSMSService::test_generate_verification_code PASSED [ 36%]
+tests/test_phone_auth.py::TestSMSService::test_send_verification_code_simulation FAILED [ 40%]
+tests/test_phone_auth.py::TestSMSService::test_verify_code_success FAILED [ 44%]
+tests/test_phone_auth.py::TestSMSService::test_verify_code_failure FAILED [ 48%]
+tests/test_phone_auth.py::TestSMSService::test_verify_code_expired FAILED [ 52%]
+tests/test_phone_auth.py::TestPhoneAuthService::test_send_verification_code_success PASSED [ 56%]
+tests/test_phone_auth.py::TestPhoneAuthService::test_send_verification_code_user_exists PASSED [ 60%]
+tests/test_phone_auth.py::TestPhoneAuthService::test_send_verification_code_invalid_phone PASSED [ 64%]
+tests/test_phone_auth.py::TestPhoneAuthService::test_verify_code_and_register_success FAILED [ 68%]
+tests/test_phone_auth.py::TestPhoneAuthService::test_verify_code_and_register_user_exists FAILED [ 72%]
+tests/test_phone_auth.py::TestPhoneAuthService::test_verify_code_and_register_invalid_code PASSED [ 76%]
+tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_creation FAILED [ 80%]
+tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_lock_account FAILED [ 84%]
+tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_increment_failed_attempts FAILED [ 88%]
+tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_to_dict FAILED [ 92%]
+tests/test_phone_auth.py::TestPhoneAuthIntegration::test_complete_registration_flow FAILED [ 96%]
+tests/test_phone_auth.py::TestPhoneAuthIntegration::test_phone_encryption_integration PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________________ TestPhoneEncryption.test_invalid_key _____________________
+tests/test_phone_auth.py:65: in test_invalid_key
+    with pytest.raises(ValueError):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_________________ TestPhoneValidator.test_valid_phone_numbers __________________
+tests/test_phone_auth.py:91: in test_valid_phone_numbers
+    assert is_valid, f"Phone {phone} should be valid"
+E   AssertionError: Phone +8613800138000 should be valid
+E   assert False
+________________ TestPhoneValidator.test_normalize_phone_number ________________
+tests/test_phone_auth.py:120: in test_normalize_phone_number
+    assert result == expected
+E   AssertionError: assert '+868613800138000' == '+8613800138000'
+E     - +8613800138000
+E     + +868613800138000
+E     ?  ++
+____________ TestSMSService.test_send_verification_code_simulation _____________
+tests/test_phone_auth.py:141: in test_send_verification_code_simulation
+    assert success
+E   assert False
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 968214
+WARNING:wxcloudrun.services.sms_service:Redis未配置，无法存储验证码
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 968214
+WARNING  wxcloudrun.services.sms_service:sms_service.py:201 Redis未配置，无法存储验证码
+___________________ TestSMSService.test_verify_code_success ____________________
+tests/test_phone_auth.py:152: in test_verify_code_success
+    assert success
+E   assert False
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 870698
+WARNING:wxcloudrun.services.sms_service:Redis未配置，无法存储验证码
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 870698
+WARNING  wxcloudrun.services.sms_service:sms_service.py:201 Redis未配置，无法存储验证码
+___________________ TestSMSService.test_verify_code_failure ____________________
+tests/test_phone_auth.py:166: in test_verify_code_failure
+    assert "验证码错误" in message
+E   AssertionError: assert '验证码错误' in '验证码已过期或不存在'
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+___________________ TestSMSService.test_verify_code_expired ____________________
+tests/test_phone_auth.py:174: in test_verify_code_expired
+    assert success
+E   assert False
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 479100
+WARNING:wxcloudrun.services.sms_service:Redis未配置，无法存储验证码
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 479100
+WARNING  wxcloudrun.services.sms_service:sms_service.py:201 Redis未配置，无法存储验证码
+__________ TestPhoneAuthService.test_verify_code_and_register_success __________
+tests/test_phone_auth.py:255: in test_verify_code_and_register_success
+    assert success
+E   assert False
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 820826
+INFO:wxcloudrun.services.sms_service:验证码已发送到 +8613800138000
+INFO:wxcloudrun.services.phone_auth_service:验证码已发送到手机号: +8613800138000
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 820826
+INFO     wxcloudrun.services.sms_service:sms_service.py:265 验证码已发送到 +8613800138000
+INFO     wxcloudrun.services.phone_auth_service:phone_auth_service.py:64 验证码已发送到手机号: +8613800138000
+________ TestPhoneAuthService.test_verify_code_and_register_user_exists ________
+tests/test_phone_auth.py:272: in test_verify_code_and_register_user_exists
+    assert "已注册" in message
+E   AssertionError: assert '已注册' in '验证码错误'
+_________________ TestPhoneAuthModel.test_phone_auth_creation __________________
+tests/test_phone_auth.py:305: in test_phone_auth_creation
+    assert phone_auth.is_active is True
+E   assert None is True
+E    +  where None = <PhoneAuth (transient 4425623088)>.is_active
+_______________ TestPhoneAuthModel.test_phone_auth_lock_account ________________
+tests/test_phone_auth.py:317: in test_phone_auth_lock_account
+    phone_auth.lock_account(1)
+E   AttributeError: 'PhoneAuth' object has no attribute 'lock_account'
+_________ TestPhoneAuthModel.test_phone_auth_increment_failed_attempts _________
+tests/test_phone_auth.py:333: in test_phone_auth_increment_failed_attempts
+    phone_auth.increment_failed_attempts()
+E   AttributeError: 'PhoneAuth' object has no attribute 'increment_failed_attempts'
+__________________ TestPhoneAuthModel.test_phone_auth_to_dict __________________
+tests/test_phone_auth.py:352: in test_phone_auth_to_dict
+    data = phone_auth.to_dict()
+E   AttributeError: 'PhoneAuth' object has no attribute 'to_dict'
+___________ TestPhoneAuthIntegration.test_complete_registration_flow ___________
+tests/test_phone_auth.py:381: in test_complete_registration_flow
+    success, message, code = service.send_verification_code(phone)
+wxcloudrun/services/phone_auth_service.py:56: in send_verification_code
+    existing_user = query_user_by_phone(normalized_phone)
+wxcloudrun/dao.py:120: in query_user_by_phone
+    return User.query.filter(User.phone_number == phone_number).first()
+venv_py312/lib/python3.12/site-packages/flask_sqlalchemy/model.py:23: in __get__
+    cls, session=cls.__fsa__.session()  # type: ignore[arg-type]
+venv_py312/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py:217: in __call__
+    sess = self.registry()
+venv_py312/lib/python3.12/site-packages/sqlalchemy/util/_collections.py:640: in __call__
+    key = self.scopefunc()
+venv_py312/lib/python3.12/site-packages/flask_sqlalchemy/session.py:111: in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+venv_py312/lib/python3.12/site-packages/werkzeug/local.py:519: in _get_current_object
+    raise RuntimeError(unbound_message) from None
+E   RuntimeError: Working outside of application context.
+E   
+E   This typically means that you attempted to use functionality that needed
+E   the current application. To solve this, set up an application context
+E   with app.app_context(). See the documentation for more information.
+=========================== short test summary info ============================
+FAILED tests/test_phone_auth.py::TestPhoneEncryption::test_invalid_key - Fail...
+FAILED tests/test_phone_auth.py::TestPhoneValidator::test_valid_phone_numbers
+FAILED tests/test_phone_auth.py::TestPhoneValidator::test_normalize_phone_number
+FAILED tests/test_phone_auth.py::TestSMSService::test_send_verification_code_simulation
+FAILED tests/test_phone_auth.py::TestSMSService::test_verify_code_success - a...
+FAILED tests/test_phone_auth.py::TestSMSService::test_verify_code_failure - A...
+FAILED tests/test_phone_auth.py::TestSMSService::test_verify_code_expired - a...
+FAILED tests/test_phone_auth.py::TestPhoneAuthService::test_verify_code_and_register_success
+FAILED tests/test_phone_auth.py::TestPhoneAuthService::test_verify_code_and_register_user_exists
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_creation
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_lock_account
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_increment_failed_attempts
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_to_dict
+FAILED tests/test_phone_auth.py::TestPhoneAuthIntegration::test_complete_registration_flow
+======================== 14 failed, 11 passed in 1.07s =========================

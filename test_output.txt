@@ -1,0 +1,394 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.12.11, pytest-7.4.3, pluggy-1.6.0
+rootdir: /Users/qiaoliang/working/code/safeGuard/backend
+configfile: pytest.ini
+plugins: flask-1.3.0, cov-4.1.0, Faker-19.13.0
+collected 85 items
+
+tests/test_api.py ...                                                    [  3%]
+tests/test_dao.py ....                                                   [  8%]
+tests/test_error_handling.py ..                                          [ 10%]
+tests/test_invitation_api.py F.....                                      [ 17%]
+tests/test_invitation_response_api.py .......                            [ 25%]
+tests/test_invitations_list_api.py FFFFFFFF                              [ 35%]
+tests/test_model.py .                                                    [ 36%]
+tests/test_phone_auth.py ...F.F.F.FFFF...FF.FFFFF.                       [ 65%]
+tests/test_response.py ........                                          [ 75%]
+tests/test_rule_supervision_model.py .....                               [ 81%]
+tests/test_user_profile.py .......                                       [ 89%]
+tests/test_user_search_api.py F..FF....                                  [100%]
+
+=================================== FAILURES ===================================
+_______________ TestInvitationAPI.test_invite_supervisor_success _______________
+tests/test_invitation_api.py:39: in test_invite_supervisor_success
+    assert data['code'] == 1
+E   assert 0 == 1
+----------------------------- Captured stderr call -----------------------------
+INFO:log:check_existing_supervision: 规则 1 监护人 2 - 存在监护关系
+------------------------------ Captured log call -------------------------------
+INFO     log:dao.py:627 check_existing_supervision: 规则 1 监护人 2 - 存在监护关系
+___________ TestInvitationsListAPI.test_get_sent_invitations_success ___________
+tests/test_invitations_list_api.py:25: in test_get_sent_invitations_success
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/sent
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/sent
+_________ TestInvitationsListAPI.test_get_received_invitations_success _________
+tests/test_invitations_list_api.py:52: in test_get_received_invitations_success
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/received
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/received
+____________ TestInvitationsListAPI.test_get_sent_invitations_empty ____________
+tests/test_invitations_list_api.py:79: in test_get_sent_invitations_empty
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/sent
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/sent
+__________ TestInvitationsListAPI.test_get_received_invitations_empty __________
+tests/test_invitations_list_api.py:98: in test_get_received_invitations_empty
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/received
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/received
+________ TestInvitationsListAPI.test_get_invitations_with_status_filter ________
+tests/test_invitations_list_api.py:118: in test_get_invitations_with_status_filter
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/received
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/received
+__________ TestInvitationsListAPI.test_get_invitations_invalid_status __________
+tests/test_invitations_list_api.py:140: in test_get_invitations_invalid_status
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/received
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/received
+___________ TestInvitationsListAPI.test_get_invitations_unauthorized ___________
+tests/test_invitations_list_api.py:149: in test_get_invitations_unauthorized
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/sent
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/sent
+__________ TestInvitationsListAPI.test_get_invitations_invalid_token ___________
+tests/test_invitations_list_api.py:159: in test_get_invitations_invalid_token
+    assert response.status_code == 200
+E   assert 404 == 200
+E    +  where 404 = <WrapperTestResponse streamed [404 NOT FOUND]>.status_code
+----------------------------- Captured stderr call -----------------------------
+WARNING:wxcloudrun:API路径未找到: /api/supervision/invitations/sent
+------------------------------ Captured log call -------------------------------
+WARNING  wxcloudrun:views.py:225 API路径未找到: /api/supervision/invitations/sent
+_____________________ TestPhoneEncryption.test_invalid_key _____________________
+tests/test_phone_auth.py:65: in test_invalid_key
+    with pytest.raises(ValueError):
+E   Failed: DID NOT RAISE <class 'ValueError'>
+_________________ TestPhoneValidator.test_valid_phone_numbers __________________
+tests/test_phone_auth.py:91: in test_valid_phone_numbers
+    assert is_valid, f"Phone {phone} should be valid"
+E   AssertionError: Phone +8613800138000 should be valid
+E   assert False
+________________ TestPhoneValidator.test_normalize_phone_number ________________
+tests/test_phone_auth.py:120: in test_normalize_phone_number
+    assert result == expected
+E   AssertionError: assert '+868613800138000' == '+8613800138000'
+E     - +8613800138000
+E     + +868613800138000
+E     ?  ++
+____________ TestSMSService.test_send_verification_code_simulation _____________
+tests/test_phone_auth.py:141: in test_send_verification_code_simulation
+    assert success
+E   assert False
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 073063
+WARNING:wxcloudrun.services.sms_service:Redis未配置，无法存储验证码
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 073063
+WARNING  wxcloudrun.services.sms_service:sms_service.py:201 Redis未配置，无法存储验证码
+___________________ TestSMSService.test_verify_code_success ____________________
+tests/test_phone_auth.py:152: in test_verify_code_success
+    assert success
+E   assert False
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 655378
+WARNING:wxcloudrun.services.sms_service:Redis未配置，无法存储验证码
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 655378
+WARNING  wxcloudrun.services.sms_service:sms_service.py:201 Redis未配置，无法存储验证码
+___________________ TestSMSService.test_verify_code_failure ____________________
+tests/test_phone_auth.py:166: in test_verify_code_failure
+    assert "验证码错误" in message
+E   AssertionError: assert '验证码错误' in '验证码已过期或不存在'
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+___________________ TestSMSService.test_verify_code_expired ____________________
+tests/test_phone_auth.py:174: in test_verify_code_expired
+    assert success
+E   assert False
+---------------------------- Captured stderr setup -----------------------------
+WARNING:wxcloudrun.services.sms_service:未知的SMS提供商类型: aliyun，使用模拟模式
+------------------------------ Captured log setup ------------------------------
+WARNING  wxcloudrun.services.sms_service:sms_service.py:155 未知的SMS提供商类型: aliyun，使用模拟模式
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 235001
+WARNING:wxcloudrun.services.sms_service:Redis未配置，无法存储验证码
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 235001
+WARNING  wxcloudrun.services.sms_service:sms_service.py:201 Redis未配置，无法存储验证码
+__________ TestPhoneAuthService.test_verify_code_and_register_success __________
+tests/test_phone_auth.py:255: in test_verify_code_and_register_success
+    assert success
+E   assert False
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun.services.sms_service:[SIMULATION] SMS sent to +8613800138000, code: 806509
+INFO:wxcloudrun.services.sms_service:验证码已发送到 +8613800138000
+INFO:wxcloudrun.services.phone_auth_service:验证码已发送到手机号: +8613800138000
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun.services.sms_service:sms_service.py:59 [SIMULATION] SMS sent to +8613800138000, code: 806509
+INFO     wxcloudrun.services.sms_service:sms_service.py:265 验证码已发送到 +8613800138000
+INFO     wxcloudrun.services.phone_auth_service:phone_auth_service.py:64 验证码已发送到手机号: +8613800138000
+________ TestPhoneAuthService.test_verify_code_and_register_user_exists ________
+tests/test_phone_auth.py:272: in test_verify_code_and_register_user_exists
+    assert "已注册" in message
+E   AssertionError: assert '已注册' in '验证码错误'
+_________________ TestPhoneAuthModel.test_phone_auth_creation __________________
+tests/test_phone_auth.py:305: in test_phone_auth_creation
+    assert phone_auth.is_active is True
+E   assert None is True
+E    +  where None = <PhoneAuth (transient 4373330352)>.is_active
+_______________ TestPhoneAuthModel.test_phone_auth_lock_account ________________
+tests/test_phone_auth.py:317: in test_phone_auth_lock_account
+    phone_auth.lock_account(1)
+E   AttributeError: 'PhoneAuth' object has no attribute 'lock_account'
+_________ TestPhoneAuthModel.test_phone_auth_increment_failed_attempts _________
+tests/test_phone_auth.py:333: in test_phone_auth_increment_failed_attempts
+    phone_auth.increment_failed_attempts()
+E   AttributeError: 'PhoneAuth' object has no attribute 'increment_failed_attempts'
+__________________ TestPhoneAuthModel.test_phone_auth_to_dict __________________
+tests/test_phone_auth.py:352: in test_phone_auth_to_dict
+    data = phone_auth.to_dict()
+E   AttributeError: 'PhoneAuth' object has no attribute 'to_dict'
+___________ TestPhoneAuthIntegration.test_complete_registration_flow ___________
+tests/test_phone_auth.py:381: in test_complete_registration_flow
+    success, message, code = service.send_verification_code(phone)
+wxcloudrun/services/phone_auth_service.py:56: in send_verification_code
+    existing_user = query_user_by_phone(normalized_phone)
+wxcloudrun/dao.py:120: in query_user_by_phone
+    return User.query.filter(User.phone_number == phone_number).first()
+venv_py312/lib/python3.12/site-packages/flask_sqlalchemy/model.py:23: in __get__
+    cls, session=cls.__fsa__.session()  # type: ignore[arg-type]
+venv_py312/lib/python3.12/site-packages/sqlalchemy/orm/scoping.py:217: in __call__
+    sess = self.registry()
+venv_py312/lib/python3.12/site-packages/sqlalchemy/util/_collections.py:640: in __call__
+    key = self.scopefunc()
+venv_py312/lib/python3.12/site-packages/flask_sqlalchemy/session.py:111: in _app_ctx_id
+    return id(app_ctx._get_current_object())  # type: ignore[attr-defined]
+venv_py312/lib/python3.12/site-packages/werkzeug/local.py:519: in _get_current_object
+    raise RuntimeError(unbound_message) from None
+E   RuntimeError: Working outside of application context.
+E   
+E   This typically means that you attempted to use functionality that needed
+E   the current application. To solve this, set up an application context
+E   with app.app_context(). See the documentation for more information.
+_____________ TestUserSearchAPI.test_search_user_by_phone_success ______________
+tests/test_user_search_api.py:30: in test_search_user_by_phone_success
+    assert len(data['data']['users']) == 1
+E   assert 0 == 1
+E    +  where 0 = len([])
+______________ TestUserSearchAPI.test_search_user_missing_params _______________
+tests/test_user_search_api.py:94: in test_search_user_missing_params
+    assert data['code'] == 0
+E   assert 1 == 0
+______________ TestUserSearchAPI.test_search_user_multiple_params ______________
+tests/test_user_search_api.py:117: in test_search_user_multiple_params
+    assert user['phone_number'] == '13800000002'
+E   KeyError: 'phone_number'
+----------------------------- Captured stderr call -----------------------------
+INFO:wxcloudrun:search_users: 搜索关键词 '监护人1' 返回 1 个结果
+------------------------------ Captured log call -------------------------------
+INFO     wxcloudrun:views.py:295 search_users: 搜索关键词 '监护人1' 返回 1 个结果
+=============================== warnings summary ===============================
+tests/test_api.py::test_post_count_clear
+tests/test_dao.py::test_delete_counterbyid
+  /Users/qiaoliang/working/code/safeGuard/backend/wxcloudrun/dao.py:37: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    counter = Counters.query.get(id)
+
+tests/test_invitation_api.py::TestInvitationAPI::test_invite_supervisor_success
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_api.py:22: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_api.py::TestInvitationAPI::test_invite_self_error
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_api.py:50: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_api.py::TestInvitationAPI::test_invite_nonexistent_rule
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_api.py:77: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_api.py::TestInvitationAPI::test_invite_nonexistent_supervisor
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_api.py:101: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_api.py::TestInvitationAPI::test_invite_without_permission
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_api.py:127: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_api.py::TestInvitationAPI::test_invite_missing_fields
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_api.py:153: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_response_api.py::TestInvitationResponseAPI::test_accept_invitation_success
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_response_api.py:21: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_response_api.py::TestInvitationResponseAPI::test_reject_invitation_success
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_response_api.py:47: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_response_api.py::TestInvitationResponseAPI::test_respond_nonexistent_invitation
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_response_api.py:71: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_response_api.py::TestInvitationResponseAPI::test_respond_without_permission
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_response_api.py:94: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_response_api.py::TestInvitationResponseAPI::test_respond_already_responded
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_response_api.py:116: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_response_api.py::TestInvitationResponseAPI::test_respond_invalid_action
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_response_api.py:149: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitation_response_api.py::TestInvitationResponseAPI::test_respond_missing_fields
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitation_response_api.py:171: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_sent_invitations_success
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitations_list_api.py:19: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_received_invitations_success
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitations_list_api.py:46: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_sent_invitations_empty
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitations_list_api.py:73: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_received_invitations_empty
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitations_list_api.py:92: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_invitations_with_status_filter
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitations_list_api.py:111: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_invitations_invalid_status
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_invitations_list_api.py:134: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_profile.py::test_update_user_profile_endpoint
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_profile.py:45: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)  # 设置7天过期时间
+
+tests/test_user_profile.py::test_update_partial_user_profile_endpoint
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_profile.py:103: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_profile.py::test_get_user_profile_endpoint
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_profile.py:156: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_profile.py::test_user_profile_nonexistent_user
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_profile.py:230: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_by_phone_success
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_search_api.py:19: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_by_nickname_success
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_search_api.py:43: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_not_found
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_search_api.py:66: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_missing_params
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_search_api.py:85: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_multiple_params
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_search_api.py:103: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_pagination
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_search_api.py:145: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_with_role_filter
+  /Users/qiaoliang/working/code/safeGuard/backend/tests/test_user_search_api.py:164: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_invitation_api.py::TestInvitationAPI::test_invite_supervisor_success
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_sent_invitations_success
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_received_invitations_success
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_sent_invitations_empty
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_received_invitations_empty
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_invitations_with_status_filter
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_invitations_invalid_status
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_invitations_unauthorized
+FAILED tests/test_invitations_list_api.py::TestInvitationsListAPI::test_get_invitations_invalid_token
+FAILED tests/test_phone_auth.py::TestPhoneEncryption::test_invalid_key - Fail...
+FAILED tests/test_phone_auth.py::TestPhoneValidator::test_valid_phone_numbers
+FAILED tests/test_phone_auth.py::TestPhoneValidator::test_normalize_phone_number
+FAILED tests/test_phone_auth.py::TestSMSService::test_send_verification_code_simulation
+FAILED tests/test_phone_auth.py::TestSMSService::test_verify_code_success - a...
+FAILED tests/test_phone_auth.py::TestSMSService::test_verify_code_failure - A...
+FAILED tests/test_phone_auth.py::TestSMSService::test_verify_code_expired - a...
+FAILED tests/test_phone_auth.py::TestPhoneAuthService::test_verify_code_and_register_success
+FAILED tests/test_phone_auth.py::TestPhoneAuthService::test_verify_code_and_register_user_exists
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_creation
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_lock_account
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_increment_failed_attempts
+FAILED tests/test_phone_auth.py::TestPhoneAuthModel::test_phone_auth_to_dict
+FAILED tests/test_phone_auth.py::TestPhoneAuthIntegration::test_complete_registration_flow
+FAILED tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_by_phone_success
+FAILED tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_missing_params
+FAILED tests/test_user_search_api.py::TestUserSearchAPI::test_search_user_multiple_params
+================== 26 failed, 59 passed, 32 warnings in 1.54s ==================

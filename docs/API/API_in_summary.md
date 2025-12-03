@@ -753,12 +753,27 @@
     "data": {
         "invitations": [
             {
-                "invitation_id": 123,
-                "inviter_nickname": "邀请人昵称",
-                "inviter_avatar": "头像URL",
-                "rule_name": "规则名称",
+                "rule_supervision_id": 123,
                 "status": "pending",
-                "created_at": "2023-12-01 10:00:00"
+                "status_name": "待确认",
+                "invitation_message": "请监督我起床",
+                "created_at": "2023-12-01T10:00:00.000000",
+                "responded_at": null,
+                "rule": {
+                    "rule_id": 1,
+                    "rule_name": "起床打卡",
+                    "icon_url": "🌅",
+                    "solo_user": {
+                        "user_id": 456,
+                        "nickname": "被监护人昵称",
+                        "avatar_url": "头像URL"
+                    }
+                },
+                "invited_by": {
+                    "user_id": 123,
+                    "nickname": "邀请人昵称",
+                    "avatar_url": "头像URL"
+                }
             }
         ]
     },
