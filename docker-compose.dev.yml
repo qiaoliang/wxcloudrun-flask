@@ -26,7 +26,6 @@ services:
       WX_APPID: ${WX_APPID:-test_appid}
       WX_SECRET: ${WX_SECRET:-test_secret}
       TOKEN_SECRET: ${TOKEN_SECRET:-test_token_secret}
-      AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-true}
       DB_RETRY_COUNT: 30
       DB_RETRY_DELAY: 2.0
       DOCKER_ENV: "true"

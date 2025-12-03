@@ -77,11 +77,6 @@
 -   `WX_SECRET`: 微信小程序 Secret
 -   `TOKEN_SECRET`: JWT 令牌密钥
 
-### 可选环境变量
-
-
--   `AUTO_RUN_MIGRATIONS`: 是否自动运行数据库迁移（默认: true）
-
 ## 数据库设计
 
 ### User (用户表)

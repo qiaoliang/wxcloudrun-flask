@@ -3,14 +3,23 @@
 数据库初始化脚本
 用于在Docker容器启动时初始化数据库和运行迁移
 统一使用config.py中的配置，避免配置不一致问题
+单元测试环境下会跳过MySQL初始化，因为单元测试使用SQLite内存数据库
 """
 
 import os
 import time
 import sys
 import logging
+import config
+# 设置日志
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# 因MySQLDB不支持Python3，使用pymysql扩展库代替MySQLDB库
+if config.ENV_TYPE == 'unit':
+    logger.info("单元测试环境下，使用内存数据库，不需要做数据库初始化")
+    # 在单元测试环境下，直接退出
+    sys.exit(0)
+
 import pymysql
 pymysql.install_as_MySQLdb()
 
@@ -18,10 +27,6 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 
 import config
-
-# 设置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

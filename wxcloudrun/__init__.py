@@ -95,25 +95,7 @@ def create_tables_if_needed():
         app.logger.error(f"创建表失败: {str(e)}")
         # 不再抛出异常，允许应用继续启动
 
-# 根据环境变量决定是否自动创建表
-# 单元测试使用SQLite内存数据库，不需要创建表
-# 功能测试和生产环境使用MySQL，需要创建表
-# 注意：在Docker环境中，表创建通过init_database.py脚本处理，不需要在应用启动时运行
-if not is_unit_testing and os.environ.get('AUTO_CREATE_TABLES', 'false').lower() != 'false' and os.environ.get('DOCKER_ENV') != 'true':
-    # 延迟执行表创建，确保应用完全启动后再运行
-    import threading
-    import time
-
-    def delayed_table_creation():
-        # 等待一段时间确保数据库完全就绪
-        time.sleep(5)
-        try:
-            with app.app_context():
-                create_tables_if_needed()
-        except Exception as e:
-            app.logger.error(f"延迟表创建失败: {str(e)}")
-
-    # 在后台线程中运行表创建
-    table_thread = threading.Thread(target=delayed_table_creation)
-    table_thread.daemon = True
-    table_thread.start()
+# 注意：所有环境的数据库初始化现在都由init_database.py脚本统一处理
+# 应用启动时不再自动创建表，无论是Docker环境还是非Docker环境
+# 这样可以确保所有环境使用一致的初始化流程
+app.logger.info("数据库初始化由init_database.py脚本统一处理，应用启动时不执行表创建")

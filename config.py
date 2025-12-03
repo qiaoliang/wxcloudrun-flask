@@ -22,23 +22,21 @@ if ENV_TYPE == 'prod':
 else:
     load_dotenv(f'.env.{ENV_TYPE}')
 
-# 读取数据库配置
 db_address = os.environ.get('MYSQL_ADDRESS')
 username = os.environ.get('MYSQL_USERNAME')
 password = os.environ.get('MYSQL_PASSWORD')
 db_name = os.environ.get('MYSQL_DATABASE')
-
 db_connection_template = os.environ.get('DB_CONNECTION_TEMPLATE')  # 直接从环境变量获取完整的数据库URI
 if not db_connection_template:
     logger.error("DB_CONNECTION_TEMPLATE 未设置")
     sys.exit(1)
-
 db_info = {
     "db_address": db_address,
     "username": username,
     "password": password,
     "db_name": db_name
 }
+
 DB_CONNECTION_URI = db_connection_template.format(**db_info)
 
 
@@ -53,12 +51,29 @@ TOKEN_SECRET = os.environ.get('TOKEN_SECRET')
 PHONE_ENCRYPTION_KEY = os.environ.get('PHONE_ENCRYPTION_KEY')
 
 # 环境相关变量
-AUTO_RUN_MIGRATIONS = os.environ.get('AUTO_RUN_MIGRATIONS', 'false').lower() == 'true'
-AUTO_CREATE_TABLES = os.environ.get('AUTO_CREATE_TABLES', 'false').lower() == 'true'
 DB_RETRY_COUNT = int(os.environ.get('DB_RETRY_COUNT', '3'))
 DB_RETRY_DELAY = float(os.environ.get('DB_RETRY_DELAY', '1.0'))
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_DB = int(os.environ.get('REDIS_DB', 0))
+
+# SMS_PROVIDER
+SMS_PROVIDER = os.environ.get('SMS_PROVIDER', 'aliyun')
+
+## ALIBABA_SMS
+ALIBABA_SMS_ACCESS_KEY = os.environ.get('ALIBABA_SMS_ACCESS_KEY')
+ALIBABA_SMS_ACCESS_SECRET = os.environ.get('ALIBABA_SMS_ACCESS_SECRET')
+ALIBABA_SMS_SIGN_NAME = os.environ.get('ALIBABA_SMS_SIGN_NAME', '安全守护')
+ALIBABA_SMS_TEMPLATE_CODE = os.environ.get('ALIBABA_SMS_TEMPLATE_CODE')
+
+## TENCENT_SMS
+TENCENT_SMS_SECRET_ID = os.environ.get('TENCENT_SMS_SECRET_ID')
+TENCENT_SMS_SECRET_KEY = os.environ.get('TENCENT_SMS_SECRET_KEY')
+TENCENT_SMS_APP_ID = os.environ.get('TENCENT_SMS_APP_ID')
+TENCENT_SMS_SIGN_NAME = os.environ.get('TENCENT_SMS_SIGN_NAME', '安全守护')
+TENCENT_SMS_TEMPLATE_ID = os.environ.get('TENCENT_SMS_TEMPLATE_ID')
 
 # 集成测试配置
 DOCKER_STARTUP_TIMEOUT=180

@@ -8,7 +8,6 @@ from typing import Generator
 
 # 在导入应用前设置测试环境变量
 os.environ['PYTEST_CURRENT_TEST'] = '1'
-os.environ['AUTO_RUN_MIGRATIONS'] = 'false'
 
 from wxcloudrun import app as original_app, db
 from wxcloudrun.model import Counters, User, CheckinRule, RuleSupervision
