@@ -8,10 +8,11 @@ from wxcloudrun.model import User
 from tests.base_test import BaseTest
 
 
+@pytest.mark.usefixtures("isolated_client")
 class TestUserSearchAPI(BaseTest):
     """用户搜索API测试"""
     
-    def test_search_user_by_phone_success(self, client):
+    def test_search_user_by_phone_success(self, isolated_client):
         """测试通过手机号搜索用户成功"""
         # Create test users
         user1 = self.create_user(
@@ -29,7 +30,7 @@ class TestUserSearchAPI(BaseTest):
         
         token = self.create_auth_token(user1.user_id)
         
-        response = client.get('/api/users/search?phone=13800000002',
+        response = isolated_client.get('/api/users/search?phone=13800000002',
                             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
         

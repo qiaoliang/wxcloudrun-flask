@@ -36,10 +36,12 @@ class BaseTest:
         }
         return jwt.encode(token_payload, secret_key, algorithm='HS256')
     
+    _user_phone_counter = 1000  # Static counter to ensure unique phone numbers
+
     def create_user(self, **kwargs):
         """创建测试用户"""
         defaults = {
-            'phone_number': '13800000001',
+            'phone_number': f'1380000{self._get_next_phone_suffix():04d}',  # Generate unique phone number
             'nickname': '测试用户',
             'is_solo_user': True,
             'is_supervisor': False,
@@ -51,6 +53,13 @@ class BaseTest:
         db.session.add(user)
         db.session.commit()
         return user
+
+    def _get_next_phone_suffix(self):
+        """获取下一个电话号码后缀，确保唯一性"""
+        if not hasattr(self, '_phone_suffix_counter'):
+            self._phone_suffix_counter = 1000  # Start from 1000 to avoid conflicts
+        self._phone_suffix_counter += 1
+        return self._phone_suffix_counter
     
     def create_checkin_rule(self, solo_user_id, **kwargs):
         """创建打卡规则"""
