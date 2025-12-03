@@ -390,6 +390,13 @@ class PhoneAuth(db.Model):
     # 关联关系
     user = db.relationship('User', backref=db.backref('phone_auth', uselist=False))
 
+    def __init__(self, **kwargs):
+        super(PhoneAuth, self).__init__(**kwargs)
+        if self.failed_attempts is None:
+            self.failed_attempts = 0
+        if self.is_active is None:
+            self.is_active = True
+
     # 索引
     __table_args__ = (
         db.Index('idx_phone_auth_number', 'phone_number'),  # Changed to avoid conflict
@@ -408,6 +415,50 @@ class PhoneAuth(db.Model):
     def auth_method_name(self):
         """获取认证方式名称"""
         return self.AUTH_METHODS_MAPPING.get(self.auth_methods, '未知')
+
+    @property
+    def is_locked(self):
+        """检查账户是否被锁定"""
+        if self.locked_until is None:
+            return False
+        from datetime import datetime
+        return datetime.now() < self.locked_until
+
+    def lock_account(self, hours=1):
+        """锁定账户指定小时数"""
+        from datetime import datetime, timedelta
+        self.locked_until = datetime.now() + timedelta(hours=hours)
+        self.failed_attempts = 0
+
+    def increment_failed_attempts(self):
+        """增加失败次数，如果达到阈值则锁定账户"""
+        if self.failed_attempts is None:
+            self.failed_attempts = 0
+        self.failed_attempts += 1
+        # 5次失败后锁定账户1小时
+        if self.failed_attempts >= 5:
+            self.lock_account(1)
+
+    def to_dict(self, include_sensitive=False):
+        """转换为字典格式"""
+        data = {
+            'phone_auth_id': self.phone_auth_id,
+            'user_id': self.user_id,
+            'auth_methods': self.auth_methods,
+            'is_verified': self.is_verified,
+            'is_active': self.is_active,
+            'failed_attempts': self.failed_attempts,
+            'locked_until': self.locked_until.isoformat() if self.locked_until else None,
+            'last_login_at': self.last_login_at.isoformat() if self.last_login_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'is_locked': self.is_locked
+        }
+        
+        if include_sensitive:
+            data['phone_number'] = self.phone_number
+        
+        return data
 
 
 # SMS验证码存储表（Redis不可用时的备用存储）

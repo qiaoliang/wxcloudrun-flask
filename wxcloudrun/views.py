@@ -248,51 +248,104 @@ def handle_500(e):
 @login_required
 def search_users(decoded):
     """
-    根据昵称搜索用户
+    根据昵称或手机号搜索用户
     请求参数:
     - nickname: 搜索关键词
+    - phone: 手机号
+    - role: 角色过滤 (supervisor|solo)
     - limit: 返回结果数量限制（默认10）
     """
     try:
         nickname = request.args.get('nickname', '').strip()
+        phone = request.args.get('phone', '').strip()
+        role = request.args.get('role', '').strip()
         limit = min(int(request.args.get('limit', 10)), 50)  # 最大限制50条
-        
-        if not nickname or len(nickname) < 2:
-            return make_succ_response({
-                'users': []
-            })
         
         # 获取当前用户ID
         current_user_id = decoded.get('user_id')
         if not current_user_id:
             return make_err_response(msg="无效的token：缺少用户ID")
         
-        # 搜索用户，优先返回监护人
-        query = User.query.filter(
-            User.nickname.contains(nickname),
-            User.status == 1  # 只搜索正常状态的用户
-        )
+        # 检查是否提供了搜索参数
+        if not nickname and not phone and not role:
+            return make_err_response(msg="缺少搜索参数，请提供nickname、phone或role参数")
         
-        # 排除自己
-        if current_user_id:
-            query = query.filter(User.user_id != current_user_id)
+        # 如果同时提供了多个参数，优先使用手机号搜索
+        if nickname and phone:
+            nickname = None  # 忽略昵称，使用手机号搜索
         
-        users = query.order_by(
-            User.is_supervisor.desc(),  # 监护人优先
-            User.nickname.asc()  # 昵称排序
-        ).limit(limit).all()
+        # 检查昵称长度
+        if nickname and len(nickname) < 2:
+            return make_err_response(msg="昵称搜索关键词至少需要2个字符")
+        
+        users = []
+        
+        # 如果提供了手机号，按手机号搜索
+        if phone:
+            user = User.query.filter(
+                User.phone_number == phone,
+                User.status == 1  # 只搜索正常状态的用户
+            ).first()
+            if user and user.user_id != current_user_id:
+                users = [user]
+        
+        # 如果提供了角色，按角色搜索
+        elif role:
+            if role not in ['supervisor', 'solo']:
+                return make_err_response(msg="角色参数只能是supervisor或solo")
+            
+            query = User.query.filter(
+                User.status == 1  # 只搜索正常状态的用户
+            )
+            
+            # 排除自己
+            if current_user_id:
+                query = query.filter(User.user_id != current_user_id)
+            
+            # 按角色过滤
+            if role == 'supervisor':
+                query = query.filter(User.is_supervisor == True)
+            elif role == 'solo':
+                query = query.filter(User.is_solo_user == True)
+            
+            users = query.order_by(
+                User.nickname.asc()  # 昵称排序
+            ).limit(limit).all()
+        
+        # 如果提供了昵称，按昵称搜索
+        elif nickname and len(nickname) >= 2:
+            query = User.query.filter(
+                User.nickname.contains(nickname),
+                User.status == 1  # 只搜索正常状态的用户
+            )
+            
+            # 排除自己
+            if current_user_id:
+                query = query.filter(User.user_id != current_user_id)
+            
+            users = query.order_by(
+                User.is_supervisor.desc(),  # 监护人优先
+                User.nickname.asc()  # 昵称排序
+            ).limit(limit).all()
         
         result = []
         for user in users:
-            result.append({
+            user_data = {
                 'user_id': user.user_id,
                 'nickname': user.nickname,
                 'avatar_url': user.avatar_url,
                 'is_supervisor': user.is_supervisor,
-                'permissions': user.permissions
-            })
+                'permissions': getattr(user, 'permissions', None)
+            }
+            
+            # 如果是手机号搜索，包含手机号
+            if phone:
+                user_data['phone_number'] = user.phone_number
+            
+            result.append(user_data)
         
-        app.logger.info(f"search_users: 搜索关键词 '{nickname}' 返回 {len(result)} 个结果")
+        search_type = '手机号' if phone else (f'昵称关键词 {nickname}' if nickname else '无')
+        app.logger.info(f"search_users: 搜索{search_type} 返回 {len(result)} 个结果")
         return make_succ_response({
             'users': result
         })

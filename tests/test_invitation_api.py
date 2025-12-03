@@ -14,7 +14,7 @@ class TestInvitationAPI:
         """测试成功邀请监护人"""
         # Get the actual user IDs from the database
         solo_user = User.query.filter_by(phone_number='13800000001').first()
-        supervisor_user = User.query.filter_by(phone_number='13800000002').first()
+        supervisor_user = User.query.filter_by(phone_number='13800000006').first()  # 使用用户6而不是用户2避免冲突
         
         # Create a valid token for the solo user
         token_payload = {
@@ -25,6 +25,15 @@ class TestInvitationAPI:
         
         # Get the rule for the solo user
         rule = CheckinRule.query.filter_by(solo_user_id=solo_user.user_id).first()
+        
+        # 确保数据库中没有这个监护关系
+        existing_supervision = RuleSupervision.query.filter_by(
+            rule_id=rule.rule_id,
+            supervisor_user_id=supervisor_user.user_id
+        ).first()
+        if existing_supervision:
+            db.session.delete(existing_supervision)
+            db.session.commit()
         
         response = client.post('/api/rules/supervision/invite',
                              headers={'Authorization': f'Bearer {token}'},

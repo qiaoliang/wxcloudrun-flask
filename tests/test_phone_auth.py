@@ -297,76 +297,84 @@ class TestPhoneAuthService:
 class TestPhoneAuthModel:
     """PhoneAuth模型测试"""
     
-    def test_phone_auth_creation(self):
+    def test_phone_auth_creation(self, client):
         """测试PhoneAuth模型创建"""
-        phone_auth = PhoneAuth(
-            user_id=1,
-            phone_number="encrypted_phone",
-            auth_methods="sms",
-            is_verified=True
-        )
-        
-        assert phone_auth.user_id == 1
-        assert phone_auth.auth_methods == "sms"
-        assert phone_auth.is_verified is True
-        assert phone_auth.is_active is True
-        assert phone_auth.failed_attempts == 0
+        from wxcloudrun import app
+        with app.app_context():
+            phone_auth = PhoneAuth(
+                user_id=1,
+                phone_number="encrypted_phone",
+                auth_methods="sms",
+                is_verified=True
+            )
+            
+            assert phone_auth.user_id == 1
+            assert phone_auth.auth_methods == "sms"
+            assert phone_auth.is_verified is True
+            assert phone_auth.is_active is True  # 默认值应该是True
+        assert phone_auth.failed_attempts == 0  # 默认值应该是0
     
-    def test_phone_auth_lock_account(self):
+    def test_phone_auth_lock_account(self, client):
         """测试账户锁定"""
-        phone_auth = PhoneAuth(
-            user_id=1,
-            phone_number="encrypted_phone",
-            auth_methods="sms"
-        )
-        
-        # 锁定账户1小时
-        phone_auth.lock_account(1)
-        
-        assert phone_auth.is_locked is True
-        assert phone_auth.failed_attempts == 0
-        assert phone_auth.locked_until is not None
+        from wxcloudrun import app
+        with app.app_context():
+            phone_auth = PhoneAuth(
+                user_id=1,
+                phone_number="encrypted_phone",
+                auth_methods="sms"
+            )
+            
+            # 锁定账户1小时
+            phone_auth.lock_account(1)
+            
+            assert phone_auth.is_locked is True
+            assert phone_auth.failed_attempts == 0
+            assert phone_auth.locked_until is not None
     
-    def test_phone_auth_increment_failed_attempts(self):
+    def test_phone_auth_increment_failed_attempts(self, client):
         """测试增加失败次数"""
-        phone_auth = PhoneAuth(
-            user_id=1,
-            phone_number="encrypted_phone",
-            auth_methods="sms"
-        )
-        
-        # 增加4次失败
-        for _ in range(4):
+        from wxcloudrun import app
+        with app.app_context():
+            phone_auth = PhoneAuth(
+                user_id=1,
+                phone_number="encrypted_phone",
+                auth_methods="sms"
+            )
+            
+            # 增加4次失败
+            for _ in range(4):
+                phone_auth.increment_failed_attempts()
+            
+            assert phone_auth.failed_attempts == 4
+            assert phone_auth.is_locked is False
+            
+            # 第5次失败应该锁定账户
             phone_auth.increment_failed_attempts()
-        
-        assert phone_auth.failed_attempts == 4
-        assert phone_auth.is_locked is False
-        
-        # 第5次失败应该锁定账户
-        phone_auth.increment_failed_attempts()
-        assert phone_auth.failed_attempts == 0  # 重置为0
-        assert phone_auth.is_locked is True
+            assert phone_auth.failed_attempts == 0  # 重置为0
+            assert phone_auth.is_locked is True
     
-    def test_phone_auth_to_dict(self):
+    def test_phone_auth_to_dict(self, client):
         """测试转换为字典"""
-        phone_auth = PhoneAuth(
-            user_id=1,
-            phone_number="encrypted_phone",
-            auth_methods="both",
-            is_verified=True
-        )
-        
-        data = phone_auth.to_dict()
-        
-        assert 'phone_auth_id' in data
-        assert 'user_id' in data
-        assert 'auth_methods' in data
-        assert 'is_verified' in data
-        assert 'phone_number' not in data  # 默认不包含敏感信息
-        
-        # 包含敏感信息
-        sensitive_data = phone_auth.to_dict(include_sensitive=True)
-        assert 'phone_number' in sensitive_data
+        from wxcloudrun import app
+        with app.app_context():
+            phone_auth = PhoneAuth(
+                user_id=1,
+                phone_number="encrypted_phone",
+                auth_methods="both",
+                is_verified=True
+            )
+            
+            data = phone_auth.to_dict()
+            
+            assert 'phone_auth_id' in data
+            assert 'user_id' in data
+            assert 'auth_methods' in data
+            assert 'is_verified' in data
+            assert 'phone_number' not in data  # 默认不包含敏感信息
+            
+            # 包含敏感信息
+            sensitive_data = phone_auth.to_dict(include_sensitive=True)
+            assert 'phone_number' in sensitive_data
 
 
 class TestPhoneAuthIntegration:
