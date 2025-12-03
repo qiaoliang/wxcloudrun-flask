@@ -19,6 +19,7 @@ services:
     depends_on:
       - mysql-db
     environment:
+      ENV_TYPE: prod
       MYSQL_USERNAME: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_ADDRESS: mysql-db:3306
