@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 # from flask_migrate import Migrate  # 不再使用迁移功能
 from flask_cors import CORS
 import pymysql
-import config
+import configenv as config
 
 # 因MySQLDB不支持Python3，使用pymysql扩展库代替MySQLDB库
 pymysql.install_as_MySQLdb()

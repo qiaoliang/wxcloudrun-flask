@@ -1,7 +1,7 @@
 import logging
 from datetime import datetime, date
 from sqlalchemy.exc import OperationalError
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, select
 
 from wxcloudrun import db
 from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord, RuleSupervision
@@ -34,7 +34,7 @@ def delete_counterbyid(id):
     """
     try:
         logger.info(f"delete_counterbyid: 准备删除ID为 {id} 的计数器")
-        counter = Counters.query.get(id)
+        counter = db.session.get(Counters, id)
         if counter is None:
             logger.warning(f"delete_counterbyid: 未找到ID为 {id} 的计数器进行删除")
             return
@@ -178,7 +178,7 @@ def update_user_by_id(user):
             elif isinstance(user.status, int):
                 existing_user.status = user.status
         existing_user.updated_at = user.updated_at or datetime.now()
-        
+
         db.session.flush()
         db.session.commit()
     except OperationalError as e:
@@ -209,7 +209,7 @@ def query_checkin_rule_by_id(rule_id):
     :return: 打卡规则实体
     """
     try:
-        return CheckinRule.query.get(rule_id)
+        return db.session.get(CheckinRule, rule_id)
     except OperationalError as e:
         logger.info("query_checkin_rule_by_id errorMsg= {} ".format(e))
         return None
@@ -252,7 +252,7 @@ def update_checkin_rule_by_id(rule):
         if rule.status is not None:
             existing_rule.status = rule.status
         existing_rule.updated_at = rule.updated_at or datetime.now()
-        
+
         db.session.flush()
         db.session.commit()
     except OperationalError as e:
@@ -265,7 +265,7 @@ def delete_checkin_rule_by_id(rule_id):
     :param rule_id: 规则ID
     """
     try:
-        rule = CheckinRule.query.get(rule_id)
+        rule = db.session.get(CheckinRule, rule_id)
         if rule is None:
             return
         db.session.delete(rule)
@@ -285,7 +285,7 @@ def query_checkin_records_by_user_id_and_date(user_id, checkin_date=None):
     try:
         if checkin_date is None:
             checkin_date = date.today()
-        
+
         # 查询当天的打卡记录
         return CheckinRecord.query.filter(
             CheckinRecord.solo_user_id == user_id,
@@ -306,7 +306,7 @@ def query_checkin_records_by_rule_id_and_date(rule_id, checkin_date=None):
     try:
         if checkin_date is None:
             checkin_date = date.today()
-        
+
         # 查询当天该规则的打卡记录
         return CheckinRecord.query.filter(
             CheckinRecord.rule_id == rule_id,
@@ -324,7 +324,7 @@ def query_checkin_record_by_id(record_id):
     :return: 打卡记录实体
     """
     try:
-        return CheckinRecord.query.get(record_id)
+        return db.session.get(CheckinRecord, record_id)
     except OperationalError as e:
         logger.info("query_checkin_record_by_id errorMsg= {} ".format(e))
         return None
@@ -357,7 +357,7 @@ def update_checkin_record_by_id(record):
         if record.status is not None:
             existing_record.status = record.status
         existing_record.updated_at = record.updated_at or datetime.now()
-        
+
         db.session.flush()
         db.session.commit()
     except OperationalError as e:
@@ -410,20 +410,27 @@ def query_unchecked_users_by_date(checkin_date=None):
     try:
         if checkin_date is None:
             checkin_date = date.today()
-        
+
         # 获取所有当天应打卡的规则
-        rules_for_date = db.session.query(
+        # 1. 使用 select() 构建语句 (Statement)
+        rules_for_date = stmt = select(
             CheckinRule.solo_user_id,
             CheckinRule.rule_id
         ).join(
             User
-        ).filter(
-            # 只考虑独居者
+        ).where(
             User.role == 1,
-            # 规则启用
             CheckinRule.status == 1
-        ).all()
-        
+        )
+
+        # 2. 使用 db.session.execute() 执行语句
+        result = db.session.execute(stmt)
+        # 3. 从结果集中获取所有行 (Row 对象列表)
+        # 这里的 .all() 是在 Result 对象上调用的，它返回一个 Row 对象的列表。
+        # 如果你需要像旧代码一样返回 (user_id, rule_id) 这样的元组列表，
+        # 可以直接使用 .all()，它返回 Row 对象，这些 Row 对象可以用索引或属性访问，
+        # 并且与旧版行为接近。
+        rules_for_date = result.fetchall()
         # 对于每个规则，检查是否已打卡
         unchecked_users = []
         for rule in rules_for_date:
@@ -433,14 +440,14 @@ def query_unchecked_users_by_date(checkin_date=None):
                 db.func.date(CheckinRecord.planned_time) == checkin_date,
                 CheckinRecord.status == 1  # 已打卡
             ).count()
-            
+
             # 如果没有打卡记录，则该用户该规则未打卡
             if records == 0:
                 unchecked_users.append({
                     'user_id': rule.solo_user_id,
                     'rule_id': rule.rule_id
                 })
-        
+
         return unchecked_users
     except OperationalError as e:
         logger.info("query_unchecked_users_by_date errorMsg= {} ".format(e))
@@ -461,7 +468,7 @@ def create_rule_supervision(rule_id, solo_user_id, supervisor_user_id, invitatio
     """
     try:
         logger.info(f"create_rule_supervision: 创建监护关系 rule_id={rule_id}, solo_user_id={solo_user_id}, supervisor_user_id={supervisor_user_id}")
-        
+
         supervision = RuleSupervision(
             rule_id=rule_id,
             solo_user_id=solo_user_id,
@@ -470,10 +477,10 @@ def create_rule_supervision(rule_id, solo_user_id, supervisor_user_id, invitatio
             invited_by_user_id=invited_by_user_id,
             status=0  # 待确认状态
         )
-        
+
         db.session.add(supervision)
         db.session.commit()
-        
+
         logger.info(f"create_rule_supervision: 成功创建监护关系，ID={supervision.rule_supervision_id}")
         return supervision
     except OperationalError as e:
@@ -508,10 +515,10 @@ def get_rule_supervisions(rule_id, status=None):
     """
     try:
         query = RuleSupervision.query.filter(RuleSupervision.rule_id == rule_id)
-        
+
         if status is not None:
             query = query.filter(RuleSupervision.status == status)
-        
+
         supervisions = query.order_by(RuleSupervision.created_at.desc()).all()
         logger.info(f"get_rule_supervisions: 规则ID {rule_id} 找到 {len(supervisions)} 个监护关系")
         return supervisions
@@ -540,10 +547,10 @@ def get_user_supervisions(user_id, supervision_type='received', status=None):
                     RuleSupervision.invited_by_user_id == user_id
                 )
             )
-        
+
         if status is not None:
             query = query.filter(RuleSupervision.status == status)
-        
+
         supervisions = query.order_by(RuleSupervision.created_at.desc()).all()
         logger.info(f"get_user_supervisions: 用户ID {user_id}, 类型 {supervision_type} 找到 {len(supervisions)} 个监护关系")
         return supervisions
@@ -560,33 +567,33 @@ def get_supervisor_active_rules(supervisor_user_id):
     """
     try:
         from datetime import datetime
-        
+
         # 获取监护人的所有活跃监护关系
         supervisions = RuleSupervision.query.filter(
             RuleSupervision.supervisor_user_id == supervisor_user_id,
             RuleSupervision.status == 1  # 已确认状态
         ).all()
-        
+
         result = []
         today = datetime.now().date()
-        
+
         for supervision in supervisions:
             # 获取规则信息
             rule = supervision.rule
             solo_user = supervision.solo_user
-            
+
             # 查询今日打卡状态
             today_record = CheckinRecord.query.filter(
                 CheckinRecord.rule_id == rule.rule_id,
                 db.func.date(CheckinRecord.planned_time) == today
             ).first()
-            
+
             # 获取最近打卡记录
             last_record = CheckinRecord.query.filter(
                 CheckinRecord.rule_id == rule.rule_id,
                 CheckinRecord.status == 1  # 已打卡
             ).order_by(CheckinRecord.checkin_time.desc()).first()
-            
+
             result.append({
                 'rule_supervision_id': supervision.rule_supervision_id,
                 'rule': {
@@ -602,7 +609,7 @@ def get_supervisor_active_rules(supervisor_user_id):
                 'today_status': 'checked' if today_record and today_record.status == 1 else 'unchecked',
                 'last_checkin': last_record.checkin_time.isoformat() if last_record else None
             })
-        
+
         logger.info(f"get_supervisor_active_rules: 监护人 {supervisor_user_id} 负责的规则数量 {len(result)}")
         return result
     except OperationalError as e:
@@ -623,7 +630,7 @@ def check_existing_supervision(rule_id, supervisor_user_id):
             RuleSupervision.supervisor_user_id == supervisor_user_id,
             RuleSupervision.status.in_([0, 1])  # 待确认或已确认状态
         ).first()
-        
+
         logger.info(f"check_existing_supervision: 规则 {rule_id} 监护人 {supervisor_user_id} - {'存在' if supervision else '不存在'}监护关系")
         return supervision
     except OperationalError as e:
@@ -643,22 +650,22 @@ def update_supervision_status(supervision_id, status, response_message=None):
         supervision = RuleSupervision.query.filter(
             RuleSupervision.rule_supervision_id == supervision_id
         ).first()
-        
+
         if not supervision:
             logger.warning(f"update_supervision_status: 未找到监护关系 {supervision_id}")
             return None
-        
+
         supervision.status = status
-        
+
         if status in [1, 2]:  # 已确认或已拒绝时设置响应时间
             supervision.responded_at = datetime.now()
-        
+
         # 如果有响应消息，可以添加到邀请消息中（或创建新字段存储）
         if response_message:
             supervision.invitation_message = f"{supervision.invitation_message or ''}\n\n响应: {response_message}"
-        
+
         db.session.commit()
-        
+
         logger.info(f"update_supervision_status: 成功更新监护关系 {supervision_id} 状态为 {status}")
         return supervision
     except OperationalError as e:
@@ -678,7 +685,7 @@ def get_supervisor_count(rule_id):
             RuleSupervision.rule_id == rule_id,
             RuleSupervision.status == 1  # 只计算已确认的监护人
         ).count()
-        
+
         logger.info(f"get_supervisor_count: 规则 {rule_id} 有 {count} 个监护人")
         return count
     except OperationalError as e:
@@ -696,14 +703,14 @@ def delete_rule_supervision(supervision_id):
         supervision = RuleSupervision.query.filter(
             RuleSupervision.rule_supervision_id == supervision_id
         ).first()
-        
+
         if not supervision:
             logger.warning(f"delete_rule_supervision: 未找到监护关系 {supervision_id}")
             return False
-        
+
         db.session.delete(supervision)
         db.session.commit()
-        
+
         logger.info(f"delete_rule_supervision: 成功删除监护关系 {supervision_id}")
         return True
     except OperationalError as e:
