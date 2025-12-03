@@ -5,9 +5,10 @@ import jwt
 import datetime
 from wxcloudrun import db
 from wxcloudrun.model import User, CheckinRule, RuleSupervision
+from tests.base_test import BaseTest
 
 
-class TestInvitationAPI:
+class TestInvitationAPI(BaseTest):
     """邀请API测试"""
     
     def test_invite_supervisor_success(self, client, setup_test_data):

@@ -5,9 +5,10 @@ import jwt
 import datetime
 from wxcloudrun import app, db
 from wxcloudrun.model import User
+from tests.base_test import BaseTest
 
 
-class TestUserSearchAPI:
+class TestUserSearchAPI(BaseTest):
     """用户搜索API测试"""
     
     def test_search_user_by_phone_success(self, client, setup_test_data):

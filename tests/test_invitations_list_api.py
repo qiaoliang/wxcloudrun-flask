@@ -3,11 +3,12 @@ import pytest
 import json
 import jwt
 import datetime
-from wxcloudrun import app, db
+from wxcloudrun import db
 from wxcloudrun.model import User, CheckinRule, RuleSupervision
+from tests.base_test import BaseTest
 
 
-class TestInvitationsListAPI:
+class TestInvitationsListAPI(BaseTest):
     """邀请列表API测试"""
     
     def test_get_sent_invitations_success(self, client, setup_test_data):

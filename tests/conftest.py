@@ -120,143 +120,137 @@ def client():
 def setup_test_data(client):
     """设置测试数据"""
     app = original_app
-
-    # 创建测试用户
-    users = [
-        User(
-            phone_number='13800000001',
-            nickname='用户1',
-            is_solo_user=True,
-            is_supervisor=False,
-            status=1,
-            auth_type='phone'
-        ),
-        User(
-            phone_number='13800000002',
-            nickname='监护人1',
-            is_solo_user=False,
-            is_supervisor=True,
-            status=1,
-            auth_type='phone'
-        ),
-        User(
-            phone_number='13800000003',
-            nickname='用户3',
-            is_solo_user=True,
-            is_supervisor=False,
-            status=1,
-            auth_type='phone'
-        ),
-        User(
-            phone_number='13800000004',
-            nickname='监护人2',
-            is_solo_user=False,
-            is_supervisor=True,
-            status=1,
-            auth_type='phone'
-        ),
-        User(
-            phone_number='13800000005',
-            nickname='张三',
-            is_solo_user=True,
-            is_supervisor=False,
-            status=1,
-            auth_type='phone'
-        ),
-        User(
-            phone_number='13800000006',
-            nickname='李四',
-            is_solo_user=False,
-            is_supervisor=True,
-            status=1,
-            auth_type='phone'
-        ),
-        User(
-            phone_number='13800000007',
-            nickname='王五',
-            is_solo_user=True,
-            is_supervisor=False,
-            status=1,
-            auth_type='phone'
-        )
-    ]
-
-    for user in users:
-        db.session.add(user)
-
-    db.session.commit()
-
-    # 创建测试打卡规则
-    from datetime import time
-    rules = [
-        CheckinRule(
-            solo_user_id=users[0].user_id,
-            rule_name='起床打卡',
-            icon_url='🌅',
-            frequency_type=0,
-            time_slot_type=4,
-            custom_time=time(8, 0, 0),
-            week_days=127,
-            status=1
-        ),
-        CheckinRule(
-            solo_user_id=users[2].user_id,
-            rule_name='早餐打卡',
-            icon_url='🍳',
-            frequency_type=0,
-            time_slot_type=4,
-            custom_time=time(9, 0, 0),
-            week_days=127,
-            status=1
-        )
-    ]
-
-    for rule in rules:
-        db.session.add(rule)
-
-    db.session.commit()
-
-    # 创建监护关系邀请（包括测试中要使用的主要关系）
-    invitations = [
-        # 用于测试接受邀请 - rule_supervision_id = 1
-        RuleSupervision(
-            rule_id=rules[0].rule_id,  # 用户1的起床打卡规则
-            solo_user_id=users[0].user_id,  # 用户1
-            supervisor_user_id=users[1].user_id,  # 监护人1
-            status=0,  # 待确认状态
-            invitation_message='请监督我起床',
-            invited_by_user_id=users[0].user_id
-        ),
-        # 用于测试拒绝邀请 - rule_supervision_id = 2
-        RuleSupervision(
-            rule_id=rules[1].rule_id,  # 用户3的早餐打卡规则
-            solo_user_id=users[2].user_id,  # 用户3
-            supervisor_user_id=users[3].user_id,  # 监护人2
-            status=0,  # 待确认状态
-            invitation_message='请监督我吃早餐',
-            invited_by_user_id=users[2].user_id
-        ),
-        # 额外的已拒绝邀请（不影响主要测试）
-        RuleSupervision(
-            rule_id=rules[1].rule_id,
-            solo_user_id=users[2].user_id,
-            supervisor_user_id=users[1].user_id,
-            status=2,  # 已拒绝
-            invitation_message='请监督我',
-            invited_by_user_id=users[2].user_id
-        )
-    ]
-
-    for invitation in invitations:
-        db.session.add(invitation)
-
-    db.session.commit()
-
-    yield users, rules, invitations
-
-    # 清理测试数据
     with app.app_context():
-        RuleSupervision.query.delete()
-        CheckinRule.query.delete()
-        User.query.delete()
-        db.session.commit()
+        from wxcloudrun.model import db
+        session = db.session
+
+        # 创建测试用户
+        users = [
+            User(
+                phone_number='13800000001',
+                nickname='用户1',
+                is_solo_user=True,
+                is_supervisor=False,
+                status=1,
+                auth_type='phone'
+            ),
+            User(
+                phone_number='13800000002',
+                nickname='监护人1',
+                is_solo_user=False,
+                is_supervisor=True,
+                status=1,
+                auth_type='phone'
+            ),
+            User(
+                phone_number='13800000003',
+                nickname='用户3',
+                is_solo_user=True,
+                is_supervisor=False,
+                status=1,
+                auth_type='phone'
+            ),
+            User(
+                phone_number='13800000004',
+                nickname='监护人2',
+                is_solo_user=False,
+                is_supervisor=True,
+                status=1,
+                auth_type='phone'
+            ),
+            User(
+                phone_number='13800000005',
+                nickname='张三',
+                is_solo_user=True,
+                is_supervisor=False,
+                status=1,
+                auth_type='phone'
+            ),
+            User(
+                phone_number='13800000006',
+                nickname='李四',
+                is_solo_user=False,
+                is_supervisor=True,
+                status=1,
+                auth_type='phone'
+            ),
+            User(
+                phone_number='13800000007',
+                nickname='王五',
+                is_solo_user=True,
+                is_supervisor=False,
+                status=1,
+                auth_type='phone'
+            )
+        ]
+
+        for user in users:
+            session.add(user)
+
+        # 创建测试打卡规则
+        from datetime import time
+        rules = [
+            CheckinRule(
+                solo_user_id=users[0].user_id,
+                rule_name='起床打卡',
+                icon_url='🌅',
+                frequency_type=0,
+                time_slot_type=4,
+                custom_time=time(8, 0, 0),
+                week_days=127,
+                status=1
+            ),
+            CheckinRule(
+                solo_user_id=users[2].user_id,
+                rule_name='早餐打卡',
+                icon_url='🍳',
+                frequency_type=0,
+                time_slot_type=4,
+                custom_time=time(9, 0, 0),
+                week_days=127,
+                status=1
+            )
+        ]
+
+        for rule in rules:
+            session.add(rule)
+
+        # 创建监护关系邀请（包括测试中要使用的主要关系）
+        invitations = [
+            # 用于测试接受邀请 - rule_supervision_id = 1
+            RuleSupervision(
+                rule_id=rules[0].rule_id,  # 用户1的起床打卡规则
+                solo_user_id=users[0].user_id,  # 用户1
+                supervisor_user_id=users[1].user_id,  # 监护人1
+                status=0,  # 待确认状态
+                invitation_message='请监督我起床',
+                invited_by_user_id=users[0].user_id
+            ),
+            # 用于测试拒绝邀请 - rule_supervision_id = 2
+            RuleSupervision(
+                rule_id=rules[1].rule_id,  # 用户3的早餐打卡规则
+                solo_user_id=users[2].user_id,  # 用户3
+                supervisor_user_id=users[3].user_id,  # 监护人2
+                status=0,  # 待确认状态
+                invitation_message='请监督我吃早餐',
+                invited_by_user_id=users[2].user_id
+            ),
+            # 额外的已拒绝邀请（不影响主要测试）
+            RuleSupervision(
+                rule_id=rules[1].rule_id,
+                solo_user_id=users[2].user_id,
+                supervisor_user_id=users[1].user_id,
+                status=2,  # 已拒绝
+                invitation_message='请监督我',
+                invited_by_user_id=users[2].user_id
+            )
+        ]
+
+        for invitation in invitations:
+            session.add(invitation)
+
+        session.commit()
+
+        yield users, rules, invitations
+    
+    # 不需要手动清理，事务会自动回滚

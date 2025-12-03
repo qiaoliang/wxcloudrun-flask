@@ -18,9 +18,10 @@ from wxcloudrun.utils.phone_encryption import (
 )
 from wxcloudrun.model import User, PhoneAuth
 from wxcloudrun import db
+from tests.base_test import BaseTest
 
 
-class TestPhoneEncryption:
+class TestPhoneEncryption(BaseTest):
     """手机号码加密测试"""
     
     def setup_method(self):
@@ -189,7 +190,7 @@ class TestSMSService:
         assert "已过期" in message or "不存在" in message
 
 
-class TestPhoneAuthService:
+class TestPhoneAuthService(BaseTest):
     """手机认证服务测试"""
     
     def setup_method(self):
