@@ -17,9 +17,16 @@ app.config['DEBUG'] = config.DEBUG
 # 配置CORS以支持跨域请求
 CORS(app)
 
+# 检查是否为测试环境
+is_testing = config.ENV_TYPE in ['unit', 'function']
+is_unit_testing = config.ENV_TYPE == 'unit'
+
 # 检查是否为测试环境，如果是则使用SQLite，否则使用MySQL
 # 在模块级别检查，以确保在导入时就设置正确的数据库连接
 app.config['DB_CONNECTION_URI'] = config.DB_CONNECTION_URI
+
+# 设置SQLAlchemy所需的数据库URI配置
+app.config['SQLALCHEMY_DATABASE_URI'] = config.DB_CONNECTION_URI
 
 # 禁用SQLAlchemy的修改跟踪以避免警告
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
