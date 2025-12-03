@@ -14,18 +14,12 @@ load_dotenv(env_file, override=True)
 from wxcloudrun import db
 from wxcloudrun.model import User
 from wxcloudrun.dao import insert_user, query_user_by_id
+from tests.unit.fixtures.user_builder import UserBuilder
 
 def test_update_user_profile_endpoint(client):
     """Test the update user profile endpoint."""
-    # 创建测试用户
-    test_user = User(
-        phone_number="13800138000",
-        nickname='Original Name',
-        avatar_url='https://example.com/original.jpg',
-        role=1,  # 1 = solo
-        status=1,  # 1 = normal
-        wechat_openid='test_openid_123456'
-    )
+    # 使用Builder模式创建测试用户
+    test_user = UserBuilder().with_phone_number("13800138000").build()
 
     # 使用 DAO 方法插入用户
     insert_user(test_user)
