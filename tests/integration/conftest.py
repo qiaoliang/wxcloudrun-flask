@@ -9,9 +9,9 @@ from config import DevelopmentConfig # 假设你的 config.py 中有 Development
 def is_docker_available():
     """检查 Docker 是否可用"""
     try:
-        result = subprocess.run(["docker", "version"], 
-                              stdout=subprocess.PIPE, 
-                              stderr=subprocess.PIPE, 
+        result = subprocess.run(["docker", "version"],
+                              stdout=subprocess.PIPE,
+                              stderr=subprocess.PIPE,
                               check=True)
         return True
     except (subprocess.CalledProcessError, FileNotFoundError):
@@ -34,18 +34,18 @@ def pytest_configure(config):
 @pytest.fixture(scope='session')
 def integration_app():
     """创建一个连接到 Docker 服务的 Flask App 实例"""
-    
+
     # 设置环境为 function 以加载正确的环境变量
     import os
     os.environ['ENV_TYPE'] = 'function'
-    
+
     # Import the app and db after setting environment variables
     from wxcloudrun import app as fresh_flask_app, db as fresh_db
     fresh_flask_app.config['TESTING'] = True
-    
+
     # Store db in app for later use
     fresh_flask_app.db = fresh_db
-    
+
     return fresh_flask_app
 
 @pytest.fixture(scope="session", autouse=True)
@@ -96,14 +96,12 @@ def integration_db_setup(integration_app):
     注意：清理真实数据库比清理内存数据库慢得多。
     """
     with integration_app.app_context():
-        # 警告: 在运行集成测试前，确保你的 docker-compose.yml 启动了一个专用的测试数据库！
-
+        # 在运行集成测试前，确保你的 docker-compose.yml 启动了一个专用的测试数据库！
         # 1. 创建所有表
         integration_app.db.create_all()
-
-        yield # 测试运行
-
-        # 2. 清理数据 (比 drop_all 更快且更安全，但需要模型支持)
+        # 2. yield 确保测试运行
+        yield
+        # 3. 清理数据
         # 如果你的数据库比较大，最好使用事务回滚而不是 drop_all
         # 但对于小项目，drop_all 是最彻底的清理方式
         integration_app.db.session.remove()
