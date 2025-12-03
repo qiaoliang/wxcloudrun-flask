@@ -26,8 +26,7 @@ if is_testing:
     app.config['TESTING'] = True
 else:
     # 设定数据库链接，添加字符集设置
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://{}:{}@{}/flask_demo?charset=utf8mb4'.format(config.username, config.password,
-                                                                                 config.db_address)
+    app.config['SQLALCHEMY_DATABASE_URI'] = config.DB_CONNECTION_URI
 
 # 禁用SQLAlchemy的修改跟踪以避免警告
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

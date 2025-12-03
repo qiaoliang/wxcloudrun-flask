@@ -31,9 +31,12 @@ services:
       - mysql-db
       - redis
     environment:
-      MYSQL_USERNAME: root
-      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
-      MYSQL_ADDRESS: mysql-db:3306
+      ENV_TYPE: function
+      DB_USERNAME: root
+      DB_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
+      DB_ADDRESS: mysql-db:3306
+      DB_NAME: flask_demo
+      DB_CONNECTION_TEMPLATE: 'mysql+pymysql://{username}:{password}@{db_address}/{db_name}?charset=utf8mb4'
     restart: unless-stopped
 
 volumes:
