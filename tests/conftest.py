@@ -152,6 +152,13 @@ def setup_test_data(client):
         from wxcloudrun.model import db
         session = db.session
 
+        # 清理数据库
+        RuleSupervision.query.delete()
+        CheckinRule.query.delete()
+        User.query.delete()
+        Counters.query.delete()
+        session.commit()
+
         # 创建测试用户
         users = [
             User(
@@ -214,6 +221,12 @@ def setup_test_data(client):
 
         for user in users:
             session.add(user)
+        
+        # 先提交用户以获取ID
+        session.commit()
+        # 刷新所有用户对象以获取数据库生成的ID
+        for user in users:
+            session.refresh(user)
 
         # 创建测试打卡规则
         from datetime import time
@@ -242,6 +255,12 @@ def setup_test_data(client):
 
         for rule in rules:
             session.add(rule)
+        
+        # 再提交规则以获取ID
+        session.commit()
+        # 刷新所有规则对象以获取数据库生成的ID
+        for rule in rules:
+            session.refresh(rule)
 
         # 创建监护关系邀请（包括测试中要使用的主要关系）
         invitations = [

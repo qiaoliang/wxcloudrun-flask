@@ -10,7 +10,6 @@ from wxcloudrun import db
 from wxcloudrun.model import User, CheckinRule, RuleSupervision, Counters
 
 
-@pytest.mark.usefixtures("isolated_database")
 class BaseTest:
     """测试基类，提供数据库隔离"""
     
@@ -18,11 +17,6 @@ class BaseTest:
     def setup_class(cls):
         """类级别的设置"""
         pass
-    
-    def setup_method(self):
-        """每个测试方法前的设置"""
-        # 确保数据库是空的
-        self.ensure_clean_database()
     
     def ensure_clean_database(self):
         """确保数据库是空的"""
