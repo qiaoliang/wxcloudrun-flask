@@ -80,15 +80,17 @@ class TestUserSearchAPI(BaseTest):
         for user in data['data']['users']:
             assert '监护人' in user['nickname']
     
-    def test_search_user_not_found(self, client, setup_test_data):
+    def test_search_user_not_found(self, client):
         """测试搜索不存在的用户"""
-        user1 = User.query.filter_by(phone_number='13800000001').first()
+        # Create test user
+        user1 = self.create_user(
+            phone_number='13800000001',
+            nickname='用户1',
+            is_solo_user=True,
+            is_supervisor=False
+        )
         
-        token_payload = {
-            'user_id': user1.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }
-        token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
+        token = self.create_auth_token(user1.user_id)
         
         response = client.get('/api/users/search?phone=19999999999',
                             headers={'Authorization': f'Bearer {token}'})
@@ -99,15 +101,17 @@ class TestUserSearchAPI(BaseTest):
         assert 'users' in data['data']
         assert len(data['data']['users']) == 0
     
-    def test_search_user_missing_params(self, client, setup_test_data):
+    def test_search_user_missing_params(self, client):
         """测试缺少搜索参数"""
-        user1 = User.query.filter_by(phone_number='13800000001').first()
+        # Create test user
+        user1 = self.create_user(
+            phone_number='13800000001',
+            nickname='用户1',
+            is_solo_user=True,
+            is_supervisor=False
+        )
         
-        token_payload = {
-            'user_id': user1.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }
-        token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
+        token = self.create_auth_token(user1.user_id)
         
         response = client.get('/api/users/search',
                             headers={'Authorization': f'Bearer {token}'})
@@ -117,15 +121,23 @@ class TestUserSearchAPI(BaseTest):
         assert data['code'] == 0
         assert '缺少' in data['msg'] or '参数' in data['msg']
     
-    def test_search_user_multiple_params(self, client, setup_test_data):
+    def test_search_user_multiple_params(self, client):
         """测试同时使用多个搜索参数"""
-        user1 = User.query.filter_by(phone_number='13800000001').first()
+        # Create test users
+        user1 = self.create_user(
+            phone_number='13800000001',
+            nickname='用户1',
+            is_solo_user=True,
+            is_supervisor=False
+        )
+        user2 = self.create_user(
+            phone_number='13800000002',
+            nickname='监护人1',
+            is_solo_user=False,
+            is_supervisor=True
+        )
         
-        token_payload = {
-            'user_id': user1.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }
-        token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
+        token = self.create_auth_token(user1.user_id)
         
         response = client.get('/api/users/search?phone=13800000002&nickname=监护人1',
                             headers={'Authorization': f'Bearer {token}'})
@@ -140,7 +152,7 @@ class TestUserSearchAPI(BaseTest):
         assert user['phone_number'] == '13800000002'
         assert user['nickname'] == '监护人1'
     
-    def test_search_user_unauthorized(self, client, setup_test_data):
+    def test_search_user_unauthorized(self, client):
         """测试未授权访问"""
         response = client.get('/api/users/search?phone=13800000002')
         assert response.status_code == 200
@@ -149,7 +161,7 @@ class TestUserSearchAPI(BaseTest):
         assert data['code'] == 0
         assert 'token' in data['msg'].lower() or '未授权' in data['msg']
     
-    def test_search_user_invalid_token(self, client, setup_test_data):
+    def test_search_user_invalid_token(self, client):
         """测试无效token"""
         response = client.get('/api/users/search?phone=13800000002',
                             headers={'Authorization': 'Bearer invalid_token'})
@@ -159,17 +171,31 @@ class TestUserSearchAPI(BaseTest):
         assert data['code'] == 0
         assert 'token' in data['msg'].lower() or '无效' in data['msg']
     
-    def test_search_user_pagination(self, client, setup_test_data):
+    def test_search_user_pagination(self, client):
         """测试搜索结果分页"""
-        user1 = User.query.filter_by(phone_number='13800000001').first()
+        # Create test users
+        user1 = self.create_user(
+            phone_number='13800000001',
+            nickname='用户1',
+            is_solo_user=True,
+            is_supervisor=False
+        )
+        user2 = self.create_user(
+            phone_number='13800000002',
+            nickname='用户2',
+            is_solo_user=True,
+            is_supervisor=False
+        )
+        user3 = self.create_user(
+            phone_number='13800000003',
+            nickname='用户3',
+            is_solo_user=True,
+            is_supervisor=False
+        )
         
-        token_payload = {
-            'user_id': user1.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }
-        token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
+        token = self.create_auth_token(user1.user_id)
         
-        response = client.get('/api/users/search?nickname=用户&limit=2&offset=0',
+        response = client.get('/api/users/search?nickname=用户&limit=2',
                             headers={'Authorization': f'Bearer {token}'})
         assert response.status_code == 200
         
@@ -178,15 +204,29 @@ class TestUserSearchAPI(BaseTest):
         assert 'users' in data['data']
         assert len(data['data']['users']) <= 2  # 限制返回数量
     
-    def test_search_user_with_role_filter(self, client, setup_test_data):
+    def test_search_user_with_role_filter(self, client):
         """测试按角色过滤搜索"""
-        user1 = User.query.filter_by(phone_number='13800000001').first()
+        # Create test users
+        user1 = self.create_user(
+            phone_number='13800000001',
+            nickname='用户1',
+            is_solo_user=True,
+            is_supervisor=False
+        )
+        supervisor1 = self.create_user(
+            phone_number='13800000002',
+            nickname='监护人1',
+            is_solo_user=False,
+            is_supervisor=True
+        )
+        supervisor2 = self.create_user(
+            phone_number='13800000003',
+            nickname='监护人2',
+            is_solo_user=False,
+            is_supervisor=True
+        )
         
-        token_payload = {
-            'user_id': user1.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }
-        token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
+        token = self.create_auth_token(user1.user_id)
         
         response = client.get('/api/users/search?role=supervisor',
                             headers={'Authorization': f'Bearer {token}'})

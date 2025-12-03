@@ -5,8 +5,18 @@
 import pytest
 import os
 import time
+import importlib
 from unittest.mock import patch, MagicMock
 from datetime import datetime, timedelta
+
+# Set test environment before importing modules that depend on config
+os.environ['ENV_TYPE'] = 'unit'
+os.environ['SMS_PROVIDER'] = 'simulation'
+os.environ['PHONE_ENCRYPTION_KEY'] = 'test_key_12345'
+
+# Reload config to pick up the new environment variables
+import config
+importlib.reload(config)
 
 from wxcloudrun.services.phone_auth_service import PhoneAuthService
 from wxcloudrun.services.sms_service import SMSService, SimulationSMSProvider
@@ -195,14 +205,7 @@ class TestPhoneAuthService(BaseTest):
     
     def setup_method(self):
         """测试前准备"""
-        # 设置测试环境变量
-        os.environ['PHONE_ENCRYPTION_KEY'] = 'test_key_12345'
-        os.environ['SMS_PROVIDER'] = 'simulation'
-        os.environ['ENV_TYPE'] = 'unit'
-        
-        # 重新导入以使用新的环境变量
-        from wxcloudrun.services.phone_auth_service import PhoneAuthService
-        # 重置全局SMS服务实例
+        # 重置全局SMS服务实例以确保使用测试配置
         import wxcloudrun.services.sms_service as sms_module
         sms_module._sms_service = None
         
@@ -390,9 +393,9 @@ class TestPhoneAuthIntegration:
     
     def setup_method(self):
         """测试前准备"""
-        os.environ['PHONE_ENCRYPTION_KEY'] = 'test_integration_key_12345'
-        os.environ['SMS_PROVIDER'] = 'simulation'
-        os.environ['ENV_TYPE'] = 'unit'
+        # 重置全局SMS服务实例以确保使用测试配置
+        import wxcloudrun.services.sms_service as sms_module
+        sms_module._sms_service = None
     
     def test_complete_registration_flow(self):
         """测试完整注册流程"""
