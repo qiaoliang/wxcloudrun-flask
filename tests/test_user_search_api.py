@@ -11,15 +11,23 @@ from tests.base_test import BaseTest
 class TestUserSearchAPI(BaseTest):
     """用户搜索API测试"""
     
-    def test_search_user_by_phone_success(self, client, setup_test_data):
+    def test_search_user_by_phone_success(self, client):
         """测试通过手机号搜索用户成功"""
-        user1 = User.query.filter_by(phone_number='13800000001').first()
+        # Create test users
+        user1 = self.create_user(
+            phone_number='13800000001',
+            nickname='用户1',
+            is_solo_user=True,
+            is_supervisor=False
+        )
+        user2 = self.create_user(
+            phone_number='13800000002',
+            nickname='监护人1',
+            is_solo_user=False,
+            is_supervisor=True
+        )
         
-        token_payload = {
-            'user_id': user1.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }
-        token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
+        token = self.create_auth_token(user1.user_id)
         
         response = client.get('/api/users/search?phone=13800000002',
                             headers={'Authorization': f'Bearer {token}'})
@@ -35,15 +43,29 @@ class TestUserSearchAPI(BaseTest):
         assert user['nickname'] == '监护人1'
         assert 'user_id' in user
     
-    def test_search_user_by_nickname_success(self, client, setup_test_data):
+    def test_search_user_by_nickname_success(self, client):
         """测试通过昵称搜索用户成功"""
-        user1 = User.query.filter_by(phone_number='13800000001').first()
+        # Create test users
+        user1 = self.create_user(
+            phone_number='13800000001',
+            nickname='用户1',
+            is_solo_user=True,
+            is_supervisor=False
+        )
+        supervisor1 = self.create_user(
+            phone_number='13800000002',
+            nickname='监护人1',
+            is_solo_user=False,
+            is_supervisor=True
+        )
+        supervisor2 = self.create_user(
+            phone_number='13800000003',
+            nickname='监护人2',
+            is_solo_user=False,
+            is_supervisor=True
+        )
         
-        token_payload = {
-            'user_id': user1.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(days=7)
-        }
-        token = jwt.encode(token_payload, '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f', algorithm='HS256')
+        token = self.create_auth_token(user1.user_id)
         
         response = client.get('/api/users/search?nickname=监护人',
                             headers={'Authorization': f'Bearer {token}'})

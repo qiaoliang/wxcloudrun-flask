@@ -99,6 +99,34 @@ def wait_for_service(url: str, timeout: int = 60) -> bool:
     return False
 
 
+@pytest.fixture(scope="class")
+def isolated_database():
+    """为每个测试类提供完全隔离的数据库"""
+    import uuid
+    
+    # 配置应用使用内存数据库
+    app = original_app
+    original_uri = app.config.get('SQLALCHEMY_DATABASE_URI')
+    
+    try:
+        # 设置内存数据库
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+        app.config['TESTING'] = True
+        app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF for testing
+        
+        with app.app_context():
+            # 只创建表结构，不插入任何数据
+            db.create_all()
+            yield app
+            
+            # 清理：删除所有数据
+            db.drop_all()
+            
+    finally:
+        # 恢复原始配置
+        app.config['SQLALCHEMY_DATABASE_URI'] = original_uri
+
+
 @pytest.fixture
 def client():
     """Create a test client for the app."""
