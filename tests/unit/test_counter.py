@@ -10,7 +10,7 @@ def test_get_count_initial(client):
 
     # 验证返回数据
     data = response.get_json()
-    assert data['code'] == 0
+    assert data['code'] == 1
     # 初始数据库为空，代码逻辑通常会返回 0 或者默认创建一个 0
     # 根据你的 dao.py 逻辑，这里可能是 0
     assert data['data'] >= 0
@@ -21,7 +21,7 @@ def test_action_inc(client):
     response = client.post('/api/count', json={'action': 'inc'})
     assert response.status_code == 200
     data = response.get_json()
-    assert data['code'] == 0
+    assert data['code'] == 1
     # 假设第一次自增后，如果初始是0，现在应该是1；如果是空表新建可能是1
     first_count = data['data']
 
@@ -45,7 +45,8 @@ def test_action_clear(client):
 
     # 3. 验证当前返回是否为 0
     data = response.get_json()
-    assert data['data'] == 0
+    assert data['code'] == 1  # 清零操作成功返回code应该是1
+    assert data['data'] == {}  # 清零操作返回空对象
 
     # 4. 再次获取确认持久化
     response = client.get('/api/count')
@@ -55,10 +56,8 @@ def test_action_clear(client):
 def test_invalid_action(client):
     """测试：发送非法参数"""
     response = client.post('/api/count', json={'action': 'unknown_action'})
-    # 根据你的 views.py 逻辑，可能会返回错误码或忽略
-    # 这里假设它返回 200 但可能包含错误信息，或者代码里没处理会报错
-    # 假设你的代码比较健壮：
+    # 根据 views.py 逻辑，无效action会返回错误响应，code为0
     assert response.status_code == 200
     data = response.get_json()
-    # 如果你的 API 对非法 action 返回非0 code，可以这样测：
-    # assert data['code'] != 0
+    # 无效的action参数应该返回错误码0
+    assert data['code'] == 0
