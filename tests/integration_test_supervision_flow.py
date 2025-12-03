@@ -1,278 +1,306 @@
-# tests/integration_test_supervision_flow.py
+"""
+监督流程集成测试模块：使用统一的 docker-compose 环境并测试监督相关功能
+"""
+import os
+import time
+import requests
+import subprocess
 import pytest
-import json
-from wxcloudrun import app, db
-from wxcloudrun.model import User, CheckinRule, RuleSupervision
+import jwt
+import datetime
 
 
-class TestSupervisionFlow:
-    """监护功能完整流程集成测试"""
+@pytest.mark.integration
+def test_supervision_flow_complete(docker_compose_env: str):
+    """
+    测试完整的监督流程：创建规则 -> 邀请监护人 -> 接受邀请 -> 查看监督关系
+    :param docker_compose_env: docker-compose 环境 fixture
+    """
+    base_url = docker_compose_env
     
-    def test_complete_supervision_flow(self, client, setup_test_data):
-        """测试完整的监护流程"""
-        with app.test_request_context():
-            from flask import g
-            
-            # Step 1: 用户1搜索用户2
-            g.current_user = type('User', (), {'user_id': 1})()
-            response = client.get('/api/users/search?nickname=监护人')
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            assert len(data['data']['users']) > 0
-            
-            # 找到用户2
-            supervisor_user = None
-            for user in data['data']['users']:
-                if user['user_id'] == 2:
-                    supervisor_user = user
-                    break
-            assert supervisor_user is not None
-            
-            # Step 2: 用户1邀请用户2作为监护人
-            response = client.post('/api/rules/supervision/invite',
-                                 json={
-                                     'rule_id': 1,
-                                     'supervisor_user_id': 2,
-                                     'invitation_message': '请监督我起床打卡'
-                                 })
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            invitation_id = data['data']['rule_supervision_id']
-            
-            # Step 3: 用户2查看收到的邀请
-            g.current_user = type('User', (), {'user_id': 2})()
-            response = client.get('/api/supervision/invitations?type=received')
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            assert len(data['data']['invitations']) > 0
-            
-            # 验证邀请信息
-            invitation = None
-            for inv in data['data']['invitations']:
-                if inv['rule_supervision_id'] == invitation_id:
-                    invitation = inv
-                    break
-            assert invitation is not None
-            assert invitation['status'] == 0  # 待确认
-            assert invitation['invitation_message'] == '请监督我起床打卡'
-            
-            # Step 4: 用户2接受邀请
-            response = client.post('/api/supervision/respond',
-                                 json={
-                                     'rule_supervision_id': invitation_id,
-                                     'action': 'accept',
-                                     'response_message': '我很乐意监督您'
-                                 })
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            assert data['data']['status'] == 1  # 已确认
-            
-            # Step 5: 验证监护关系已建立
-            response = client.get('/api/rules/supervision/list?rule_id=1')
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            assert len(data['data']['supervisions']) > 0
-            
-            # 验证监护人信息
-            supervision = None
-            for sup in data['data']['supervisions']:
-                if sup['supervisor']['user_id'] == 2:
-                    supervision = sup
-                    break
-            assert supervision is not None
-            assert supervision['status'] == 1
-            assert supervision['supervisor']['nickname'] == '监护人1'
-            
-            # Step 6: 用户2查看监护的规则
-            response = client.get('/api/supervisor/rules')
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            assert len(data['data']['supervised_rules']) > 0
-            
-            # 验证规则信息
-            supervised_rule = None
-            for rule in data['data']['supervised_rules']:
-                if rule['rule']['rule_id'] == 1:
-                    supervised_rule = rule
-                    break
-            assert supervised_rule is not None
-            assert supervised_rule['rule']['rule_name'] == '起床打卡'
-            assert supervised_rule['solo_user']['nickname'] == '用户1'
-            
-            # Step 7: 用户1查看发出的邀请
-            g.current_user = type('User', (), {'user_id': 1})()
-            response = client.get('/api/supervision/invitations?type=sent')
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            
-            # 找到已接受的邀请
-            accepted_invitation = None
-            for inv in data['data']['invitations']:
-                if inv['rule_supervision_id'] == invitation_id:
-                    accepted_invitation = inv
-                    break
-            assert accepted_invitation is not None
-            assert accepted_invitation['status'] == 1  # 已确认
-            assert accepted_invitation['responded_at'] is not None
+    # 步骤1：创建用户并获取token
+    # 创建独居者用户
+    solo_user_data = {
+        "phone_number": "13800138000",
+        "nickname": "测试独居者",
+        "role": "solo"
+    }
+    response = requests.post(f"{base_url}/api/register", json=solo_user_data)
+    assert response.status_code == 200
+    solo_login_response = requests.post(f"{base_url}/api/login_phone", 
+                                       json={"phone": "13800138000", "code": "123456"})
+    assert solo_login_response.status_code == 200
+    solo_token = solo_login_response.json()['data']['token']
     
-    def test_reject_invitation_flow(self, client, setup_test_data):
-        """测试拒绝邀请的流程"""
-        with app.test_request_context():
-            from flask import g
-            
-            # Step 1: 用户1邀请用户2
-            g.current_user = type('User', (), {'user_id': 1})()
-            response = client.post('/api/rules/supervision/invite',
-                                 json={
-                                     'rule_id': 1,
-                                     'supervisor_user_id': 2,
-                                     'invitation_message': '请监督我'
-                                 })
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            invitation_id = data['data']['rule_supervision_id']
-            
-            # Step 2: 用户2拒绝邀请
-            g.current_user = type('User', (), {'user_id': 2})()
-            response = client.post('/api/supervision/respond',
-                                 json={
-                                     'rule_supervision_id': invitation_id,
-                                     'action': 'reject',
-                                     'response_message': '我现在没有时间'
-                                 })
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            assert data['data']['status'] == 2  # 已拒绝
-            
-            # Step 3: 验证监护关系没有建立
-            response = client.get('/api/rules/supervision/list?rule_id=1')
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            # 应该没有活跃的监护关系
-            for supervision in data['data']['supervisions']:
-                assert supervision['status'] != 1
+    # 创建监护人用户
+    supervisor_data = {
+        "phone_number": "13800138001",
+        "nickname": "测试监护人",
+        "role": "supervisor"
+    }
+    response = requests.post(f"{base_url}/api/register", json=supervisor_data)
+    assert response.status_code == 200
+    supervisor_login_response = requests.post(f"{base_url}/api/login_phone",
+                                            json={"phone": "13800138001", "code": "123456"})
+    assert supervisor_login_response.status_code == 200
+    supervisor_token = supervisor_login_response.json()['data']['token']
     
-    def test_multiple_supervisors_flow(self, client, setup_test_data):
-        """测试多个监护人的流程"""
-        with app.test_request_context():
-            from flask import g
-            
-            # Step 1: 用户1邀请多个监护人
-            g.current_user = type('User', (), {'user_id': 1})()
-            for supervisor_id in [2, 3, 4]:
-                response = client.post('/api/rules/supervision/invite',
-                                     json={
-                                         'rule_id': 1,
-                                         'supervisor_user_id': supervisor_id,
-                                         'invitation_message': f'请监督我 - 邀请监护人{supervisor_id}'
-                                     })
-                assert response.status_code == 200
-            
-            # Step 2: 所有监护人都接受邀请
-            for supervisor_id in [2, 3, 4]:
-                g.current_user = type('User', (), {'user_id': supervisor_id})()
-                response = client.get('/api/supervision/invitations?type=received')
-                assert response.status_code == 200
-                data = json.loads(response.data)
-                
-                # 找到邀请并接受
-                for invitation in data['data']['invitations']:
-                    if invitation['rule']['rule_id'] == 1:
-                        response = client.post('/api/supervision/respond',
-                                             json={
-                                                 'rule_supervision_id': invitation['rule_supervision_id'],
-                                                 'action': 'accept'
-                                             })
-                        assert response.status_code == 200
-                        break
-            
-            # Step 3: 验证有多个监护人
-            g.current_user = type('User', (), {'user_id': 1})()
-            response = client.get('/api/rules/supervision/list?rule_id=1')
-            assert response.status_code == 200
-            data = json.loads(response.data)
-            assert data['code'] == 1
-            
-            active_supervisors = [s for s in data['data']['supervisions'] if s['status'] == 1]
-            assert len(active_supervisors) == 3
-            
-            # Step 4: 每个监护人都能看到监护的规则
-            for supervisor_id in [2, 3, 4]:
-                g.current_user = type('User', (), {'user_id': supervisor_id})()
-                response = client.get('/api/supervisor/rules')
-                assert response.status_code == 200
-                data = json.loads(response.data)
-                assert data['code'] == 1
-                assert len(data['data']['supervised_rules']) > 0
+    # 步骤2：创建打卡规则
+    rule_data = {
+        "rule_name": "起床打卡",
+        "icon_url": "🌅",
+        "frequency_type": 0,
+        "time_slot_type": 4,
+        "custom_time": "08:00:00",
+        "week_days": 127,
+        "status": 1
+    }
+    response = requests.post(f"{base_url}/api/checkin/rules",
+                           headers={"Authorization": f"Bearer {solo_token}"},
+                           json=rule_data)
+    assert response.status_code == 200
+    rule_id = response.json()['data']['rule_id']
+    
+    # 步骤3：邀请监护人
+    # 首先搜索监护人用户
+    response = requests.get(f"{base_url}/api/users/search?phone=13800138001",
+                          headers={"Authorization": f"Bearer {solo_token}"})
+    assert response.status_code == 200
+    supervisor_user_id = response.json()['data']['users'][0]['user_id']
+    
+    invitation_data = {
+        "rule_id": rule_id,
+        "supervisor_user_id": supervisor_user_id,
+        "invitation_message": "请监督我起床打卡"
+    }
+    response = requests.post(f"{base_url}/api/rules/supervision/invite",
+                           headers={"Authorization": f"Bearer {solo_token}"},
+                           json=invitation_data)
+    assert response.status_code == 200
+    rule_supervision_id = response.json()['data']['rule_supervision_id']
+    
+    # 步骤4：监护人接受邀请
+    response = requests.post(f"{base_url}/api/supervision/respond",
+                           headers={"Authorization": f"Bearer {supervisor_token}"},
+                           json={
+                               "rule_supervision_id": rule_supervision_id,
+                               "action": "accept"
+                           })
+    assert response.status_code == 200
+    
+    # 步骤5：查看监督关系
+    # 独居者查看发送的邀请
+    response = requests.get(f"{base_url}/api/supervision/invitations/sent",
+                          headers={"Authorization": f"Bearer {solo_token}"})
+    assert response.status_code == 200
+    invitations = response.json()['data']['invitations']
+    assert len(invitations) > 0
+    assert invitations[0]['status'] == 1  # 已接受
+    
+    # 监护人查看接受的邀请
+    response = requests.get(f"{base_url}/api/supervision/invitations/received",
+                          headers={"Authorization": f"Bearer {supervisor_token}"})
+    assert response.status_code == 200
+    invitations = response.json()['data']['invitations']
+    assert len(invitations) > 0
+    assert invitations[0]['status'] == 1  # 已接受
+    
+    print("监督流程测试通过！")
 
 
-@pytest.fixture
-def setup_test_data():
-    """设置测试数据"""
-    with app.app_context():
-        # 创建测试用户
-        users = [
-            User(
-                user_id=1,
-                wechat_openid='test1',
-                nickname='用户1',
-                is_solo_user=True,
-                is_supervisor=False,
-                status=1
-            ),
-            User(
-                user_id=2,
-                wechat_openid='test2',
-                nickname='监护人1',
-                is_solo_user=False,
-                is_supervisor=True,
-                status=1
-            ),
-            User(
-                user_id=3,
-                wechat_openid='test3',
-                nickname='监护人2',
-                is_solo_user=False,
-                is_supervisor=True,
-                status=1
-            ),
-            User(
-                user_id=4,
-                wechat_openid='test4',
-                nickname='监护人3',
-                is_solo_user=False,
-                is_supervisor=True,
-                status=1
-            )
-        ]
+@pytest.mark.integration
+def test_supervision_rejection_flow(docker_compose_env: str):
+    """
+    测试拒绝邀请的监督流程
+    :param docker_compose_env: docker-compose 环境 fixture
+    """
+    base_url = docker_compose_env
+    
+    # 创建测试用户
+    solo_user_data = {
+        "phone_number": "13800138002",
+        "nickname": "测试独居者2",
+        "role": "solo"
+    }
+    response = requests.post(f"{base_url}/api/register", json=solo_user_data)
+    assert response.status_code == 200
+    
+    supervisor_user_data = {
+        "phone_number": "13800138003",
+        "nickname": "测试监护人2",
+        "role": "supervisor"
+    }
+    response = requests.post(f"{base_url}/api/register", json=supervisor_user_data)
+    assert response.status_code == 200
+    
+    # 获取token
+    solo_login_response = requests.post(f"{base_url}/api/login_phone",
+                                       json={"phone": "13800138002", "code": "123456"})
+    solo_token = solo_login_response.json()['data']['token']
+    
+    supervisor_login_response = requests.post(f"{base_url}/api/login_phone",
+                                            json={"phone": "13800138003", "code": "123456"})
+    supervisor_token = supervisor_login_response.json()['data']['token']
+    
+    # 创建规则和邀请
+    rule_data = {
+        "rule_name": "早餐打卡",
+        "icon_url": "🍳",
+        "frequency_type": 0,
+        "time_slot_type": 4,
+        "custom_time": "08:00:00",
+        "week_days": 127,
+        "status": 1
+    }
+    response = requests.post(f"{base_url}/api/checkin/rules",
+                           headers={"Authorization": f"Bearer {solo_token}"},
+                           json=rule_data)
+    rule_id = response.json()['data']['rule_id']
+    
+    # 搜索监护人
+    response = requests.get(f"{base_url}/api/users/search?phone=13800138003",
+                          headers={"Authorization": f"Bearer {solo_token}"})
+    supervisor_user_id = response.json()['data']['users'][0]['user_id']
+    
+    # 发送邀请
+    invitation_data = {
+        "rule_id": rule_id,
+        "supervisor_user_id": supervisor_user_id,
+        "invitation_message": "请监督我早餐打卡"
+    }
+    response = requests.post(f"{base_url}/api/rules/supervision/invite",
+                           headers={"Authorization": f"Bearer {solo_token}"},
+                           json=invitation_data)
+    rule_supervision_id = response.json()['data']['rule_supervision_id']
+    
+    # 监护人拒绝邀请
+    response = requests.post(f"{base_url}/api/supervision/respond",
+                           headers={"Authorization": f"Bearer {supervisor_token}"},
+                           json={
+                               "rule_supervision_id": rule_supervision_id,
+                               "action": "reject"
+                           })
+    assert response.status_code == 200
+    
+    # 验证邀请状态为已拒绝
+    response = requests.get(f"{base_url}/api/supervision/invitations/received",
+                          headers={"Authorization": f"Bearer {supervisor_token}"})
+    invitations = response.json()['data']['invitations']
+    assert len(invitations) > 0
+    assert invitations[0]['status'] == 2  # 已拒绝
+    
+    print("拒绝邀请流程测试通过！")
+
+
+@pytest.mark.integration
+def test_multiple_supervisors_flow(docker_compose_env: str):
+    """
+    测试多个监护人的场景
+    :param docker_compose_env: docker-compose 环境 fixture
+    """
+    base_url = docker_compose_env
+    
+    # 创建一个独居者和多个监护人
+    users = [
+        {"phone_number": "13800138004", "nickname": "独居者", "role": "solo"},
+        {"phone_number": "13800138005", "nickname": "监护人1", "role": "supervisor"},
+        {"phone_number": "13800138006", "nickname": "监护人2", "role": "supervisor"},
+        {"phone_number": "13800138007", "nickname": "监护人3", "role": "supervisor"}
+    ]
+    
+    tokens = {}
+    for user in users:
+        response = requests.post(f"{base_url}/api/register", json=user)
+        assert response.status_code == 200
         
-        # 创建测试规则
-        rule = CheckinRule(
-            rule_id=1,
-            solo_user_id=1,
-            rule_name='起床打卡',
-            status=1
-        )
-        
-        for user in users:
-            db.session.add(user)
-        db.session.add(rule)
-        db.session.commit()
-        
-        yield
-        
-        # 清理测试数据
-        RuleSupervision.query.delete()
-        CheckinRule.query.delete()
-        for user in users:
-            db.session.delete(user)
-        db.session.commit()
+        login_response = requests.post(f"{base_url}/api/login_phone",
+                                     json={"phone": user["phone_number"], "code": "123456"})
+        assert login_response.status_code == 200
+        tokens[user["phone_number"]] = login_response.json()['data']['token']
+    
+    # 创建规则
+    rule_data = {
+        "rule_name": "服药打卡",
+        "icon_url": "💊",
+        "frequency_type": 0,
+        "time_slot_type": 4,
+        "custom_time": "20:00:00",
+        "week_days": 127,
+        "status": 1
+    }
+    response = requests.post(f"{base_url}/api/checkin/rules",
+                           headers={"Authorization": f"Bearer {tokens['13800138004']}"},
+                           json=rule_data)
+    rule_id = response.json()['data']['rule_id']
+    
+    # 邀请所有监护人
+    supervisor_ids = []
+    for phone in ["13800138005", "13800138006", "13800138007"]:
+        response = requests.get(f"{base_url}/api/users/search?phone={phone}",
+                              headers={"Authorization": f"Bearer {tokens['13800138004']}"})
+        supervisor_ids.append(response.json()['data']['users'][0]['user_id'])
+    
+    # 发送邀请
+    for supervisor_id in supervisor_ids:
+        invitation_data = {
+            "rule_id": rule_id,
+            "supervisor_user_id": supervisor_id,
+            "invitation_message": "请监督我服药"
+        }
+        response = requests.post(f"{base_url}/api/rules/supervision/invite",
+                               headers={"Authorization": f"Bearer {tokens['13800138004']}"},
+                               json=invitation_data)
+        assert response.status_code == 200
+    
+    # 部分监护人接受邀请
+    # 监护人1接受
+    response = requests.get(f"{base_url}/api/supervision/invitations/received",
+                          headers={"Authorization": f"Bearer {tokens['13800138005']}"})
+    rule_supervision_id = response.json()['data']['invitations'][0]['rule_supervision_id']
+    
+    response = requests.post(f"{base_url}/api/supervision/respond",
+                           headers={"Authorization": f"Bearer {tokens['13800138005']}"},
+                           json={
+                               "rule_supervision_id": rule_supervision_id,
+                               "action": "accept"
+                           })
+    assert response.status_code == 200
+    
+    # 监护人2接受
+    response = requests.get(f"{base_url}/api/supervision/invitations/received",
+                          headers={"Authorization": f"Bearer {tokens['13800138006']}"})
+    rule_supervision_id = response.json()['data']['invitations'][0]['rule_supervision_id']
+    
+    response = requests.post(f"{base_url}/api/supervision/respond",
+                           headers={"Authorization": f"Bearer {tokens['13800138006']}"},
+                           json={
+                               "rule_supervision_id": rule_supervision_id,
+                               "action": "accept"
+                           })
+    assert response.status_code == 200
+    
+    # 监护人3拒绝
+    response = requests.get(f"{base_url}/api/supervision/invitations/received",
+                          headers={"Authorization": f"Bearer {tokens['13800138007']}"})
+    rule_supervision_id = response.json()['data']['invitations'][0]['rule_supervision_id']
+    
+    response = requests.post(f"{base_url}/api/supervision/respond",
+                           headers={"Authorization": f"Bearer {tokens['13800138007']}"},
+                           json={
+                               "rule_supervision_id": rule_supervision_id,
+                               "action": "reject"
+                           })
+    assert response.status_code == 200
+    
+    # 验证监督关系
+    response = requests.get(f"{base_url}/api/supervision/invitations/sent",
+                          headers={"Authorization": f"Bearer {tokens['13800138004']}"})
+    invitations = response.json()['data']['invitations']
+    
+    accepted_count = sum(1 for inv in invitations if inv['status'] == 1)
+    rejected_count = sum(1 for inv in invitations if inv['status'] == 2)
+    
+    assert accepted_count == 2
+    assert rejected_count == 1
+    
+    print("多监护人流程测试通过！")

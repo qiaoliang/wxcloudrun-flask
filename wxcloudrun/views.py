@@ -49,7 +49,7 @@ def count():
     # 检查action参数
     if 'action' not in params:
         app.logger.warning("请求中缺少action参数")
-        return make_err_response('缺少action参数')
+        return make_err_response(msg='缺少action参数')
 
     # 按照不同的action的值，进行不同的操作
     action = params['action']
@@ -91,7 +91,7 @@ def count():
     # action参数错误
     else:
         app.logger.warning(f"无效的action参数: {action}")
-        return make_err_response('action参数错误')
+        return make_err_response(msg='action参数错误')
 
 
 @app.route('/api/count', methods=['GET'])
@@ -223,7 +223,7 @@ def handle_404(e):
     # 检查是否是API请求
     if request.path.startswith('/api/'):
         app.logger.warning(f'API路径未找到: {request.path}')
-        return make_err_response({}, 'API路径未找到'), 404
+        return make_err_response(data={}, msg='API路径未找到'), 404
     # 对于非API路径，返回HTML页面
     return render_template('index.html'), 404
 
@@ -237,7 +237,7 @@ def handle_500(e):
     app.logger.error(f'服务器内部错误: {str(e)}', exc_info=True)
     # 检查是否是API请求
     if request.path.startswith('/api/'):
-        return make_err_response({}, '服务器内部错误'), 500
+        return make_err_response(data={}, msg='服务器内部错误'), 500
     # 对于非API路径，返回HTML页面
     return render_template('index.html'), 500
 
@@ -262,12 +262,22 @@ def search_users(decoded):
                 'users': []
             })
         
+        # 获取当前用户ID
+        current_user_id = decoded.get('user_id')
+        if not current_user_id:
+            return make_err_response(msg="无效的token：缺少用户ID")
+        
         # 搜索用户，优先返回监护人
-        users = User.query.filter(
+        query = User.query.filter(
             User.nickname.contains(nickname),
-            User.status == 1,  # 只搜索正常状态的用户
-            User.user_id != g.current_user.user_id  # 排除自己
-        ).order_by(
+            User.status == 1  # 只搜索正常状态的用户
+        )
+        
+        # 排除自己
+        if current_user_id:
+            query = query.filter(User.user_id != current_user_id)
+        
+        users = query.order_by(
             User.is_supervisor.desc(),  # 监护人优先
             User.nickname.asc()  # 昵称排序
         ).limit(limit).all()
@@ -289,7 +299,7 @@ def search_users(decoded):
         
     except Exception as e:
         app.logger.error(f"search_users error: {str(e)}")
-        return make_err_response("搜索用户失败")
+        return make_err_response(msg="搜索用户失败")
 
 
 @app.route('/api/rules/supervision/invite', methods=['POST'])
@@ -303,38 +313,43 @@ def invite_supervisor(decoded):
     - invitation_message: 邀请消息（可选）
     """
     try:
+        # 获取当前用户ID
+        current_user_id = decoded.get('user_id')
+        if not current_user_id:
+            return make_err_response(msg="无效的token：缺少用户ID")
+        
         data = request.get_json()
         rule_id = data.get('rule_id')
         supervisor_user_id = data.get('supervisor_user_id')
         invitation_message = data.get('invitation_message', '')
         
         if not rule_id or not supervisor_user_id:
-            return make_err_response("参数不完整")
+            return make_err_response(msg="参数不完整")
         
         # 验证权限：只有规则创建者才能邀请监护人
         rule = CheckinRule.query.filter_by(rule_id=rule_id).first()
         if not rule:
-            return make_err_response("打卡规则不存在")
+            return make_err_response(msg="打卡规则不存在")
         
-        if rule.solo_user_id != g.current_user.user_id:
-            return make_err_response("只有规则创建者才能邀请监护人")
+        if rule.solo_user_id != current_user_id:
+            return make_err_response(msg="只有规则创建者才能邀请监护人")
         
         # 不能邀请自己
-        if supervisor_user_id == g.current_user.user_id:
-            return make_err_response("不能邀请自己作为监护人")
+        if supervisor_user_id == current_user_id:
+            return make_err_response(msg="不能邀请自己作为监护人")
         
         # 检查是否已存在监护关系
         existing = check_existing_supervision(rule_id, supervisor_user_id)
         if existing:
             if existing.status == 1:
-                return make_err_response("该用户已经是此规则的监护人")
+                return make_err_response(msg="该用户已经是此规则的监护人")
             elif existing.status == 0:
-                return make_err_response("已向该用户发送邀请，请等待响应")
+                return make_err_response(msg="已向该用户发送邀请，请等待响应")
         
         # 检查监护人数量限制
         supervisor_count = get_supervisor_count(rule_id)
         if supervisor_count >= 5:
-            return make_err_response("一个规则最多只能有5个监护人")
+            return make_err_response(msg="一个规则最多只能有5个监护人")
         
         # 验证被邀请用户存在且是监护人
         supervisor_user = User.query.filter_by(
@@ -342,26 +357,26 @@ def invite_supervisor(decoded):
             status=1
         ).first()
         if not supervisor_user:
-            return make_err_response("被邀请用户不存在")
+            return make_err_response(msg="被邀请用户不存在")
         
         if not supervisor_user.is_supervisor:
-            return make_err_response("被邀请用户不是监护人")
+            return make_err_response(msg="被邀请用户不是监护人")
         
-        # 创建监护关系
-        supervision = create_rule_supervision(
+        # 创建监督关系记录
+        supervision = RuleSupervision(
             rule_id=rule_id,
             solo_user_id=rule.solo_user_id,
             supervisor_user_id=supervisor_user_id,
+            status=0,  # 0-待确认
             invitation_message=invitation_message,
-            invited_by_user_id=g.current_user.user_id
+            invited_by_user_id=current_user_id,
+            created_at=datetime.now()
         )
+        db.session.add(supervision)
+        db.session.commit()
         
-        if not supervision:
-            return make_err_response("创建邀请失败")
+        app.logger.info(f"invite_supervisor: 用户 {current_user_id} 邀请 {supervisor_user_id} 监护规则 {rule_id}")
         
-        # TODO: 发送通知给监护人
-        
-        app.logger.info(f"invite_supervisor: 用户 {g.current_user.user_id} 邀请 {supervisor_user_id} 监护规则 {rule_id}")
         return make_succ_response({
             'rule_supervision_id': supervision.rule_supervision_id,
             'status': supervision.status,
@@ -370,7 +385,7 @@ def invite_supervisor(decoded):
         
     except Exception as e:
         app.logger.error(f"invite_supervisor error: {str(e)}")
-        return make_err_response("邀请失败")
+        return make_err_response(msg="邀请失败")
 
 
 @app.route('/api/supervision/invitations', methods=['GET'])
@@ -391,8 +406,13 @@ def get_invitations(decoded):
             except ValueError:
                 status = None
         
+        # 获取当前用户ID
+        current_user_id = decoded.get('user_id')
+        if not current_user_id:
+            return make_err_response(msg="无效的token：缺少用户ID")
+        
         supervisions = get_user_supervisions(
-            g.current_user.user_id, 
+            current_user_id, 
             invitation_type, 
             status
         )
@@ -429,14 +449,14 @@ def get_invitations(decoded):
             
             result.append(supervision_data)
         
-        app.logger.info(f"get_invitations: 用户 {g.current_user.user_id} {invitation_type} 类型邀请 {len(result)} 条")
+        app.logger.info(f"get_invitations: 用户 {current_user_id} {invitation_type} 类型邀请 {len(result)} 条")
         return make_succ_response({
             'invitations': result
         })
         
     except Exception as e:
         app.logger.error(f"get_invitations error: {str(e)}")
-        return make_err_response("获取邀请列表失败")
+        return make_err_response(msg="获取邀请列表失败")
 
 
 @app.route('/api/supervision/respond', methods=['POST'])
@@ -456,23 +476,28 @@ def respond_invitation(decoded):
         response_message = data.get('response_message', '')
         
         if not supervision_id or not action:
-            return make_err_response("参数不完整")
+            return make_err_response(msg="参数不完整")
         
         if action not in ['accept', 'reject']:
-            return make_err_response("操作类型无效")
+            return make_err_response(msg="操作类型无效")
         
         # 获取监护关系
         supervision = get_rule_supervision_by_id(supervision_id)
         if not supervision:
-            return make_err_response("邀请不存在")
+            return make_err_response(msg="邀请不存在")
+        
+        # 获取当前用户ID
+        current_user_id = decoded.get('user_id')
+        if not current_user_id:
+            return make_err_response(msg="无效的token：缺少用户ID")
         
         # 验证权限：只有被邀请的监护人才能响应
-        if supervision.supervisor_user_id != g.current_user.user_id:
-            return make_err_response("无权限操作此邀请")
+        if supervision.supervisor_user_id != current_user_id:
+            return make_err_response(msg="无权限操作此邀请")
         
         # 验证状态：只能响应待确认的邀请
         if supervision.status != 0:
-            return make_err_response("邀请已被处理")
+            return make_err_response(msg="邀请已被处理")
         
         # 更新状态
         new_status = 1 if action == 'accept' else 2
@@ -483,20 +508,26 @@ def respond_invitation(decoded):
         )
         
         if not updated_supervision:
-            return make_err_response("响应失败")
+            return make_err_response(msg="响应失败")
         
         # TODO: 发送通知给邀请人
         
-        status_text = "同意" if action == 'accept' else "拒绝"
-        app.logger.info(f"respond_invitation: 用户 {g.current_user.user_id} {status_text} 邀请 {supervision_id}")
+        # 确定状态文本和消息
+        status_text = 'accept' if action == 'accept' else 'reject'
+        message = '已同意邀请' if action == 'accept' else '已拒绝邀请'
+        
+        app.logger.info(f"respond_invitation: 用户 {current_user_id} {status_text} 邀请 {supervision_id}")
+        
         return make_succ_response({
+            'rule_supervision_id': supervision_id,
             'status': new_status,
-            'message': f'已{status_text}邀请'
+            'status_name': updated_supervision.status_name,
+            'message': message
         })
         
     except Exception as e:
         app.logger.error(f"respond_invitation error: {str(e)}")
-        return make_err_response("响应失败")
+        return make_err_response(msg="响应失败")
 
 
 @app.route('/api/rules/supervision/list', methods=['GET'])
@@ -510,15 +541,20 @@ def get_rule_supervisions_api(decoded):
     try:
         rule_id = request.args.get('rule_id')
         if not rule_id:
-            return make_err_response("规则ID不能为空")
+            return make_err_response(msg="规则ID不能为空")
+        
+        # 获取当前用户ID
+        current_user_id = decoded.get('user_id')
+        if not current_user_id:
+            return make_err_response(msg="无效的token：缺少用户ID")
         
         # 验证权限：只有规则创建者可以查看监护关系
         rule = CheckinRule.query.filter_by(rule_id=rule_id).first()
         if not rule:
-            return make_err_response("打卡规则不存在")
+            return make_err_response(msg="打卡规则不存在")
         
-        if rule.solo_user_id != g.current_user.user_id:
-            return make_err_response("无权限查看此规则的监护关系")
+        if rule.solo_user_id != current_user_id:
+            return make_err_response(msg="无权限查看此规则的监护关系")
         
         supervisions = get_rule_supervisions(rule_id)
         
@@ -542,7 +578,7 @@ def get_rule_supervisions_api(decoded):
         
     except Exception as e:
         app.logger.error(f"get_rule_supervisions_api error: {str(e)}")
-        return make_err_response("获取监护关系列表失败")
+        return make_err_response(msg="获取监护关系列表失败")
 
 
 @app.route('/api/supervisor/rules', methods=['GET'])
@@ -552,11 +588,21 @@ def get_supervisor_rules(decoded):
     获取监护人负责的所有规则
     """
     try:
-        # 验证用户是监护人
-        if not g.current_user.is_supervisor:
-            return make_err_response("您不是监护人")
+        # 获取当前用户ID
+        current_user_id = decoded.get('user_id')
+        if not current_user_id:
+            return make_err_response(msg="无效的token：缺少用户ID")
         
-        supervised_rules = get_supervisor_active_rules(g.current_user.user_id)
+        # 查询用户信息
+        user = User.query.filter_by(user_id=current_user_id).first()
+        if not user:
+            return make_err_response(msg="用户不存在")
+        
+        # 验证用户是监护人
+        if not user.is_supervisor:
+            return make_err_response(msg="您不是监护人")
+        
+        supervised_rules = get_supervisor_active_rules(current_user_id)
         
         return make_succ_response({
             'supervised_rules': supervised_rules
@@ -564,7 +610,7 @@ def get_supervisor_rules(decoded):
         
     except Exception as e:
         app.logger.error(f"get_supervisor_rules error: {str(e)}")
-        return make_err_response("获取监护规则失败")
+        return make_err_response(msg="获取监护规则失败")
 
 
 # ==================== 手机认证相关API ====================
@@ -581,7 +627,7 @@ def send_sms():
         phone = data.get('phone', '').strip()
         
         if not phone:
-            return make_err_response("手机号码不能为空")
+            return make_err_response(msg="手机号码不能为空")
         
         phone_auth_service = get_phone_auth_service()
         success, message, code = phone_auth_service.send_verification_code(phone)
@@ -593,11 +639,11 @@ def send_sms():
                 response_data['verification_code'] = code
             return make_succ_response(response_data)
         else:
-            return make_err_response(message)
+            return make_err_response(msg=message)
             
     except Exception as e:
         app.logger.error(f"send_sms error: {str(e)}")
-        return make_err_response("发送验证码失败")
+        return make_err_response(msg="发送验证码失败")
 
 
 @app.route('/api/login_phone', methods=['POST'])
@@ -617,32 +663,32 @@ def login_phone():
         login_type = data.get('login_type', 'sms')
         
         if not phone:
-            return make_err_response("手机号码不能为空")
+            return make_err_response(msg="手机号码不能为空")
         
         if login_type not in ['password', 'sms']:
-            return make_err_response("登录类型无效")
+            return make_err_response(msg="登录类型无效")
         
         phone_auth_service = get_phone_auth_service()
         
         if login_type == 'password':
             password = data.get('password', '')
             if not password:
-                return make_err_response("密码不能为空")
+                return make_err_response(msg="密码不能为空")
             success, message, user_info = phone_auth_service.login_with_password(phone, password)
         else:  # sms login
             code = data.get('code', '')
             if not code:
-                return make_err_response("验证码不能为空")
+                return make_err_response(msg="验证码不能为空")
             success, message, user_info = phone_auth_service.login_with_sms(phone, code)
         
         if success:
             return make_succ_response(user_info)
         else:
-            return make_err_response(message)
+            return make_err_response(msg=message)
             
     except Exception as e:
         app.logger.error(f"login_phone error: {str(e)}")
-        return make_err_response("登录失败")
+        return make_err_response(msg="登录失败")
 
 
 @app.route('/api/register_phone', methods=['POST'])
@@ -663,7 +709,7 @@ def register_phone():
         avatar_url = data.get('avatar_url', '').strip()
         
         if not phone or not code:
-            return make_err_response("手机号码和验证码不能为空")
+            return make_err_response(msg="手机号码和验证码不能为空")
         
         phone_auth_service = get_phone_auth_service()
         success, message, user_info = phone_auth_service.verify_code_and_register(
@@ -673,11 +719,11 @@ def register_phone():
         if success:
             return make_succ_response(user_info)
         else:
-            return make_err_response(message)
+            return make_err_response(msg=message)
             
     except Exception as e:
         app.logger.error(f"register_phone error: {str(e)}")
-        return make_err_response("注册失败")
+        return make_err_response(msg="注册失败")
 
 
 @app.route('/api/set_password', methods=['POST'])
@@ -693,21 +739,26 @@ def set_password(decoded):
         password = data.get('password', '').strip()
         
         if not password:
-            return make_err_response("密码不能为空")
+            return make_err_response(msg="密码不能为空")
         
         if len(password) < 8:
-            return make_err_response("密码长度至少8位")
+            return make_err_response(msg="密码长度至少8位")
+        
+        # 获取当前用户ID
+        current_user_id = decoded.get('user_id')
+        if not current_user_id:
+            return make_err_response(msg="无效的token：缺少用户ID")
         
         phone_auth_service = get_phone_auth_service()
-        success, message = phone_auth_service.set_password(g.current_user.user_id, password)
+        success, message = phone_auth_service.set_password(current_user_id, password)
         
         if success:
             return make_succ_response({'message': message})
         else:
-            return make_err_response(message)
+            return make_err_response(msg=message)
             
     except Exception as e:
         app.logger.error(f"set_password error: {str(e)}")
-        return make_err_response("设置密码失败")
+        return make_err_response(msg="设置密码失败")
 
 

@@ -46,7 +46,7 @@ class BaseController:
 
         if not token:
             logging.warning('请求中缺少token参数')
-            return None, make_err_response({}, '缺少token参数')
+            return None, make_err_response(data={}, msg='缺少token参数')
 
         try:
             import config
@@ -66,13 +66,13 @@ class BaseController:
             
             if not openid and not user_id:
                 logging.error('解码后的token中未找到openid或user_id')
-                return None, make_err_response({}, 'token无效')
+                return None, make_err_response(data={}, msg='token无效')
 
             return decoded, None
         except jwt.ExpiredSignatureError:
-            return None, make_err_response({}, 'token已过期')
+            return None, make_err_response(data={}, msg='token已过期')
         except jwt.InvalidSignatureError:
-            return None, make_err_response({}, 'token签名无效')
+            return None, make_err_response(data={}, msg='token签名无效')
         except jwt.DecodeError as e:
             logging.error(f'token解码失败: {str(e)}')
             logging.error(f'尝试解码的token (前50字符): {token[:50] if token else "None"}')
@@ -82,12 +82,12 @@ class BaseController:
                 logging.error(f'token段数: {len(token_parts)}')
                 for i, part in enumerate(token_parts):
                     logging.error(f'第{i+1}段长度: {len(part)}')
-            return None, make_err_response({}, 'token格式错误')
+            return None, make_err_response(data={}, msg='token格式错误')
         except jwt.InvalidTokenError:
-            return None, make_err_response({}, 'token无效')
+            return None, make_err_response(data={}, msg='token无效')
         except Exception as e:
             logging.error(f'JWT验证时发生错误: {str(e)}', exc_info=True)
-            return None, make_err_response({}, f'JWT验证失败: {str(e)}')
+            return None, make_err_response(data={}, msg=f'JWT验证失败: {str(e)}')
 
 
 def login_required(f):
@@ -129,11 +129,11 @@ def permission_required(permission):
                 user = query_user_by_id(user_id)
 
             if not user:
-                return make_err_response({}, '用户不存在')
+                return make_err_response(data={}, msg='用户不存在')
 
             # 检查权限
             if not user.has_permission(permission):
-                return make_err_response({}, '权限不足')
+                return make_err_response(data={}, msg='权限不足')
 
             # 将解码后的用户信息和用户对象传递给被装饰的函数
             return f(decoded, user, *args, **kwargs)
@@ -181,14 +181,14 @@ class UserController:
             params = request.get_json()
             if not params:
                 app_logger.warning('登录请求缺少请求体参数')
-                return make_err_response({},'缺少请求体参数')
+                return make_err_response(data={}, msg='缺少请求体参数')
 
             app_logger.info('成功获取请求参数，开始检查code参数')
 
             code = params.get('code')
             if not code:
                 app_logger.warning('登录请求缺少code参数')
-                return make_err_response({},'缺少code参数')
+                return make_err_response(data={}, msg='缺少code参数')
 
             # 打印code用于调试
             app_logger.info(f'获取到的code: {code}')
@@ -222,7 +222,7 @@ class UserController:
             # 检查微信API返回的错误
             if 'errcode' in wx_data:
                 app_logger.error(f'微信API返回错误 - errcode: {wx_data.get("errcode")}, errmsg: {wx_data.get("errmsg")}')
-                return make_err_response({}, f'微信API错误: {wx_data.get("errmsg", "未知错误")}')
+                return make_err_response(data={}, msg=f'微信API错误: {wx_data.get("errmsg", "未知错误")}')
 
             # 获取openid和session_key
             app_logger.info('正在从微信API响应中提取openid和session_key')
@@ -234,7 +234,7 @@ class UserController:
 
             if not openid or not session_key:
                 app_logger.error(f'微信API返回数据不完整 - openid存在: {bool(openid)}, session_key存在: {bool(session_key)}')
-                return make_err_response({}, '微信API返回数据不完整')
+                return make_err_response(data={}, msg='微信API返回数据不完整')
 
             app_logger.info('成功获取openid和session_key，开始查询数据库中的用户信息')
 
@@ -308,16 +308,16 @@ class UserController:
 
         except requests.exceptions.Timeout as e:
             app_logger.error(f'请求微信API超时: {str(e)}')
-            return make_err_response({}, f'调用微信API超时: {str(e)}')
+            return make_err_response(data={}, msg=f'调用微信API超时: {str(e)}')
         except requests.exceptions.RequestException as e:
             app_logger.error(f'请求微信API时发生网络错误: {str(e)}')
-            return make_err_response({}, f'调用微信API失败: {str(e)}')
+            return make_err_response(data={}, msg=f'调用微信API失败: {str(e)}')
         except jwt.PyJWTError as e:
             app_logger.error(f'JWT处理错误: {str(e)}')
-            return make_err_response({}, f'JWT处理失败: {str(e)}')
+            return make_err_response(data={}, msg=f'JWT处理失败: {str(e)}')
         except Exception as e:
             app_logger.error(f'登录过程中发生未预期的错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'登录失败: {str(e)}')
+            return make_err_response(data={}, msg=f'登录失败: {str(e)}')
 
         app_logger.info('登录流程完成，开始构造响应数据')
 
@@ -368,19 +368,39 @@ class UserController:
             app_logger.info(f'解析后的请求体参数: {params}')
 
             openid = decoded.get('openid')
-
-            if not openid:
-                app_logger.error('解码后的token中未找到openid')
-                return make_err_response({}, 'token无效')
+            user_id = decoded.get('user_id')
+            
+            # 根据token类型获取用户信息
+            user = None
+            
+            # 优先使用 openid 查询（微信登录）
+            if openid:
+                app_logger.info(f'使用openid查询用户信息: {openid}')
+                user = self.user_service.get_user_by_openid(openid)
+                
+                # 如果同时存在 user_id，验证一致性
+                if user and user_id and user.user_id != user_id:
+                    app_logger.warning(f'Token中openid和user_id不匹配: openid={openid}, user_id={user_id}, 实际user_id={user.user_id}')
+                    # 为了安全，返回错误而不是使用不匹配的数据
+                    return make_err_response(data={}, msg='Token信息不一致')
+            
+            # 如果没有 openid 或 openid 查询失败，尝试使用 user_id
+            elif user_id:
+                app_logger.info(f'使用user_id查询用户信息: {user_id}')
+                user = self.user_service.get_user_by_id(user_id)
+            
+            if not user:
+                if openid:
+                    app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
+                elif user_id:
+                    app_logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
+                else:
+                    app_logger.error('Token中既没有openid也没有user_id')
+                return make_err_response(data={}, msg='用户不存在')
 
             # 根据HTTP方法决定操作
             if request.method == 'GET':
-                app_logger.info(f'GET请求 - 查询用户信息，openid: {openid}')
-                # 查询用户信息
-                user = self.user_service.get_user_by_openid(openid)
-                if not user:
-                    app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-                    return make_err_response({}, '用户不存在')
+                app_logger.info(f'GET请求 - 查询用户信息，用户ID: {user.user_id}')
 
                 # 返回用户信息
                 user_data = {
@@ -389,9 +409,11 @@ class UserController:
                     'phone_number': user.phone_number,
                     'nickname': user.nickname,
                     'avatar_url': user.avatar_url,
-                    'role': user.role_name,  # 返回字符串形式的角色名
+                    'role': user.role,  # 返回整数形式的角色值
+                    'role_name': user.role_name,  # 返回字符串形式的角色名
                     'community_id': user.community_id,
-                    'status': user.status_name,  # 返回字符串形式的状态名
+                    'status': user.status,  # 返回整数形式的状态值
+                    'status_name': user.status_name,  # 返回字符串形式的状态名
                     'is_verified': user.verification_status == 2  # 返回验证状态（仅对社区工作人员有意义）
                 }
 
@@ -399,12 +421,8 @@ class UserController:
                 return make_succ_response(user_data)
 
             elif request.method == 'POST':
-                app_logger.info(f'POST请求 - 更新用户信息，openid: {openid}')
-                # 查询用户
-                user = self.user_service.get_user_by_openid(openid)
-                if not user:
-                    app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-                    return make_err_response({}, '用户不存在')
+                app_logger.info(f'POST请求 - 更新用户信息，用户ID: {user.user_id}')
+                # 用户已经在上面查询过了
 
                 # 获取可更新的用户信息（只更新非空字段）
                 nickname = params.get('nickname')
@@ -446,14 +464,14 @@ class UserController:
 
         except jwt.ExpiredSignatureError as e:
             app_logger.error(f'token已过期: {str(e)}')
-            return make_err_response({}, 'token已过期')
+            return make_err_response(data={}, msg='token已过期')
         except jwt.InvalidSignatureError as e:
             error_subclass = type(e).__name__
             app_logger.error(f"❌  InvalidSignatureError 实际异常子类：{error_subclass}")
             app_logger.error(f"InvalidSignatureError 详细描述：{str(e)}")
             app_logger.error(f'token签名验证失败: {str(e)}')
             app_logger.error('可能原因：TOKEN_SECRET配置不一致、token被篡改或格式错误')
-            return make_err_response({}, 'token签名无效')
+            return make_err_response(data={}, msg='token签名无效')
         except jwt.DecodeError as e:
             # 捕获更详细的 DecodeError 的子类错误，打印详细信息
             # 关键代码：获取实际子类名称
@@ -482,13 +500,13 @@ class UserController:
                         app_logger.info(f'token header解码成功: {header_decoded.decode("utf-8")}')
                     except Exception as decode_err:
                         app_logger.error(f'token header解码失败: {str(decode_err)}')
-            return make_err_response({}, 'token格式错误')
+            return make_err_response(data={}, msg='token格式错误')
         except jwt.InvalidTokenError as e:
             app_logger.error(f'token无效: {str(e)}')
-            return make_err_response({}, 'token无效')
+            return make_err_response(data={}, msg='token无效')
         except Exception as e:
             app_logger.error(f'JWT处理时发生未知错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'JWT处理失败: {str(e)}')
+            return make_err_response(data={}, msg=f'JWT处理失败: {str(e)}')
 
         app_logger.info('=== 用户信息接口执行完成 ===')
 
@@ -505,12 +523,12 @@ class UserController:
             params = request.get_json()
             if not params:
                 app_logger.warning('刷新Token请求缺少请求体参数')
-                return make_err_response({}, '缺少请求体参数')
+                return make_err_response(data={}, msg='缺少请求体参数')
 
             refresh_token = params.get('refresh_token')
             if not refresh_token:
                 app_logger.warning('刷新Token请求缺少refresh_token参数')
-                return make_err_response({}, '缺少refresh_token参数')
+                return make_err_response(data={}, msg='缺少refresh_token参数')
 
             app_logger.info('开始验证refresh token...')
 
@@ -521,10 +539,10 @@ class UserController:
 
         except ValueError as e:
             app_logger.error(f'刷新token时发生错误: {str(e)}')
-            return make_err_response({}, str(e))
+            return make_err_response(data={}, msg=str(e))
         except Exception as e:
             app_logger.error(f'刷新Token过程中发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'刷新Token失败: {str(e)}')
+            return make_err_response(data={}, msg=f'刷新Token失败: {str(e)}')
 
     def logout(self, decoded: dict):
         """
@@ -537,7 +555,7 @@ class UserController:
         try:
             openid = decoded.get('openid')
             if not openid:
-                return make_err_response({}, 'token无效')
+                return make_err_response(data={}, msg='token无效')
 
             result = self.auth_service.logout(openid)
 
@@ -546,7 +564,7 @@ class UserController:
 
         except Exception as e:
             app_logger.error(f'登出过程中发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'登出失败: {str(e)}')
+            return make_err_response(data={}, msg=f'登出失败: {str(e)}')
 
 
 class CheckinController:
@@ -570,7 +588,7 @@ class CheckinController:
         user = self.user_service.get_user_by_openid(openid)
         if not user:
             app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-            return make_err_response({}, '用户不存在')
+            return make_err_response(data={}, msg='用户不存在')
 
         try:
             checkin_items = self.checkin_record_service.get_today_checkin_items(user.user_id)
@@ -586,7 +604,7 @@ class CheckinController:
 
         except Exception as e:
             app_logger.error(f'获取今日打卡事项时发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'获取今日打卡事项失败: {str(e)}')
+            return make_err_response(data={}, msg=f'获取今日打卡事项失败: {str(e)}')
 
     def perform_checkin(self, decoded: Dict[str, Any]):
         """
@@ -600,7 +618,7 @@ class CheckinController:
         user = self.user_service.get_user_by_openid(openid)
         if not user:
             app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-            return make_err_response({}, '用户不存在')
+            return make_err_response(data={}, msg='用户不存在')
 
         try:
             # 获取请求参数
@@ -608,7 +626,7 @@ class CheckinController:
             rule_id = params.get('rule_id')
 
             if not rule_id:
-                return make_err_response({}, '缺少rule_id参数')
+                return make_err_response(data={}, msg='缺少rule_id参数')
 
             result = self.checkin_record_service.perform_checkin(rule_id, user.user_id)
 
@@ -616,10 +634,10 @@ class CheckinController:
             return make_succ_response(result)
 
         except ValueError as e:
-            return make_err_response({}, str(e))
+            return make_err_response(data={}, msg=str(e))
         except Exception as e:
             app_logger.error(f'打卡时发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'打卡失败: {str(e)}')
+            return make_err_response(data={}, msg=f'打卡失败: {str(e)}')
 
     def cancel_checkin(self, decoded: Dict[str, Any]):
         """
@@ -633,7 +651,7 @@ class CheckinController:
         user = self.user_service.get_user_by_openid(openid)
         if not user:
             app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-            return make_err_response({}, '用户不存在')
+            return make_err_response(data={}, msg='用户不存在')
 
         try:
             # 获取请求参数
@@ -641,7 +659,7 @@ class CheckinController:
             record_id = params.get('record_id')
 
             if not record_id:
-                return make_err_response({}, '缺少record_id参数')
+                return make_err_response(data={}, msg='缺少record_id参数')
 
             result = self.checkin_record_service.cancel_checkin(record_id, user.user_id)
 
@@ -649,10 +667,10 @@ class CheckinController:
             return make_succ_response(result)
 
         except ValueError as e:
-            return make_err_response({}, str(e))
+            return make_err_response(data={}, msg=str(e))
         except Exception as e:
             app_logger.error(f'撤销打卡时发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'撤销打卡失败: {str(e)}')
+            return make_err_response(data={}, msg=f'撤销打卡失败: {str(e)}')
 
     def get_checkin_history(self, decoded: Dict[str, Any]):
         """
@@ -667,7 +685,7 @@ class CheckinController:
         user = self.user_service.get_user_by_openid(openid)
         if not user:
             app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-            return make_err_response({}, '用户不存在')
+            return make_err_response(data={}, msg='用户不存在')
 
         try:
             # 获取查询参数
@@ -692,7 +710,7 @@ class CheckinController:
 
         except Exception as e:
             app_logger.error(f'获取打卡历史时发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'获取打卡历史失败: {str(e)}')
+            return make_err_response(data={}, msg=f'获取打卡历史失败: {str(e)}')
 
     def manage_checkin_rules(self, decoded: Dict[str, Any]):
         """
@@ -707,7 +725,7 @@ class CheckinController:
         user = self.user_service.get_user_by_openid(openid)
         if not user:
             app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-            return make_err_response({}, '用户不存在')
+            return make_err_response(data={}, msg='用户不存在')
 
         try:
             if request.method == 'GET':
@@ -742,7 +760,7 @@ class CheckinController:
 
                 rule_name = params.get('rule_name')
                 if not rule_name:
-                    return make_err_response({}, '缺少rule_name参数')
+                    return make_err_response(data={}, msg='缺少rule_name参数')
 
                 # 创建新的打卡规则
                 new_rule = self.checkin_rule_service.create_rule(user.user_id, params)
@@ -771,12 +789,12 @@ class CheckinController:
 
                 rule_id = params.get('rule_id')
                 if not rule_id:
-                    return make_err_response({}, '缺少rule_id参数')
+                    return make_err_response(data={}, msg='缺少rule_id参数')
 
                 # 验证规则是否存在且属于当前用户
                 rule = self.checkin_rule_service.get_rule_by_id(rule_id)
                 if not rule or rule.solo_user_id != user.user_id:
-                    return make_err_response({}, '打卡规则不存在或无权限')
+                    return make_err_response(data={}, msg='打卡规则不存在或无权限')
 
                 # 更新规则
                 updated_rule = self.checkin_rule_service.update_rule(rule, params)
@@ -795,12 +813,12 @@ class CheckinController:
 
                 rule_id = params.get('rule_id')
                 if not rule_id:
-                    return make_err_response({}, '缺少rule_id参数')
+                    return make_err_response(data={}, msg='缺少rule_id参数')
 
                 # 验证规则是否存在且属于当前用户
                 rule = self.checkin_rule_service.get_rule_by_id(rule_id)
                 if not rule or rule.solo_user_id != user.user_id:
-                    return make_err_response({}, '打卡规则不存在或无权限')
+                    return make_err_response(data={}, msg='打卡规则不存在或无权限')
 
                 self.checkin_rule_service.delete_rule(rule_id)
 
@@ -814,7 +832,7 @@ class CheckinController:
 
         except Exception as e:
             app_logger.error(f'打卡规则管理时发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'打卡规则管理失败: {str(e)}')
+            return make_err_response(data={}, msg=f'打卡规则管理失败: {str(e)}')
 
 
 class CommunityController:
@@ -837,7 +855,7 @@ class CommunityController:
         user = self.user_service.get_user_by_openid(openid)
         if not user:
             app_logger.error(f'数据库中未找到openid为 {openid} 的用户')
-            return make_err_response({}, '用户不存在')
+            return make_err_response(data={}, msg='用户不存在')
 
         try:
             # 获取请求参数
@@ -847,7 +865,7 @@ class CommunityController:
             work_proof = params.get('workProof')  # 工作证明照片URL或base64
 
             if not name or not work_id or not work_proof:
-                return make_err_response({}, '缺少必要参数：姓名、工号或工作证明')
+                return make_err_response(data={}, msg='缺少必要参数：姓名、工号或工作证明')
 
             result = self.user_service.verify_community_user(user, name, work_id, work_proof)
 
@@ -856,4 +874,4 @@ class CommunityController:
 
         except Exception as e:
             app_logger.error(f'身份验证时发生错误: {str(e)}', exc_info=True)
-            return make_err_response({}, f'身份验证失败: {str(e)}')
+            return make_err_response(data={}, msg=f'身份验证失败: {str(e)}')

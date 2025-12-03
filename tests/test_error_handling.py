@@ -5,7 +5,7 @@ def test_count_missing_action(client):
     assert response.status_code == 200
     data = response.get_json()
     assert data['code'] == 0  # Error response code is 0 based on response.py
-    assert '缺少action参数' in data['data']  # Error message is in data field, not msg
+    assert '缺少action参数' in data['msg']  # Error message is in msg field
 
 
 def test_count_invalid_action(client):
@@ -14,4 +14,4 @@ def test_count_invalid_action(client):
     assert response.status_code == 200
     data = response.get_json()
     assert data['code'] == 0  # Error response code is 0 based on response.py
-    assert 'action参数错误' in data['data']  # Error message is in data field, not msg
+    assert 'action参数错误' in data['msg']  # Error message is in msg field

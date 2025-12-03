@@ -66,7 +66,7 @@ class User(db.Model):
     # 索引
     __table_args__ = (
         db.Index('idx_openid', 'wechat_openid'),  # 微信OpenID索引，支持快速登录查询
-        db.Index('idx_phone', 'phone_number'),    # 手机号索引，支持手机号登录
+        db.Index('idx_phone_number', 'phone_number'),    # 手机号索引，支持手机号登录
         db.Index('idx_role', 'role'),             # 角色索引，支持按角色查询
     )
 
@@ -77,8 +77,14 @@ class User(db.Model):
         3: 'community'
     }
 
-    # 状态映射
-    STATUS_MAPPING = {
+    # 用户状态映射
+    USER_STATUS_MAPPING = {
+        1: 'normal',
+        2: 'disabled'
+    }
+    
+    # 验证状态映射
+    VERIFICATION_STATUS_MAPPING = {
         0: 'not_applied',
         1: 'pending',
         2: 'verified',
@@ -100,7 +106,7 @@ class User(db.Model):
     @property
     def status_name(self):
         """获取状态名称"""
-        return self.STATUS_MAPPING.get(self.status, 'unknown')
+        return self.USER_STATUS_MAPPING.get(self.status, 'unknown')
 
     @property
     def has_supervisor_features(self):
@@ -177,7 +183,7 @@ class User(db.Model):
     @classmethod
     def get_status_value(cls, status_name):
         """根据状态名称获取状态值"""
-        for value, name in cls.STATUS_MAPPING.items():
+        for value, name in cls.USER_STATUS_MAPPING.items():
             if name == status_name:
                 return value
         return None
@@ -386,7 +392,7 @@ class PhoneAuth(db.Model):
 
     # 索引
     __table_args__ = (
-        db.Index('idx_phone_number', 'phone_number'),
+        db.Index('idx_phone_auth_number', 'phone_number'),  # Changed to avoid conflict
         db.Index('idx_user_id', 'user_id'),
         db.Index('idx_is_verified', 'is_verified'),
     )
@@ -417,9 +423,9 @@ class SMSVerificationCode(db.Model):
     
     # 索引
     __table_args__ = (
-        db.Index('idx_phone_code', 'phone_number', 'code'),
+        db.Index('idx_sms_phone_code', 'phone_number', 'code'),
         db.Index('idx_expires_at', 'expires_at'),
-        db.Index('idx_phone_number', 'phone_number'),
+        db.Index('idx_sms_phone_number', 'phone_number'),  # Changed to avoid conflict
         {
             'mysql_charset': 'utf8mb4',
             'mysql_collate': 'utf8mb4_unicode_ci'

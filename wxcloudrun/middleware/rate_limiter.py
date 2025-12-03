@@ -206,16 +206,32 @@ def get_rate_limiter() -> RateLimiter:
     if _rate_limiter is None:
         # 初始化Redis客户端
         try:
-            redis_host = os.getenv('REDIS_HOST', 'localhost')
-            redis_port = int(os.getenv('REDIS_PORT', 6379))
-            redis_db = int(os.getenv('REDIS_DB', 0))
-            redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
-            # 测试连接
-            redis_client.ping()
+            # 检查是否为测试环境
+            is_testing = os.environ.get('USE_SQLITE_FOR_TESTING', '').lower() == 'true' or \
+                       os.environ.get('FLASK_ENV') == 'testing' or \
+                       'PYTEST_CURRENT_TEST' in os.environ
+
+            if is_testing:
+                # 测试环境使用fakeredis
+                try:
+                    import fakeredis
+                    redis_client = fakeredis.FakeRedis(decode_responses=True)
+                    redis_client.ping()  # 测试连接
+                except ImportError:
+                    logger.warning("fakeredis未安装，测试环境速率限制功能将不可用")
+                    redis_client = None
+            else:
+                # 生产环境使用真实Redis
+                redis_host = os.getenv('REDIS_HOST', 'localhost')
+                redis_port = int(os.getenv('REDIS_PORT', 6379))
+                redis_db = int(os.getenv('REDIS_DB', 0))
+                redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
+                # 测试连接
+                redis_client.ping()
         except:
             logger.warning("Redis连接失败，速率限制功能将不可用")
             redis_client = None
-            
+
         _rate_limiter = RateLimiter(redis_client)
     return _rate_limiter
 
@@ -226,16 +242,32 @@ def get_sms_rate_limiter() -> SMRateLimiter:
     if _sms_rate_limiter is None:
         # 初始化Redis客户端
         try:
-            redis_host = os.getenv('REDIS_HOST', 'localhost')
-            redis_port = int(os.getenv('REDIS_PORT', 6379))
-            redis_db = int(os.getenv('REDIS_DB', 0))
-            redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
-            # 测试连接
-            redis_client.ping()
+            # 检查是否为测试环境
+            is_testing = os.environ.get('USE_SQLITE_FOR_TESTING', '').lower() == 'true' or \
+                       os.environ.get('FLASK_ENV') == 'testing' or \
+                       'PYTEST_CURRENT_TEST' in os.environ
+
+            if is_testing:
+                # 测试环境使用fakeredis
+                try:
+                    import fakeredis
+                    redis_client = fakeredis.FakeRedis(decode_responses=True)
+                    redis_client.ping()  # 测试连接
+                except ImportError:
+                    logger.warning("fakeredis未安装，测试环境短信速率限制功能将不可用")
+                    redis_client = None
+            else:
+                # 生产环境使用真实Redis
+                redis_host = os.getenv('REDIS_HOST', 'localhost')
+                redis_port = int(os.getenv('REDIS_PORT', 6379))
+                redis_db = int(os.getenv('REDIS_DB', 0))
+                redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
+                # 测试连接
+                redis_client.ping()
         except:
             logger.warning("Redis连接失败，短信速率限制功能将不可用")
             redis_client = None
-            
+
         _sms_rate_limiter = SMRateLimiter(redis_client)
     return _sms_rate_limiter
 
