@@ -27,7 +27,7 @@ DATABASE_NAME = 'flask_demo'
 
 def wait_for_mysql():
     """等待MySQL服务启动"""
-    max_retries = 60
+    max_retries = 120
     retry_count = 0
     
     while retry_count < max_retries:
