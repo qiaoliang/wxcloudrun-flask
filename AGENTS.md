@@ -175,7 +175,7 @@ cd ~/working/code/safeGuard/backend
 source venv_py312/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-test.txt
-python scripts/unit_tests.py
+pytest tests/unit/
 ```
 
 ### 运行后台集成测试
@@ -186,7 +186,7 @@ source venv_py312/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-test.txt
 # 运行后台集成测试
-python scripts/function_tests.py
+pytest tests/integration/
 ```
 
 ### 在本地运行所有的自动化测试
@@ -196,7 +196,8 @@ cd ~/working/code/safeGuard/backend
 source venv_py312/bin/activate
 pip install -r requirements.txt
 pip install -r requirements-test.txt
-pytest scripts/run_tests.py
+pytest tests/unit/
+pytest tests/integration/
 ```
 
 ### 数据库迁移

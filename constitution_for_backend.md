@@ -76,14 +76,14 @@
 1. 使用下面的命令运行完整的单元测试用例集：
 
 ```bash
-python scripts/unit_tests.py
+pytest tests/unit/
 ```
 
 2. 当需要生成测试覆盖率报告时，使用下面的命令：
 
 ```bash
 # 生成覆盖率报告
-python scripts/unit_tests.py --coverage
+pytest tests/unit/ --cov=wxcloudrun --cov-report=html
 ```
 
 1. 执行单个测试模块和用例（同样需要满足前置条件）
@@ -91,10 +91,10 @@ python scripts/unit_tests.py --coverage
 ```bash
 
 # 执行单个测试模块（例如：test_models.py）
-python -m pytest tests/test_models.py -v
+python -m pytest tests/unit/test_models.py -v
 
 # 执行单个测试模块中的某个特定的测试用例（例如：test_models.py 中的 test_user_exists 函数）
-python -m pytest tests/test_models.py::test_user_exists -v
+python -m pytest tests/unit/test_models.py::test_user_exists -v
 
 ```
 
@@ -115,7 +115,7 @@ python -m pytest tests/test_models.py::test_user_exists -v
 1. 运行完整的功能集成测试集的所有测试用例。
 
 ```bash
-python scripts/function_test.py
+pytest tests/integration/
 ```
 
 ## 部署配置

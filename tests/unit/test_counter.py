@@ -61,3 +61,12 @@ def test_invalid_action(client):
     data = response.get_json()
     # 无效的action参数应该返回错误码0
     assert data['code'] == 0
+
+def test_fixture_usage(sample_counter_data):
+    """测试：使用 counter_fixture 提供的简单数据"""
+    # 验证 fixture 返回的字典结构是否正确
+    assert 'id' in sample_counter_data
+    assert 'count' in sample_counter_data
+    # 验证具体数值是否符合预期
+    assert sample_counter_data['id'] == 1
+    assert sample_counter_data['count'] == 50
