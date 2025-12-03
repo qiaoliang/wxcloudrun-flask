@@ -13,7 +13,7 @@ def is_docker_available():
                               stdout=subprocess.PIPE,
                               stderr=subprocess.PIPE,
                               check=True)
-        return True
+        return result
     except (subprocess.CalledProcessError, FileNotFoundError):
         return False
 
@@ -54,7 +54,6 @@ def docker_services():
     在整个测试会话开始时启动 Docker 服务，并在会话结束时关闭。
     """
     print("\n--- 启动 Docker Compose 服务... ---")
-    # 启动 docker-compose.dev.yml (使用正确的配置文件)
     subprocess.run(["docker-compose", "-f", "docker-compose.dev.yml", "up", "-d"], check=True)
 
     # 【关键步骤】等待服务启动和健康检查通过
