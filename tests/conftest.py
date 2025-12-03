@@ -7,7 +7,6 @@ import pytest
 from typing import Generator
 
 # 在导入应用前设置测试环境变量
-os.environ['USE_SQLITE_FOR_TESTING'] = 'true'
 os.environ['PYTEST_CURRENT_TEST'] = '1'
 os.environ['FLASK_ENV'] = 'testing'
 os.environ['AUTO_RUN_MIGRATIONS'] = 'false'
@@ -24,16 +23,16 @@ def docker_compose_env() -> Generator[str, None, None]:
     """
     # 检查是否需要运行 Docker 集成测试
     run_docker_integration_tests = os.environ.get("RUN_DOCKER_INTEGRATION_TESTS", "false").lower() == "true"
-    
+
     if not run_docker_integration_tests:
         # 如果不需要运行 Docker 集成测试，跳过 Docker 启动
         yield "http://localhost:8080"
         return
-    
+
     # 检查 docker-compose 文件是否存在
     if not os.path.exists("docker-compose.dev.yml"):
         pytest.skip("docker-compose.dev.yml 文件不存在，跳过集成测试")
-    
+
     # 设置环境变量
     env_vars = {
         "MYSQL_PASSWORD": os.environ.get("MYSQL_PASSWORD", "rootpassword"),
@@ -42,42 +41,42 @@ def docker_compose_env() -> Generator[str, None, None]:
         "TOKEN_SECRET": "42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f",
         "DOCKER_STARTUP_TIMEOUT": os.environ.get("DOCKER_STARTUP_TIMEOUT", "180")
     }
-    
+
     # 创建临时的 .env 文件
     env_content = "\n".join([f"{k}={v}" for k, v in env_vars.items()])
     with open(".env.test", "w") as f:
         f.write(env_content)
-    
+
     try:
         # 停止可能存在的服务
         subprocess.run([
             "docker-compose", "-f", "docker-compose.dev.yml", "down", "--remove-orphans"
         ], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
+
         # 启动开发环境
         compose_process = subprocess.Popen([
             "docker-compose", "-f", "docker-compose.dev.yml", "up", "--build", "-d"
         ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
+
         # 获取Docker启动超时时间
         timeout = int(os.environ.get("DOCKER_STARTUP_TIMEOUT", "180"))
-        
+
         # 等待服务启动
         base_url = "http://localhost:8080"
         if not wait_for_service(f"{base_url}/", timeout=timeout):
             raise RuntimeError("服务启动超时")
-        
+
         # 等待 MySQL 服务完全准备就绪
         time.sleep(15)
-        
+
         yield base_url  # 提供服务 URL 给测试用例
-        
+
     finally:
         # 清理：停止 docker-compose 服务
         subprocess.run([
             "docker-compose", "-f", "docker-compose.dev.yml", "down", "--remove-orphans"
         ], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        
+
         # 删除临时 .env 文件
         if os.path.exists(".env.test"):
             os.remove(".env.test")
@@ -108,7 +107,7 @@ def client():
     app = original_app
     app.config['TESTING'] = True
     app.config['WTF_CSRF_ENABLED'] = False  # Disable CSRF for testing
-    
+
     with app.test_client() as client:
         with app.app_context():
             db.create_all()
@@ -123,7 +122,7 @@ def client():
 def setup_test_data(client):
     """设置测试数据"""
     app = original_app
-    
+
     # 创建测试用户
     users = [
         User(
@@ -183,12 +182,12 @@ def setup_test_data(client):
             auth_type='phone'
         )
     ]
-    
+
     for user in users:
         db.session.add(user)
-    
+
     db.session.commit()
-    
+
     # 创建测试打卡规则
     from datetime import time
     rules = [
@@ -213,12 +212,12 @@ def setup_test_data(client):
             status=1
         )
     ]
-    
+
     for rule in rules:
         db.session.add(rule)
-    
+
     db.session.commit()
-    
+
     # 创建监护关系邀请（包括测试中要使用的主要关系）
     invitations = [
         # 用于测试接受邀请 - rule_supervision_id = 1
@@ -249,14 +248,14 @@ def setup_test_data(client):
             invited_by_user_id=users[2].user_id
         )
     ]
-    
+
     for invitation in invitations:
         db.session.add(invitation)
-    
+
     db.session.commit()
-    
+
     yield users, rules, invitations
-    
+
     # 清理测试数据
     with app.app_context():
         RuleSupervision.query.delete()

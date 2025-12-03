@@ -80,7 +80,7 @@
 ### 可选环境变量
 
 -   `FLASK_ENV`: Flask 环境（testing/production 等）
--   `USE_SQLITE_FOR_TESTING`: 是否使用 SQLite 进行测试（默认: false）
+
 -   `AUTO_RUN_MIGRATIONS`: 是否自动运行数据库迁移（默认: true）
 
 ## 数据库设计
