@@ -32,11 +32,12 @@ services:
       - redis
     environment:
       ENV_TYPE: prod
-      DB_USERNAME: root
-      DB_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
-      DB_ADDRESS: mysql-db:3306
-      DB_NAME: flask_demo
-      DB_CONNECTION_TEMPLATE: 'mysql+pymysql://{username}:{password}@{db_address}/{db_name}?charset=utf8mb4'
+      # 删除数据库环境变量，让应用使用.env.prod中的配置
+      # DB_USERNAME: root
+      # DB_PASSWORD: rootpassword  
+      # DB_ADDRESS: mysql-db:3306
+      # DB_NAME: flask_demo
+      # DB_CONNECTION_TEMPLATE: 'mysql+pymysql://{username}:{password}@{db_address}/{db_name}?charset=utf8mb4'
     restart: unless-stopped
 
 volumes:
