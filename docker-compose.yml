@@ -34,15 +34,6 @@ services:
       MYSQL_USERNAME: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_ADDRESS: mysql-db:3306
-      WX_APPID: ${WX_APPID}
-      WX_SECRET: ${WX_SECRET}
-      TOKEN_SECRET: ${TOKEN_SECRET}
-      PHONE_ENCRYPTION_KEY: ${PHONE_ENCRYPTION_KEY:-dev_phone_encryption_key_2024}
-      AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-true}
-      DOCKER_ENV: "true"
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      REDIS_DB: 0
     restart: unless-stopped
 
 volumes:

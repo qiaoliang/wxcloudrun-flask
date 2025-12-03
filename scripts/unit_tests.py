@@ -8,7 +8,6 @@ import subprocess
 import argparse
 import os
 from pathlib import Path
-from dotenv import load_dotenv
 
 
 def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_coverage=80):
@@ -21,13 +20,15 @@ def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_c
         html_report (bool): Whether to generate HTML coverage report
         min_coverage (int): Minimum required coverage percentage
     """
-    # 加载单元测试专用环境变量配置
-    env_file = Path(__file__).parent.parent / '.env.unit'
-    if env_file.exists():
-        load_dotenv(env_file, override=True)
-        print(f"已加载单元测试环境变量配置: {env_file}")
-    else:
-        print(f"警告: 单元测试环境变量文件不存在: {env_file}")
+    # 设置环境类型为单元测试
+    os.environ['ENV_TYPE'] = 'unit'
+
+    # 添加项目根目录到路径，以便导入config
+    project_root = Path(__file__).parent.parent
+    sys.path.insert(0, str(project_root))
+
+    # 导入配置模块，这将自动加载相应的.env文件
+    import config
 
     # 创建环境变量副本用于子进程
     env = os.environ.copy()
@@ -48,6 +49,8 @@ def run_unit_tests(test_path=None, with_coverage=False, html_report=False, min_c
         print(f"错误: 缺少必需的环境变量: {', '.join(missing_vars)}")
         print(f"请确保 .env.unit 文件中包含这些环境变量")
         return 1
+
+    print(f"已使用 config.py 加载单元测试环境变量 (ENV_TYPE: unit)")
 
     cmd = [sys.executable, '-m', 'pytest']
 

@@ -11,11 +11,16 @@ import os
 import time
 import requests
 from pathlib import Path
-from dotenv import dotenv_values
 
-# 添加脚本目录到路径，以便导入load_env
-script_dir = Path(__file__).parent
-sys.path.insert(0, str(script_dir))
+# 添加项目根目录到路径，以便导入config
+project_root = Path(__file__).parent.parent
+sys.path.insert(0, str(project_root))
+
+# 设置环境类型为功能测试
+os.environ['ENV_TYPE'] = 'function'
+
+# 导入配置模块，这将自动加载相应的.env文件
+import config
 
 
 def wait_for_service(base_url: str, timeout: int = 180) -> bool:
@@ -55,35 +60,20 @@ def run_functional_tests(with_coverage=False, html_report=False, min_coverage=80
     """
     print("🚀 开始功能测试（集成测试）...")
     
-    # 使用 dotenv 读取 .env.integration 文件
-    print("📋 加载集成测试环境变量配置...")
-    try:
-        env_vars = dotenv_values(".env.integration")
-        if not env_vars:
-            print("❌ 无法读取 .env.integration 文件或文件为空")
-            return 1
-        print(f"✅ 成功读取 .env.integration 文件，包含 {len(env_vars)} 个环境变量")
-    except Exception as e:
-        print(f"❌ 读取 .env.integration 文件时出错: {e}")
-        return 1
+    # 通过 config.py 加载环境变量（ENV_TYPE 已设置为 'function'）
+    # config.py 会自动加载 .env.function 文件并设置相关环境变量
     
-    # 检查必需的环境变量
-    required_vars = ['MYSQL_USERNAME', 'MYSQL_PASSWORD', 'MYSQL_ADDRESS', 'WX_APPID', 'WX_SECRET', 'TOKEN_SECRET', 'DOCKER_STARTUP_TIMEOUT']
-    missing_vars = [var for var in required_vars if var not in env_vars or not env_vars[var]]
-    
-    if missing_vars:
-        print(f"❌ 缺少必需的环境变量: {', '.join(missing_vars)}")
-        print("请确保 .env.integration 文件包含所有必需的环境变量")
-        return 1
-    
-    # 创建环境变量副本并更新
+    # 创建环境变量副本
     env = os.environ.copy()
-    env.update(env_vars)
-    # 设置运行 Docker 集成测试标志
-    env['RUN_DOCKER_INTEGRATION_TESTS'] = 'true'
     
-    # 获取Docker启动超时时间
-    docker_startup_timeout = int(env_vars['DOCKER_STARTUP_TIMEOUT'])
+    # 设置默认环境变量以跳过微信API测试（自动测试模式）
+    # 这些值会被设置为测试值以避免真实微信API调用
+    env['WX_APPID'] = 'test_appid'
+    env['WX_SECRET'] = 'test_secret'
+    env['TOKEN_SECRET'] = 'test_token_secret_for_function_test'
+    
+    # 使用config.py中的Docker启动超时时间
+    docker_startup_timeout = config.DOCKER_STARTUP_TIMEOUT
     print(f"⏰ Docker启动超时时间设置为: {docker_startup_timeout} 秒")
     
     # 启动 docker-compose 服务（除非用户指定跳过）
@@ -117,15 +107,6 @@ def run_functional_tests(with_coverage=False, html_report=False, min_coverage=80
             return 1
     else:
         print("\n⏭️ 跳过 Docker 启动（假设服务已运行）...")
-        
-        # 验证 Docker 服务是否真的在运行
-        base_url = "http://localhost:8080"
-        print("🔍 验证 Docker 服务是否已运行...")
-        if not wait_for_service(base_url, timeout=30):
-            print("❌ Docker 服务未运行，无法进行集成测试")
-            print("请先启动 Docker 服务或移除 --skip-docker 参数")
-            return 1
-        print("✅ Docker 服务已运行，继续进行集成测试")
         time.sleep(5)  # 给服务一点时间确保稳定
     
     # 运行集成测试
@@ -134,14 +115,14 @@ def run_functional_tests(with_coverage=False, html_report=False, min_coverage=80
     env['USE_REAL_WECHAT_CREDENTIALS'] = 'false'  # 自动测试中默认不使用真实凭证
     print("注意: 微信API测试将被跳过，因为这是自动测试环境。")
     
-    integration_test_cmd = [sys.executable, '-m', 'pytest', 'tests/integration_test_counter.py', 'tests/integration_test_login.py', '-v']
+    integration_test_cmd = [sys.executable, '-m', 'pytest', 'tests/integration_test_counter.py', 'tests/integration_test_supervision_flow.py', '-v']
     
     if with_coverage:
         # For integration tests, run with coverage
         integration_test_cmd = [sys.executable, '-m', 'pytest']
         integration_test_cmd.extend([
             'tests/integration_test_counter.py',
-            'tests/integration_test_login.py',
+            'tests/integration_test_supervision_flow.py',
             '--cov=wxcloudrun',
             f'--cov-fail-under={min_coverage}'
         ])
