@@ -377,7 +377,8 @@ class PhoneAuthService:
             'iat': datetime.datetime.now()
         }
         
-        token_secret = config.TOKEN_SECRET
+        import os
+        token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
         access_token = jwt.encode(token_payload, token_secret, algorithm='HS256')
         
         # 生成刷新令牌

@@ -10,7 +10,7 @@ from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import hashlib
-import config as cfg
+import os
 
 # 用于区分默认参数和显式传入的None
 _USE_CONFIG = object()
@@ -35,7 +35,7 @@ class PhoneEncryption:
         
         # 如果使用默认值，则从配置文件获取
         if encryption_key is _USE_CONFIG:
-            encryption_key = cfg.PHONE_ENCRYPTION_KEY
+            encryption_key = os.environ.get('PHONE_ENCRYPTION_KEY')
 
         if not encryption_key:
             raise ValueError("手机号码加密密钥未配置")

@@ -12,7 +12,7 @@ from typing import Dict, Optional, Tuple, Callable
 from functools import wraps
 from flask import request, g, jsonify
 from datetime import datetime, timedelta
-import config as cfg
+import os
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -219,9 +219,9 @@ def get_rate_limiter() -> RateLimiter:
                     redis_client = None
             else:
                 # 生产环境使用真实Redis
-                redis_host = cfg.REDIS_HOST
-                redis_port = int(cfg.REDIS_PORT)
-                redis_db = int(cfg.REDIS_DB)
+                redis_host = os.environ.get('REDIS_HOST', 'localhost')
+                redis_port = int(os.environ.get('REDIS_PORT', 6379))
+                redis_db = int(os.environ.get('REDIS_DB', 0))
                 redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
                 # 测试连接
                 redis_client.ping()
@@ -252,9 +252,9 @@ def get_sms_rate_limiter() -> SMRateLimiter:
                     redis_client = None
             else:
                 # 生产环境使用真实Redis
-                redis_host = cfg.REDIS_HOST
-                redis_port = int(cfg.REDIS_PORT)
-                redis_db = int(cfg.REDIS_DB)
+                redis_host = os.environ.get('REDIS_HOST', 'localhost')
+                redis_port = int(os.environ.get('REDIS_PORT', 6379))
+                redis_db = int(os.environ.get('REDIS_DB', 0))
                 redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
                 # 测试连接
                 redis_client.ping()

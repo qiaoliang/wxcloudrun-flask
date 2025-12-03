@@ -10,7 +10,7 @@ import os
 import time
 import sys
 import logging
-import config
+import configenv as config
 # 设置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,8 +25,6 @@ pymysql.install_as_MySQLdb()
 
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
-
-import config
 
 # 添加项目根目录到路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

@@ -49,9 +49,9 @@ class BaseController:
             return None, make_err_response(data={}, msg='缺少token参数')
 
         try:
-            import config
+            import os
             # 使用配置文件中的TOKEN_SECRET进行解码
-            token_secret = config.TOKEN_SECRET
+            token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
 
             # 解码token
             decoded = jwt.decode(
@@ -59,11 +59,11 @@ class BaseController:
                 token_secret,
                 algorithms=['HS256']
             )
-            
+
             # 检查是否有openid（微信登录）或user_id（手机登录）
             openid = decoded.get('openid')
             user_id = decoded.get('user_id')
-            
+
             if not openid and not user_id:
                 logging.error('解码后的token中未找到openid或user_id')
                 return None, make_err_response(data={}, msg='token无效')
@@ -121,7 +121,7 @@ def permission_required(permission):
             from wxcloudrun.dao import query_user_by_openid, query_user_by_id
             openid = decoded.get('openid')
             user_id = decoded.get('user_id')
-            
+
             # 优先使用openid查询，如果没有则使用user_id
             if openid:
                 user = query_user_by_openid(openid)
@@ -202,12 +202,14 @@ class UserController:
             app_logger.info('开始调用微信API获取用户openid和session_key')
 
             # 调用微信API获取用户信息
-            import config
-            app_logger.info(f'从配置中获取WX_APPID: {config.WX_APPID[:10]}...' if hasattr(config, 'WX_APPID') and config.WX_APPID else 'WX_APPID未配置')
-            app_logger.info(f'从配置中获取WX_SECRET: {config.WX_SECRET[:10]}...' if hasattr(config, 'WX_SECRET') and config.WX_SECRET else 'WX_SECRET未配置')
+            import os
+            wx_appid = os.environ.get('WX_APPID')
+            wx_secret = os.environ.get('WX_SECRET')
+            app_logger.info(f'从配置中获取WX_APPID: {wx_appid[:10]}...' if wx_appid else 'WX_APPID未配置')
+            app_logger.info(f'从配置中获取WX_SECRET: {wx_secret[:10]}...' if wx_secret else 'WX_SECRET未配置')
 
             import requests
-            wx_url = f'https://api.weixin.qq.com/sns/jscode2session?appid={config.WX_APPID}&secret={config.WX_SECRET}&js_code={code}&grant_type=authorization_code'
+            wx_url = f'https://api.weixin.qq.com/sns/jscode2session?appid={wx_appid}&secret={wx_secret}&js_code={code}&grant_type=authorization_code'
             app_logger.info(f'请求微信API的URL: {wx_url[:100]}...')  # 只打印URL前100个字符以避免敏感信息泄露
 
             # 发送请求到微信API，禁用SSL验证以解决证书问题（仅用于开发测试环境）
@@ -277,12 +279,12 @@ class UserController:
             token_payload = {
                 'openid': openid,
                 'user_id': user.user_id,  # 添加用户ID到token中
-                'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)  # 设置2小时过期时间
+                'exp': datetime.datetime.now(timezone.utc) + datetime.timedelta(hours=2)  # 设置2小时过期时间
             }
             app_logger.info(f'JWT token payload: {token_payload}')
 
             # 使用配置文件中的TOKEN_SECRET进行编码
-            token_secret = config.TOKEN_SECRET
+            token_secret = os.environ.get('TOKEN_SECRET', 'your-secret-key')
             app_logger.info(f'使用的TOKEN_SECRET: {token_secret[:10]}...')  # 只记录部分信息用于调试
 
             token = jwt.encode(token_payload, token_secret, algorithm='HS256')
@@ -369,26 +371,26 @@ class UserController:
 
             openid = decoded.get('openid')
             user_id = decoded.get('user_id')
-            
+
             # 根据token类型获取用户信息
             user = None
-            
+
             # 优先使用 openid 查询（微信登录）
             if openid:
                 app_logger.info(f'使用openid查询用户信息: {openid}')
                 user = self.user_service.get_user_by_openid(openid)
-                
+
                 # 如果同时存在 user_id，验证一致性
                 if user and user_id and user.user_id != user_id:
                     app_logger.warning(f'Token中openid和user_id不匹配: openid={openid}, user_id={user_id}, 实际user_id={user.user_id}')
                     # 为了安全，返回错误而不是使用不匹配的数据
                     return make_err_response(data={}, msg='Token信息不一致')
-            
+
             # 如果没有 openid 或 openid 查询失败，尝试使用 user_id
             elif user_id:
                 app_logger.info(f'使用user_id查询用户信息: {user_id}')
                 user = self.user_service.get_user_by_id(user_id)
-            
+
             if not user:
                 if openid:
                     app_logger.error(f'数据库中未找到openid为 {openid} 的用户')

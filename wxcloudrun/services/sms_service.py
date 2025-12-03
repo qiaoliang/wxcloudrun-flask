@@ -12,7 +12,7 @@ from typing import Dict, Optional, Tuple
 from datetime import datetime, timedelta
 import redis
 from functools import wraps
-import config as cfg
+import os
 
 # 配置日志
 logger = logging.getLogger(__name__)
@@ -122,15 +122,15 @@ class SMSService:
 
     def _init_provider(self) -> SMSProvider:
         """根据配置初始化SMS提供商"""
-        provider_type = cfg.SMS_PROVIDER.lower()
+        provider_type = os.environ.get('SMS_PROVIDER', 'simulation').lower()
 
         if provider_type == 'simulation':
             return SimulationSMSProvider()
         elif provider_type == 'alibaba':
-            access_key = cfg.ALIBABA_SMS_ACCESS_KEY
-            access_secret = cfg.ALIBABA_SMS_ACCESS_SECRET
-            sign_name = cfg.ALIBABA_SMS_SIGN_NAME
-            template_code = cfg.ALIBABA_SMS_TEMPLATE_CODE
+            access_key = os.environ.get('ALIBABA_SMS_ACCESS_KEY')
+            access_secret = os.environ.get('ALIBABA_SMS_ACCESS_SECRET')
+            sign_name = os.environ.get('ALIBABA_SMS_SIGN_NAME', '安全守护')
+            template_code = os.environ.get('ALIBABA_SMS_TEMPLATE_CODE')
 
             if not all([access_key, access_secret, template_code]):
                 logger.warning("阿里云SMS配置不完整，回退到模拟模式")
@@ -139,11 +139,11 @@ class SMSService:
             return AlibabaSMSProvider(access_key, access_secret, sign_name, template_code)
 
         elif provider_type == 'tencent':
-            secret_id = cfg.TENCENT_SMS_SECRET_ID
-            secret_key = cfg.TENCENT_SMS_SECRET_KEY
-            app_id = cfg.TENCENT_SMS_APP_ID
-            sign_name = cfg.TENCENT_SMS_SIGN_NAME
-            template_id = cfg.TENCENT_SMS_TEMPLATE_ID
+            secret_id = os.environ.get('TENCENT_SMS_SECRET_ID')
+            secret_key = os.environ.get('TENCENT_SMS_SECRET_KEY')
+            app_id = os.environ.get('TENCENT_SMS_APP_ID')
+            sign_name = os.environ.get('TENCENT_SMS_SIGN_NAME', '安全守护')
+            template_id = os.environ.get('TENCENT_SMS_TEMPLATE_ID')
 
             if not all([secret_id, secret_key, app_id, template_id]):
                 logger.warning("腾讯云SMS配置不完整，回退到模拟模式")
@@ -309,7 +309,8 @@ def get_sms_service() -> SMSService:
         # 初始化Redis客户端
         try:
             # 检查是否为单元测试环境，　如果是，使用fakeredis
-            if cfg.ENV_TYPE.lower() == 'unit':
+            env_type = os.environ.get('ENV_TYPE', 'prod').lower()
+            if env_type == 'unit':
                 try:
                     import fakeredis
                     redis_client = fakeredis.FakeRedis(decode_responses=True)
@@ -319,9 +320,9 @@ def get_sms_service() -> SMSService:
                     redis_client = None
             else:
                 # 生产环境使用真实Redis
-                redis_host = cfg.REDIS_HOST
-                redis_port = cfg.REDIS_PORT
-                redis_db = cfg.REDIS_DB
+                redis_host = os.environ.get('REDIS_HOST', 'localhost')
+                redis_port = int(os.environ.get('REDIS_PORT', 6379))
+                redis_db = int(os.environ.get('REDIS_DB', 0))
                 redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
                 # 测试连接
                 redis_client.ping()
