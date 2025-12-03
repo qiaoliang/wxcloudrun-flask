@@ -125,7 +125,10 @@ class TestSMSService:
     
     def setup_method(self):
         """测试前准备"""
-        self.sms_service = SMSService()  # 默认使用模拟模式
+        # 使用fakeredis进行测试
+        import fakeredis
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+        self.sms_service = SMSService(redis_client)
     
     def test_generate_verification_code(self):
         """测试生成验证码"""
@@ -159,6 +162,10 @@ class TestSMSService:
     def test_verify_code_failure(self):
         """测试验证码验证失败"""
         phone = "+8613800138000"
+        
+        # 先发送验证码
+        success, _, code = self.sms_service.send_verification_code(phone)
+        assert success
         
         # 验证错误的验证码
         success, message = self.sms_service.verify_code(phone, "000000")

@@ -12,6 +12,9 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import hashlib
 import config as cfg
 
+# 用于区分默认参数和显式传入的None
+_USE_CONFIG = object()
+
 # 配置日志
 logger = logging.getLogger(__name__)
 
@@ -19,14 +22,19 @@ logger = logging.getLogger(__name__)
 class PhoneEncryption:
     """手机号码加密类"""
 
-    def __init__(self, encryption_key: str = None):
+    def __init__(self, encryption_key=_USE_CONFIG):
         """
         初始化加密器
 
         Args:
             encryption_key: 加密密钥，如果不提供则从配置文件获取
         """
-        if encryption_key is None:
+        # 如果显式传入了None或空字符串，则认为是无效密钥
+        if encryption_key is None or encryption_key == "":
+            raise ValueError("手机号码加密密钥无效")
+        
+        # 如果使用默认值，则从配置文件获取
+        if encryption_key is _USE_CONFIG:
             encryption_key = cfg.PHONE_ENCRYPTION_KEY
 
         if not encryption_key:
@@ -145,6 +153,10 @@ class PhoneValidator:
         # 去除空格和特殊字符
         cleaned_phone = ''.join(c for c in phone_number if c.isdigit())
 
+        # 如果包含+86前缀，则去除前缀后再验证
+        if phone_number.startswith('+86'):
+            cleaned_phone = cleaned_phone[2:]  # 去除86
+
         # 检查长度
         if len(cleaned_phone) != 11:
             return False, "手机号码必须是11位数字"
@@ -176,10 +188,10 @@ class PhoneValidator:
         cleaned_phone = ''.join(c for c in phone_number if c.isdigit())
 
         # 添加国际区号（如果需要）
-        if not cleaned_phone.startswith('+86'):
-            cleaned_phone = '+86' + cleaned_phone
+        if not cleaned_phone.startswith('86'):
+            cleaned_phone = '86' + cleaned_phone
 
-        return cleaned_phone
+        return '+' + cleaned_phone
 
 
 # 全局加密器实例

@@ -20,7 +20,7 @@ if ENV_TYPE not in ['prod','function', 'unit']:
 if ENV_TYPE == 'prod':
     load_dotenv(f'.env')
 else:
-    load_dotenv(f'.env.{ENV_TYPE}')
+    load_dotenv(f'.env.{ENV_TYPE}', override=True)
 
 db_address = os.environ.get('MYSQL_ADDRESS')
 username = os.environ.get('MYSQL_USERNAME')
