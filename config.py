@@ -23,6 +23,7 @@ load_dotenv(f'.env.{ENV_TYPE}')
 db_address = os.environ.get('DB_ADDRESS')
 username = os.environ.get('DB_USERNAME')
 password = os.environ.get('DB_PASSWORD')
+db_name = os.environ.get('DB_NAME')
 
 db_connection_template = os.environ.get('DB_CONNECTION_TEMPLATE')  # 直接从环境变量获取完整的数据库URI
 if not db_connection_template:
@@ -32,7 +33,8 @@ if not db_connection_template:
 db_info = {
     "db_address": db_address,
     "username": username,
-    "password": password
+    "password": password,
+    "db_name": db_name
 }
 DB_CONNECTION_URI = db_connection_template.format(**db_info)
 
@@ -56,3 +58,7 @@ DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
 ## Flask环境设置为单元测试模式
 IS_FLASK_ENV = os.environ.get("IS_FLASK_ENV")
+
+# 集成测试配置
+DOCKER_STARTUP_TIMEOUT=180
+
