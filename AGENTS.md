@@ -79,7 +79,6 @@
 
 ### 可选环境变量
 
--   `FLASK_ENV`: Flask 环境（testing/production 等）
 
 -   `AUTO_RUN_MIGRATIONS`: 是否自动运行数据库迁移（默认: true）
 

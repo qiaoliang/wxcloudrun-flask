@@ -20,10 +20,10 @@ else:
 load_dotenv(f'.env.{ENV_TYPE}')
 
 # 读取数据库配置
-db_address = os.environ.get('DB_ADDRESS')
-username = os.environ.get('DB_USERNAME')
-password = os.environ.get('DB_PASSWORD')
-db_name = os.environ.get('DB_NAME')
+db_address = os.environ.get('MYSQL_ADDRESS')
+username = os.environ.get('MYSQL_USERNAME')
+password = os.environ.get('MYSQL_PASSWORD')
+db_name = os.environ.get('MYSQL_DATABASE')
 
 db_connection_template = os.environ.get('DB_CONNECTION_TEMPLATE')  # 直接从环境变量获取完整的数据库URI
 if not db_connection_template:
@@ -56,8 +56,6 @@ DB_RETRY_COUNT = int(os.environ.get('DB_RETRY_COUNT', '3'))
 DB_RETRY_DELAY = float(os.environ.get('DB_RETRY_DELAY', '1.0'))
 DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
-## Flask环境设置为单元测试模式
-IS_FLASK_ENV = os.environ.get("IS_FLASK_ENV")
 
 # 集成测试配置
 DOCKER_STARTUP_TIMEOUT=180

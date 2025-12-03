@@ -19,14 +19,7 @@ CORS(app)
 
 # 检查是否为测试环境，如果是则使用SQLite，否则使用MySQL
 # 在模块级别检查，以确保在导入时就设置正确的数据库连接
-is_unit_testing = os.environ.get('USE_SQLITE_FOR_TESTING', '').lower() == 'true'
-is_testing = is_unit_testing or os.environ.get('FLASK_ENV') == 'testing' or 'PYTEST_CURRENT_TEST' in os.environ
-if is_testing:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'  # 测试时使用SQLite内存数据库
-    app.config['TESTING'] = True
-else:
-    # 设定数据库链接，添加字符集设置
-    app.config['SQLALCHEMY_DATABASE_URI'] = config.DB_CONNECTION_URI
+app.config['DB_CONNECTION_URI'] = config.DB_CONNECTION_URI
 
 # 禁用SQLAlchemy的修改跟踪以避免警告
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -51,7 +44,7 @@ if not is_testing and os.environ.get('DOCKER_ENV') != 'true':
     max_retries = 30  # 最多等待30次（30秒）
     retry_count = 0
     db_connected = False
-    
+
     while not db_connected and retry_count < max_retries:
         try:
             with app.app_context():
@@ -73,7 +66,7 @@ if not is_testing and os.environ.get('DOCKER_ENV') != 'true':
             retry_count += 1
             app.logger.error(f"数据库连接失败，正在重试 ({retry_count}/{max_retries}): {str(e)}")
             time.sleep(1)  # 等待1秒后重试
-    
+
     if not db_connected:
         app.logger.error("无法连接到数据库，应用可能无法正常工作。")
 
@@ -84,7 +77,7 @@ def create_tables_if_needed():
         from sqlalchemy import inspect
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
-        
+
         # 如果没有任何表，则创建所有表
         if not tables:
             db.create_all()

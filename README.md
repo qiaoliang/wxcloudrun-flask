@@ -116,7 +116,6 @@ docker-compose up --build -d
 
 -   角色和状态字段同样使用整数类型存储（与生产环境保持一致）
 -   时间字段同样使用 `db.DateTime` 类型，确保跨数据库兼容性
--   在运行测试时自动设置 `FLASK_ENV=testing` 或 `PYTEST_CURRENT_TEST` 环境变量
 
 ## 数据库管理
 

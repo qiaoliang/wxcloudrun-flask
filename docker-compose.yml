@@ -1,25 +1,14 @@
 services:
   mysql-db:
-    image: mysql:8.0
+    image: mysql:8.4.3
     container_name: mysql-db
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_DATABASE: flask_demo
-      MYSQL_ALLOW_EMPTY_PASSWORD: "no"
     ports:
       - "3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-    command: --default-authentication-plugin=mysql_native_password
-    restart: unless-stopped
-
-  redis:
-    image: redis:7.2-alpine
-    container_name: redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
     restart: unless-stopped
 
   app:
@@ -29,17 +18,15 @@ services:
       - "8080:8080"
     depends_on:
       - mysql-db
-      - redis
     environment:
-      ENV_TYPE: prod
-      # 删除数据库环境变量，让应用使用.env.prod中的配置
-      # DB_USERNAME: root
-      # DB_PASSWORD: rootpassword  
-      # DB_ADDRESS: mysql-db:3306
-      # DB_NAME: flask_demo
-      # DB_CONNECTION_TEMPLATE: 'mysql+pymysql://{username}:{password}@{db_address}/{db_name}?charset=utf8mb4'
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
+      MYSQL_ADDRESS: mysql-db:3306
+      WX_APPID: ${WX_APPID}
+      WX_SECRET: ${WX_SECRET}
+      TOKEN_SECRET: ${TOKEN_SECRET}
+      AUTO_RUN_MIGRATIONS: ${AUTO_RUN_MIGRATIONS:-true}
     restart: unless-stopped
 
 volumes:
   mysql_data:
-  redis_data:

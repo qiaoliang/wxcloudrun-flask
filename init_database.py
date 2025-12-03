@@ -17,6 +17,8 @@ pymysql.install_as_MySQLdb()
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
 
+import config
+
 # 设置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -25,67 +27,40 @@ logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # 导入统一配置
-try:
-    import config
-    logger.info("✅ 成功导入config.py配置")
-    
-    # 从配置中解析数据库连接信息
-    DB_CONNECTION_URI = config.DB_CONNECTION_URI
-    logger.info(f"📊 使用配置中的数据库连接: {DB_CONNECTION_URI}")
-    
-    # 解析数据库连接信息用于MySQL服务连接
-    if 'mysql+pymysql://' in DB_CONNECTION_URI:
-        # 解析格式：mysql+pymysql://username:password@host:port/database
-        uri_without_protocol = DB_CONNECTION_URI.replace('mysql+pymysql://', '')
-        if '@' in uri_without_protocol:
-            credentials_part, host_part = uri_without_protocol.split('@', 1)
-            username, password = credentials_part.split(':', 1)
-            
-            if '/' in host_part:
-                host_port, database = host_part.split('/', 1)
-                if ':' in host_port:
-                    host, port = host_port.split(':')
-                else:
-                    host, port = host_port, '3306'
-            else:
-                host, port, database = host_part, '3306', 'flask_demo'
-        else:
-            raise ValueError("无法解析数据库连接URI格式")
-            
-        MYSQL_USERNAME = username
-        MYSQL_PASSWORD = password
-        MYSQL_ADDRESS = f"{host}:{port}"
-        DATABASE_NAME = database
-        
-    else:
-        raise ValueError(f"不支持的数据库类型: {DB_CONNECTION_URI}")
-        
-    logger.info(f"🔧 解析后的连接信息:")
-    logger.info(f"   - 用户名: {MYSQL_USERNAME}")
-    logger.info(f"   - 地址: {MYSQL_ADDRESS}")
-    logger.info(f"   - 数据库: {DATABASE_NAME}")
-    
-except Exception as e:
-    logger.error(f"❌ 导入或解析config.py配置失败: {e}")
-    # 降级到环境变量（仅用于紧急情况）
-    logger.warning("⚠️  降级到环境变量配置")
-    MYSQL_USERNAME = os.environ.get('MYSQL_USERNAME', 'root')
-    MYSQL_PASSWORD = os.environ.get('MYSQL_PASSWORD', 'rootpassword')
-    MYSQL_ADDRESS = os.environ.get('MYSQL_ADDRESS', 'mysql-db:3306')
-    DATABASE_NAME = 'flask_demo'
+# 从配置中解析数据库连接信息
+DB_CONNECTION_URI = config.DB_CONNECTION_URI
+logger.info(f"📊 使用 DOT_ENV 配置中的数据库连接: {DB_CONNECTION_URI}")
+MYSQL_USERNAME = config.username
+MYSQL_PASSWORD = config.password
+MYSQL_ADDRESS = config.db_address
+DATABASE_NAME = config.db_name
+logger.info(f"🔧 解析后的连接信息:")
+logger.info(f"   - 用户名: {MYSQL_USERNAME}")
+logger.info(f"   - 地址: {MYSQL_ADDRESS}")
+logger.info(f"   - 数据库: {DATABASE_NAME}")
+
 
 def wait_for_mysql():
     """等待MySQL服务启动"""
-    max_retries = 120
+    try:
+        import config
+        max_retries = config.DB_RETRY_COUNT
+        retry_delay = config.DB_RETRY_DELAY
+        logger.info(f"🔄 使用config.py中的重试配置: 最大重试次数={max_retries}, 重试延迟={retry_delay}秒")
+    except (ImportError, AttributeError) as e:
+        logger.warning(f"⚠️  无法获取config.py中的重试配置，使用默认值: {e}")
+        max_retries = 120
+        retry_delay = 1.0
+
     retry_count = 0
-    
+
     logger.info(f"🔄 等待MySQL服务启动...")
     logger.info(f"   连接信息: {MYSQL_USERNAME}@{MYSQL_ADDRESS}")
-    
+
     while retry_count < max_retries:
         try:
             # 尝试连接到MySQL服务器（不指定数据库）
-            connection_uri = f'mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@{MYSQL_ADDRESS}/'
+            connection_uri = DB_CONNECTION_URI
             engine = create_engine(connection_uri)
             with engine.connect() as connection:
                 logger.info("✅ MySQL服务已启动")
@@ -94,8 +69,8 @@ def wait_for_mysql():
             retry_count += 1
             if retry_count % 10 == 0:  # 每10次才打印一次，避免日志过多
                 logger.warning(f"⏳ 等待MySQL服务启动... ({retry_count}/{max_retries})")
-            time.sleep(1)
-    
+            time.sleep(retry_delay)
+
     logger.error("❌ MySQL服务启动超时")
     return False
 
@@ -103,9 +78,9 @@ def create_database_if_not_exists():
     """创建数据库（如果不存在）"""
     try:
         logger.info(f"🔍 检查数据库: {DATABASE_NAME}")
-        
+
         # 连接到MySQL服务器（不指定数据库）
-        connection_uri = f'mysql+pymysql://{MYSQL_USERNAME}:{MYSQL_PASSWORD}@{MYSQL_ADDRESS}/'
+        connection_uri = DB_CONNECTION_URI
         engine = create_engine(connection_uri)
         with engine.connect() as connection:
             # 检查数据库是否存在
@@ -128,10 +103,10 @@ def create_tables():
     try:
         import pymysql
         import sys
-        
+
         # 添加项目路径到sys.path
         sys.path.insert(0, '/app')
-        
+
         # 直接使用pymysql创建表
         logger.info("连接数据库...")
         connection = pymysql.connect(
@@ -142,9 +117,9 @@ def create_tables():
             database=DATABASE_NAME,
             charset='utf8mb4'
         )
-        
+
         cursor = connection.cursor()
-        
+
         # 删除所有旧表
         logger.info("删除所有旧表...")
         cursor.execute("SET FOREIGN_KEY_CHECKS = 0")
@@ -156,7 +131,7 @@ def create_tables():
         cursor.execute("DROP TABLE IF EXISTS users")
         cursor.execute("DROP TABLE IF EXISTS Counters")
         cursor.execute("SET FOREIGN_KEY_CHECKS = 1")
-        
+
         # 创建Counters表
         logger.info("创建Counters表...")
         cursor.execute("""
@@ -167,7 +142,7 @@ def create_tables():
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
-        
+
         # 创建users表
         logger.info("创建users表...")
         cursor.execute("""
@@ -202,7 +177,7 @@ def create_tables():
                 INDEX idx_users_refresh_token (refresh_token)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
-        
+
         # 创建checkin_rules表
         logger.info("创建checkin_rules表...")
         cursor.execute("""
@@ -225,7 +200,7 @@ def create_tables():
                 INDEX idx_rule_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
-        
+
         # 创建checkin_records表
         logger.info("创建checkin_records表...")
         cursor.execute("""
@@ -247,7 +222,7 @@ def create_tables():
                 INDEX idx_record_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
-        
+
         # 创建rule_supervisions表
         logger.info("创建rule_supervisions表...")
         cursor.execute("""
@@ -271,7 +246,7 @@ def create_tables():
                 INDEX idx_supervisor_invitations (supervisor_user_id, status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
-        
+
         # 创建phone_auth表
         logger.info("创建phone_auth表...")
         cursor.execute("""
@@ -294,7 +269,7 @@ def create_tables():
                 INDEX idx_is_verified (is_verified)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
-        
+
         # 创建sms_verification_codes表（Redis不可用时的备用存储）
         logger.info("创建sms_verification_codes表...")
         cursor.execute("""
@@ -310,26 +285,26 @@ def create_tables():
                 INDEX idx_phone_number (phone_number)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """)
-        
+
         # 插入初始数据
         logger.info("插入初始数据...")
         cursor.execute("""
             INSERT INTO Counters (id, count) VALUES (1, 0)
         """)
-        
+
         connection.commit()
-        
+
         # 检查表是否创建成功
         cursor.execute("SHOW TABLES")
         tables = cursor.fetchall()
         logger.info(f"创建的表: {[table[0] for table in tables]}")
-        
+
         cursor.close()
         connection.close()
-        
+
         logger.info("数据库表创建成功")
         return True
-        
+
     except Exception as e:
         logger.error(f"创建表失败: {str(e)}")
         import traceback
@@ -340,14 +315,14 @@ def create_tables_directly():
     """直接创建数据库表（使用统一配置）"""
     try:
         logger.info("使用统一配置创建Flask应用...")
-        
+
         # 使用统一的配置导入Flask应用
         from wxcloudrun import app, db
         logger.info("✅ 成功导入Flask应用和数据库对象")
-        
+
         logger.info("导入模型...")
         from wxcloudrun import model
-        
+
         logger.info("在Flask应用上下文中创建数据库表...")
         with app.app_context():
             # 先检查表是否存在
@@ -355,24 +330,29 @@ def create_tables_directly():
             inspector = inspect(db.engine)
             existing_tables = inspector.get_table_names()
             logger.info(f"已存在的表: {existing_tables}")
-            
+
             # 检查当前数据库配置
-            current_db_uri = app.config.get('SQLALCHEMY_DATABASE_URI', 'Not set')
-            logger.info(f"当前数据库配置: {current_db_uri}")
-            
+            try:
+                import config
+                current_db_uri = config.DB_CONNECTION_URI
+                logger.info(f"从config.py获取当前数据库配置: {current_db_uri}")
+            except (ImportError, AttributeError) as e:
+                current_db_uri = app.config.get('DB_CONNECTION_URI', 'Not set')
+                logger.info(f"从Flask应用配置获取当前数据库配置: {current_db_uri}")
+
             # 创建所有表
             db.create_all()
-            
+
             # 再次检查表是否创建成功
             inspector = inspect(db.engine)
             new_tables = inspector.get_table_names()
             logger.info(f"创建后的表: {new_tables}")
-            
+
             if len(new_tables) > len(existing_tables):
                 logger.info("✅ 数据库表创建成功")
             else:
                 logger.warning("⚠️  警告：没有创建新表（可能已经存在）")
-                
+
         return True
     except Exception as e:
         logger.error(f"❌ 创建表失败: {str(e)}")
@@ -384,17 +364,17 @@ def create_tables_directly():
 def main():
     """主函数"""
     logger.info("🚀 开始数据库初始化（使用统一配置）...")
-    
+
     # 1. 等待MySQL服务启动
     if not wait_for_mysql():
         logger.error("❌ MySQL服务启动失败")
         sys.exit(1)
-    
+
     # 2. 创建数据库
     if not create_database_if_not_exists():
         logger.error("❌ 数据库创建失败")
         sys.exit(1)
-    
+
     # 3. 创建表（优先使用统一配置的方法）
     logger.info("🔧 使用统一配置创建数据库表...")
     if not create_tables_directly():
@@ -403,7 +383,7 @@ def main():
         if not create_tables():
             logger.error("❌ 备用方法创建表也失败")
             sys.exit(1)
-    
+
     logger.info("✅ 数据库初始化完成")
 
 if __name__ == '__main__':
