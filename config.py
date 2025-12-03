@@ -8,16 +8,19 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 检查环境变量文件
-ENV_TYPE = os.environ.get('ENV_TYPE','unit')
+ENV_TYPE = os.environ.get('ENV_TYPE','prod')
 
-if not ENV_TYPE:
-    logger.warning("ENV_TYPE 未设置")
+ENV_TYPE = ENV_TYPE.strip().lower()
+
+if ENV_TYPE not in ['prod','function', 'unit']:
+    logger.error(f"ENV_TYPE 必须是 'prod'、'function' 或 'unit'，当前值: {ENV_TYPE}")
     sys.exit(1)
-else:
-    ENV_TYPE = ENV_TYPE.strip().lower()
 
 # 加载环境变量文件
-load_dotenv(f'.env.{ENV_TYPE}')
+if ENV_TYPE == 'prod':
+    load_dotenv(f'.env')
+else:
+    load_dotenv(f'.env.{ENV_TYPE}')
 
 # 读取数据库配置
 db_address = os.environ.get('MYSQL_ADDRESS')
@@ -59,4 +62,3 @@ DEBUG = os.environ.get('DEBUG', 'false').lower() == 'true'
 
 # 集成测试配置
 DOCKER_STARTUP_TIMEOUT=180
-
