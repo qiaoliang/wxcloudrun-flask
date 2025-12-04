@@ -1,3 +1,5 @@
+from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
+from wxcloudrun import views
 import os
 import time
 from flask import Flask
@@ -27,9 +29,7 @@ db = SQLAlchemy(app)
 app.config.from_object('config')
 
 # 加载控制器
-from wxcloudrun import views
 
-from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
 try:
     with app.app_context():
         # 先尝试建立连接，再执行create_all
@@ -58,11 +58,14 @@ try:
                 cols = [c['name'] for c in inspector.get_columns('users')]
                 migrations = []
                 if 'is_solo_user' not in cols:
-                    migrations.append("ALTER TABLE users ADD COLUMN is_solo_user INTEGER DEFAULT 1")
+                    migrations.append(
+                        "ALTER TABLE users ADD COLUMN is_solo_user INTEGER DEFAULT 1")
                 if 'is_supervisor' not in cols:
-                    migrations.append("ALTER TABLE users ADD COLUMN is_supervisor INTEGER DEFAULT 0")
+                    migrations.append(
+                        "ALTER TABLE users ADD COLUMN is_supervisor INTEGER DEFAULT 0")
                 if 'is_community_worker' not in cols:
-                    migrations.append("ALTER TABLE users ADD COLUMN is_community_worker INTEGER DEFAULT 0")
+                    migrations.append(
+                        "ALTER TABLE users ADD COLUMN is_community_worker INTEGER DEFAULT 0")
                 if migrations:
                     app.logger.info(f"对 users 表进行字段补全: {migrations}")
                     with db.engine.begin() as conn:
@@ -71,18 +74,49 @@ try:
                     app.logger.info("users 表字段补全完成")
 
             if 'checkin_rules' in tables:
-                rule_cols = [c['name'] for c in inspector.get_columns('checkin_rules')]
+                rule_cols = [c['name']
+                             for c in inspector.get_columns('checkin_rules')]
                 rule_migrations = []
                 if 'custom_start_date' not in rule_cols:
-                    rule_migrations.append("ALTER TABLE checkin_rules ADD COLUMN custom_start_date DATE")
+                    rule_migrations.append(
+                        "ALTER TABLE checkin_rules ADD COLUMN custom_start_date DATE")
                 if 'custom_end_date' not in rule_cols:
-                    rule_migrations.append("ALTER TABLE checkin_rules ADD COLUMN custom_end_date DATE")
+                    rule_migrations.append(
+                        "ALTER TABLE checkin_rules ADD COLUMN custom_end_date DATE")
                 if rule_migrations:
-                    app.logger.info(f"对 checkin_rules 表进行字段补全: {rule_migrations}")
+                    app.logger.info(
+                        f"对 checkin_rules 表进行字段补全: {rule_migrations}")
                     with db.engine.begin() as conn:
                         for sql in rule_migrations:
                             conn.execute(text(sql))
                     app.logger.info("checkin_rules 表字段补全完成")
+
+            # supervision_rule_relations 邀请支持字段补齐
+            if 'supervision_rule_relations' in tables:
+                rel_cols = [c['name'] for c in inspector.get_columns(
+                    'supervision_rule_relations')]
+                rel_migrations = []
+                if 'invite_token' not in rel_cols:
+                    rel_migrations.append(
+                        "ALTER TABLE supervision_rule_relations ADD COLUMN invite_token VARCHAR(64)")
+                if 'invite_expires_at' not in rel_cols:
+                    rel_migrations.append(
+                        "ALTER TABLE supervision_rule_relations ADD COLUMN invite_expires_at TIMESTAMP")
+                # 修改 supervisor_user_id 允许为 NULL（仅在需要时）
+                try:
+                    with db.engine.begin() as conn:
+                        conn.execute(text(
+                            "ALTER TABLE supervision_rule_relations ALTER COLUMN supervisor_user_id DROP NOT NULL"))
+                except Exception as e:
+                    app.logger.warning(
+                        f"修改supervisor_user_id为可空时出现异常，可能已是可空: {str(e)}")
+                if rel_migrations:
+                    app.logger.info(
+                        f"对 supervision_rule_relations 表进行字段补全: {rel_migrations}")
+                    with db.engine.begin() as conn:
+                        for sql in rel_migrations:
+                            conn.execute(text(sql))
+                    app.logger.info("supervision_rule_relations 表字段补全完成")
 except Exception as e:
     app.logger.error(f"数据库初始化失败: {str(e)}")
     app.logger.error("应用将继续启动，但数据库功能可能无法使用。")

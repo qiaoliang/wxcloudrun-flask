@@ -217,7 +217,7 @@ class SupervisionRuleRelation(db.Model):
     solo_user_id = db.Column(db.Integer, db.ForeignKey(
         'users.user_id'), nullable=False, comment='被监督用户ID')
     supervisor_user_id = db.Column(db.Integer, db.ForeignKey(
-        'users.user_id'), nullable=False, comment='监督者用户ID')
+        'users.user_id'), nullable=True, comment='监督者用户ID（链接邀请时可为空，待绑定）')
     rule_id = db.Column(db.Integer, db.ForeignKey(
         'checkin_rules.rule_id'), nullable=True, comment='具体规则ID，为空表示监督所有规则')
     status = db.Column(db.Integer, default=1,
@@ -225,6 +225,9 @@ class SupervisionRuleRelation(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now,
                            onupdate=datetime.now, comment='更新时间')
+    invite_token = db.Column(db.String(64), unique=True,
+                             nullable=True, comment='邀请链接token')
+    invite_expires_at = db.Column(db.DateTime, nullable=True, comment='邀请过期时间')
 
     # 关联用户和规则
     solo_user = db.relationship('User', foreign_keys=[

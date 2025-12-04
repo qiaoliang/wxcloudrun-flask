@@ -5,6 +5,7 @@ from flask_cors import CORS
 import json
 import time
 from datetime import datetime, date, timedelta
+import secrets
 import jwt
 import requests
 from functools import wraps
@@ -1416,6 +1417,108 @@ def invite_supervisor(decoded):
 
         app.logger.info(f'用户 {user.user_id} 邀请用户 {target_user.user_id} 监督规则成功')
         return make_succ_response(response_data)
+
+
+@app.route('/api/rules/supervision/invite_link', methods=['POST'])
+@login_required
+def invite_supervisor_link(decoded):
+    """
+    生成监督邀请链接（无需目标openid）
+    """
+    app.logger.info('=== 开始执行生成监督邀请链接接口 ===')
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        params = request.get_json() or {}
+        rule_ids = params.get('rule_ids', [])
+        expire_hours = int(params.get('expire_hours', 72))
+        token = secrets.token_urlsafe(16)
+        from datetime import timedelta as td
+        expires_at = datetime.now() + td(hours=expire_hours)
+
+        created_relations = []
+        if rule_ids:
+            for rid in rule_ids:
+                rel = SupervisionRuleRelation(
+                    solo_user_id=user.user_id,
+                    supervisor_user_id=None,
+                    rule_id=rid,
+                    status=1,
+                    invite_token=token,
+                    invite_expires_at=expires_at
+                )
+                db.session.add(rel)
+                created_relations.append(rel)
+        else:
+            rel = SupervisionRuleRelation(
+                solo_user_id=user.user_id,
+                supervisor_user_id=None,
+                rule_id=None,
+                status=1,
+                invite_token=token,
+                invite_expires_at=expires_at
+            )
+            db.session.add(rel)
+            created_relations.append(rel)
+
+        db.session.commit()
+
+        response_data = {
+            'invite_token': token,
+            'mini_path': f"/pages/supervisor-invite/supervisor-invite?token={token}",
+            'expire_at': expires_at.strftime('%Y-%m-%d %H:%M:%S')
+        }
+        return make_succ_response(response_data)
+    except Exception as e:
+        app.logger.error(f'生成监督邀请链接失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'生成监督邀请链接失败: {str(e)}')
+
+
+@app.route('/api/rules/supervision/invite/resolve', methods=['GET'])
+@login_required
+def resolve_invite_link(decoded):
+    """
+    解析邀请链接，将当前登录用户绑定为supervisor
+    """
+    app.logger.info('=== 开始执行解析邀请链接接口 ===')
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        token = request.args.get('token')
+        if not token:
+            return make_err_response({}, '缺少token参数')
+
+        relation = SupervisionRuleRelation.query.filter_by(
+            invite_token=token).first()
+        if not relation:
+            return make_err_response({}, '邀请链接无效或已失效')
+
+        if relation.invite_expires_at and relation.invite_expires_at < datetime.now():
+            return make_err_response({}, '邀请链接已过期')
+
+        if relation.supervisor_user_id and relation.supervisor_user_id != user.user_id:
+            return make_err_response({}, '邀请已被其他用户处理')
+
+        relation.supervisor_user_id = user.user_id
+        relation.updated_at = datetime.now()
+        db.session.commit()
+
+        response_data = {
+            'relation_id': relation.relation_id,
+            'status': relation.status_name,
+            'solo_user_id': relation.solo_user_id,
+            'rule_id': relation.rule_id
+        }
+        return make_succ_response(response_data)
+    except Exception as e:
+        app.logger.error(f'解析邀请链接失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'解析邀请链接失败: {str(e)}')
 
     except Exception as e:
         app.logger.error(f'邀请监督者时发生错误: {str(e)}', exc_info=True)
