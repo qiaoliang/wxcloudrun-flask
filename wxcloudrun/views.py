@@ -1401,11 +1401,17 @@ def get_supervision_invitations(decoded):
         return make_err_response({}, '用户不存在')
 
     try:
-        # 获取当前用户收到的监督邀请（即当前用户是监督者）
-        invitations = SupervisionRuleRelation.query.filter_by(
-            supervisor_user_id=user.user_id,
-            status=1  # 待同意
-        ).all()
+        inv_type = request.args.get('type', 'received')
+        if inv_type == 'sent':
+            invitations = SupervisionRuleRelation.query.filter_by(
+                solo_user_id=user.user_id,
+                status=1
+            ).all()
+        else:
+            invitations = SupervisionRuleRelation.query.filter_by(
+                supervisor_user_id=user.user_id,
+                status=1
+            ).all()
 
         invitations_data = []
         for inv in invitations:
@@ -1432,6 +1438,7 @@ def get_supervision_invitations(decoded):
             })
 
         response_data = {
+            'type': inv_type,
             'invitations': invitations_data
         }
 
@@ -1613,6 +1620,36 @@ def get_my_supervised_users(decoded):
     except Exception as e:
         app.logger.error(f'获取监督的用户列表时发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取监督的用户列表失败: {str(e)}')
+
+
+@app.route('/api/rules/supervision/my_guardians', methods=['GET'])
+@login_required
+def get_my_guardians(decoded):
+    app.logger.info('=== 开始执行获取我的监护人列表接口 ===')
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        relations = SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.solo_user_id == user.user_id,
+            SupervisionRuleRelation.status == 2
+        ).distinct(SupervisionRuleRelation.supervisor_user_id).all()
+
+        guardians = []
+        for rel in relations:
+            sup = query_user_by_id(rel.supervisor_user_id)
+            guardians.append({
+                'user_id': sup.user_id,
+                'nickname': sup.nickname,
+                'avatar_url': sup.avatar_url
+            })
+
+        return make_succ_response({'guardians': guardians})
+    except Exception as e:
+        app.logger.error(f'获取我的监护人列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取我的监护人列表失败: {str(e)}')
 
 
 @app.route('/api/rules/supervision/records', methods=['GET'])
