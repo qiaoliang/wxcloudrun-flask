@@ -1,5 +1,3 @@
-from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
-from wxcloudrun import views
 import os
 import time
 from flask import Flask
@@ -24,6 +22,11 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 初始化DB操作对象
 db = SQLAlchemy(app)
+
+# 现在再导入模型和视图，避免循环依赖
+from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord  # noqa: F401
+from wxcloudrun import views  # noqa: F401
+from wxcloudrun.background_tasks import start_missing_check_service  # noqa: F401
 
 # 加载配置
 app.config.from_object('config')
@@ -120,3 +123,12 @@ try:
 except Exception as e:
     app.logger.error(f"数据库初始化失败: {str(e)}")
     app.logger.error("应用将继续启动，但数据库功能可能无法使用。")
+
+# 启动后台missing标记服务
+try:
+    import os as _os
+    # 仅在主进程中启动，避免debug模式下重复启动
+    if _os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+        start_missing_check_service()
+except Exception as e:
+    app.logger.error(f"启动后台missing服务失败: {str(e)}")
