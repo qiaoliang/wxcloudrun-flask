@@ -48,8 +48,15 @@ def get_database_config() -> Dict[str, Any]:
         }
     else:
         # function 和 prod 环境使用 SQLite 文件数据库
-        # 从环境变量获取数据库文件路径，如果未设置则使用默认路径
-        db_path = os.getenv("SQLITE_DB_PATH", './data/app.db')
+        # 根据环境类型设置不同的默认路径，可被环境变量 SQLITE_DB_PATH 覆盖
+        if env_type == 'function':
+            default_path = './data/function.db'
+        elif env_type == 'prod':
+            default_path = '/app/data/prod.db'
+        else:
+            default_path = './data/app.db'
+
+        db_path = os.getenv("SQLITE_DB_PATH", default_path)
         
         # 确保使用绝对路径以避免相对路径问题
         if not os.path.isabs(db_path):
