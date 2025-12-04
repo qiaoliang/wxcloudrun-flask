@@ -49,7 +49,16 @@ def get_database_config() -> Dict[str, Any]:
     else:
         # function 和 prod 环境使用 SQLite 文件数据库
         # 从环境变量获取数据库文件路径，如果未设置则使用默认路径
-        db_path = os.getenv("SQLITE_DB_PATH", '/app/data/app.db')
+        db_path = os.getenv("SQLITE_DB_PATH", './data/app.db')
+        
+        # 确保使用绝对路径以避免相对路径问题
+        if not os.path.isabs(db_path):
+            db_path = os.path.abspath(db_path)
+        
+        # 在开发环境中确保目录存在
+        db_dir = os.path.dirname(db_path)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir, exist_ok=True)
         
         return {
             'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',

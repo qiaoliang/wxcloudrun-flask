@@ -129,7 +129,7 @@ class CheckinRule(db.Model):
 
     # 索引
     __table_args__ = (
-        db.Index('idx_solo_user', 'solo_user_id'),  # 用户ID索引
+        db.Index('idx_checkin_rules_solo_user', 'solo_user_id'),  # 用户ID索引
     )
 
 
@@ -157,9 +157,9 @@ class CheckinRecord(db.Model):
 
     # 索引
     __table_args__ = (
-        db.Index('idx_rule', 'rule_id'),  # 规则ID索引
-        db.Index('idx_solo_user', 'solo_user_id'),  # 用户ID索引
-        db.Index('idx_planned_time', 'planned_time'),  # 计划时间索引
+        db.Index('idx_checkin_records_rule', 'rule_id'),  # 规则ID索引
+        db.Index('idx_checkin_records_solo_user', 'solo_user_id'),  # 用户ID索引
+        db.Index('idx_checkin_records_planned_time', 'planned_time'),  # 计划时间索引
     )
 
     # 状态映射
