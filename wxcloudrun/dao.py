@@ -378,11 +378,49 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
     :param end_date: 结束日期
     :return: 打卡记录列表
     """
-    # 注意：这需要关联SupervisionRelation表，目前未实现，暂返回空列表
-    # 未来需要实现监护关系表后，才能查询被监护人的打卡记录
     try:
-        # 这里只是一个占位实现，实际需要关联监护关系表
-        return []
+        from wxcloudrun.model import SupervisionRuleRelation
+        from sqlalchemy import and_
+        
+        # 获取监督者可以监督的所有用户和规则
+        relations = SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
+            SupervisionRuleRelation.status == 2  # 已同意
+        ).all()
+        
+        if not relations:
+            return []
+        
+        # 分离可以监督所有规则的用户和特定规则的关系
+        all_rules_users = set()
+        specific_rules = []
+        
+        for relation in relations:
+            if relation.rule_id is None:
+                all_rules_users.add(relation.solo_user_id)
+            else:
+                specific_rules.append(relation.rule_id)
+        
+        # 构建查询条件
+        all_records = []
+        
+        # 查询可以监督所有规则的用户的记录
+        if all_rules_users:
+            all_records.extend(CheckinRecord.query.join(CheckinRule).filter(
+                CheckinRecord.solo_user_id.in_(list(all_rules_users)),
+                CheckinRecord.planned_time >= start_date,
+                CheckinRecord.planned_time <= end_date
+            ).all())
+        
+        # 查询可以监督特定规则的记录
+        if specific_rules:
+            all_records.extend(CheckinRecord.query.filter(
+                CheckinRecord.rule_id.in_(specific_rules),
+                CheckinRecord.planned_time >= start_date,
+                CheckinRecord.planned_time <= end_date
+            ).all())
+        
+        return list(set(all_records))  # 去重
     except OperationalError as e:
         logger.info("query_checkin_records_by_supervisor_and_date_range errorMsg= {} ".format(e))
         return []
@@ -431,4 +469,221 @@ def query_unchecked_users_by_date(checkin_date=None):
         return unchecked_users
     except OperationalError as e:
         logger.info("query_unchecked_users_by_date errorMsg= {} ".format(e))
+        return []
+
+
+# 监督规则关系数据访问方法
+def query_supervision_relations_by_solo_user(solo_user_id):
+    """
+    根据被监督用户ID查询监督关系列表
+    :param solo_user_id: 被监督用户ID
+    :return: 监督关系列表
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        return SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.solo_user_id == solo_user_id
+        ).all()
+    except OperationalError as e:
+        logger.info("query_supervision_relations_by_solo_user errorMsg= {} ".format(e))
+        return []
+
+
+def query_supervision_relations_by_supervisor(supervisor_user_id):
+    """
+    根据监督者用户ID查询监督关系列表
+    :param supervisor_user_id: 监督者用户ID
+    :return: 监督关系列表
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        return SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.supervisor_user_id == supervisor_user_id
+        ).all()
+    except OperationalError as e:
+        logger.info("query_supervision_relations_by_supervisor errorMsg= {} ".format(e))
+        return []
+
+
+def query_supervision_relations_by_user_and_rule(solo_user_id, supervisor_user_id, rule_id=None):
+    """
+    根据用户和规则查询监督关系
+    :param solo_user_id: 被监督用户ID
+    :param supervisor_user_id: 监督者用户ID
+    :param rule_id: 规则ID，如果为None则表示查询所有规则的监督关系
+    :return: 监督关系列表
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        query = SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.solo_user_id == solo_user_id,
+            SupervisionRuleRelation.supervisor_user_id == supervisor_user_id
+        )
+        
+        if rule_id is not None:
+            query = query.filter(
+                (SupervisionRuleRelation.rule_id == rule_id) | 
+                (SupervisionRuleRelation.rule_id.is_(None))
+            )
+        
+        return query.all()
+    except OperationalError as e:
+        logger.info("query_supervision_relations_by_user_and_rule errorMsg= {} ".format(e))
+        return []
+
+
+def query_pending_supervision_invitations_by_supervisor(supervisor_user_id):
+    """
+    查询指定监督者收到的待处理邀请
+    :param supervisor_user_id: 监督者用户ID
+    :return: 待处理邀请列表
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        return SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
+            SupervisionRuleRelation.status == 1  # 待同意
+        ).all()
+    except OperationalError as e:
+        logger.info("query_pending_supervision_invitations_by_supervisor errorMsg= {} ".format(e))
+        return []
+
+
+def insert_supervision_relation(relation):
+    """
+    插入监督关系
+    :param relation: 监督关系实体
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        db.session.add(relation)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("insert_supervision_relation errorMsg= {} ".format(e))
+
+
+def update_supervision_relation_by_id(relation):
+    """
+    根据ID更新监督关系
+    :param relation: 监督关系实体
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        existing_relation = SupervisionRuleRelation.query.get(relation.relation_id)
+        if existing_relation is None:
+            return
+        # 更新关系信息
+        if relation.status is not None:
+            existing_relation.status = relation.status
+        existing_relation.updated_at = relation.updated_at or datetime.now()
+        
+        db.session.flush()
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("update_supervision_relation_by_id errorMsg= {} ".format(e))
+
+
+def delete_supervision_relation_by_id(relation_id):
+    """
+    根据ID删除监督关系
+    :param relation_id: 关系ID
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        relation = SupervisionRuleRelation.query.get(relation_id)
+        if relation is None:
+            return
+        db.session.delete(relation)
+        db.session.commit()
+    except OperationalError as e:
+        logger.info("delete_supervision_relation_by_id errorMsg= {} ".format(e))
+
+
+def query_supervised_rules_for_supervisor(supervisor_user_id, solo_user_id):
+    """
+    查询监督者可以监督的特定用户的规则列表
+    :param supervisor_user_id: 监督者用户ID
+    :param solo_user_id: 被监督用户ID
+    :return: 规则列表
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        relations = SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
+            SupervisionRuleRelation.solo_user_id == solo_user_id,
+            SupervisionRuleRelation.status == 2  # 已同意
+        ).all()
+        
+        rules = []
+        for relation in relations:
+            if relation.rule_id is None:  # 监督所有规则
+                from wxcloudrun.model import CheckinRule
+                rules.extend(CheckinRule.query.filter(
+                    CheckinRule.solo_user_id == solo_user_id,
+                    CheckinRule.status == 1  # 启用的规则
+                ).all())
+            else:  # 监督特定规则
+                from wxcloudrun.model import CheckinRule
+                rule = CheckinRule.query.get(relation.rule_id)
+                if rule:
+                    rules.append(rule)
+        return list(set(rules))  # 去重
+    except OperationalError as e:
+        logger.info("query_supervised_rules_for_supervisor errorMsg= {} ".format(e))
+        return []
+
+
+def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start_date, end_date):
+    """
+    根据监督者ID和日期范围查询被监督用户的打卡记录
+    :param supervisor_user_id: 监督者用户ID
+    :param start_date: 开始日期
+    :param end_date: 结束日期
+    :return: 打卡记录列表
+    """
+    try:
+        from wxcloudrun.model import SupervisionRuleRelation
+        from sqlalchemy import and_
+        
+        # 获取监督者可以监督的所有用户和规则
+        relations = SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
+            SupervisionRuleRelation.status == 2  # 已同意
+        ).all()
+        
+        if not relations:
+            return []
+        
+        # 分离可以监督所有规则的用户和特定规则的关系
+        all_rules_users = set()
+        specific_rules = []
+        
+        for relation in relations:
+            if relation.rule_id is None:
+                all_rules_users.add(relation.solo_user_id)
+            else:
+                specific_rules.append(relation.rule_id)
+        
+        # 构建查询条件
+        all_records = []
+        
+        # 查询可以监督所有规则的用户的记录
+        if all_rules_users:
+            all_records.extend(CheckinRecord.query.join(CheckinRule).filter(
+                CheckinRecord.solo_user_id.in_(list(all_rules_users)),
+                CheckinRecord.planned_time >= start_date,
+                CheckinRecord.planned_time <= end_date
+            ).all())
+        
+        # 查询可以监督特定规则的记录
+        if specific_rules:
+            all_records.extend(CheckinRecord.query.filter(
+                CheckinRecord.rule_id.in_(specific_rules),
+                CheckinRecord.planned_time >= start_date,
+                CheckinRecord.planned_time <= end_date
+            ).all())
+        
+        return list(set(all_records))  # 去重
+    except OperationalError as e:
+        logger.info("query_checkin_records_by_supervisor_and_date_range errorMsg= {} ".format(e))
         return []

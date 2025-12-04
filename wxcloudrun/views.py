@@ -18,6 +18,16 @@ from wxcloudrun.dao import *
 load_dotenv()
 
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        decoded, error_response = verify_token()
+        if error_response:
+            return error_response
+        return f(decoded, *args, **kwargs)
+    return decorated_function
+
+
 @app.route('/')
 def index():
     """
@@ -615,20 +625,6 @@ def verify_token():
     except Exception as e:
         app.logger.error(f'JWT验证时发生错误: {str(e)}', exc_info=True)
         return None, make_err_response({}, f'JWT验证失败: {str(e)}')
-
-
-def login_required(f):
-    """
-    统一的登录认证装饰器
-    """
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        decoded, error_response = verify_token()
-        if error_response:
-            return error_response
-        # 将解码后的用户信息传递给被装饰的函数
-        return f(decoded, *args, **kwargs)
-    return decorated_function
 
 
 @app.route('/api/community/verify', methods=['POST'])
