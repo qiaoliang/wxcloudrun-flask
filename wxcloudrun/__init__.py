@@ -99,6 +99,28 @@ try:
                 rel_cols = [c['name'] for c in inspector.get_columns(
                     'supervision_rule_relations')]
                 rel_migrations = []
+                # sqlite下将 supervisor_user_id 改为可空（如当前为NOT NULL则通过重建表迁移）
+                try:
+                    with db.engine.begin() as conn:
+                        info = conn.execute(
+                            text("PRAGMA table_info(supervision_rule_relations)")).fetchall()
+                        notnull_map = {row[1]: row[3] for row in info}
+                        if notnull_map.get('supervisor_user_id') == 1:
+                            conn.execute(text("CREATE TABLE supervision_rule_relations_new (\n                                relation_id INTEGER PRIMARY KEY AUTOINCREMENT,\n                                solo_user_id INTEGER NOT NULL,\n                                supervisor_user_id INTEGER,\n                                rule_id INTEGER,\n                                status INTEGER DEFAULT 1,\n                                created_at TIMESTAMP,\n                                updated_at TIMESTAMP,\n                                invite_token VARCHAR(64),\n                                invite_expires_at TIMESTAMP\n                            )"))
+                            conn.execute(text("INSERT INTO supervision_rule_relations_new (relation_id, solo_user_id, supervisor_user_id, rule_id, status, created_at, updated_at, invite_token, invite_expires_at)\n                                SELECT relation_id, solo_user_id, supervisor_user_id, rule_id, status, created_at, updated_at, invite_token, invite_expires_at FROM supervision_rule_relations"))
+                            conn.execute(
+                                text("DROP TABLE supervision_rule_relations"))
+                            conn.execute(text(
+                                "ALTER TABLE supervision_rule_relations_new RENAME TO supervision_rule_relations"))
+                            conn.execute(text(
+                                "CREATE INDEX IF NOT EXISTS idx_solo_supervisor ON supervision_rule_relations (solo_user_id, supervisor_user_id)"))
+                            conn.execute(text(
+                                "CREATE INDEX IF NOT EXISTS idx_supervisor_rule ON supervision_rule_relations (supervisor_user_id, rule_id)"))
+                            conn.execute(text(
+                                "CREATE UNIQUE INDEX IF NOT EXISTS idx_invite_token_unique ON supervision_rule_relations (invite_token)"))
+                except Exception as e:
+                    app.logger.warning(
+                        f"迁移 supervision_rule_relations 以允许 supervisor_user_id 可空失败: {str(e)}")
                 if 'invite_token' not in rel_cols:
                     rel_migrations.append(
                         "ALTER TABLE supervision_rule_relations ADD COLUMN invite_token VARCHAR(64)")
