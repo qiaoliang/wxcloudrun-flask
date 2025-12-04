@@ -15,6 +15,10 @@ from wxcloudrun.model import User, Counters, CheckinRule, CheckinRecord, Supervi
 from wxcloudrun.response import make_succ_empty_response, make_succ_response, make_err_response
 from wxcloudrun.dao import *
 from wxcloudrun.model import ShareLink, ShareLinkAccessLog
+from wxcloudrun.model import VerificationCode, UserAuditLog
+from wxcloudrun.sms_service import create_sms_provider, generate_code
+from hashlib import sha256
+import os
 
 # 加载环境变量
 load_dotenv()
@@ -627,6 +631,202 @@ def verify_token():
     except Exception as e:
         app.logger.error(f'JWT验证时发生错误: {str(e)}', exc_info=True)
         return None, make_err_response({}, f'JWT验证失败: {str(e)}')
+
+
+def _hash_code(phone, code, salt):
+    return sha256(f"{phone}:{code}:{salt}".encode('utf-8')).hexdigest()
+
+
+def _code_expiry_minutes():
+    try:
+        return int(os.getenv('CONFIG_VERIFICATION_CODE_EXPIRY', '5'))
+    except Exception:
+        return 5
+
+
+@app.route('/api/sms/send_code', methods=['POST'])
+def sms_send_code():
+    try:
+        params = request.get_json() or {}
+        phone = params.get('phone')
+        purpose = params.get('purpose', 'register')
+        if not phone:
+            return make_err_response({}, '缺少phone参数')
+        now = datetime.now()
+        vc = VerificationCode.query.filter_by(
+            phone_number=phone, purpose=purpose).first()
+        if vc and (now - vc.last_sent_at).total_seconds() < 60:
+            return make_err_response({}, '请求过于频繁，请稍后再试')
+        code = generate_code(6)
+        salt = secrets.token_hex(8)
+        code_hash = _hash_code(phone, code, salt)
+        expires_at = now + timedelta(minutes=_code_expiry_minutes())
+        if not vc:
+            vc = VerificationCode(phone_number=phone, purpose=purpose, code_hash=code_hash,
+                                  salt=salt, expires_at=expires_at, last_sent_at=now)
+            db.session.add(vc)
+        else:
+            vc.code_hash = code_hash
+            vc.salt = salt
+            vc.expires_at = expires_at
+            vc.last_sent_at = now
+        db.session.commit()
+        provider = create_sms_provider()
+        provider.send(phone, f"验证码: {code}，{_code_expiry_minutes()}分钟内有效")
+        resp = {'message': '验证码已发送'}
+        debug_flag = os.getenv('SMS_DEBUG_RETURN_CODE', '0') == '1' or request.headers.get(
+            'X-Debug-Code') == '1'
+        if debug_flag:
+            resp['debug_code'] = code
+        return make_succ_response(resp)
+    except Exception as e:
+        app.logger.error(f'发送验证码失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'发送验证码失败: {str(e)}')
+
+
+def _verify_sms_code(phone, purpose, code):
+    vc = VerificationCode.query.filter_by(
+        phone_number=phone, purpose=purpose).first()
+    if not vc:
+        return False
+    if vc.expires_at < datetime.now():
+        return False
+    return vc.code_hash == _hash_code(phone, code, vc.salt)
+
+
+def _audit(user_id, action, detail=None):
+    try:
+        log = UserAuditLog(user_id=user_id, action=action, detail=json.dumps(
+            detail) if isinstance(detail, dict) else detail)
+        db.session.add(log)
+        db.session.commit()
+    except Exception:
+        pass
+
+
+@app.route('/api/auth/register_phone', methods=['POST'])
+def register_phone():
+    try:
+        params = request.get_json() or {}
+        phone = params.get('phone')
+        code = params.get('code')
+        nickname = params.get('nickname')
+        avatar_url = params.get('avatar_url')
+        if not phone or not code:
+            return make_err_response({}, '缺少phone或code参数')
+        if not _verify_sms_code(phone, 'register', code):
+            return make_err_response({}, '验证码无效或已过期')
+        existing = User.query.filter_by(phone_number=phone).first()
+        if existing:
+            return make_err_response({}, '手机号已注册')
+        user = User(wechat_openid=f"phone_{phone}", phone_number=phone,
+                    nickname=nickname, avatar_url=avatar_url, role=1, status=1)
+        insert_user(user)
+        _audit(user.user_id, 'register_phone', {'phone': phone})
+        import datetime as dt
+        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
+                         'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+        refresh_token = secrets.token_urlsafe(32)
+        user.refresh_token = refresh_token
+        user.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
+        update_user_by_id(user)
+        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+    except Exception as e:
+        app.logger.error(f'手机号注册失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'注册失败: {str(e)}')
+
+
+def _migrate_user_data(src_user_id, dst_user_id):
+    try:
+        rules = CheckinRule.query.filter(
+            CheckinRule.solo_user_id == src_user_id).all()
+        for r in rules:
+            r.solo_user_id = dst_user_id
+        records = CheckinRecord.query.filter(
+            CheckinRecord.solo_user_id == src_user_id).all()
+        for rec in records:
+            rec.solo_user_id = dst_user_id
+        rels = SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.solo_user_id == src_user_id).all()
+        for rel in rels:
+            rel.solo_user_id = dst_user_id
+        rels2 = SupervisionRuleRelation.query.filter(
+            SupervisionRuleRelation.supervisor_user_id == src_user_id).all()
+        for rel in rels2:
+            rel.supervisor_user_id = dst_user_id
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        raise e
+
+
+@app.route('/api/user/bind_phone', methods=['POST'])
+@login_required
+def bind_phone(decoded):
+    try:
+        params = request.get_json() or {}
+        phone = params.get('phone')
+        code = params.get('code')
+        if not phone or not code:
+            return make_err_response({}, '缺少phone或code参数')
+        if not _verify_sms_code(phone, 'bind_phone', code):
+            return make_err_response({}, '验证码无效或已过期')
+        current_user = query_user_by_openid(decoded.get('openid'))
+        if not current_user:
+            return make_err_response({}, '用户不存在')
+        target = User.query.filter_by(phone_number=phone).first()
+        if target and target.user_id != current_user.user_id:
+            _migrate_user_data(target.user_id, current_user.user_id)
+            target.status = 2
+            db.session.commit()
+        current_user.phone_number = phone
+        update_user_by_id(current_user)
+        _audit(current_user.user_id, 'bind_phone', {'phone': phone})
+        return make_succ_response({'message': '绑定手机号成功'})
+    except Exception as e:
+        app.logger.error(f'绑定手机号失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'绑定手机号失败: {str(e)}')
+
+
+@app.route('/api/user/bind_wechat', methods=['POST'])
+@login_required
+def bind_wechat(decoded):
+    try:
+        params = request.get_json() or {}
+        wx_code = params.get('code')
+        phone_code = params.get('phone_code')
+        phone = params.get('phone')
+        if not wx_code:
+            return make_err_response({}, '缺少code参数')
+        if phone and not _verify_sms_code(phone, 'bind_wechat', phone_code or ''):
+            return make_err_response({}, '手机号验证码无效或已过期')
+        from .wxchat_api import get_user_info_by_code
+        wx_data = get_user_info_by_code(wx_code)
+        if 'errcode' in wx_data:
+            return make_err_response({}, f"微信API错误: {wx_data.get('errmsg', '未知错误')}")
+        openid = wx_data.get('openid')
+        if not openid:
+            return make_err_response({}, '微信返回数据不完整')
+        current_user = query_user_by_openid(decoded.get('openid'))
+        if not current_user:
+            return make_err_response({}, '用户不存在')
+        existing_wechat = query_user_by_openid(openid)
+        if existing_wechat and existing_wechat.user_id != current_user.user_id:
+            _migrate_user_data(current_user.user_id, existing_wechat.user_id)
+            current_user.status = 2
+            db.session.commit()
+            _audit(existing_wechat.user_id, 'bind_wechat_merge',
+                   {'from_user_id': current_user.user_id})
+            return make_succ_response({'message': '微信绑定并合并成功'})
+        current_user.wechat_openid = openid
+        update_user_by_id(current_user)
+        _audit(current_user.user_id, 'bind_wechat', {'openid': openid})
+        return make_succ_response({'message': '绑定微信成功'})
+    except Exception as e:
+        app.logger.error(f'绑定微信失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'绑定微信失败: {str(e)}')
 
 
 @app.route('/api/community/verify', methods=['POST'])

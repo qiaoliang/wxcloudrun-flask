@@ -381,3 +381,37 @@ class ShareLinkAccessLog(db.Model):
     __table_args__ = (
         db.Index('idx_share_log_token', 'token'),
     )
+
+
+class VerificationCode(db.Model):
+    __tablename__ = 'verification_codes'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    phone_number = db.Column(db.String(20), nullable=False)
+    purpose = db.Column(db.String(50), nullable=False)
+    code_hash = db.Column(db.String(128), nullable=False)
+    salt = db.Column(db.String(32), nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    last_sent_at = db.Column(db.DateTime, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    __table_args__ = (
+        db.Index('idx_verif_phone_purpose', 'phone_number', 'purpose'),
+    )
+
+
+class UserAuditLog(db.Model):
+    __tablename__ = 'user_audit_logs'
+
+    log_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, nullable=False)
+    action = db.Column(db.String(100), nullable=False)
+    detail = db.Column(db.Text, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+
+    __table_args__ = (
+        db.Index('idx_audit_user', 'user_id'),
+        db.Index('idx_audit_action', 'action'),
+    )
