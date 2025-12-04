@@ -69,6 +69,15 @@ try:
                 if 'is_community_worker' not in cols:
                     migrations.append(
                         "ALTER TABLE users ADD COLUMN is_community_worker INTEGER DEFAULT 0")
+                if 'phone_hash' not in cols:
+                    migrations.append(
+                        "ALTER TABLE users ADD COLUMN phone_hash VARCHAR(64)")
+                if 'password_hash' not in cols:
+                    migrations.append(
+                        "ALTER TABLE users ADD COLUMN password_hash VARCHAR(128)")
+                if 'password_salt' not in cols:
+                    migrations.append(
+                        "ALTER TABLE users ADD COLUMN password_salt VARCHAR(32)")
                 if migrations:
                     app.logger.info(f"对 users 表进行字段补全: {migrations}")
                     with db.engine.begin() as conn:

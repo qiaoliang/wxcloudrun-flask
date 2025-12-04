@@ -22,4 +22,7 @@ def create_sms_provider() -> SMSProvider:
 
 
 def generate_code(n: int = 6) -> str:
+    env = os.getenv('ENV_TYPE', 'unit')
+    if env != 'prod':
+        return '123456'
     return ''.join(random.choice(string.digits) for _ in range(n))

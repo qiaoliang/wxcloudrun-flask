@@ -27,10 +27,14 @@ class User(db.Model):
         db.String(128), unique=True, nullable=False, comment='微信OpenID，唯一标识用户')
     phone_number = db.Column(
         db.String(20), unique=True, comment='手机号码，可用于登录和联系')
+    phone_hash = db.Column(db.String(64), unique=True,
+                           comment='手机号加密哈希，用于安全查找')
     nickname = db.Column(db.String(100), comment='用户昵称')
     avatar_url = db.Column(db.String(500), comment='用户头像URL')
     name = db.Column(db.String(100), comment='真实姓名')
     work_id = db.Column(db.String(50), comment='工号或身份证号')
+    password_hash = db.Column(db.String(128), comment='密码哈希')
+    password_salt = db.Column(db.String(32), comment='密码盐')
 
     # 使用整数类型存储角色和状态，避免在不同数据库间使用不同字段类型
     # 角色: 1-独居者, 2-监护人, 3-社区工作人员（保留用于兼容，逐步过渡到权限组合）

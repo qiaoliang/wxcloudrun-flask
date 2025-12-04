@@ -19,6 +19,7 @@ from wxcloudrun.model import VerificationCode, UserAuditLog
 from wxcloudrun.sms_service import create_sms_provider, generate_code
 from hashlib import sha256
 import os
+import secrets
 
 # 加载环境变量
 load_dotenv()
@@ -712,15 +713,27 @@ def register_phone():
         code = params.get('code')
         nickname = params.get('nickname')
         avatar_url = params.get('avatar_url')
+        password = params.get('password')
         if not phone or not code:
             return make_err_response({}, '缺少phone或code参数')
         if not _verify_sms_code(phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
-        existing = User.query.filter_by(phone_number=phone).first()
+        if password:
+            pwd = str(password)
+            if len(pwd) < 8 or (not any(c.isalpha() for c in pwd)) or (not any(c.isdigit() for c in pwd)):
+                return make_err_response({}, '密码强度不足')
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(
+            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+        existing = User.query.filter_by(phone_hash=phone_hash).first()
         if existing:
             return make_err_response({}, '手机号已注册')
-        user = User(wechat_openid=f"phone_{phone}", phone_number=phone,
-                    nickname=nickname, avatar_url=avatar_url, role=1, status=1)
+        salt = secrets.token_hex(8)
+        pwd_hash = sha256(f"{password or ''}:{salt}".encode(
+            'utf-8')).hexdigest() if password else None
+        masked = phone[:3] + '****' + phone[-4:] if len(phone) >= 7 else phone
+        user = User(wechat_openid=f"phone_{phone}", phone_number=masked, phone_hash=phone_hash, password_hash=pwd_hash,
+                    password_salt=salt if password else None, nickname=nickname, avatar_url=avatar_url, role=1, status=1)
         insert_user(user)
         _audit(user.user_id, 'register_phone', {'phone': phone})
         import datetime as dt
@@ -776,12 +789,17 @@ def bind_phone(decoded):
         current_user = query_user_by_openid(decoded.get('openid'))
         if not current_user:
             return make_err_response({}, '用户不存在')
-        target = User.query.filter_by(phone_number=phone).first()
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(
+            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+        target = User.query.filter_by(phone_hash=phone_hash).first()
         if target and target.user_id != current_user.user_id:
             _migrate_user_data(target.user_id, current_user.user_id)
             target.status = 2
             db.session.commit()
-        current_user.phone_number = phone
+        current_user.phone_hash = phone_hash
+        current_user.phone_number = phone[:3] + '****' + \
+            phone[-4:] if len(phone) >= 7 else phone
         update_user_by_id(current_user)
         _audit(current_user.user_id, 'bind_phone', {'phone': phone})
         return make_succ_response({'message': '绑定手机号成功'})
@@ -2365,3 +2383,69 @@ def get_supervised_checkin_records(decoded):
     except Exception as e:
         app.logger.error(f'获取被监督用户打卡记录时发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取被监督用户打卡记录失败: {str(e)}')
+
+
+@app.route('/api/auth/login_phone_code', methods=['POST'])
+def login_phone_code():
+    try:
+        params = request.get_json() or {}
+        phone = params.get('phone')
+        code = params.get('code')
+        if not phone or not code:
+            return make_err_response({}, '缺少phone或code参数')
+        if not _verify_sms_code(phone, 'login', code) and not _verify_sms_code(phone, 'register', code):
+            return make_err_response({}, '验证码无效或已过期')
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(
+            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+        user = User.query.filter_by(phone_hash=phone_hash).first()
+        if not user:
+            return make_err_response({}, '用户不存在')
+        import datetime as dt
+        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
+                         'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+        refresh_token = secrets.token_urlsafe(32)
+        user.refresh_token = refresh_token
+        user.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
+        update_user_by_id(user)
+        _audit(user.user_id, 'login_phone_code', {'phone': phone})
+        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+    except Exception as e:
+        app.logger.error(f'验证码登录失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'登录失败: {str(e)}')
+
+
+@app.route('/api/auth/login_phone_password', methods=['POST'])
+def login_phone_password():
+    try:
+        params = request.get_json() or {}
+        phone = params.get('phone')
+        password = params.get('password')
+        if not phone or not password:
+            return make_err_response({}, '缺少phone或password参数')
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(
+            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+        user = User.query.filter_by(phone_hash=phone_hash).first()
+        if not user or not user.password_hash or not user.password_salt:
+            return make_err_response({}, '账号不存在或未设置密码')
+        pwd_hash = sha256(
+            f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
+        if pwd_hash != user.password_hash:
+            return make_err_response({}, '密码不正确')
+        import datetime as dt
+        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
+                         'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
+        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+        refresh_token = secrets.token_urlsafe(32)
+        user.refresh_token = refresh_token
+        user.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
+        update_user_by_id(user)
+        _audit(user.user_id, 'login_phone_password', {'phone': phone})
+        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+    except Exception as e:
+        app.logger.error(f'密码登录失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'登录失败: {str(e)}')
