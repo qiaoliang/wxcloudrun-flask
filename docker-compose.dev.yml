@@ -1,35 +1,45 @@
 services:
   mysql-db:
     image: mysql:8.4.3
-    container_name: mysql-db
+    container_name: mysql-db-dev
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_DATABASE: flask_demo
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data:/var/lib/mysql
+      - mysql_data_dev:/var/lib/mysql
+      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
     restart: unless-stopped
 
   app:
-    build: .
-    container_name: py-safeclockin
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: py-safeclockin-dev
     ports:
       - "8080:8080"
+    volumes:
+      # 卷挂载本地代码目录到容器中，便于实时更新
+      - .:/app
+      # 挂载Python包缓存，避免重复安装
+      - /app/__pycache__
+      - /app/wxcloudrun/__pycache__
+      - /app/tests/__pycache__
     depends_on:
       - mysql-db
     environment:
-      ENV_TYPE: function
       MYSQL_USERNAME: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_ADDRESS: mysql-db:3306
-      WX_APPID: ${WX_APPID:-test_appid}
-      WX_SECRET: ${WX_SECRET:-test_secret}
-      TOKEN_SECRET: ${TOKEN_SECRET:-test_token_secret}
-      DB_RETRY_COUNT: 30
-      DB_RETRY_DELAY: 2.0
-      DOCKER_ENV: "true"
+      WX_APPID: ${WX_APPID}
+      WX_SECRET: ${WX_SECRET}
+      TOKEN_SECRET: ${TOKEN_SECRET}
     restart: unless-stopped
+    # 开发模式下使用命令覆盖默认启动方式，便于调试
+    command: >
+      sh -c "pip install -r requirements.txt && 
+             python run.py 0.0.0.0 8080"
 
 volumes:
-  mysql_data:
+  mysql_data_dev:
