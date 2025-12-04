@@ -133,19 +133,12 @@ def login():
 
     # 调用微信API获取用户信息
     try:
-        import config
-        app.logger.info(f'从配置中获取WX_APPID: {config.WX_APPID[:10]}...' if hasattr(config, 'WX_APPID') and config.WX_APPID else 'WX_APPID未配置')
-        app.logger.info(f'从配置中获取WX_SECRET: {config.WX_SECRET[:10]}...' if hasattr(config, 'WX_SECRET') and config.WX_SECRET else 'WX_SECRET未配置')
-
-        wx_url = f'https://api.weixin.qq.com/sns/jscode2session?appid={config.WX_APPID}&secret={config.WX_SECRET}&js_code={code}&grant_type=authorization_code'
-        app.logger.info(f'请求微信API的URL: {wx_url[:100]}...')  # 只打印URL前100个字符以避免敏感信息泄露
-
-        # 发送请求到微信API，禁用SSL验证以解决证书问题（仅用于开发测试环境）
-        app.logger.info('正在发送请求到微信API...')
-        wx_response = requests.get(wx_url, timeout=30, verify=False)  # 增加超时时间到30秒
-        app.logger.info(f'微信API响应状态码: {wx_response.status_code}')
-
-        wx_data = wx_response.json()
+        # 使用新的微信API模块，根据环境变量智能选择真实或模拟API
+        from .wxchat_api import get_user_info_by_code
+        
+        app.logger.info('正在通过微信API模块获取用户信息...')
+        wx_data = get_user_info_by_code(code)
+        
         app.logger.info(f'微信API响应数据类型: {type(wx_data)}')
         app.logger.info(f'微信API响应内容: {wx_data}')
 
@@ -242,15 +235,6 @@ def login():
 
         app.logger.info('JWT token和refresh token生成成功')
 
-    except requests.exceptions.Timeout as e:
-        app.logger.error(f'请求微信API超时: {str(e)}')
-        return make_err_response({}, f'调用微信API超时: {str(e)}')
-    except requests.exceptions.RequestException as e:
-        app.logger.error(f'请求微信API时发生网络错误: {str(e)}')
-        return make_err_response({}, f'调用微信API失败: {str(e)}')
-    except jwt.PyJWTError as e:
-        app.logger.error(f'JWT处理错误: {str(e)}')
-        return make_err_response({}, f'JWT处理失败: {str(e)}')
     except Exception as e:
         app.logger.error(f'登录过程中发生未预期的错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')
