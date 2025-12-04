@@ -1059,6 +1059,8 @@ def manage_checkin_rules(decoded):
                     'time_slot_type': rule.time_slot_type,
                     'custom_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else None,
                     'week_days': rule.week_days,
+                    'custom_start_date': rule.custom_start_date.strftime('%Y-%m-%d') if rule.custom_start_date else None,
+                    'custom_end_date': rule.custom_end_date.strftime('%Y-%m-%d') if rule.custom_end_date else None,
                     'status': rule.status,
                     'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M:%S'),
                     'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M:%S')
@@ -1090,6 +1092,10 @@ def manage_checkin_rules(decoded):
                 custom_time=datetime.strptime(params['custom_time'], '%H:%M:%S').time(
                 ) if params.get('custom_time') else None,
                 week_days=params.get('week_days', 127),  # 默认周一到周日
+                custom_start_date=datetime.strptime(
+                    params['custom_start_date'], '%Y-%m-%d').date() if params.get('custom_start_date') else None,
+                custom_end_date=datetime.strptime(
+                    params['custom_end_date'], '%Y-%m-%d').date() if params.get('custom_end_date') else None,
                 status=params.get('status', 1)  # 默认启用
             )
 
@@ -1133,6 +1139,12 @@ def manage_checkin_rules(decoded):
                 rule.week_days = params['week_days']
             if 'status' in params:
                 rule.status = params['status']
+            if 'custom_start_date' in params:
+                rule.custom_start_date = datetime.strptime(
+                    params['custom_start_date'], '%Y-%m-%d').date() if params['custom_start_date'] else None
+            if 'custom_end_date' in params:
+                rule.custom_end_date = datetime.strptime(
+                    params['custom_end_date'], '%Y-%m-%d').date() if params['custom_end_date'] else None
 
             update_checkin_rule_by_id(rule)
 

@@ -2,6 +2,7 @@ import os
 import time
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import text
 import config
 from config_manager import get_database_config
 
@@ -52,6 +53,36 @@ try:
                 app.logger.warning("警告: Counters 表不存在")
             else:
                 app.logger.info("Counters 表已存在")
+
+            if 'users' in tables:
+                cols = [c['name'] for c in inspector.get_columns('users')]
+                migrations = []
+                if 'is_solo_user' not in cols:
+                    migrations.append("ALTER TABLE users ADD COLUMN is_solo_user INTEGER DEFAULT 1")
+                if 'is_supervisor' not in cols:
+                    migrations.append("ALTER TABLE users ADD COLUMN is_supervisor INTEGER DEFAULT 0")
+                if 'is_community_worker' not in cols:
+                    migrations.append("ALTER TABLE users ADD COLUMN is_community_worker INTEGER DEFAULT 0")
+                if migrations:
+                    app.logger.info(f"对 users 表进行字段补全: {migrations}")
+                    with db.engine.begin() as conn:
+                        for sql in migrations:
+                            conn.execute(text(sql))
+                    app.logger.info("users 表字段补全完成")
+
+            if 'checkin_rules' in tables:
+                rule_cols = [c['name'] for c in inspector.get_columns('checkin_rules')]
+                rule_migrations = []
+                if 'custom_start_date' not in rule_cols:
+                    rule_migrations.append("ALTER TABLE checkin_rules ADD COLUMN custom_start_date DATE")
+                if 'custom_end_date' not in rule_cols:
+                    rule_migrations.append("ALTER TABLE checkin_rules ADD COLUMN custom_end_date DATE")
+                if rule_migrations:
+                    app.logger.info(f"对 checkin_rules 表进行字段补全: {rule_migrations}")
+                    with db.engine.begin() as conn:
+                        for sql in rule_migrations:
+                            conn.execute(text(sql))
+                    app.logger.info("checkin_rules 表字段补全完成")
 except Exception as e:
     app.logger.error(f"数据库初始化失败: {str(e)}")
     app.logger.error("应用将继续启动，但数据库功能可能无法使用。")
