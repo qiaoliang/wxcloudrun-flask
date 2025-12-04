@@ -2,6 +2,9 @@
 
 ## 说明
 - 前端封装位置：`frontend/api/auth.js`
+- 后端框架：Flask + Python
+- 数据库：SQLite
+- 认证方式：JWT令牌
 - 所有接口统一返回结构：`{ code: 1|-1, data: {...}, msg: 'success|error' }`
 - 鉴权：除登录外均需`Authorization: Bearer {token}`（通过`request.js`自动附加）
 
