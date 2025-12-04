@@ -33,7 +33,7 @@ class User(db.Model):
     work_id = db.Column(db.String(50), comment='工号或身份证号')
     
     # 使用整数类型存储角色和状态，避免在不同数据库间使用不同字段类型
-    # 角色: 1-独居者, 2-监护人, 3-社区工作人员
+    # 角色: 1-独居者, 2-监护人, 3-社区工作人员（保留用于兼容，逐步过渡到权限组合）
     role = db.Column(db.Integer, nullable=False, comment='用户角色：1-独居者/2-监护人/3-社区工作人员')
     # 状态: 1-正常, 2-禁用
     status = db.Column(db.Integer, default=1, comment='用户状态：1-正常/2-禁用')
@@ -42,6 +42,11 @@ class User(db.Model):
     verification_status = db.Column(db.Integer, default=0, comment='验证状态：0-未申请/1-待审核/2-已通过/3-已拒绝')
     verification_materials = db.Column(db.Text, comment='验证材料URL')
     
+    # 权限组合字段：用于替代互斥角色模型
+    is_solo_user = db.Column(db.Boolean, default=True, comment='是否为打卡人')
+    is_supervisor = db.Column(db.Boolean, default=False, comment='是否为监护人')
+    is_community_worker = db.Column(db.Boolean, default=False, comment='是否为社区工作人员')
+
     community_id = db.Column(db.Integer, comment='所属社区ID，仅社区工作人员需要')
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
@@ -181,3 +186,117 @@ class CheckinRecord(db.Model):
             if name == status_name:
                 return value
         return None
+
+
+# 监督规则关系表 - 连接用户和规则的监督关系
+class SupervisionRuleRelation(db.Model):
+    # 设置结构体表格名称
+    __tablename__ = 'supervision_rule_relations'
+
+    # 设定结构体对应表格的字段
+    relation_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    solo_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='被监督用户ID')
+    supervisor_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='监督者用户ID')
+    rule_id = db.Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=True, comment='具体规则ID，为空表示监督所有规则')
+    status = db.Column(db.Integer, default=1, comment='关系状态：1-待同意/2-已同意/3-已拒绝/4-已移除')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联用户和规则
+    solo_user = db.relationship('User', foreign_keys=[solo_user_id], backref=db.backref('supervised_by_relations', lazy=True))
+    supervisor_user = db.relationship('User', foreign_keys=[supervisor_user_id], backref=db.backref('supervising_relations', lazy=True))
+    rule = db.relationship('CheckinRule', backref=db.backref('supervision_relations', lazy=True))
+
+    # 索引
+    __table_args__ = (
+        db.Index('idx_solo_supervisor', 'solo_user_id', 'supervisor_user_id'),  # 用户监督关系索引
+        db.Index('idx_supervisor_rule', 'supervisor_user_id', 'rule_id'),  # 监督者规则索引
+    )
+
+    # 状态映射
+    STATUS_MAPPING = {
+        1: 'pending',
+        2: 'approved', 
+        3: 'rejected',
+        4: 'removed'
+    }
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
+
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
+                return value
+        return None
+
+
+# 更新User模型，增加方法以支持新的角色系统语义
+from sqlalchemy import and_
+
+def can_supervise_user(self, other_user_id):
+    """检查当前用户是否可以监督指定用户"""
+    # 检查是否存在有效的监督关系
+    relation = SupervisionRuleRelation.query.filter(
+        and_(
+            SupervisionRuleRelation.supervisor_user_id == self.user_id,
+            SupervisionRuleRelation.solo_user_id == other_user_id,
+            SupervisionRuleRelation.status == 2  # 已同意
+        )
+    ).first()
+    return relation is not None
+
+def can_supervise_rule(self, rule_id):
+    """检查当前用户是否可以监督指定规则"""
+    # 检查是否存在监督特定规则的关系，或监督该用户所有规则的关系
+    relation = SupervisionRuleRelation.query.filter(
+        and_(
+            SupervisionRuleRelation.supervisor_user_id == self.user_id,
+            SupervisionRuleRelation.status == 2,  # 已同意
+            (SupervisionRuleRelation.rule_id == rule_id) | (SupervisionRuleRelation.rule_id.is_(None))
+        )
+    ).first()
+    return relation is not None
+
+def get_supervised_users(self):
+    """获取当前用户监督的所有用户列表"""
+    relations = SupervisionRuleRelation.query.filter(
+        and_(
+            SupervisionRuleRelation.supervisor_user_id == self.user_id,
+            SupervisionRuleRelation.status == 2  # 已同意
+        )
+    ).distinct(SupervisionRuleRelation.solo_user_id).all()
+    return [relation.solo_user for relation in relations]
+
+def get_supervised_rules(self, solo_user_id):
+    """获取当前用户监督的特定用户的规则列表"""
+    relations = SupervisionRuleRelation.query.filter(
+        and_(
+            SupervisionRuleRelation.supervisor_user_id == self.user_id,
+            SupervisionRuleRelation.solo_user_id == solo_user_id,
+            SupervisionRuleRelation.status == 2  # 已同意
+        )
+    ).all()
+    
+    rules = []
+    for relation in relations:
+        if relation.rule_id is None:  # 监督所有规则
+            rules.extend(CheckinRule.query.filter(
+                CheckinRule.solo_user_id == solo_user_id,
+                CheckinRule.status == 1  # 启用的规则
+            ).all())
+        else:  # 监督特定规则
+            rule = CheckinRule.query.get(relation.rule_id)
+            if rule:
+                rules.append(rule)
+    return list(set(rules))  # 去重
+
+# 绑定方法到User类
+User.can_supervise_user = can_supervise_user
+User.can_supervise_rule = can_supervise_rule
+User.get_supervised_users = get_supervised_users
+User.get_supervised_rules = get_supervised_rules
