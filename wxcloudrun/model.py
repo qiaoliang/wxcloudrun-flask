@@ -337,3 +337,47 @@ User.can_supervise_user = can_supervise_user
 User.can_supervise_rule = can_supervise_rule
 User.get_supervised_users = get_supervised_users
 User.get_supervised_rules = get_supervised_rules
+
+
+# 分享链接表
+class ShareLink(db.Model):
+    __tablename__ = 'share_links'
+
+    link_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    token = db.Column(db.String(64), unique=True,
+                      nullable=False, comment='分享链接token')
+    solo_user_id = db.Column(db.Integer, db.ForeignKey(
+        'users.user_id'), nullable=False, comment='打卡人用户ID')
+    rule_id = db.Column(db.Integer, db.ForeignKey(
+        'checkin_rules.rule_id'), nullable=False, comment='打卡规则ID')
+    expires_at = db.Column(db.DateTime, nullable=False, comment='过期时间')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now,
+                           onupdate=datetime.now, comment='更新时间')
+
+    solo_user = db.relationship(
+        'User', backref=db.backref('share_links', lazy=True))
+    rule = db.relationship(
+        'CheckinRule', backref=db.backref('share_links', lazy=True))
+
+    __table_args__ = (
+        db.Index('idx_share_token', 'token'),
+        db.Index('idx_share_solo_rule', 'solo_user_id', 'rule_id'),
+    )
+
+
+# 分享链接访问日志
+class ShareLinkAccessLog(db.Model):
+    __tablename__ = 'share_link_access_logs'
+
+    log_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    token = db.Column(db.String(64), nullable=False, comment='分享链接token')
+    accessed_at = db.Column(db.DateTime, default=datetime.now, comment='访问时间')
+    ip_address = db.Column(db.String(64), comment='访问者IP')
+    user_agent = db.Column(db.String(512), comment='UA')
+    supervisor_user_id = db.Column(
+        db.Integer, nullable=True, comment='解析后关联的监督者ID')
+
+    __table_args__ = (
+        db.Index('idx_share_log_token', 'token'),
+    )
