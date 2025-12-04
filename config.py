@@ -1,9 +1,14 @@
 import os
+from config_manager import load_environment_config, get_database_config
 
-# 是否开启debug模式
-DEBUG = True
+# 加载环境配置
+load_environment_config()
 
-# 读取数据库环境变量
+# 获取数据库配置
+db_config = get_database_config()
+DEBUG = db_config.get('DEBUG', False)
+
+# 根据环境配置设置数据库连接
 username = os.environ.get("MYSQL_USERNAME", 'root')
 password = os.environ.get("MYSQL_PASSWORD", 'root')
 db_address = os.environ.get("MYSQL_ADDRESS", '127.0.0.1:3306')

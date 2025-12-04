@@ -4,24 +4,21 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 import pymysql
 import config
+from config_manager import get_database_config
 
 # 因MySQLDB不支持Python3，使用pymysql扩展库代替MySQLDB库
 pymysql.install_as_MySQLdb()
 
 # 初始化web应用
 app = Flask(__name__, instance_relative_config=True)
+
+# 获取数据库配置
+db_config = get_database_config()
 app.config['DEBUG'] = config.DEBUG
 
-# 检查是否为测试环境，如果是则使用SQLite，否则使用MySQL
-# 在模块级别检查，以确保在导入时就设置正确的数据库连接
-is_testing = os.environ.get('FLASK_ENV') == 'testing' or 'PYTEST_CURRENT_TEST' in os.environ or os.environ.get('USE_SQLITE_FOR_TESTING', '').lower() == 'true'
-if is_testing:
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'  # 测试时使用SQLite内存数据库
-    app.config['TESTING'] = True
-else:
-    # 设定数据库链接
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo'.format(config.username, config.password,
-                                                                                 config.db_address)
+# 根据环境配置设置数据库连接
+app.config['SQLALCHEMY_DATABASE_URI'] = db_config['SQLALCHEMY_DATABASE_URI']
+app.config['TESTING'] = db_config['TESTING']
 
 # 禁用SQLAlchemy的修改跟踪以避免警告
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -37,7 +34,7 @@ from wxcloudrun import views
 
 # 创建数据库表（仅在非测试环境或明确需要时创建）
 from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
-if not is_testing:
+if not db_config['TESTING']:
     # 添加数据库连接重试机制
     max_retries = 30  # 最多等待30次（30秒）
     retry_count = 0

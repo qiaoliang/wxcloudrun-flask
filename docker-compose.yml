@@ -22,6 +22,7 @@ services:
       MYSQL_USERNAME: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_ADDRESS: mysql-db:3306
+      ENV_TYPE: ${ENV_TYPE:-prod}
       WX_APPID: ${WX_APPID}
       WX_SECRET: ${WX_SECRET}
       TOKEN_SECRET: ${TOKEN_SECRET}

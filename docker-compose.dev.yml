@@ -1,41 +1,32 @@
 services:
   mysql-db:
     image: mysql:8.4.3
-    container_name: mysql-db-dev
+    container_name: mysql-db
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_DATABASE: flask_demo
     ports:
       - "3306:3306"
     volumes:
-      - mysql_data_dev:/var/lib/mysql
-      - ./init_db.sql:/docker-entrypoint-initdb.d/init_db.sql
+      - mysql_data:/var/lib/mysql
     restart: unless-stopped
 
   app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: py-safeclockin-dev
+    build: .
+    container_name: py-safeclockin
     ports:
       - "8080:8080"
-    volumes:
-      # 卷挂载本地代码目录到容器中，便于实时更新
-      - .:/app
-      # 挂载Python包缓存，避免重复安装
-      - /app/__pycache__
-      - /app/wxcloudrun/__pycache__
-      - /app/tests/__pycache__
     depends_on:
       - mysql-db
     environment:
       MYSQL_USERNAME: root
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-rootpassword}
       MYSQL_ADDRESS: mysql-db:3306
+      ENV_TYPE: ${ENV_TYPE:-function}
       WX_APPID: ${WX_APPID}
       WX_SECRET: ${WX_SECRET}
       TOKEN_SECRET: ${TOKEN_SECRET}
     restart: unless-stopped
 
 volumes:
-  mysql_data_dev:
+  mysql_data:
