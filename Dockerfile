@@ -1,5 +1,4 @@
-# 使用官方 Python 3.8 镜像
-FROM python:3.8
+FROM python:3.12
 
 # 安装 ca-certificates 以支持 HTTPS
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*

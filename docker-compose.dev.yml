@@ -36,10 +36,6 @@ services:
       WX_SECRET: ${WX_SECRET}
       TOKEN_SECRET: ${TOKEN_SECRET}
     restart: unless-stopped
-    # 开发模式下使用命令覆盖默认启动方式，便于调试
-    command: >
-      sh -c "pip install -r requirements.txt && 
-             python run.py 0.0.0.0 8080"
 
 volumes:
   mysql_data_dev:
