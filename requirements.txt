@@ -7,7 +7,6 @@ greenlet==3.0.3  # 保持不变（已兼容 Python 3.12）
 itsdangerous==2.2.0
 Jinja2==3.1.2
 MarkupSafe==2.1.1
-PyMySQL==1.1.1
 SQLAlchemy==2.0.16  # 与 Flask-SQLAlchemy 3.1.1 兼容
 Werkzeug==3.1.0
 cryptography==42.0.5

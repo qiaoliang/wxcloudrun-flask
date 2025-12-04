@@ -47,17 +47,12 @@ def get_database_config() -> Dict[str, Any]:
             'DEBUG': True
         }
     else:
-        # 确保加载了环境变量
-        load_environment_config()
-        
-        # function 和 prod 环境使用 MySQL
-        username = os.getenv("MYSQL_USERNAME", 'root')
-        password = os.getenv("MYSQL_PASSWORD", 'root')
-        db_address = os.getenv("MYSQL_ADDRESS", '127.0.0.1:3306')
-        database = os.getenv("MYSQL_DATABASE", 'flask_demo')
+        # function 和 prod 环境使用 SQLite 文件数据库
+        # 从环境变量获取数据库文件路径，如果未设置则使用默认路径
+        db_path = os.getenv("SQLITE_DB_PATH", '/app/data/app.db')
         
         return {
-            'SQLALCHEMY_DATABASE_URI': f'mysql+pymysql://{username}:{password}@{db_address}/{database}',
+            'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
             'TESTING': False,
             'DEBUG': env_type == 'function'  # function 环境开启调试模式
         }
@@ -70,6 +65,7 @@ def should_start_flask_service() -> bool:
     env_type = os.getenv('ENV_TYPE', 'unit')
     
     # unit 环境不启动 Flask 服务，仅用于运行测试
+    # unit_with_service 环境启动 Flask 服务，但使用内存数据库
     # function 和 prod 环境启动 Flask 服务
     return env_type != 'unit'
 

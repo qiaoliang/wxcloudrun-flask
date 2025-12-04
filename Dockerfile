@@ -9,6 +9,9 @@ WORKDIR /app
 # 拷贝当前项目到/app目录下（.dockerignore中文件除外）
 COPY . /app
 
+# 创建用于SQLite数据库的目录并设置权限
+RUN mkdir -p /app/data && chown -R 1000:1000 /app/data
+
 # 安装依赖
 RUN pip install --user -r requirements.txt
 
