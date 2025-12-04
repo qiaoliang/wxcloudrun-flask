@@ -270,18 +270,31 @@ def user_profile():
     app.logger.info('=== 开始执行用户信息接口 ===')
     app.logger.info(f'请求方法: {request.method}')
     app.logger.info(f'请求头信息: {dict(request.headers)}')
+    app.logger.info('准备获取请求体参数...')
 
-    # 获取请求体参数
-    params = request.get_json() if request.get_json() else {}
+    # 获取请求体参数 - 对于GET请求，通常没有请求体
+    try:
+        if request.method in ['POST', 'PUT', 'PATCH']:  # 只对有请求体的方法获取JSON
+            params = request.get_json() if request.is_json else {}
+        else:
+            params = {}  # GET请求通常没有请求体
+    except Exception as e:
+        app.logger.warning(f'解析请求JSON失败: {str(e)}')
+        params = {}
     app.logger.info(f'请求体参数: {params}')
 
     # 验证token
     auth_header = request.headers.get('Authorization', '')
+    app.logger.info(f'原始Authorization头: {auth_header}')
     if auth_header.startswith('Bearer '):
         header_token = auth_header[7:]  # 去掉 'Bearer ' 前缀
+        app.logger.info(f'去掉Bearer前缀后的token: {header_token}')
     else:
         header_token = auth_header
+        app.logger.info(f'未找到Bearer前缀，直接使用Authorization头: {header_token}')
     token = params.get('token') or header_token
+    
+    app.logger.info(f'最终使用的token: {token}')
 
     # 打印传入的token用于调试
     app.logger.info(f'从请求中获取的token: {token}')
@@ -292,21 +305,20 @@ def user_profile():
         return make_err_response({}, '缺少token参数')
 
     try:
+        app.logger.info(f'开始处理token解码，原始token: {token}')
         # 解码token
         # 检查token是否包含额外的引号并去除
         if token and token.startswith('"') and token.endswith('"'):
+            app.logger.info('检测到token包含额外引号，正在去除...')
             token = token[1:-1]  # 去除首尾的引号
-            app.logger.info(f'检测到并去除了token的额外引号，处理后的token: {token[:50]}...')
+            app.logger.info(f'去除引号后的token: {token[:50]}...')
+        else:
+            app.logger.info(f'token不包含额外引号或为空，无需处理')
         
         # 使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
         token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
-        app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
-        app.logger.info(f'解码token: {token[:50]}...')  # 记录token前缀用于调试
-        app.logger.info(f'使用的token secret: {token_secret[:]}')  # 记录secret前缀用于调试
-
-        # 使用硬编码的TOKEN_SECRET进行解码，确保与编码时使用相同的密钥
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
-        app.logger.info(f'解码时使用的硬编码TOKEN_SECRET: {token_secret[:]}')  # 打印完整密钥用于调试
+        app.logger.info(f'用于解码的TOKEN_SECRET: {token_secret[:20]}...')  # 只显示前20个字符
+        app.logger.info(f'准备解码token: {token[:50]}...')
 
         # 解码token，启用过期验证
         decoded = jwt.decode(
@@ -314,8 +326,9 @@ def user_profile():
             token_secret,
             algorithms=['HS256']
         )
-        app.logger.info(f'解码后的payload: {decoded}')
+        app.logger.info(f'JWT解码成功，解码后的payload: {decoded}')
         openid = decoded.get('openid')
+        app.logger.info(f'从解码结果中获取的openid: {openid}')
 
         if not openid:
             app.logger.error('解码后的token中未找到openid')
@@ -323,9 +336,10 @@ def user_profile():
 
         # 根据HTTP方法决定操作
         if request.method == 'GET':
-            app.logger.info(f'GET请求 - 查询用户信息，openid: {openid}')
+            app.logger.info(f'处理GET请求 - 查询用户信息，openid: {openid}')
             # 查询用户信息
             user = query_user_by_openid(openid)
+            app.logger.info(f'查询到的用户: {user}')
             if not user:
                 app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
                 return make_err_response({}, '用户不存在')
@@ -342,7 +356,7 @@ def user_profile():
                 'status': user.status_name  # 返回字符串形式的状态名
             }
 
-            app.logger.info(f'成功查询到用户信息，用户ID: {user.user_id}')
+            app.logger.info(f'成功查询到用户信息，用户ID: {user.user_id}，准备返回响应')
             return make_succ_response(user_data)
 
         elif request.method == 'POST':
@@ -402,6 +416,10 @@ def user_profile():
             app.logger.info(f'用户 {openid} 信息更新成功')
 
             return make_succ_response({'message': '用户信息更新成功'})
+        else:
+            # 处理不支持的HTTP方法
+            app.logger.warning(f'不支持的HTTP方法: {request.method}')
+            return make_err_response({}, f'不支持的HTTP方法: {request.method}')
 
     except jwt.ExpiredSignatureError as e:
         app.logger.error(f'token已过期: {str(e)}')
@@ -445,9 +463,6 @@ def user_profile():
         app.logger.error(f'token无效: {str(e)}')
         return make_err_response({}, 'token无效')
     except Exception as e:
-        app.logger.error(f'JWT处理时发生未知错误: {str(e)}', exc_info=True)
-        return make_err_response({}, f'JWT处理失败: {str(e)}')
-    except Exception as e:
         app.logger.error(f'处理用户信息时发生错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'处理用户信息失败: {str(e)}')
 
@@ -459,8 +474,15 @@ def verify_token():
     """
     验证JWT token并返回解码后的用户信息
     """
-    # 获取请求体参数
-    params = request.get_json() if request.get_json() else {}
+    # 获取请求体参数 - 对于GET请求，通常没有请求体
+    try:
+        if request.method in ['POST', 'PUT', 'PATCH']:  # 只对有请求体的方法获取JSON
+            params = request.get_json() if request.is_json else {}
+        else:
+            params = {}  # GET请求通常没有请求体
+    except Exception as e:
+        app.logger.warning(f'解析请求JSON失败: {str(e)}')
+        params = {}
     
     # 验证token
     auth_header = request.headers.get('Authorization', '')
