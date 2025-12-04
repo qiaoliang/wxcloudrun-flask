@@ -1055,6 +1055,11 @@ def manage_checkin_rules(decoded):
 
         def format_time(t):
             return t.strftime('%H:%M') if t else None
+
+        def parse_date(v):
+            if not v:
+                return None
+            return datetime.strptime(v, '%Y-%m-%d').date()
         if request.method == 'GET':
             # 获取用户的所有打卡规则
             rules = query_checkin_rules_by_user_id(user.user_id)
@@ -1093,18 +1098,24 @@ def manage_checkin_rules(decoded):
                 return make_err_response({}, '缺少rule_name参数')
 
             # 创建新的打卡规则
+            freq = params.get('frequency_type', 0)
+            start_date = parse_date(params.get('custom_start_date'))
+            end_date = parse_date(params.get('custom_end_date'))
+            if int(freq) == 3:
+                if not start_date or not end_date:
+                    return make_err_response({}, '自定义频率必须提供起止日期')
+                if end_date < start_date:
+                    return make_err_response({}, '结束日期不能早于开始日期')
             new_rule = CheckinRule(
                 solo_user_id=user.user_id,
                 rule_name=rule_name,
                 icon_url=params.get('icon_url', ''),
-                frequency_type=params.get('frequency_type', 0),  # 默认每天
+                frequency_type=freq,  # 默认每天
                 time_slot_type=params.get('time_slot_type', 4),  # 默认自定义时间
                 custom_time=parse_time(params.get('custom_time')),
                 week_days=params.get('week_days', 127),  # 默认周一到周日
-                custom_start_date=datetime.strptime(
-                    params['custom_start_date'], '%Y-%m-%d').date() if params.get('custom_start_date') else None,
-                custom_end_date=datetime.strptime(
-                    params['custom_end_date'], '%Y-%m-%d').date() if params.get('custom_end_date') else None,
+                custom_start_date=start_date,
+                custom_end_date=end_date,
                 status=params.get('status', 1)  # 默认启用
             )
 
@@ -1149,11 +1160,19 @@ def manage_checkin_rules(decoded):
             if 'status' in params:
                 rule.status = params['status']
             if 'custom_start_date' in params:
-                rule.custom_start_date = datetime.strptime(
-                    params['custom_start_date'], '%Y-%m-%d').date() if params['custom_start_date'] else None
+                rule.custom_start_date = parse_date(
+                    params['custom_start_date']) if params['custom_start_date'] else None
             if 'custom_end_date' in params:
-                rule.custom_end_date = datetime.strptime(
-                    params['custom_end_date'], '%Y-%m-%d').date() if params['custom_end_date'] else None
+                rule.custom_end_date = parse_date(
+                    params['custom_end_date']) if params['custom_end_date'] else None
+
+            # 校验自定义频率的日期范围
+            final_freq = params.get('frequency_type', rule.frequency_type)
+            if int(final_freq) == 3:
+                if not rule.custom_start_date or not rule.custom_end_date:
+                    return make_err_response({}, '自定义频率必须提供起止日期')
+                if rule.custom_end_date < rule.custom_start_date:
+                    return make_err_response({}, '结束日期不能早于开始日期')
 
             update_checkin_rule_by_id(rule)
 
