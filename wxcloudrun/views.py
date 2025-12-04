@@ -917,6 +917,59 @@ def perform_checkin(decoded):
         return make_err_response({}, f'打卡失败: {str(e)}')
 
 
+@app.route('/api/checkin/miss', methods=['POST'])
+@login_required
+def mark_missed(decoded):
+    """
+    标记当天规则为missed（超过宽限期）
+    """
+    app.logger.info('=== 开始执行标记miss接口 ===')
+
+    openid = decoded.get('openid')
+    user = query_user_by_openid(openid)
+    if not user:
+        app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        params = request.get_json() or {}
+        rule_id = params.get('rule_id')
+        if not rule_id:
+            return make_err_response({}, '缺少rule_id参数')
+        rule = query_checkin_rule_by_id(rule_id)
+        if not rule or rule.solo_user_id != user.user_id:
+            return make_err_response({}, '打卡规则不存在或无权限')
+
+        today = date.today()
+        records = query_checkin_records_by_rule_id_and_date(rule_id, today)
+        for r in records:
+            if r.status == 1:
+                return make_err_response({}, '今日该事项已打卡，无需标记miss')
+
+        if rule.time_slot_type == 4 and rule.custom_time:
+            planned_time = datetime.combine(today, rule.custom_time)
+        elif rule.time_slot_type == 1:
+            planned_time = datetime.combine(today, time(9, 0))
+        elif rule.time_slot_type == 2:
+            planned_time = datetime.combine(today, time(14, 0))
+        else:
+            planned_time = datetime.combine(today, time(20, 0))
+
+        new_record = CheckinRecord(
+            rule_id=rule_id,
+            solo_user_id=user.user_id,
+            checkin_time=None,
+            status=0,
+            planned_time=planned_time
+        )
+        insert_checkin_record(new_record)
+
+        return make_succ_response({'record_id': new_record.record_id, 'message': '已标记为miss'})
+    except Exception as e:
+        app.logger.error(f'标记miss时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'标记miss失败: {str(e)}')
+
+
 @app.route('/api/checkin/cancel', methods=['POST'])
 @login_required
 def cancel_checkin(decoded):
@@ -1417,6 +1470,9 @@ def invite_supervisor(decoded):
 
         app.logger.info(f'用户 {user.user_id} 邀请用户 {target_user.user_id} 监督规则成功')
         return make_succ_response(response_data)
+    except Exception as e:
+        app.logger.error(f'邀请监督者时发生错误: {str(e)}', exc_info=True)
+        return make_err_response({}, f'邀请监督者失败: {str(e)}')
 
 
 @app.route('/api/rules/supervision/invite_link', methods=['POST'])
@@ -1519,10 +1575,6 @@ def resolve_invite_link(decoded):
     except Exception as e:
         app.logger.error(f'解析邀请链接失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'解析邀请链接失败: {str(e)}')
-
-    except Exception as e:
-        app.logger.error(f'邀请监督者时发生错误: {str(e)}', exc_info=True)
-        return make_err_response({}, f'邀请监督者失败: {str(e)}')
 
 
 @app.route('/api/rules/supervision/invitations', methods=['GET'])
