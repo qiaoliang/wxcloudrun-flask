@@ -645,6 +645,11 @@ def _code_expiry_minutes():
         return 5
 
 
+def _gen_phone_nickname():
+    s = 'phone_' + secrets.token_hex(8)
+    return s[:100]
+
+
 @app.route('/api/sms/send_code', methods=['POST'])
 def sms_send_code():
     try:
@@ -732,8 +737,9 @@ def register_phone():
         pwd_hash = sha256(f"{password or ''}:{salt}".encode(
             'utf-8')).hexdigest() if password else None
         masked = phone[:3] + '****' + phone[-4:] if len(phone) >= 7 else phone
+        nick = nickname or _gen_phone_nickname()
         user = User(wechat_openid=f"phone_{phone}", phone_number=masked, phone_hash=phone_hash, password_hash=pwd_hash,
-                    password_salt=salt if password else None, nickname=nickname, avatar_url=avatar_url, role=1, status=1)
+                    password_salt=salt if password else None, nickname=nick, avatar_url=avatar_url, role=1, status=1)
         insert_user(user)
         _audit(user.user_id, 'register_phone', {'phone': phone})
         import datetime as dt
@@ -2401,6 +2407,9 @@ def login_phone_code():
         user = User.query.filter_by(phone_hash=phone_hash).first()
         if not user:
             return make_err_response({}, '用户不存在')
+        if not user.nickname:
+            user.nickname = _gen_phone_nickname()
+            update_user_by_id(user)
         import datetime as dt
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
@@ -2435,6 +2444,9 @@ def login_phone_password():
             f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
         if pwd_hash != user.password_hash:
             return make_err_response({}, '密码不正确')
+        if not user.nickname:
+            user.nickname = _gen_phone_nickname()
+            update_user_by_id(user)
         import datetime as dt
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
