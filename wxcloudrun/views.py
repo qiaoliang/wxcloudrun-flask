@@ -643,9 +643,9 @@ def add_verification_fields():
     except Exception as e:
         app.logger.error(f'添加验证字段时发生错误: {str(e)}')
 
-# 应用启动时自动添加验证字段
-with app.app_context():
-    add_verification_fields()
+# 在应用启动后初始化验证字段
+# with app.app_context():
+#     init_verification_fields()
 
 
 @app.route('/api/checkin/today', methods=['GET'])

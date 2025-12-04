@@ -28,32 +28,30 @@ app.config.from_object('config')
 # 加载控制器
 from wxcloudrun import views
 
-# 创建数据库表（仅在非测试环境或明确需要时创建）
-if not db_config['TESTING']:
-    from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
-    try:
-        with app.app_context():
-            # 先尝试建立连接，再执行create_all
-            # 这样可以确保连接可用后再执行数据库操作
-            try:
-                with db.engine.connect() as connection:
-                    pass  # 简单测试连接是否可用
-            except Exception as connect_error:
-                app.logger.warning(f"数据库连接测试失败: {str(connect_error)}")
-                # 不要阻止应用启动，只是记录错误
-                app.logger.error("无法连接到数据库，应用可能无法正常工作。")
+from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
+try:
+    with app.app_context():
+        # 先尝试建立连接，再执行create_all
+        # 这样可以确保连接可用后再执行数据库操作
+        try:
+            with db.engine.connect() as connection:
+                pass  # 简单测试连接是否可用
+        except Exception as connect_error:
+            app.logger.warning(f"数据库连接测试失败: {str(connect_error)}")
+            # 不要阻止应用启动，只是记录错误
+            app.logger.error("无法连接到数据库，应用可能无法正常工作。")
+        else:
+            db.create_all()
+            app.logger.info("数据库连接成功！")
+            # 检查 Counters 表是否已创建
+            from sqlalchemy import inspect
+            inspector = inspect(db.engine)
+            tables = inspector.get_table_names()
+            app.logger.info(f"数据库中已存在的表: {tables}")
+            if 'Counters' not in tables:
+                app.logger.warning("警告: Counters 表不存在")
             else:
-                db.create_all()
-                app.logger.info("数据库连接成功！")
-                # 检查 Counters 表是否已创建
-                from sqlalchemy import inspect
-                inspector = inspect(db.engine)
-                tables = inspector.get_table_names()
-                app.logger.info(f"数据库中已存在的表: {tables}")
-                if 'Counters' not in tables:
-                    app.logger.warning("警告: Counters 表不存在")
-                else:
-                    app.logger.info("Counters 表已存在")
-    except Exception as e:
-        app.logger.error(f"数据库初始化失败: {str(e)}")
-        app.logger.error("应用将继续启动，但数据库功能可能无法使用。")
+                app.logger.info("Counters 表已存在")
+except Exception as e:
+    app.logger.error(f"数据库初始化失败: {str(e)}")
+    app.logger.error("应用将继续启动，但数据库功能可能无法使用。")
