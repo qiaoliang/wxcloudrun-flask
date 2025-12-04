@@ -496,6 +496,14 @@ def verify_token():
         app.logger.warning('请求中缺少token参数')
         return None, make_err_response({}, '缺少token参数')
 
+    # 检查token是否包含额外的引号并去除
+    if token and token.startswith('"') and token.endswith('"'):
+        app.logger.info('检测到token包含额外引号，正在去除...')
+        token = token[1:-1]  # 去除首尾的引号
+        app.logger.info(f'去除引号后的token: {token[:50]}...')
+    else:
+        app.logger.info(f'token不包含额外引号或为空，无需处理')
+
     try:
         # 使用硬编码的TOKEN_SECRET进行解码
         token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
