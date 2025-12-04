@@ -120,9 +120,9 @@ curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://
 
 ## 使用注意
 如果不是通过微信云托管控制台部署模板代码，而是自行复制/下载模板代码后，手动新建一个服务并部署，需要在「服务设置」中补全以下环境变量：
-- `SQLITE_DB_PATH`（例如 `/app/data/app.db` 或 `./data/app.db`）
 - `WX_APPID`、`WX_SECRET`
 - `TOKEN_SECRET`
+（数据库文件路径不再在多处配置，应用会根据 `ENV_TYPE` 自动选择默认路径；如需自定义，单独设置 `SQLITE_DB_PATH` 即可）
 
 
 
@@ -136,7 +136,6 @@ curl -X POST -H 'content-type: application/json' -d '{"action": "inc"}' https://
 
 ```bash
 # 在项目根目录创建 .env 文件，配置环境变量
-echo "SQLITE_DB_PATH=./data/app.db" >> .env
 echo "WX_APPID=your_wechat_appid" >> .env
 echo "WX_SECRET=your_wechat_secret" >> .env
 echo "TOKEN_SECRET=your_jwt_secret" >> .env
@@ -181,8 +180,9 @@ docker-compose up --build -d
 本项目统一使用 SQLite：
 
 - `ENV_TYPE=unit`：SQLite 内存数据库（不落盘），用于单元测试
-- `ENV_TYPE=function`：SQLite 文件数据库，默认 `./data/app.db`
-- `ENV_TYPE=prod`：SQLite 文件数据库，默认 `/app/data/app.db`
+- `ENV_TYPE=function`：SQLite 文件数据库，默认 `./data/function.db`
+- `ENV_TYPE=prod`：SQLite 文件数据库，默认 `/app/data/prod.db`
+如需自定义路径，仅在一个位置设置 `SQLITE_DB_PATH` 即可，避免多处重复配置。
 
 所有模型使用通用类型，兼容 SQLite；无需 MySQL 相关环境变量。
 

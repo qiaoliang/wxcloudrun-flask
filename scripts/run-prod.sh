@@ -20,12 +20,10 @@ docker run -d \
   --name safeguard-prod \
   -p 8080:8080 \
   -e ENV_TYPE=prod \
-  -e SQLITE_DB_PATH=/app/data/prod.db \
   -e WX_APPID=your_wx_appid \
   -e WX_SECRET=your_wx_secret \
   -e TOKEN_SECRET=your_token_secret \
   safeguard-prod-img
-
 echo "Production 环境容器已启动！"
 echo "访问地址: http://localhost:8080"
 echo "容器名称: safeguard-prod"
