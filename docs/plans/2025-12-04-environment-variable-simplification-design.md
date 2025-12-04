@@ -11,8 +11,8 @@
 
 设计一个简化的环境变量管理方案，使用单一的 `ENV_TYPE` 环境变量来管理三种环境：
 - unit：用于单元测试，使用SQLite内存数据库，不启动Flask服务，模拟所有外部API
-- function：用于功能测试，使用MySQL 8.4.3，启动Flask服务，可能模拟部分外部服务
-- prod：用于生产环境，使用MySQL 8.4.3，启动Flask服务，使用真实外部服务
+- function：用于功能测试，使用SQLite 文件数据库，启动Flask服务，可能模拟部分外部服务
+- prod：用于生产环境，使用SQLite 文件数据库，启动Flask服务，使用真实外部服务
 
 ## 3. 设计方案
 
@@ -26,11 +26,11 @@
   - 所有外部服务API使用模拟实现
   - 不启动Flask Web服务
 - `.env.function`：功能测试环境配置
-  - 使用MySQL数据库
+  - 使用SQLite 文件数据库
   - 启动Flask Web服务
   - 可能模拟部分外部服务
 - `.env.prod`：生产环境配置
-  - 使用MySQL数据库
+  - 使用SQLite 文件数据库
   - 启动Flask Web服务
   - 使用真实外部服务API
 
@@ -42,7 +42,7 @@
 ### 3.4 数据库配置逻辑
 - 在配置模块中根据 `ENV_TYPE` 自动选择数据库连接
 - unit环境：固定使用SQLite内存数据库
-- function/prod环境：根据各自配置使用MySQL
+- function/prod环境：根据各自配置使用SQLite 文件数据库
 
 ### 3.5 服务启动控制
 - unit环境：仅运行测试，不启动Flask服务
