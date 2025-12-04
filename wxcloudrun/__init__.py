@@ -36,43 +36,29 @@ from wxcloudrun import views
 from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
 if not db_config['TESTING']:
     # 添加数据库连接重试机制
-    max_retries = 30  # 最多等待30次（30秒）
+    max_retries = 60  # 最多等待60次（120秒）
     retry_count = 0
     db_connected = False
     
     while not db_connected and retry_count < max_retries:
         try:
             with app.app_context():
+                # 先尝试建立连接，再执行create_all
+                # 这样可以确保连接可用后再执行数据库操作
+                with db.engine.connect() as connection:
+                    pass  # 简单测试连接是否可用
+                
                 db.create_all()
                 
-                # 运行数据库迁移脚本以确保表结构是最新的
-                try:
-                    import os
-                    migration_script_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'init_db.sql')
-                    if os.path.exists(migration_script_path):
-                        with open(migration_script_path, 'r', encoding='utf-8') as f:
-                            migration_sql = f.read()
-                        
-                        # 执行迁移脚本
-                        from sqlalchemy import text
-                        with db.engine.connect() as connection:
-                            # 分割SQL语句并执行
-                            statements = [stmt.strip() for stmt in migration_sql.split(';') if stmt.strip()]
-                            for stmt in statements:
-                                if stmt:
-                                    connection.execute(text(stmt))
-                            connection.commit()
-                        
-                        app.logger.info("数据库迁移脚本执行完成")
-                except Exception as migration_error:
-                    app.logger.error(f"数据库迁移脚本执行失败: {str(migration_error)}")
+                
                 
             db_connected = True
             app.logger.info("数据库连接成功！")
             # 检查 Counters 表是否已创建
             from sqlalchemy import inspect
-            inspector = inspect(db.engine)
-            tables = inspector.get_table_names()
+            with app.app_context():
+                inspector = inspect(db.engine)
+                tables = inspector.get_table_names()
             app.logger.info(f"数据库中已存在的表: {tables}")
             if 'Counters' not in tables:
                 app.logger.warning("警告: Counters 表不存在")
@@ -81,7 +67,7 @@ if not db_config['TESTING']:
         except Exception as e:
             retry_count += 1
             app.logger.error(f"数据库连接失败，正在重试 ({retry_count}/{max_retries}): {str(e)}")
-            time.sleep(1)  # 等待1秒后重试
+            time.sleep(2)  # 等待2秒后重试，给数据库更多时间处理
     
     if not db_connected:
         app.logger.error("无法连接到数据库，应用可能无法正常工作。")
