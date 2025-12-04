@@ -1045,6 +1045,16 @@ def manage_checkin_rules(decoded):
         return make_err_response({}, '用户不存在')
 
     try:
+        def parse_time(v):
+            if not v:
+                return None
+            try:
+                return datetime.strptime(v, '%H:%M:%S').time()
+            except Exception:
+                return datetime.strptime(v, '%H:%M').time()
+
+        def format_time(t):
+            return t.strftime('%H:%M') if t else None
         if request.method == 'GET':
             # 获取用户的所有打卡规则
             rules = query_checkin_rules_by_user_id(user.user_id)
@@ -1057,7 +1067,7 @@ def manage_checkin_rules(decoded):
                     'icon_url': rule.icon_url,
                     'frequency_type': rule.frequency_type,
                     'time_slot_type': rule.time_slot_type,
-                    'custom_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else None,
+                    'custom_time': format_time(rule.custom_time),
                     'week_days': rule.week_days,
                     'custom_start_date': rule.custom_start_date.strftime('%Y-%m-%d') if rule.custom_start_date else None,
                     'custom_end_date': rule.custom_end_date.strftime('%Y-%m-%d') if rule.custom_end_date else None,
@@ -1089,8 +1099,7 @@ def manage_checkin_rules(decoded):
                 icon_url=params.get('icon_url', ''),
                 frequency_type=params.get('frequency_type', 0),  # 默认每天
                 time_slot_type=params.get('time_slot_type', 4),  # 默认自定义时间
-                custom_time=datetime.strptime(params['custom_time'], '%H:%M:%S').time(
-                ) if params.get('custom_time') else None,
+                custom_time=parse_time(params.get('custom_time')),
                 week_days=params.get('week_days', 127),  # 默认周一到周日
                 custom_start_date=datetime.strptime(
                     params['custom_start_date'], '%Y-%m-%d').date() if params.get('custom_start_date') else None,
@@ -1133,8 +1142,8 @@ def manage_checkin_rules(decoded):
             if 'time_slot_type' in params:
                 rule.time_slot_type = params['time_slot_type']
             if 'custom_time' in params:
-                rule.custom_time = datetime.strptime(
-                    params['custom_time'], '%H:%M:%S').time() if params['custom_time'] else None
+                rule.custom_time = parse_time(
+                    params['custom_time']) if params['custom_time'] else None
             if 'week_days' in params:
                 rule.week_days = params['week_days']
             if 'status' in params:
