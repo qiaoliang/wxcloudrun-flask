@@ -19,6 +19,7 @@ docker rm safeguard-function 2>/dev/null || true
 docker run -d \
   --name safeguard-function \
   -p 9090:8080 \
+  -e ENV_TYPE=function \
   -e WX_APPID=test_appid \
   -e WX_SECRET=test_secret \
   -e TOKEN_SECRET=42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f \

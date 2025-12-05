@@ -18,6 +18,8 @@ def load_environment_config():
         env_file = '.env.unit'
     elif env_type == 'function':
         env_file = '.env.function'
+    elif env_type == 'uat':
+        env_file = '.env.uat'
     elif env_type == 'prod':
         env_file = '.env.prod'
     else:
@@ -47,10 +49,12 @@ def get_database_config() -> Dict[str, Any]:
             'DEBUG': True
         }
     else:
-        # function 和 prod 环境使用 SQLite 文件数据库
+        # function, uat 和 prod 环境使用 SQLite 文件数据库
         # 根据环境类型设置不同的默认路径，可被环境变量 SQLITE_DB_PATH 覆盖
         if env_type == 'function':
             default_path = './data/function.db'
+        elif env_type == 'uat':
+            default_path = './data/uat.db'
         elif env_type == 'prod':
             default_path = '/app/data/prod.db'
         else:
@@ -70,7 +74,7 @@ def get_database_config() -> Dict[str, Any]:
         return {
             'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
             'TESTING': False,
-            'DEBUG': env_type == 'function'  # function 环境开启调试模式
+            'DEBUG': env_type in ['function', 'uat']  # function 和 uat 环境开启调试模式
         }
 
 
@@ -93,11 +97,43 @@ def is_production_environment() -> bool:
     return os.getenv('ENV_TYPE', 'unit') == 'prod'
 
 
+def is_uat_environment() -> bool:
+    """
+    判断是否为UAT环境
+    """
+    return os.getenv('ENV_TYPE', 'unit') == 'uat'
+
+
 def is_unit_environment() -> bool:
     """
     判断是否为单元测试环境
     """
     return os.getenv('ENV_TYPE', 'unit') == 'unit'
+
+
+def is_function_environment() -> bool:
+    """
+    判断是否为功能测试环境
+    """
+    return os.getenv('ENV_TYPE', 'unit') == 'function'
+
+
+def should_use_mock_wechat() -> bool:
+    """
+    判断是否应该使用Mock微信API
+    unit, function, uat 环境使用Mock，prod使用真实API
+    """
+    env_type = os.getenv('ENV_TYPE', 'unit')
+    return env_type in ['unit', 'function', 'uat']
+
+
+def should_use_real_sms() -> bool:
+    """
+    判断是否应该使用真实短信服务
+    只有prod和uat环境使用真实短信服务
+    """
+    env_type = os.getenv('ENV_TYPE', 'unit')
+    return env_type in ['uat', 'prod']
 
 
 def get_redis_config() -> Dict[str, Any]:
