@@ -12,24 +12,21 @@ if [[ "$(docker images -q safeguard-function-img 2> /dev/null)" == "" ]]; then
 fi
 
 # 停止并删除之前的容器（如果有）
-docker stop safeguard-function 2>/dev/null || true
-docker rm safeguard-function 2>/dev/null || true
+docker stop s-function 2>/dev/null || true
+docker rm s-function 2>/dev/null || true
 
 # 启动新的容器
 echo "正在启动容器..."
 CONTAINER_ID=$(docker run -d \
-  --name safeguard-function \
+  --name s-function \
   -p 9090:8080 \
   -e ENV_TYPE=function \
-  -e WX_APPID=test_appid \
-  -e WX_SECRET=test_secret \
-  -e TOKEN_SECRET=42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f \
   safeguard-function-img)
 
 echo "Function 环境容器已启动！"
 echo "容器ID: $CONTAINER_ID"
 echo "访问地址: http://localhost:9090"
-echo "容器名称: safeguard-function"
+echo "容器名称: s-function"
 echo ""
 
 # 等待容器启动
@@ -37,13 +34,13 @@ echo "等待容器启动..."
 sleep 3
 
 # 检查容器状态
-CONTAINER_STATUS=$(docker inspect --format='{{.State.Status}}' safeguard-function)
+CONTAINER_STATUS=$(docker inspect --format='{{.State.Status}}' s-function)
 echo "容器状态: $CONTAINER_STATUS"
 
 if [[ "$CONTAINER_STATUS" != "running" ]]; then
     echo "⚠️  容器启动失败，显示错误日志："
     echo "================================"
-    docker logs safeguard-function
+    docker logs s-function
     echo "================================"
     exit 1
 fi
@@ -52,7 +49,7 @@ fi
 echo "✅ 容器运行正常，显示启动日志："
 echo "================================"
 # 显示最近的日志，限制行数避免输出过多
-docker logs --tail 20 safeguard-function
+docker logs --tail 20 s-function
 echo "================================"
 
 echo ""

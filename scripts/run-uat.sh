@@ -18,12 +18,9 @@ docker rm safeguard-uat 2>/dev/null || true
 # 启动新的容器
 echo "正在启动容器..."
 CONTAINER_ID=$(docker run -d \
-  --name safeguard-uat \
+  --name s-uat \
   -p 9091:8080 \
   -e ENV_TYPE=uat \
-  -e WX_APPID=test_appid \
-  -e WX_SECRET=test_secret \
-  -e TOKEN_SECRET=your_uat_jwt_secret_replace_with_strong_secret \
   safeguard-uat-img)
 
 echo "UAT 环境容器已启动！"

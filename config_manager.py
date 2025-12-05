@@ -12,7 +12,7 @@ def load_environment_config():
     根据 ENV_TYPE 加载对应环境的配置文件
     """
     env_type = os.getenv('ENV_TYPE', 'unit')
-    
+
     # 根据环境类型加载对应的配置文件
     if env_type == 'unit':
         env_file = '.env.unit'
@@ -26,7 +26,7 @@ def load_environment_config():
         # 默认使用 unit 环境
         env_file = '.env.unit'
         os.environ['ENV_TYPE'] = 'unit'
-    
+
     # 加载对应环境的配置文件
     if os.path.exists(env_file):
         load_dotenv(env_file, override=True)
@@ -40,7 +40,7 @@ def get_database_config() -> Dict[str, Any]:
     根据环境类型获取数据库配置
     """
     env_type = os.getenv('ENV_TYPE', 'unit')
-    
+
     if env_type == 'unit':
         # unit 环境固定使用 SQLite 内存数据库
         return {
@@ -49,28 +49,23 @@ def get_database_config() -> Dict[str, Any]:
             'DEBUG': True
         }
     else:
-        # function, uat 和 prod 环境使用 SQLite 文件数据库
         # 根据环境类型设置不同的默认路径，可被环境变量 SQLITE_DB_PATH 覆盖
-        if env_type == 'function':
-            default_path = './data/function.db'
-        elif env_type == 'uat':
-            default_path = './data/uat.db'
-        elif env_type == 'prod':
+        if env_type == 'prod':
             default_path = '/app/data/prod.db'
         else:
-            default_path = './data/app.db'
+            default_path = f"./data/{env_type}.db"
 
         db_path = os.getenv("SQLITE_DB_PATH", default_path)
-        
+
         # 确保使用绝对路径以避免相对路径问题
         if not os.path.isabs(db_path):
             db_path = os.path.abspath(db_path)
-        
+
         # 在开发环境中确保目录存在
         db_dir = os.path.dirname(db_path)
         if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
-        
+
         return {
             'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
             'TESTING': False,
@@ -83,7 +78,7 @@ def should_start_flask_service() -> bool:
     根据环境类型判断是否应该启动 Flask 服务
     """
     env_type = os.getenv('ENV_TYPE', 'unit')
-    
+
     # unit 环境不启动 Flask 服务，仅用于运行测试
     # unit_with_service 环境启动 Flask 服务，但使用内存数据库
     # function 和 prod 环境启动 Flask 服务
@@ -134,6 +129,36 @@ def should_use_real_sms() -> bool:
     """
     env_type = os.getenv('ENV_TYPE', 'unit')
     return env_type in ['uat', 'prod']
+
+
+def get_token_secret() -> str:
+    """
+    获取JWT token密钥
+    如果配置为空或不存在，则抛出异常
+    """
+    token_secret = os.getenv('TOKEN_SECRET')
+    if not token_secret:
+        raise ValueError("TOKEN_SECRET 环境变量未设置或为空")
+    return token_secret
+
+
+def get_wechat_config() -> Dict[str, str]:
+    """
+    获取微信API配置
+    如果配置为空或不存在，则抛出异常
+    """
+    appid = os.getenv('WX_APPID')
+    secret = os.getenv('WX_SECRET')
+
+    if not appid:
+        raise ValueError("WX_APPID 环境变量未设置或为空")
+    if not secret:
+        raise ValueError("WX_SECRET 环境变量未设置或为空")
+
+    return {
+        'appid': appid,
+        'secret': secret
+    }
 
 
 def get_redis_config() -> Dict[str, Any]:

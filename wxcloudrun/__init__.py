@@ -6,17 +6,18 @@ from sqlalchemy import text
 import config
 from config_manager import get_database_config
 
-# 初始化web应用
+# 初始化 Flask web 应用
 app = Flask(__name__, instance_relative_config=True)
+
+# 这是 Flask 的调试模式配置 和 测试模式标志, 影响某些 Flask 扩展的行为（如错误处理）
+app.config['DEBUG'] = config.DEBUG
+# app.config['TESTING'] = db_config['TESTING']
+
 
 # 获取数据库配置
 db_config = get_database_config()
-app.config['DEBUG'] = config.DEBUG
-
 # 根据环境配置设置数据库连接
 app.config['SQLALCHEMY_DATABASE_URI'] = db_config['SQLALCHEMY_DATABASE_URI']
-app.config['TESTING'] = db_config['TESTING']
-
 # 禁用SQLAlchemy的修改跟踪以避免警告
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 

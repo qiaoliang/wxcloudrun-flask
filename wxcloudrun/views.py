@@ -20,6 +20,7 @@ from wxcloudrun.sms_service import create_sms_provider, generate_code
 from hashlib import sha256
 import os
 import secrets
+from config_manager import get_token_secret, get_wechat_config
 
 # 加载环境变量
 load_dotenv()
@@ -233,9 +234,13 @@ def login():
         }
         app.logger.info(f'JWT token payload: {token_payload}')
 
-        # 临时使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
-        app.logger.info(f'使用的硬编码TOKEN_SECRET: {token_secret}')
+        # 从配置管理器获取TOKEN_SECRET确保编码和解码使用相同的密钥
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return make_err_response({}, '服务器配置错误')
+        app.logger.info(f'使用配置的TOKEN_SECRET: {token_secret[:20]}...')
 
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
 
@@ -337,8 +342,13 @@ def user_profile():
         else:
             app.logger.info(f'token不包含额外引号或为空，无需处理')
 
-        # 使用硬编码的TOKEN_SECRET确保编码和解码使用相同的密钥
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        # 从配置管理器获取TOKEN_SECRET确保编码和解码使用相同的密钥
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return make_err_response({}, '服务器配置错误')
+        
         app.logger.info(
             f'用于解码的TOKEN_SECRET: {token_secret[:20]}...')  # 只显示前20个字符
         app.logger.info(f'准备解码token: {token[:50]}...')
@@ -605,8 +615,14 @@ def verify_token():
         app.logger.info(f'token不包含额外引号或为空，无需处理')
 
     try:
-        # 使用硬编码的TOKEN_SECRET进行解码
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        # 从配置管理器获取TOKEN_SECRET
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return None, make_err_response({}, '服务器配置错误')
+        
+        app.logger.debug(f'使用TOKEN_SECRET进行token验证')
 
         # 解码token
         decoded = jwt.decode(
@@ -745,7 +761,11 @@ def register_phone():
         import datetime as dt
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return make_err_response({}, '服务器配置错误')
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
         refresh_token = secrets.token_urlsafe(32)
         user.refresh_token = refresh_token
@@ -1538,7 +1558,11 @@ def refresh_token():
             'user_id': user.user_id,
             'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)  # 设置2小时过期时间
         }
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return make_err_response({}, '服务器配置错误')
         new_token = jwt.encode(token_payload, token_secret, algorithm='HS256')
 
         # 生成新的refresh token（可选：也可以继续使用现有的refresh token）
@@ -2413,7 +2437,11 @@ def login_phone_code():
         import datetime as dt
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return make_err_response({}, '服务器配置错误')
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
         refresh_token = secrets.token_urlsafe(32)
         user.refresh_token = refresh_token
@@ -2450,7 +2478,11 @@ def login_phone_password():
         import datetime as dt
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
-        token_secret = '42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f'
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return make_err_response({}, '服务器配置错误')
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
         refresh_token = secrets.token_urlsafe(32)
         user.refresh_token = refresh_token
