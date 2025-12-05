@@ -1,5 +1,5 @@
 venv*/
-data/function.db
+data/*.db
 .DS*
 .vscode*/
 venv_py312/

@@ -1,6 +1,6 @@
 from sqlalchemy import text
 import logging
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, Response
 from flask_cors import CORS
 import json
 import time
@@ -20,7 +20,7 @@ from wxcloudrun.sms_service import create_sms_provider, generate_code
 from hashlib import sha256
 import os
 import secrets
-from config_manager import get_token_secret, get_wechat_config
+from config_manager import get_token_secret, get_wechat_config, analyze_all_configs, detect_external_systems_status
 
 # 加载环境变量
 load_dotenv()
@@ -43,6 +43,19 @@ def index():
     """
     app.logger.info("主页访问")
     return render_template('index.html')
+
+
+@app.route('/env')
+def env_viewer():
+    """
+    :return: 返回环境配置查看器页面
+    """
+    app.logger.info("环境配置查看器页面访问")
+    try:
+        with open('static/env_viewer.html', 'r', encoding='utf-8') as f:
+            return f.read()
+    except FileNotFoundError:
+        return "环境配置查看器页面未找到", 404
 
 
 @app.route('/api/count', methods=['POST'])
@@ -113,6 +126,122 @@ def get_count():
     count_value = 0 if counter is None else counter.count
     app.logger.info(f"查询到的计数器值: {count_value}")
     return make_succ_response(count_value)
+
+
+@app.route('/api/get_envs', methods=['GET'])
+def get_envs():
+    """
+    获取环境配置信息
+    :return: 环境配置详细信息（支持JSON和TOML格式）
+    """
+    app.logger.info("接收到环境配置GET请求")
+
+    try:
+        # 获取配置分析结果
+        config_analysis = analyze_all_configs()
+
+        # 获取外部系统状态
+        external_systems = detect_external_systems_status()
+
+        # 检查请求的格式
+        accept_header = request.headers.get('Accept', '')
+        format_param = request.args.get('format', '').lower()
+
+        # 如果请求text/plain或format=txt，返回TOML格式
+        if 'text/plain' in accept_header or format_param == 'txt' or format_param == 'toml':
+            return _format_envs_as_toml(config_analysis, external_systems)
+
+        # 默认返回JSON格式
+        response_data = {
+            **config_analysis,
+            'timestamp': datetime.now().isoformat() + 'Z',
+            'external_systems': external_systems
+        }
+
+        app.logger.info("成功获取环境配置信息")
+        return make_succ_response(response_data)
+
+    except Exception as e:
+        app.logger.error(f"获取环境配置信息失败: {str(e)}")
+        return make_err_response(f"获取环境配置信息失败: {str(e)}")
+
+
+def _format_envs_as_toml(config_analysis, external_systems):
+    """
+    将环境配置信息格式化为TOML风格的文本格式
+    """
+    lines = []
+
+    # 添加头部信息
+    lines.append("# 安全守护应用环境配置信息")
+    lines.append(f"# 生成时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    lines.append("")
+
+    # 基础信息
+    lines.append("[基础信息]")
+    lines.append(f"环境类型 = \"{config_analysis['environment']}\"")
+    lines.append(f"配置文件 = \"{config_analysis['config_source']}\"")
+    lines.append("")
+
+    # 环境变量
+    lines.append("[环境变量]")
+    variables = config_analysis['variables']
+
+    # 按名称排序
+    for var_name in sorted(variables.keys()):
+        var_info = variables[var_name]
+        value = var_info['effective_value']
+        data_type = var_info['data_type']
+
+        # 根据数据类型格式化值
+        if data_type == 'null' or value == '':
+            formatted_value = 'null'
+        elif data_type == 'boolean':
+            formatted_value = value.lower() if value.lower() in [
+                'true', 'false'] else value
+        elif data_type in ['integer', 'float']:
+            formatted_value = value
+        else:
+            # 字符串类型需要加引号
+            formatted_value = f'"{value}"'
+
+        # 添加注释信息
+        comment = f"  # 数据类型: {data_type}"
+        if var_info['is_sensitive']:
+            comment += " [敏感信息]"
+
+        lines.append(f"{var_name} = {formatted_value}{comment}")
+
+    lines.append("")
+
+    # 外部系统状态
+    lines.append("[外部系统状态]")
+    for system_name, system_info in external_systems.items():
+        lines.append(f"# {system_info['name']}")
+        lines.append(f"{system_name}.is_mock = {system_info['is_mock']}")
+        lines.append(f"{system_name}.status = \"{system_info['status']}\"")
+
+        # 添加配置信息
+        if 'config' in system_info:
+            lines.append(f"{system_name}.配置 = {{")
+            for key, value in system_info['config'].items():
+                if value is None:
+                    formatted_value = 'null'
+                elif isinstance(value, bool):
+                    formatted_value = str(value).lower()
+                elif isinstance(value, (int, float)):
+                    formatted_value = str(value)
+                else:
+                    formatted_value = f'"{value}"'
+                lines.append(f"  {key} = {formatted_value}")
+            lines.append("}")
+        lines.append("")
+
+    # 添加结尾
+    lines.append("# 配置信息结束")
+
+    toml_content = "\n".join(lines)
+    return Response(toml_content, mimetype='text/plain; charset=utf-8')
 
 
 @app.route('/api/login', methods=['POST'])
@@ -1507,20 +1636,22 @@ def manage_checkin_rules(decoded):
 
             try:
                 delete_checkin_rule_by_id(rule_id)
-                
+
                 response_data = {
                     'rule_id': rule_id,
                     'message': '删除打卡规则成功'
                 }
 
-                app.logger.info(f'成功删除打卡规则，用户ID: {user.user_id}, 规则ID: {rule_id}')
+                app.logger.info(
+                    f'成功删除打卡规则，用户ID: {user.user_id}, 规则ID: {rule_id}')
                 return make_succ_response(response_data)
             except ValueError as e:
                 # 处理规则不存在的异常
                 app.logger.warning(f'删除打卡规则失败: {str(e)}, 用户ID: {user.user_id}')
                 return make_err_response({}, str(e))
             except Exception as e:
-                app.logger.error(f'删除打卡规则时发生错误: {str(e)}, 用户ID: {user.user_id}')
+                app.logger.error(
+                    f'删除打卡规则时发生错误: {str(e)}, 用户ID: {user.user_id}')
                 return make_err_response({}, f'删除打卡规则失败: {str(e)}')
 
     except Exception as e:
