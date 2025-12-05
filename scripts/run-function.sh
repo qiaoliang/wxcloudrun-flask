@@ -16,18 +16,45 @@ docker stop safeguard-function 2>/dev/null || true
 docker rm safeguard-function 2>/dev/null || true
 
 # 启动新的容器
-docker run -d \
+echo "正在启动容器..."
+CONTAINER_ID=$(docker run -d \
   --name safeguard-function \
   -p 9090:8080 \
   -e ENV_TYPE=function \
   -e WX_APPID=test_appid \
   -e WX_SECRET=test_secret \
   -e TOKEN_SECRET=42b32662dc4b61c71eb670d01be317cc830974c2fd0bce818a2febe104cd626f \
-  safeguard-function-img
+  safeguard-function-img)
 
 echo "Function 环境容器已启动！"
+echo "容器ID: $CONTAINER_ID"
 echo "访问地址: http://localhost:9090"
 echo "容器名称: safeguard-function"
+echo ""
+
+# 等待容器启动
+echo "等待容器启动..."
+sleep 3
+
+# 检查容器状态
+CONTAINER_STATUS=$(docker inspect --format='{{.State.Status}}' safeguard-function)
+echo "容器状态: $CONTAINER_STATUS"
+
+if [[ "$CONTAINER_STATUS" != "running" ]]; then
+    echo "⚠️  容器启动失败，显示错误日志："
+    echo "================================"
+    docker logs safeguard-function
+    echo "================================"
+    exit 1
+fi
+
+# 显示启动日志
+echo "✅ 容器运行正常，显示启动日志："
+echo "================================"
+# 显示最近的日志，限制行数避免输出过多
+docker logs --tail 20 safeguard-function
+echo "================================"
+
 echo ""
 echo "使用说明:"
 echo "- 应用已启动并监听 9090 端口"
@@ -35,4 +62,5 @@ echo "- 访问 http://localhost:9090 查看应用状态（端口9090）"
 echo "- 访问 http://localhost:9090/api/count 查看计数器 API"
 echo "- 访问 http://localhost:9090/api/login 进行微信登录测试"
 echo ""
+echo "要查看实时日志，请运行: docker logs -f safeguard-function"
 echo "要停止容器，请运行: ./scripts/stop-all.sh"
