@@ -175,14 +175,14 @@ def update_user_by_id(user):
 # 打卡规则相关数据访问方法
 def query_checkin_rules_by_user_id(user_id):
     """
-    根据用户ID查询打卡规则列表
+    根据用户ID查询打卡规则列表（排除已删除）
     :param user_id: 用户ID
     :return: 打卡规则列表
     """
     try:
         return CheckinRule.query.filter(
             CheckinRule.solo_user_id == user_id,
-            CheckinRule.status == 1  # 只查询启用的规则
+            CheckinRule.status != 2  # 排除已删除的规则
         ).all()
     except OperationalError as e:
         logger.info("query_checkin_rules_by_user_id errorMsg= {} ".format(e))
@@ -248,17 +248,26 @@ def update_checkin_rule_by_id(rule):
 
 def delete_checkin_rule_by_id(rule_id):
     """
-    根据ID删除打卡规则
+    根据ID软删除打卡规则
     :param rule_id: 规则ID
+    :return: Boolean 是否删除成功
+    :raises: ValueError 当规则不存在时
     """
     try:
         rule = CheckinRule.query.get(rule_id)
         if rule is None:
-            return
-        db.session.delete(rule)
+            raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
+        
+        # 软删除：设置状态为已删除，记录删除时间
+        rule.status = 2  # 已删除
+        rule.deleted_at = datetime.now()
         db.session.commit()
+        return True
+    except ValueError:
+        raise  # 重新抛出ValueError
     except OperationalError as e:
         logger.info("delete_checkin_rule_by_id errorMsg= {} ".format(e))
+        return False
 
 
 # 打卡记录相关数据访问方法
@@ -620,7 +629,7 @@ def query_supervised_rules_for_supervisor(supervisor_user_id, solo_user_id):
                 from wxcloudrun.model import CheckinRule
                 rules.extend(CheckinRule.query.filter(
                     CheckinRule.solo_user_id == solo_user_id,
-                    CheckinRule.status == 1  # 启用的规则
+                    CheckinRule.status != 2  # 排除已删除的规则
                 ).all())
             else:  # 监督特定规则
                 from wxcloudrun.model import CheckinRule

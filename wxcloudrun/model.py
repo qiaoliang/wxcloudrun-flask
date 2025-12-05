@@ -139,8 +139,11 @@ class CheckinRule(db.Model):
     week_days = db.Column(db.Integer, default=127,
                           comment='一周中的天（位掩码表示）：默认127表示周一到周日')
 
-    # 规则状态：1-启用, 0-禁用
-    status = db.Column(db.Integer, default=1, comment='规则状态：1-启用/0-禁用')
+    # 规则状态：1-启用, 0-禁用, 2-已删除
+    status = db.Column(db.Integer, default=1, comment='规则状态：1-启用/0-禁用/2-已删除')
+    
+    # 软删除时间戳
+    deleted_at = db.Column(db.DateTime, nullable=True, comment='删除时间')
 
     created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
     updated_at = db.Column(db.DateTime, default=datetime.now,
@@ -153,6 +156,7 @@ class CheckinRule(db.Model):
     # 索引
     __table_args__ = (
         db.Index('idx_checkin_rules_solo_user', 'solo_user_id'),  # 用户ID索引
+        db.Index('idx_checkin_rules_status', 'status'),  # 状态索引，支持快速过滤已删除规则
     )
 
 
@@ -327,7 +331,7 @@ def get_supervised_rules(self, solo_user_id):
         if relation.rule_id is None:  # 监督所有规则
             rules.extend(CheckinRule.query.filter(
                 CheckinRule.solo_user_id == solo_user_id,
-                CheckinRule.status == 1  # 启用的规则
+                CheckinRule.status != 2  # 排除已删除的规则
             ).all())
         else:  # 监督特定规则
             rule = CheckinRule.query.get(relation.rule_id)

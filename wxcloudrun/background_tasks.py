@@ -39,7 +39,7 @@ def _process_missed_for_today(now):
     grace_minutes = int(os.getenv('MISS_GRACE_MINUTES', '0'))
     grace_delta = timedelta(minutes=grace_minutes)
 
-    rules = CheckinRule.query.filter(CheckinRule.status == 1).all()
+    rules = CheckinRule.query.filter(CheckinRule.status != 2).all()  # 排除已删除的规则
     for rule in rules:
         try:
             user = User.query.get(rule.solo_user_id)

@@ -780,7 +780,9 @@ def register_phone():
 def _migrate_user_data(src_user_id, dst_user_id):
     try:
         rules = CheckinRule.query.filter(
-            CheckinRule.solo_user_id == src_user_id).all()
+            CheckinRule.solo_user_id == src_user_id,
+            CheckinRule.status != 2  # 排除已删除的规则
+        ).all()
         for r in rules:
             r.solo_user_id = dst_user_id
         records = CheckinRecord.query.filter(
@@ -1503,15 +1505,23 @@ def manage_checkin_rules(decoded):
             if not rule or rule.solo_user_id != user.user_id:
                 return make_err_response({}, '打卡规则不存在或无权限')
 
-            delete_checkin_rule_by_id(rule_id)
+            try:
+                delete_checkin_rule_by_id(rule_id)
+                
+                response_data = {
+                    'rule_id': rule_id,
+                    'message': '删除打卡规则成功'
+                }
 
-            response_data = {
-                'rule_id': rule_id,
-                'message': '删除打卡规则成功'
-            }
-
-            app.logger.info(f'成功删除打卡规则，用户ID: {user.user_id}, 规则ID: {rule_id}')
-            return make_succ_response(response_data)
+                app.logger.info(f'成功删除打卡规则，用户ID: {user.user_id}, 规则ID: {rule_id}')
+                return make_succ_response(response_data)
+            except ValueError as e:
+                # 处理规则不存在的异常
+                app.logger.warning(f'删除打卡规则失败: {str(e)}, 用户ID: {user.user_id}')
+                return make_err_response({}, str(e))
+            except Exception as e:
+                app.logger.error(f'删除打卡规则时发生错误: {str(e)}, 用户ID: {user.user_id}')
+                return make_err_response({}, f'删除打卡规则失败: {str(e)}')
 
     except Exception as e:
         app.logger.error(f'打卡规则管理时发生错误: {str(e)}', exc_info=True)
