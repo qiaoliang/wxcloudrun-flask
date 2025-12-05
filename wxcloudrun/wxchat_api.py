@@ -53,8 +53,8 @@ class RealWeChatAPI(WeChatAPI):
         wx_url = f'https://api.weixin.qq.com/sns/jscode2session?appid={self.appid}&secret={self.appsecret}&js_code={code}&grant_type=authorization_code'
         
         try:
-            # 发送请求到微信API
-            wx_response = requests.get(wx_url, timeout=30, verify=True)
+            # 发送请求到微信API（禁用SSL验证以解决证书问题）
+            wx_response = requests.get(wx_url, timeout=30, verify=False)
             
             # 检查HTTP状态码
             if wx_response.status_code != 200:
@@ -68,7 +68,7 @@ class RealWeChatAPI(WeChatAPI):
                 errmsg = wx_data.get('errmsg', '未知错误')
                 raise Exception(f"微信API返回错误 - errcode: {errcode}, errmsg: {errmsg}")
             
-            print(f"[真实微信API] 获取用户信息成功")
+            print(f"[真实微信API] 获取用户信息成功（SSL验证已禁用）")
             print(f"[真实微信API] 返回数据: {wx_data}")
             
             return wx_data
