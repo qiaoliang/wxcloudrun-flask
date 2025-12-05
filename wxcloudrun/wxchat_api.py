@@ -22,9 +22,9 @@ class WeChatAPI(ABC):
 class MockWeChatAPI(WeChatAPI):
     """模拟微信 API（非prod环境用）"""
     def get_user_info_by_code(self, code: str) -> Dict:
-        # 对于模拟API，我们返回模拟的openid和session_key
-        # 使用code的前8位作为模拟的openid后缀，确保不同code得到不同的openid
-        mock_openid = f"mock_openid_{code[:8]}" if code else "mock_openid_default"
+        # 对于模拟API，为了保持用户数据的连续性，使用固定的openid
+        # 这样可以模拟真实微信环境中同一用户多次登录的情况
+        mock_openid = "mock_openid_fixed_for_testing"
         mock_session_key = f"mock_session_key_{code[:8]}" if code else "mock_session_key_default"
         
         print(f"[模拟微信API] 获取用户信息成功")
@@ -34,7 +34,7 @@ class MockWeChatAPI(WeChatAPI):
         return {
             "openid": mock_openid,
             "session_key": mock_session_key,
-            "unionid": f"mock_unionid_{code[:8]}" if code else None
+            "unionid": "mock_unionid_fixed_for_testing"
         }
 
 

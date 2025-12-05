@@ -18,6 +18,8 @@ def load_environment_config():
     # 根据环境类型加载对应的配置文件
     if env_type == 'unit':
         env_file = '.env.unit'
+    elif env_type == 'dev':
+        env_file = '.env.dev'
     elif env_type == 'function':
         env_file = '.env.function'
     elif env_type == 'uat':
@@ -82,14 +84,6 @@ def get_database_config() -> Dict[str, Any]:
     # 注意：此时 app 可能还未初始化，不能使用 app.logger
     # print(f"数据库信息：\n    {json.dumps(db_cfg)}")  # 调试时可取消注释
     return db_cfg
-
-
-def should_start_flask_service() -> bool:
-    """
-    根据环境类型判断是否应该启动 Flask 服务
-    """
-    env_type = os.getenv('ENV_TYPE', 'unit')
-    return env_type != 'unit'
 
 
 def is_production_environment() -> bool:
@@ -371,8 +365,8 @@ def analyze_all_configs() -> Dict[str, Any]:
     app_related_vars = {
         'SMS_PROVIDER', 'ENV_TYPE', 'TOKEN_SECRET', 'PHONE_ENCRYPTION_KEY',
         'WX_SECRET', 'VIRTUAL_ENV', 'DB_RETRY_COUNT',
-        'MINIPROGRAM_APP_SECRET', 'DB_POOL_SIZE', 'WX_APPID', 'DB_RETRY_DELAY',
-        'MYSQL_USERNAME', 'REDIS_HOST',
+        'DB_POOL_SIZE', 'WX_APPID', 'DB_RETRY_DELAY',
+        'REDIS_HOST',
         'REDIS_PORT', 'REDIS_DB', 'REDIS_PASSWORD', 'MAIL_SERVER', 'MAIL_PORT',
         'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_USE_TLS', 'SMS_API_KEY',
         'SMS_API_SECRET', 'SQLITE_DB_PATH', 'USE_SQLITE_FOR_TESTING',

@@ -397,11 +397,14 @@ def login():
 
     app.logger.info('登录流程完成，开始构造响应数据')
 
-    # 构造返回数据，包含用户的 token 和 refresh token
+    # 构造返回数据，包含用户的 token、refresh token 和基本信息
     response_data = {
         'token': token,
         'refresh_token': refresh_token,  # 添加refresh token
         'user_id': user.user_id,
+        'nickname': user.nickname,  # 添加昵称
+        'avatar_url': user.avatar_url,  # 添加头像
+        'role': user.role_name,  # 添加角色名称
         'is_new_user': is_new,  # 标识是否为新用户
         'expires_in': 7200  # 2小时（秒）
     }
@@ -507,6 +510,7 @@ def user_profile():
                 return make_err_response({}, '用户不存在')
 
             # 返回用户信息
+            app.logger.info(f'用户数据库信息 - user_id: {user.user_id}, nickname: {user.nickname}, avatar_url: {user.avatar_url}')
             user_data = {
                 'user_id': user.user_id,
                 'wechat_openid': user.wechat_openid,
@@ -520,6 +524,7 @@ def user_profile():
                 'is_supervisor': getattr(user, 'is_supervisor', False),
                 'is_community_worker': getattr(user, 'is_community_worker', False)
             }
+            app.logger.info(f'返回的用户数据: {user_data}')
 
             app.logger.info(f'成功查询到用户信息，用户ID: {user.user_id}，准备返回响应')
             return make_succ_response(user_data)
