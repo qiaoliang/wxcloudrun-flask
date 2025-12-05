@@ -77,7 +77,8 @@ def get_database_config() -> Dict[str, Any]:
             'DATABASE_TYPE': 'sqlite',
             'DATABASE_PATH': db_path
         }
-    app.logger.info(f"数据库信息：\n    {json.dumps(data)}")
+    # 注意：此时 app 可能还未初始化，不能使用 app.logger
+    # print(f"数据库信息：\n    {json.dumps(db_cfg)}")  # 调试时可取消注释
     return db_cfg
 
 
