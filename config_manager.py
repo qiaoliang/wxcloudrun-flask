@@ -29,10 +29,11 @@ def load_environment_config():
 
     # 加载对应环境的配置文件
     if os.path.exists(env_file):
-        load_dotenv(env_file, override=True)
+        load_dotenv(env_file, override=False)  # 不覆盖已存在的环境变量
     else:
         # 如果特定环境配置文件不存在，尝试加载基础配置
-        load_dotenv('.env', override=True)
+        # 但不覆盖已存在的环境变量（优先使用 Docker 传入的环境变量）
+        load_dotenv('.env', override=False)
 
 
 def get_database_config() -> Dict[str, Any]:
