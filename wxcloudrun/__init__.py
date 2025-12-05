@@ -7,11 +7,16 @@ import config
 from config_manager import get_database_config
 
 # 配置日志
+# 确保日志目录存在
+logs_dir = 'logs'
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir, exist_ok=True)
+
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.FileHandler('migration.log'),
+        logging.FileHandler(os.path.join(logs_dir, 'migration.log')),
         logging.StreamHandler()
     ]
 )

@@ -9,9 +9,14 @@ import datetime
 migration_logger = logging.getLogger('migration')
 migration_logger.setLevel(logging.INFO)
 
+# 确保日志目录存在
+logs_dir = 'logs'
+if not os.path.exists(logs_dir):
+    os.makedirs(logs_dir, exist_ok=True)
+
 # 生成带时间戳的日志文件名
 timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
-log_filename = f'migration_{timestamp}.log'
+log_filename = os.path.join(logs_dir, f'migration_{timestamp}.log')
 
 # 创建文件处理器
 file_handler = logging.FileHandler(log_filename)
