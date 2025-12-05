@@ -42,19 +42,21 @@ def get_database_config() -> Dict[str, Any]:
     """
     env_type = os.getenv('ENV_TYPE', 'unit')
 
-    if env_type == 'unit':
-        # unit 环境固定使用 SQLite 内存数据库
-        return {
-            'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
-            'TESTING': True,
-            'DEBUG': True
-        }
-    else:
-        # 根据环境类型设置不同的默认路径，可被环境变量 SQLITE_DB_PATH 覆盖
+    db_cfg = {
+        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+        'TESTING': True,
+        'DEBUG': True,
+        'DATABASE_TYPE': 'memory',
+        'DATABASE_PATH': None
+    }
+
+    if env_type != 'unit':        # 根据环境类型设置不同的默认路径，可被环境变量 SQLITE_DB_PATH 覆盖
         if env_type == 'prod':
             default_path = '/app/data/prod.db'
         else:
-            default_path = f"./data/{env_type}.db"
+            # 获取当前脚本所在目录的绝对路径，确保数据库路径固定
+            script_dir = os.path.dirname(os.path.abspath(__file__))
+            default_path = os.path.join(script_dir, 'data', f'{env_type}.db')
 
         db_path = os.getenv("SQLITE_DB_PATH", default_path)
 
@@ -62,16 +64,21 @@ def get_database_config() -> Dict[str, Any]:
         if not os.path.isabs(db_path):
             db_path = os.path.abspath(db_path)
 
-        # 在开发环境中确保目录存在
+        # 在非prod环境中确保目录存在（prod环境的目录由容器创建）
         db_dir = os.path.dirname(db_path)
-        if db_dir and not os.path.exists(db_dir):
+        if db_dir and not os.path.exists(db_dir) and env_type != 'prod':
             os.makedirs(db_dir, exist_ok=True)
 
-        return {
+        db_cfg = {
             'SQLALCHEMY_DATABASE_URI': f'sqlite:///{db_path}',
             'TESTING': False,
-            'DEBUG': env_type in ['function', 'uat']  # function 和 uat 环境开启调试模式
+            # function 和 uat 环境开启调试模式
+            'DEBUG': env_type in ['function', 'uat'],
+            'DATABASE_TYPE': 'sqlite',
+            'DATABASE_PATH': db_path
         }
+    app.logger.info(f"数据库信息：\n    {json.dumps(data)}")
+    return db_cfg
 
 
 def should_start_flask_service() -> bool:
@@ -79,10 +86,6 @@ def should_start_flask_service() -> bool:
     根据环境类型判断是否应该启动 Flask 服务
     """
     env_type = os.getenv('ENV_TYPE', 'unit')
-
-    # unit 环境不启动 Flask 服务，仅用于运行测试
-    # unit_with_service 环境启动 Flask 服务，但使用内存数据库
-    # function 和 prod 环境启动 Flask 服务
     return env_type != 'unit'
 
 

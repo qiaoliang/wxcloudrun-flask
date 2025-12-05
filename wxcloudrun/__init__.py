@@ -47,7 +47,10 @@ try:
             app.logger.error("无法连接到数据库，应用可能无法正常工作。")
         else:
             db.create_all()
-            app.logger.info("数据库连接成功！")
+            # 使用config_manager提供的结构化数据库信息
+            from config_manager import get_database_config
+            db_config = get_database_config()
+
             # 检查 Counters 表是否已创建
             from sqlalchemy import inspect
             inspector = inspect(db.engine)
@@ -145,12 +148,13 @@ try:
                         result = conn.execute(text(
                             "PRAGMA table_info(supervision_rule_relations)")).fetchall()
                         supervisor_user_id_notnull = None
-                        
+
                         for col in result:
                             if col[1] == 'supervisor_user_id':  # 列名
-                                supervisor_user_id_notnull = col[3]  # notnull 字段
+                                # notnull 字段
+                                supervisor_user_id_notnull = col[3]
                                 break
-                        
+
                         # 只有当列确实有 NOT NULL 约束时才尝试修改
                         if supervisor_user_id_notnull == 1:
                             # SQLite 不支持 ALTER COLUMN 语法，使用重建表的方式
@@ -166,38 +170,41 @@ try:
                                     invite_token VARCHAR(64),
                                     invite_expires_at TIMESTAMP
                                 )"""))
-                            
+
                             conn.execute(text("""
                                 INSERT INTO supervision_rule_relations_temp 
                                 SELECT * FROM supervision_rule_relations
                             """))
-                            
-                            conn.execute(text("DROP TABLE supervision_rule_relations"))
+
+                            conn.execute(
+                                text("DROP TABLE supervision_rule_relations"))
                             conn.execute(text("""
                                 ALTER TABLE supervision_rule_relations_temp 
                                 RENAME TO supervision_rule_relations
                             """))
-                            
+
                             # 重新创建外键约束
                             conn.execute(text("""
                                 CREATE INDEX IF NOT EXISTS idx_solo_supervisor 
                                 ON supervision_rule_relations (solo_user_id, supervisor_user_id)
                             """))
-                            
+
                             conn.execute(text("""
                                 CREATE INDEX IF NOT EXISTS idx_supervisor_rule 
                                 ON supervision_rule_relations (supervisor_user_id, rule_id)
                             """))
-                            
+
                             conn.execute(text("""
                                 CREATE UNIQUE INDEX IF NOT EXISTS idx_invite_token_unique 
                                 ON supervision_rule_relations (invite_token)
                             """))
-                            
-                            app.logger.info("成功修改 supervision_rule_relations 表，supervisor_user_id 现在允许为 NULL")
+
+                            app.logger.info(
+                                "成功修改 supervision_rule_relations 表，supervisor_user_id 现在允许为 NULL")
                         else:
-                            app.logger.info("supervisor_user_id 已经允许为 NULL，无需修改")
-                            
+                            app.logger.info(
+                                "supervisor_user_id 已经允许为 NULL，无需修改")
+
                 except Exception as e:
                     app.logger.error(
                         f"修改 supervision_rule_relations 表失败: {str(e)}")

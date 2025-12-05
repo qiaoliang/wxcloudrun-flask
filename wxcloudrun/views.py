@@ -348,7 +348,7 @@ def user_profile():
         except ValueError as e:
             app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
             return make_err_response({}, '服务器配置错误')
-        
+
         app.logger.info(
             f'用于解码的TOKEN_SECRET: {token_secret[:20]}...')  # 只显示前20个字符
         app.logger.info(f'准备解码token: {token[:50]}...')
@@ -621,7 +621,7 @@ def verify_token():
         except ValueError as e:
             app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
             return None, make_err_response({}, '服务器配置错误')
-        
+
         app.logger.debug(f'使用TOKEN_SECRET进行token验证')
 
         # 解码token
@@ -1389,11 +1389,11 @@ def manage_checkin_rules(decoded):
             return make_succ_response(response_data)
 
         elif request.method == 'POST':
-            # 创建打卡规则
             params = request.get_json()
 
             rule_name = params.get('rule_name')
             if not rule_name:
+                app.logger.error('❌ Layer 4验证失败: 缺少rule_name参数')
                 return make_err_response({}, '缺少rule_name参数')
 
             # 创建新的打卡规则
@@ -1405,6 +1405,7 @@ def manage_checkin_rules(decoded):
                     return make_err_response({}, '自定义频率必须提供起止日期')
                 if end_date < start_date:
                     return make_err_response({}, '结束日期不能早于开始日期')
+
             new_rule = CheckinRule(
                 solo_user_id=user.user_id,
                 rule_name=rule_name,
@@ -1418,7 +1419,12 @@ def manage_checkin_rules(decoded):
                 status=params.get('status', 1)  # 默认启用
             )
 
-            insert_checkin_rule(new_rule)
+            try:
+                insert_checkin_rule(new_rule)
+            except Exception as db_error:
+                import traceback
+                app.logger.error(f'数据库错误堆栈: {traceback.format_exc()}')
+                return make_err_response({}, f'数据库保存失败: {str(db_error)}')
 
             response_data = {
                 'rule_id': new_rule.rule_id,
