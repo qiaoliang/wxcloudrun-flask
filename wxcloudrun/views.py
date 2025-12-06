@@ -847,7 +847,16 @@ def _verify_sms_code(phone, purpose, code):
         return False
     if vc.expires_at < datetime.now():
         return False
-    return vc.code_hash == _hash_code(phone, code, vc.salt)
+    # 检查验证码是否已被使用
+    if getattr(vc, 'is_used', False):
+        return False
+    # 验证码匹配
+    if vc.code_hash == _hash_code(phone, code, vc.salt):
+        # 验证成功后立即标记为已使用
+        vc.is_used = True
+        db.session.commit()
+        return True
+    return False
 
 
 def _audit(user_id, action, detail=None):
@@ -2644,4 +2653,67 @@ def login_phone_password():
         return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
     except Exception as e:
         app.logger.error(f'密码登录失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'登录失败: {str(e)}')
+
+
+@app.route('/api/auth/login_phone', methods=['POST'])
+def login_phone():
+    """
+    手机号登录：需要同时验证验证码和密码
+    """
+    try:
+        params = request.get_json() or {}
+        phone = params.get('phone')
+        code = params.get('code')
+        password = params.get('password')
+        
+        # 参数验证
+        if not phone or not code or not password:
+            return make_err_response({}, '缺少phone、code或password参数')
+        
+        # 验证码验证（只允许使用login类型的验证码）
+        if not _verify_sms_code(phone, 'login', code):
+            return make_err_response({}, '验证码无效或已过期')
+        
+        # 查找用户
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(
+            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+        user = User.query.filter_by(phone_hash=phone_hash).first()
+        
+        if not user or not user.password_hash or not user.password_salt:
+            return make_err_response({}, '账号不存在或未设置密码')
+        
+        # 密码验证
+        pwd_hash = sha256(
+            f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
+        if pwd_hash != user.password_hash:
+            return make_err_response({}, '密码不正确')
+        
+        # 更新用户昵称（如果需要）
+        if not user.nickname:
+            user.nickname = _gen_phone_nickname()
+            update_user_by_id(user)
+        
+        # 生成token
+        import datetime as dt
+        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
+                         'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
+        try:
+            token_secret = get_token_secret()
+        except ValueError as e:
+            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            return make_err_response({}, '服务器配置错误')
+        
+        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+        refresh_token = secrets.token_urlsafe(32)
+        user.refresh_token = refresh_token
+        user.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
+        update_user_by_id(user)
+        
+        _audit(user.user_id, 'login_phone', {'phone': phone})
+        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+    
+    except Exception as e:
+        app.logger.error(f'手机号登录失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')

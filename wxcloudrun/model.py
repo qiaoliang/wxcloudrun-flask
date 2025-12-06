@@ -401,6 +401,7 @@ class VerificationCode(db.Model):
     salt = db.Column(db.String(32), nullable=False)
     expires_at = db.Column(db.DateTime, nullable=False)
     last_sent_at = db.Column(db.DateTime, nullable=False)
+    is_used = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(
         db.DateTime, default=datetime.now, onupdate=datetime.now)
