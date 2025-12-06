@@ -2671,8 +2671,9 @@ def login_phone():
         if not phone or not code or not password:
             return make_err_response({}, '缺少phone、code或password参数')
         
-        # 验证码验证（只允许使用login类型的验证码）
-        if not _verify_sms_code(phone, 'login', code):
+        # 验证码验证（允许使用login或register类型的验证码）
+        # 这样用户可以使用注册时发送的验证码进行登录
+        if not _verify_sms_code(phone, 'login', code) and not _verify_sms_code(phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
         
         # 查找用户
