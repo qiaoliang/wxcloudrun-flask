@@ -2,7 +2,6 @@
 import sys
 import os
 import logging
-from wxcloudrun import app, db
 
 # 配置迁移日志
 import datetime
@@ -32,6 +31,23 @@ console_handler.setFormatter(formatter)
 # 添加处理器到日志器
 migration_logger.addHandler(file_handler)
 migration_logger.addHandler(console_handler)
+
+# 在导入 wxcloudrun 之前检查 ENV_TYPE
+env_type = os.getenv('ENV_TYPE')
+migration_logger.info(f'启动时检查 ENV_TYPE: {env_type}')
+
+if env_type is None or env_type == '':
+    migration_logger.error("错误: ENV_TYPE 环境变量未设置！")
+    migration_logger.error("请设置 ENV_TYPE 环境变量后重新启动应用:")
+    migration_logger.error("  - 开发测试: ENV_TYPE=function")
+    migration_logger.error("  - 单元测试: ENV_TYPE=unit")
+    migration_logger.error("  - UAT环境: ENV_TYPE=uat")
+    migration_logger.error("  - 生产环境: ENV_TYPE=prod")
+    migration_logger.error("启动失败，请配置环境变量。")
+    sys.exit(1)
+
+# 现在可以安全地导入 wxcloudrun
+from wxcloudrun import app, db
 
 
 def run_auto_migration():
@@ -98,8 +114,10 @@ def run_auto_migration():
 # 根据环境变量决定是否启动Flask Web服务
 if __name__ == '__main__':
     # 在启动应用之前执行自动迁移,unit 使用内存数据库，不用迁移
-    if (os.getenv('ENV_TYPE') not in ['unit', '']):
+    if os.getenv('ENV_TYPE') not in ['unit','']:
         run_auto_migration()
+    else:
+        migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
 
     # 仅在非unit环境下启动Flask服务
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
