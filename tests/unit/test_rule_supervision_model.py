@@ -10,7 +10,7 @@ from wxcloudrun import db
 class TestSupervisionRuleRelationModel:
     """Test cases for SupervisionRuleRelation model"""
 
-    def test_supervision_rule_relation_creation(self):
+    def test_supervision_rule_relation_creation(self, test_db):
         """Test creating a supervision rule relation"""
         # Create test users
         user1 = User(
@@ -26,9 +26,9 @@ class TestSupervisionRuleRelationModel:
             status=1
         )
         
-        db.session.add(user1)
-        db.session.add(user2)
-        db.session.flush()  # Get IDs without committing
+        test_db.session.add(user1)
+        test_db.session.add(user2)
+        test_db.session.flush()  # Get IDs without committing
         
         # Create a test rule
         rule = CheckinRule(
@@ -42,8 +42,8 @@ class TestSupervisionRuleRelationModel:
             status=1
         )
         
-        db.session.add(rule)
-        db.session.flush()
+        test_db.session.add(rule)
+        test_db.session.flush()
         
         # Create supervision relation
         relation = SupervisionRuleRelation(
@@ -53,8 +53,8 @@ class TestSupervisionRuleRelationModel:
             status=1  # Pending
         )
         
-        db.session.add(relation)
-        db.session.commit()
+        test_db.session.add(relation)
+        test_db.session.commit()
         
         # Verify the relation was created
         assert relation.relation_id is not None
@@ -67,15 +67,8 @@ class TestSupervisionRuleRelationModel:
         
         # Test status name property
         assert relation.status_name == 'pending'
-        
-        # Clean up
-        db.session.delete(relation)
-        db.session.delete(rule)
-        db.session.delete(user1)
-        db.session.delete(user2)
-        db.session.commit()
 
-    def test_supervision_all_rules_relation(self):
+    def test_supervision_all_rules_relation(self, test_db):
         """Test creating a supervision relation for all rules"""
         # Create test users
         user1 = User(
@@ -91,9 +84,9 @@ class TestSupervisionRuleRelationModel:
             status=1
         )
         
-        db.session.add(user1)
-        db.session.add(user2)
-        db.session.flush()
+        test_db.session.add(user1)
+        test_db.session.add(user2)
+        test_db.session.flush()
         
         # Create supervision relation for all rules (rule_id is None)
         relation = SupervisionRuleRelation(
@@ -103,8 +96,8 @@ class TestSupervisionRuleRelationModel:
             status=2  # Approved
         )
         
-        db.session.add(relation)
-        db.session.commit()
+        test_db.session.add(relation)
+        test_db.session.commit()
         
         # Verify the relation was created
         assert relation.relation_id is not None
@@ -115,14 +108,8 @@ class TestSupervisionRuleRelationModel:
         
         # Test status name property
         assert relation.status_name == 'approved'
-        
-        # Clean up
-        db.session.delete(relation)
-        db.session.delete(user1)
-        db.session.delete(user2)
-        db.session.commit()
 
-    def test_user_supervision_methods(self):
+    def test_user_supervision_methods(self, test_db):
         """Test the supervision-related methods added to User model"""
         # Create test users
         user1 = User(
@@ -138,9 +125,9 @@ class TestSupervisionRuleRelationModel:
             status=1
         )
         
-        db.session.add(user1)
-        db.session.add(user2)
-        db.session.flush()
+        test_db.session.add(user1)
+        test_db.session.add(user2)
+        test_db.session.flush()
         
         # Create a test rule
         rule = CheckinRule(
@@ -154,8 +141,8 @@ class TestSupervisionRuleRelationModel:
             status=1
         )
         
-        db.session.add(rule)
-        db.session.flush()
+        test_db.session.add(rule)
+        test_db.session.flush()
         
         # Create supervision relation
         relation = SupervisionRuleRelation(
@@ -165,8 +152,8 @@ class TestSupervisionRuleRelationModel:
             status=2  # Approved
         )
         
-        db.session.add(relation)
-        db.session.commit()
+        test_db.session.add(relation)
+        test_db.session.commit()
         
         # Test can_supervise_user method
         can_supervise = user2.can_supervise_user(user1.user_id)
@@ -185,10 +172,3 @@ class TestSupervisionRuleRelationModel:
         supervised_rules = user2.get_supervised_rules(user1.user_id)
         assert len(supervised_rules) == 1
         assert supervised_rules[0].rule_id == rule.rule_id
-        
-        # Clean up
-        db.session.delete(relation)
-        db.session.delete(rule)
-        db.session.delete(user1)
-        db.session.delete(user2)
-        db.session.commit()

@@ -17,58 +17,16 @@ from wxcloudrun.dao import delete_checkin_rule_by_id, query_checkin_rule_by_id
 
 class TestDeleteRuleCoreLogic:
     
-    def setup_method(self):
-        """每个测试方法执行前的设置"""
-        self.app = app
-        self.app_context = self.app.app_context()
-        self.app_context.push()
-        
-        # 创建测试用户
-        self.test_user = User(
-            wechat_openid="test_openid_123",
-            nickname="测试用户",
-            role=1  # 独居者
-        )
-        db.session.add(self.test_user)
-        db.session.commit()
-        
-        # 创建另一个用户用于权限测试
-        self.other_user = User(
-            wechat_openid="other_openid_456",
-            nickname="其他用户",
-            role=1
-        )
-        db.session.add(self.other_user)
-        db.session.commit()
-        
-        self.client = self.app.test_client()
-    
-    def teardown_method(self):
-        """每个测试方法执行后的清理"""
-        # 清理测试数据
-        CheckinRecord.query.filter(
-            CheckinRecord.solo_user_id.in_([self.test_user.user_id, self.other_user.user_id])
-        ).delete()
-        CheckinRule.query.filter(
-            CheckinRule.solo_user_id.in_([self.test_user.user_id, self.other_user.user_id])
-        ).delete()
-        User.query.filter(
-            User.user_id.in_([self.test_user.user_id, self.other_user.user_id])
-        ).delete()
-        db.session.commit()
-        
-        self.app_context.pop()
-    
-    def test_delete_rule_sets_correct_timestamp(self):
+    def test_delete_rule_sets_correct_timestamp(self, test_db, test_user):
         """测试删除规则时设置正确的时间戳"""
         # 创建测试规则
         rule = CheckinRule(
-            solo_user_id=self.test_user.user_id,
+            solo_user_id=test_user.user_id,
             rule_name="时间戳测试规则",
             status=1
         )
-        db.session.add(rule)
-        db.session.commit()
+        test_db.session.add(rule)
+        test_db.session.commit()
         
         # 记录删除前的时间
         before_delete = datetime.now()
@@ -84,16 +42,16 @@ class TestDeleteRuleCoreLogic:
         time_diff = rule.deleted_at - before_delete
         assert time_diff.total_seconds() < 5  # 应该在5秒内
     
-    def test_delete_rule_idempotency(self):
+    def test_delete_rule_idempotency(self, test_db, test_user):
         """测试删除规则的幂等性"""
         # 创建测试规则
         rule = CheckinRule(
-            solo_user_id=self.test_user.user_id,
+            solo_user_id=test_user.user_id,
             rule_name="幂等性测试规则",
             status=1
         )
-        db.session.add(rule)
-        db.session.commit()
+        test_db.session.add(rule)
+        test_db.session.commit()
         
         # 第一次删除
         result1 = delete_checkin_rule_by_id(rule.rule_id)
@@ -116,16 +74,16 @@ class TestDeleteRuleCoreLogic:
         # 验证时间戳被更新了（当前实现每次删除都会更新时间戳）
         assert rule.deleted_at > first_delete_time
     
-    def test_delete_rule_with_various_record_states(self):
+    def test_delete_rule_with_various_record_states(self, test_db, test_user):
         """测试删除包含各种状态记录的规则"""
         # 创建测试规则
         rule = CheckinRule(
-            solo_user_id=self.test_user.user_id,
+            solo_user_id=test_user.user_id,
             rule_name="多状态记录测试规则",
             status=1
         )
-        db.session.add(rule)
-        db.session.commit()
+        test_db.session.add(rule)
+        test_db.session.commit()
         
         # 创建不同状态的打卡记录
         base_time = datetime.now()
@@ -138,12 +96,12 @@ class TestDeleteRuleCoreLogic:
         for record_data in records_data:
             record = CheckinRecord(
                 rule_id=rule.rule_id,
-                solo_user_id=self.test_user.user_id,
+                solo_user_id=test_user.user_id,
                 **record_data
             )
-            db.session.add(record)
+            test_db.session.add(record)
         
-        db.session.commit()
+        test_db.session.commit()
         
         # 记录删除前的记录数量和状态分布
         before_records = CheckinRecord.query.filter_by(rule_id=rule.rule_id).all()
@@ -165,44 +123,44 @@ class TestDeleteRuleCoreLogic:
         
         assert before_status_counts == after_status_counts
     
-    def test_delete_rule_affects_related_queries(self):
+    def test_delete_rule_affects_related_queries(self, test_db, test_user):
         """测试删除规则对相关查询的影响"""
         # 创建多个规则
         rules = []
         for i in range(3):
             rule = CheckinRule(
-                solo_user_id=self.test_user.user_id,
+                solo_user_id=test_user.user_id,
                 rule_name=f"测试规则{i+1}",
                 status=1
             )
-            db.session.add(rule)
+            test_db.session.add(rule)
             rules.append(rule)
         
-        db.session.commit()
+        test_db.session.commit()
         
         # 为每个规则添加一些记录
         for rule in rules:
             for j in range(2):
                 record = CheckinRecord(
                     rule_id=rule.rule_id,
-                    solo_user_id=self.test_user.user_id,
+                    solo_user_id=test_user.user_id,
                     status=1,
                     planned_time=datetime.now() + timedelta(hours=j)
                 )
-                db.session.add(record)
+                test_db.session.add(record)
         
-        db.session.commit()
+        test_db.session.commit()
         
         # 验证初始状态
         from wxcloudrun.dao import query_checkin_rules_by_user_id
-        initial_rules = query_checkin_rules_by_user_id(self.test_user.user_id)
+        initial_rules = query_checkin_rules_by_user_id(test_user.user_id)
         assert len(initial_rules) == 3
         
         # 删除中间的规则
         delete_checkin_rule_by_id(rules[1].rule_id)
         
         # 验证查询结果
-        remaining_rules = query_checkin_rules_by_user_id(self.test_user.user_id)
+        remaining_rules = query_checkin_rules_by_user_id(test_user.user_id)
         assert len(remaining_rules) == 2
         
         remaining_rule_ids = {rule.rule_id for rule in remaining_rules}
@@ -213,7 +171,7 @@ class TestDeleteRuleCoreLogic:
         deleted_rule_records = CheckinRecord.query.filter_by(rule_id=rules[1].rule_id).all()
         assert len(deleted_rule_records) == 2
     
-    def test_delete_rule_error_handling(self):
+    def test_delete_rule_error_handling(self, test_db):
         """测试删除规则的错误处理"""
         # 测试删除None ID（当前实现会抛出ValueError）
         with pytest.raises(ValueError, match="没有找到 id 为 None 的打卡规则"):
