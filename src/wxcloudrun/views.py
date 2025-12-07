@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, Response
 from flask_cors import CORS
 import json
 import time
-from datetime import datetime, date, timedelta, time
+from datetime import datetime, date, timedelta
 import secrets
 import jwt
 import requests
@@ -398,16 +398,10 @@ def login():
     app.logger.info('登录流程完成，开始构造响应数据')
 
     # 构造返回数据，包含用户的 token、refresh token 和基本信息
-    response_data = {
-        'token': token,
-        'refresh_token': refresh_token,  # 添加refresh token
-        'user_id': user.user_id,
-        'nickname': user.nickname,  # 添加昵称
-        'avatar_url': user.avatar_url,  # 添加头像
-        'role': user.role_name,  # 添加角色名称
-        'is_new_user': is_new,  # 标识是否为新用户
-        'expires_in': 7200  # 2小时（秒）
-    }
+    # 使用统一的响应格式
+    response_data = _format_user_login_response(
+        user, token, refresh_token, is_new_user=is_new
+    )
 
     app.logger.info(f'返回的用户ID: {user.user_id}')
     app.logger.info(f'是否为新用户: {is_new}')
@@ -904,31 +898,10 @@ def register_phone():
             f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
         existing = User.query.filter_by(phone_hash=phone_hash).first()
         
-        # If user already exists, treat it as login and return token
+        # 严格按策略1：不验证密码，直接提示账号已存在
         if existing:
-            app.logger.info(f'手机号已注册，返回现有用户token: {phone}')
-            # For existing users with password, verify password if provided
-            if password and existing.password_hash:
-                pwd = str(password)
-                pwd_hash_check = sha256(f"{pwd}:{existing.password_salt}".encode('utf-8')).hexdigest()
-                if pwd_hash_check != existing.password_hash:
-                    return make_err_response({}, '密码错误')
-            
-            # Generate token for existing user
-            import datetime as dt
-            token_payload = {'openid': existing.wechat_openid, 'user_id': existing.user_id,
-                             'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
-            try:
-                token_secret = get_token_secret()
-            except ValueError as e:
-                app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
-                return make_err_response({}, '服务器配置错误')
-            token = jwt.encode(token_payload, token_secret, algorithm='HS256')
-            refresh_token = secrets.token_urlsafe(32)
-            existing.refresh_token = refresh_token
-            existing.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
-            update_user_by_id(existing)
-            return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': existing.user_id, 'is_existing_user': True})
+            app.logger.info(f'手机号已注册，提示用户直接登录: {phone}')
+            return make_err_response({'code': 'PHONE_EXISTS'}, '该手机号已注册，请直接登录')
         
         # Create new user
         salt = secrets.token_hex(8)
@@ -953,67 +926,166 @@ def register_phone():
         user.refresh_token = refresh_token
         user.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
         update_user_by_id(user)
-        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id, 'is_existing_user': False})
+        # 使用统一的响应格式
+        response_data = _format_user_login_response(
+            user, token, refresh_token, is_new_user=True
+        )
+        return make_succ_response(response_data)
     except Exception as e:
         app.logger.error(f'手机号注册失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'注册失败: {str(e)}')
 
 
 def _migrate_user_data(src_user_id, dst_user_id):
+    """改进的数据迁移函数，增加事务处理和冲突解决"""
     try:
+        # 迁移打卡规则（排除已删除的）
         rules = CheckinRule.query.filter(
             CheckinRule.solo_user_id == src_user_id,
-            CheckinRule.status != 2  # 排除已删除的规则
+            CheckinRule.status != 2
         ).all()
         for r in rules:
-            r.solo_user_id = dst_user_id
+            # 检查是否已存在同名规则
+            existing_rule = CheckinRule.query.filter(
+                CheckinRule.solo_user_id == dst_user_id,
+                CheckinRule.rule_name == r.rule_name,
+                CheckinRule.status != 2
+            ).first()
+            if not existing_rule:
+                r.solo_user_id = dst_user_id
+        
+        # 迁移打卡记录
         records = CheckinRecord.query.filter(
-            CheckinRecord.solo_user_id == src_user_id).all()
+            CheckinRecord.solo_user_id == src_user_id
+        ).all()
         for rec in records:
             rec.solo_user_id = dst_user_id
+        
+        # 迁移监护关系（作为被监护人）
         rels = SupervisionRuleRelation.query.filter(
-            SupervisionRuleRelation.solo_user_id == src_user_id).all()
+            SupervisionRuleRelation.solo_user_id == src_user_id
+        ).all()
         for rel in rels:
-            rel.solo_user_id = dst_user_id
+            # 检查是否已存在相同关系
+            existing_rel = SupervisionRuleRelation.query.filter(
+                SupervisionRuleRelation.solo_user_id == dst_user_id,
+                SupervisionRuleRelation.supervisor_user_id == rel.supervisor_user_id,
+                SupervisionRuleRelation.status != 2
+            ).first()
+            if not existing_rel:
+                rel.solo_user_id = dst_user_id
+        
+        # 迁移监护关系（作为监护人）
         rels2 = SupervisionRuleRelation.query.filter(
-            SupervisionRuleRelation.supervisor_user_id == src_user_id).all()
+            SupervisionRuleRelation.supervisor_user_id == src_user_id
+        ).all()
         for rel in rels2:
-            rel.supervisor_user_id = dst_user_id
-        db.session.commit()
+            # 检查是否已存在相同关系
+            existing_rel = SupervisionRuleRelation.query.filter(
+                SupervisionRuleRelation.solo_user_id == rel.solo_user_id,
+                SupervisionRuleRelation.supervisor_user_id == dst_user_id,
+                SupervisionRuleRelation.status != 2
+            ).first()
+            if not existing_rel:
+                rel.supervisor_user_id = dst_user_id
+        
+        # 移除commit调用，由调用方控制事务
     except Exception as e:
-        db.session.rollback()
+        app.logger.error(f'数据迁移失败: {str(e)}', exc_info=True)
         raise e
+
+
+def _format_user_login_response(user, token, refresh_token, is_new_user=False):
+    """统一格式化登录响应"""
+    return {
+        'token': token,
+        'refresh_token': refresh_token,
+        'user_id': user.user_id,
+        'wechat_openid': user.wechat_openid,
+        'phone_number': user.phone_number,
+        'nickname': user.nickname,
+        'avatar_url': user.avatar_url,
+        'role': user.role_name,
+        'login_type': 'new_user' if is_new_user else 'existing_user'
+    }
+
+
+def _merge_accounts_by_time(account1, account2):
+    """按注册时间合并账号，保留较早的账号"""
+    app.logger.info(f'开始合并账号: {account1.user_id} 和 {account2.user_id}')
+    
+    if account1.created_at < account2.created_at:
+        primary, secondary = account1, account2
+        app.logger.info(f'保留主账号: {primary.user_id} (创建时间: {primary.created_at})')
+    else:
+        primary, secondary = account2, account1
+        app.logger.info(f'保留主账号: {primary.user_id} (创建时间: {primary.created_at})')
+    
+    # 先保存需要迁移的信息
+    migrate_wechat_openid = secondary.wechat_openid if not primary.wechat_openid else None
+    migrate_phone_hash = secondary.phone_hash if not primary.phone_hash else None
+    migrate_phone_number = secondary.phone_number if not primary.phone_hash else None
+    
+    app.logger.info(f'准备迁移信息 - wechat_openid: {migrate_wechat_openid}, phone_hash: {migrate_phone_hash}')
+    
+    # 清空次要账号的唯一字段
+    secondary.wechat_openid = f"disabled_{secondary.user_id}_{int(time.time())}"
+    secondary.phone_hash = f"disabled_{secondary.user_id}_{int(time.time())}"
+    secondary.phone_number = None
+    db.session.flush()  # 刷新到数据库但不提交
+    
+    # 更新主账号信息
+    if migrate_wechat_openid:
+        primary.wechat_openid = migrate_wechat_openid
+        app.logger.info(f'主账号已更新wechat_openid')
+    if migrate_phone_hash:
+        primary.phone_hash = migrate_phone_hash
+        primary.phone_number = migrate_phone_number
+        app.logger.info(f'主账号已更新phone_hash和phone_number')
+    
+    # 迁移数据
+    _migrate_user_data(secondary.user_id, primary.user_id)
+    app.logger.info(f'数据迁移完成')
+    
+    # 禁用次要账号
+    secondary.status = 2
+    db.session.commit()
+    
+    app.logger.info(f'账号合并完成: 主账号 {primary.user_id}, 次账号 {secondary.user_id} 已禁用')
+    return primary
 
 
 @app.route('/api/user/bind_phone', methods=['POST'])
 @login_required
 def bind_phone(decoded):
     try:
-        params = request.get_json() or {}
-        phone = params.get('phone')
-        code = params.get('code')
-        if not phone or not code:
-            return make_err_response({}, '缺少phone或code参数')
-        if not _verify_sms_code(phone, 'bind_phone', code):
-            return make_err_response({}, '验证码无效或已过期')
-        current_user = query_user_by_openid(decoded.get('openid'))
-        if not current_user:
-            return make_err_response({}, '用户不存在')
-        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-        phone_hash = sha256(
-            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
-        target = User.query.filter_by(phone_hash=phone_hash).first()
-        if target and target.user_id != current_user.user_id:
-            _migrate_user_data(target.user_id, current_user.user_id)
-            target.status = 2
-            db.session.commit()
-        current_user.phone_hash = phone_hash
-        current_user.phone_number = phone[:3] + '****' + \
-            phone[-4:] if len(phone) >= 7 else phone
-        update_user_by_id(current_user)
-        _audit(current_user.user_id, 'bind_phone', {'phone': phone})
-        return make_succ_response({'message': '绑定手机号成功'})
+        with db.session.begin_nested():
+            params = request.get_json() or {}
+            phone = params.get('phone')
+            code = params.get('code')
+            if not phone or not code:
+                return make_err_response({}, '缺少phone或code参数')
+            if not _verify_sms_code(phone, 'bind_phone', code):
+                return make_err_response({}, '验证码无效或已过期')
+            current_user = query_user_by_openid(decoded.get('openid'))
+            if not current_user:
+                return make_err_response({}, '用户不存在')
+            phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+            phone_hash = sha256(
+                f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+            target = User.query.filter_by(phone_hash=phone_hash).first()
+            if target and target.user_id != current_user.user_id:
+                primary = _merge_accounts_by_time(current_user, target)
+                _audit(current_user.user_id, 'bind_phone', {'phone': phone})
+                return make_succ_response({'message': '绑定手机号成功，账号已合并'})
+            current_user.phone_hash = phone_hash
+            current_user.phone_number = phone[:3] + '****' + \
+                phone[-4:] if len(phone) >= 7 else phone
+            update_user_by_id(current_user)
+            _audit(current_user.user_id, 'bind_phone', {'phone': phone})
+            return make_succ_response({'message': '绑定手机号成功'})
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f'绑定手机号失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'绑定手机号失败: {str(e)}')
 
@@ -1022,37 +1094,36 @@ def bind_phone(decoded):
 @login_required
 def bind_wechat(decoded):
     try:
-        params = request.get_json() or {}
-        wx_code = params.get('code')
-        phone_code = params.get('phone_code')
-        phone = params.get('phone')
-        if not wx_code:
-            return make_err_response({}, '缺少code参数')
-        if phone and not _verify_sms_code(phone, 'bind_wechat', phone_code or ''):
-            return make_err_response({}, '手机号验证码无效或已过期')
-        from .wxchat_api import get_user_info_by_code
-        wx_data = get_user_info_by_code(wx_code)
-        if 'errcode' in wx_data:
-            return make_err_response({}, f"微信API错误: {wx_data.get('errmsg', '未知错误')}")
-        openid = wx_data.get('openid')
-        if not openid:
-            return make_err_response({}, '微信返回数据不完整')
-        current_user = query_user_by_openid(decoded.get('openid'))
-        if not current_user:
-            return make_err_response({}, '用户不存在')
-        existing_wechat = query_user_by_openid(openid)
-        if existing_wechat and existing_wechat.user_id != current_user.user_id:
-            _migrate_user_data(current_user.user_id, existing_wechat.user_id)
-            current_user.status = 2
-            db.session.commit()
-            _audit(existing_wechat.user_id, 'bind_wechat_merge',
-                   {'from_user_id': current_user.user_id})
-            return make_succ_response({'message': '微信绑定并合并成功'})
-        current_user.wechat_openid = openid
-        update_user_by_id(current_user)
-        _audit(current_user.user_id, 'bind_wechat', {'openid': openid})
-        return make_succ_response({'message': '绑定微信成功'})
+        with db.session.begin_nested():
+            params = request.get_json() or {}
+            wx_code = params.get('code')
+            phone_code = params.get('phone_code')
+            phone = params.get('phone')
+            if not wx_code:
+                return make_err_response({}, '缺少code参数')
+            if phone and not _verify_sms_code(phone, 'bind_wechat', phone_code or ''):
+                return make_err_response({}, '手机号验证码无效或已过期')
+            from .wxchat_api import get_user_info_by_code
+            wx_data = get_user_info_by_code(wx_code)
+            if 'errcode' in wx_data:
+                return make_err_response({}, f"微信API错误: {wx_data.get('errmsg', '未知错误')}")
+            openid = wx_data.get('openid')
+            if not openid:
+                return make_err_response({}, '微信返回数据不完整')
+            current_user = query_user_by_openid(decoded.get('openid'))
+            if not current_user:
+                return make_err_response({}, '用户不存在')
+            existing_wechat = query_user_by_openid(openid)
+            if existing_wechat and existing_wechat.user_id != current_user.user_id:
+                primary = _merge_accounts_by_time(current_user, existing_wechat)
+                _audit(existing_wechat.user_id, 'bind_wechat_merge', {'from_user_id': current_user.user_id})
+                return make_succ_response({'message': '绑定微信成功，账号已合并'})
+            current_user.wechat_openid = openid
+            update_user_by_id(current_user)
+            _audit(current_user.user_id, 'bind_wechat', {'openid': openid})
+            return make_succ_response({'message': '绑定微信成功'})
     except Exception as e:
+        db.session.rollback()
         app.logger.error(f'绑定微信失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'绑定微信失败: {str(e)}')
 
@@ -2756,7 +2827,12 @@ def login_phone():
         update_user_by_id(user)
         
         _audit(user.user_id, 'login_phone', {'phone': phone})
-        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+        
+        # 使用统一的响应格式
+        response_data = _format_user_login_response(
+            user, token, refresh_token, is_new_user=False
+        )
+        return make_succ_response(response_data)
     
     except Exception as e:
         app.logger.error(f'手机号登录失败: {str(e)}', exc_info=True)
