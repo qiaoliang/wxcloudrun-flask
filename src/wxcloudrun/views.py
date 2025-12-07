@@ -2666,8 +2666,10 @@ def login_phone_password():
         phone_hash = sha256(
             f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
         user = User.query.filter_by(phone_hash=phone_hash).first()
-        if not user or not user.password_hash or not user.password_salt:
-            return make_err_response({}, '账号不存在或未设置密码')
+        if not user:
+            return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
+        if not user.password_hash or not user.password_salt:
+            return make_err_response({}, '账号未设置密码')
         pwd_hash = sha256(
             f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
         if pwd_hash != user.password_hash:
@@ -2721,8 +2723,10 @@ def login_phone():
             f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
         user = User.query.filter_by(phone_hash=phone_hash).first()
         
-        if not user or not user.password_hash or not user.password_salt:
-            return make_err_response({}, '账号不存在或未设置密码')
+        if not user:
+            return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
+        if not user.password_hash or not user.password_salt:
+            return make_err_response({}, '账号未设置密码')
         
         # 密码验证
         pwd_hash = sha256(
