@@ -841,6 +841,12 @@ def sms_send_code():
 
 
 def _verify_sms_code(phone, purpose, code):
+    # 在 mock 环境下（should_use_real_sms() 返回 False），直接验证通过
+    from config_manager import should_use_real_sms
+    if not should_use_real_sms():
+        app.logger.info(f"[Mock SMS] 跳过验证码验证，ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
+        return True
+    
     vc = VerificationCode.query.filter_by(
         phone_number=phone, purpose=purpose).first()
     if not vc:
