@@ -9,11 +9,15 @@ help:
 	@echo "  make test-unit    - 运行单元测试"
 	@echo "  make test-integration - 运行集成测试"
 	@echo "  make test-all     - 运行所有测试"
+	@echo "  make test-coverage - 生成测试覆盖率报告"
 	@echo "  make clean        - 清理测试文件"
+	@echo "  make test-failed  - 运行之前失败的测试"
 	@echo ""
 	@echo "示例:"
-	@echo "  make test-integration    # 运行集成测试"
-	@echo "  make test-integration VERBOSE=1    # 详细输出"
+	@echo "  make test-unit            # 运行单元测试"
+	@echo "  make test-unit VERBOSE=1  # 详细输出"
+	@echo "  make test-integration     # 运行集成测试"
+	@echo "  make test-integration VERBOSE=1  # 详细输出"
 
 # 设置测试环境
 setup:
@@ -59,9 +63,13 @@ test-login-response:
 # 运行单元测试
 test-unit:
 	@echo "运行单元测试..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
 	source venv_py312/bin/activate; \
-	python -m pytest tests/unit/ -v
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python -m pytest tests/unit/ -v -s; \
+	else \
+		python -m pytest tests/unit/ -v; \
+	fi
 
 # 运行所有测试
 test-all:

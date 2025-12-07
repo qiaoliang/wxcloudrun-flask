@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from wxcloudrun import app, db
 from wxcloudrun.model import CheckinRule, CheckinRecord, User
-from wxcloudrun.dao import delete_checkin_rule_by_id, query_checkin_rule_by_id
+from wxcloudrun.dao import delete_checkin_rule_by_id, query_checkin_rule_by_id, query_checkin_rules_by_user_id
 
 
 class TestDeleteRuleCoreLogic:
