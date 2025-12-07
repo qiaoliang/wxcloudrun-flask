@@ -1,11 +1,8 @@
 """
-Configuration for pytest
+pytest配置文件 - integration tests
 """
-import os
 import sys
-import pytest
+import os
 
-
-@pytest.fixture
-def example():
-    return true
+# 添加src路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
