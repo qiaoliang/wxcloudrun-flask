@@ -903,8 +903,34 @@ def register_phone():
         phone_hash = sha256(
             f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
         existing = User.query.filter_by(phone_hash=phone_hash).first()
+        
+        # If user already exists, treat it as login and return token
         if existing:
-            return make_err_response({}, '手机号已注册')
+            app.logger.info(f'手机号已注册，返回现有用户token: {phone}')
+            # For existing users with password, verify password if provided
+            if password and existing.password_hash:
+                pwd = str(password)
+                pwd_hash_check = sha256(f"{pwd}:{existing.password_salt}".encode('utf-8')).hexdigest()
+                if pwd_hash_check != existing.password_hash:
+                    return make_err_response({}, '密码错误')
+            
+            # Generate token for existing user
+            import datetime as dt
+            token_payload = {'openid': existing.wechat_openid, 'user_id': existing.user_id,
+                             'exp': dt.datetime.utcnow() + dt.timedelta(hours=2)}
+            try:
+                token_secret = get_token_secret()
+            except ValueError as e:
+                app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+                return make_err_response({}, '服务器配置错误')
+            token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+            refresh_token = secrets.token_urlsafe(32)
+            existing.refresh_token = refresh_token
+            existing.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
+            update_user_by_id(existing)
+            return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': existing.user_id, 'is_existing_user': True})
+        
+        # Create new user
         salt = secrets.token_hex(8)
         pwd_hash = sha256(f"{password or ''}:{salt}".encode(
             'utf-8')).hexdigest() if password else None
@@ -927,7 +953,7 @@ def register_phone():
         user.refresh_token = refresh_token
         user.refresh_token_expire = datetime.now() + dt.timedelta(days=7)
         update_user_by_id(user)
-        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id, 'is_existing_user': False})
     except Exception as e:
         app.logger.error(f'手机号注册失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'注册失败: {str(e)}')

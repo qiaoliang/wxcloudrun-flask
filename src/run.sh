@@ -49,22 +49,22 @@ echo "[INFO] 使用过渡性入口脚本，真正的主程序在 src/main.py"
 # 清理可能占用端口的进程
 echo "[INFO] 正在清理端口 8000-9999 上的进程..."
 if [[ -f "scripts/killport.sh" ]]; then
-    ./scripts/killport.sh
+    ./../scripts/killport.sh
 else
-    echo "[WARNING] 未找到 scripts/killport.sh，跳过端口清理"
+    echo "[WARNING] 未找到 ./../scripts/killport.sh，跳过端口清理"
 fi
 
 # 检查是否在虚拟环境中
 if [[ "$VIRTUAL_ENV" != "" ]]; then
     # 已经在虚拟环境中，直接运行
     # 传递参数顺序：IP地址 端口号 (环境类型已通过环境变量传递)
-    python src/main.py "$2" "$3"
+    python main.py "$2" "$3"
 else
     # 不在虚拟环境中，尝试激活本地虚拟环境
-    if [[ -f "venv_py312/bin/activate" ]]; then
-        source venv_py312/bin/activate
+    if [[ -f "../venv_py312/bin/activate" ]]; then
+        source ../venv_py312/bin/activate
         # 传递参数顺序：IP地址 端口号 (环境类型已通过环境变量传递)
-        python src/main.py "$2" "$3"
+        python main.py "$2" "$3"
     else
         echo "[ERROR] 未检测到虚拟环境，请先激活虚拟环境或安装依赖"
         exit 1
