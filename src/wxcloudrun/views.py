@@ -808,10 +808,17 @@ def sms_send_code():
         purpose = params.get('purpose', 'register')
         if not phone:
             return make_err_response({}, '缺少phone参数')
+        
+        # 在 mock 环境下跳过频率限制
+        from config_manager import should_use_real_sms
+        is_mock_env = not should_use_real_sms()
+        
         now = datetime.now()
         vc = VerificationCode.query.filter_by(
             phone_number=phone, purpose=purpose).first()
-        if vc and (now - vc.last_sent_at).total_seconds() < 60:
+        
+        # 只在非 mock 环境下检查频率限制
+        if not is_mock_env and vc and (now - vc.last_sent_at).total_seconds() < 60:
             return make_err_response({}, '请求过于频繁，请稍后再试')
         code = generate_code(6)
         salt = secrets.token_hex(8)
