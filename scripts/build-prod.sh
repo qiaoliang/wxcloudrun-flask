@@ -8,7 +8,7 @@ echo "开始构建 Production 环境的 Docker 镜像..."
 cd "$(dirname "$0")/../"
 
 # 构建 Production 环境镜像
-docker build -f dockerfiles/Dockerfile.prod -t safeguard-prod-img .
+docker build -f Dockerfile -t safeguard-prod-img .
 
 echo "Production 环境镜像构建完成！"
 echo ""
