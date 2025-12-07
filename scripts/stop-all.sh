@@ -4,7 +4,7 @@
 echo "正在停止所有安全守护容器..."
 
 # 检查并停止容器
-for container in safeguard-function safeguard-uat safeguard-prod; do
+for container in s-function s-uat s-prod; do
     if docker ps --format '{{.Names}}' | grep -q "^${container}$"; then
         echo "停止容器: $container"
         docker stop "$container"
@@ -17,7 +17,7 @@ echo ""
 echo "正在删除容器..."
 
 # 删除容器
-for container in safeguard-function safeguard-uat safeguard-prod; do
+for container in s-function s-uat s-prod; do
     if docker ps -a --format '{{.Names}}' | grep -q "^${container}$"; then
         echo "删除容器: $container"
         docker rm "$container"

@@ -13,14 +13,14 @@ show_help() {
     echo "  -h, --help       显示此帮助信息"
     echo ""
     echo "容器名称:"
-    echo "  safeguard-function  Function环境容器"
-    echo "  safeguard-uat       UAT环境容器"
-    echo "  safeguard-prod      生产环境容器"
+    echo "  s-function         Function环境容器"
+    echo "  s-uat              UAT环境容器"
+    echo "  s-prod             生产环境容器"
     echo ""
     echo "示例:"
     echo "  $0                    # 显示所有容器的最近20行日志"
-    echo "  $0 -f safeguard-uat  # 实时跟踪UAT容器日志"
-    echo "  $0 -t 50 safeguard-prod  # 显示生产容器最近50行日志"
+    echo "  $0 -f s-uat          # 实时跟踪UAT容器日志"
+    echo "  $0 -t 50 s-prod      # 显示生产容器最近50行日志"
 }
 
 # 默认参数
@@ -43,7 +43,7 @@ while [[ $# -gt 0 ]]; do
             show_help
             exit 0
             ;;
-        safeguard-function|safeguard-uat|safeguard-prod)
+        s-function|s-uat|s-prod)
             CONTAINER_NAME="$1"
             shift
             ;;
@@ -104,7 +104,7 @@ if [[ -z "$CONTAINER_NAME" ]]; then
     echo "显示所有容器日志..."
     echo ""
     
-    for container in safeguard-function safeguard-uat safeguard-prod; do
+    for container in s-function s-uat s-prod; do
         if check_container_exists "$container"; then
             show_container_logs "$container"
         fi

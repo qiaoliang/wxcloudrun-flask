@@ -14,7 +14,7 @@ if [[ "$(docker images -q safeguard-base 2> /dev/null)" == "" ]]; then
 fi
 
 # 构建 UAT 环境镜像
-docker build -f dockerfiles/Dockerfile.function -t safeguard-uat-img .
+docker build -f dockerfiles/Dockerfile.uat -t safeguard-uat-img .
 
 echo "UAT 环境镜像构建完成！"
 echo ""

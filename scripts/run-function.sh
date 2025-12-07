@@ -15,17 +15,28 @@ fi
 docker stop s-function 2>/dev/null || true
 docker rm s-function 2>/dev/null || true
 
+# 检查并停止其他占用9999端口的容器
+echo "检查9999端口占用情况..."
+OCCUPYING_CONTAINER=$(docker ps -q --filter "publish=9999")
+if [ ! -z "$OCCUPYING_CONTAINER" ]; then
+    echo "发现占用9999端口的容器，正在停止..."
+    docker stop $OCCUPYING_CONTAINER
+    echo "已停止占用9999端口的容器"
+else
+    echo "9999端口未被占用"
+fi
+
 # 启动新的容器
 echo "正在启动容器..."
 CONTAINER_ID=$(docker run -d \
   --name s-function \
-  -p 9090:8080 \
+  -p 9999:9999 \
   -e ENV_TYPE=function \
   safeguard-function-img)
 
 echo "Function 环境容器已启动！"
 echo "容器ID: $CONTAINER_ID"
-echo "访问地址: http://localhost:9090"
+echo "访问地址: http://localhost:9999"
 echo "容器名称: s-function"
 echo ""
 
@@ -54,10 +65,10 @@ echo "================================"
 
 echo ""
 echo "使用说明:"
-echo "- 应用已启动并监听 9090 端口"
-echo "- 访问 http://localhost:9090 查看应用状态（端口9090）"
-echo "- 访问 http://localhost:9090/api/count 查看计数器 API"
-echo "- 访问 http://localhost:9090/api/login 进行微信登录测试"
+echo "- 应用已启动并监听 9999 端口"
+echo "- 访问 http://localhost:9999 查看应用状态（端口9999）"
+echo "- 访问 http://localhost:9999/api/count 查看计数器 API"
+echo "- 访问 http://localhost:9999/api/login 进行微信登录测试"
 echo ""
-echo "要查看实时日志，请运行: docker logs -f safeguard-function"
+echo "要查看实时日志，请运行: docker logs -f s-function"
 echo "要停止容器，请运行: ./scripts/stop-all.sh"

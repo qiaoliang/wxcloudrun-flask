@@ -1,8 +1,5 @@
 FROM python:3.12
 
-# 安装 ca-certificates 以支持 HTTPS
-RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
-
 # 设置工作目录
 WORKDIR /app
 
@@ -16,4 +13,5 @@ RUN pip install --user -r requirements.txt
 EXPOSE 8080
 
 # 设置基础启动命令
-CMD ["python3", "run.py", "0.0.0.0", "8080"]
+# 注意：主程序已移至 src/main.py
+#CMD ["python3", "src/main.py", "0.0.0.0", "8080"]

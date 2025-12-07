@@ -6,14 +6,25 @@ set -e
 echo "启动 Production 环境的 Docker 容器..."
 
 # 检查镜像是否存在
-if [[ "$(docker images -q s-prod 2> /dev/null)" == "" ]]; then
-    echo "错误: 镜像 s-prod 不存在，请先运行 build.sh"
+if [[ "$(docker images -q safeguard-prod-img 2> /dev/null)" == "" ]]; then
+    echo "错误: 镜像 safeguard-prod-img 不存在，请先运行 build-prod.sh"
     exit 1
 fi
 
 # 停止并删除之前的容器（如果有）
 docker stop s-prod 2>/dev/null || true
 docker rm s-prod 2>/dev/null || true
+
+# 检查并停止其他占用8080端口的容器
+echo "检查8080端口占用情况..."
+OCCUPYING_CONTAINER=$(docker ps -q --filter "publish=8080")
+if [ ! -z "$OCCUPYING_CONTAINER" ]; then
+    echo "发现占用8080端口的容器，正在停止..."
+    docker stop $OCCUPYING_CONTAINER
+    echo "已停止占用8080端口的容器"
+else
+    echo "8080端口未被占用"
+fi
 
 # 启动新的容器
 echo "正在启动容器..."
@@ -24,7 +35,7 @@ CONTAINER_ID=$(docker run -d \
   -e WX_APPID=your_wx_appid \
   -e WX_SECRET=your_wx_secret \
   -e TOKEN_SECRET=your_token_secret \
-  s-prod)
+  safeguard-prod-img)
 
 echo "Production 环境容器已启动！"
 echo "容器ID: $CONTAINER_ID"

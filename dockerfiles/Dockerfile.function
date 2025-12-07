@@ -3,8 +3,11 @@ FROM safeguard-base:latest
 # 设置工作目录
 WORKDIR /app
 
-# 拷贝项目文件
-COPY . .
+# 拷贝依赖文件
+COPY requirements.txt requirements-test.txt ./
+
+# 拷贝src目录到/app目录下
+COPY src/ /app/
 
 # 创建用于SQLite数据库的目录
 RUN mkdir -p /app/data && chown -R 1000:1000 /app/data
@@ -13,7 +16,7 @@ RUN mkdir -p /app/data && chown -R 1000:1000 /app/data
 ENV ENV_TYPE=function
 
 # 暴露端口
-EXPOSE 8080
+EXPOSE 9999
 
 # 执行启动命令
-CMD ["python3", "run.py", "0.0.0.0", "8080"]
+CMD ["python3", "main.py", "0.0.0.0", "9999"]
