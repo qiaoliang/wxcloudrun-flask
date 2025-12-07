@@ -3,6 +3,9 @@ import sys
 import os
 import logging
 
+# 添加当前目录到 Python 路径
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
 # 配置迁移日志
 import datetime
 migration_logger = logging.getLogger('migration')
@@ -111,8 +114,8 @@ def run_auto_migration():
         sys.exit(1)
 
 
-# 根据环境变量决定是否启动Flask Web服务
-if __name__ == '__main__':
+def main():
+    """主程序入口"""
     # 在启动应用之前执行自动迁移,unit 使用内存数据库，不用迁移
     if os.getenv('ENV_TYPE') not in ['unit','']:
         run_auto_migration()
@@ -123,3 +126,8 @@ if __name__ == '__main__':
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
     app.run(host=host, port=port)
+
+
+# 根据环境变量决定是否启动Flask Web服务
+if __name__ == '__main__':
+    main()

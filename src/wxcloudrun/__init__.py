@@ -1,8 +1,13 @@
 import os
+import sys
 import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+
+# 添加父目录到路径，以便导入 config 模块
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 import config
 from config_manager import get_database_config
 
@@ -41,9 +46,9 @@ db = SQLAlchemy(app)
 migrate = Migrate(app, db)
 
 # 现在再导入模型和视图，避免循环依赖
-from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord  # noqa: F401
-from wxcloudrun import views  # noqa: F401
-from wxcloudrun.background_tasks import start_missing_check_service  # noqa: F401
+from .model import Counters, User, CheckinRule, CheckinRecord  # noqa: F401
+from . import views  # noqa: F401
+from .background_tasks import start_missing_check_service  # noqa: F401
 
 # 加载配置
 app.config.from_object('config')
