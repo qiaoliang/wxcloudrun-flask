@@ -117,7 +117,8 @@ def run_auto_migration():
 def main():
     """主程序入口"""
     # 在启动应用之前执行自动迁移,unit 使用内存数据库，不用迁移
-    if os.getenv('ENV_TYPE') not in ['unit','']:
+    env_type = os.getenv('ENV_TYPE', 'unit')
+    if env_type not in ['unit']:
         run_auto_migration()
     else:
         migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")

@@ -20,6 +20,8 @@ def load_environment_config():
         env_file = '.env.unit'
     elif env_type == 'dev':
         env_file = '.env.dev'
+    elif env_type == 'func':
+        env_file = '.env.function'
     elif env_type == 'function':
         env_file = '.env.function'
     elif env_type == 'uat':
@@ -111,16 +113,17 @@ def is_function_environment() -> bool:
     """
     判断是否为功能测试环境
     """
-    return os.getenv('ENV_TYPE', 'unit') == 'function'
+    env_type = os.getenv('ENV_TYPE', 'unit')
+    return env_type in ['func', 'function']
 
 
 def should_use_mock_wechat() -> bool:
     """
     判断是否应该使用Mock微信API
-    unit, function, uat 环境使用Mock，prod使用真实API
+    unit, func, function, uat 环境使用Mock，prod使用真实API
     """
     env_type = os.getenv('ENV_TYPE', 'unit')
-    return env_type in ['unit', 'function', 'uat']
+    return env_type in ['unit', 'func', 'function', 'uat']
 
 
 def should_use_real_sms() -> bool:

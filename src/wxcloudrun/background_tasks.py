@@ -39,7 +39,16 @@ def _process_missed_for_today(now):
     grace_minutes = int(os.getenv('MISS_GRACE_MINUTES', '0'))
     grace_delta = timedelta(minutes=grace_minutes)
 
-    rules = CheckinRule.query.filter(CheckinRule.status != 2).all()  # 排除已删除的规则
+    try:
+        rules = CheckinRule.query.filter(CheckinRule.status != 2).all()  # 排除已删除的规则
+    except Exception as e:
+        # 如果数据库表不存在，跳过本次检查
+        if "no such table" in str(e).lower():
+            app.logger.warning(f"[missing-mark] 数据库表尚未创建，跳过检查: {str(e)}")
+            return
+        else:
+            # 其他错误继续抛出
+            raise e
     for rule in rules:
         try:
             user = User.query.get(rule.solo_user_id)
