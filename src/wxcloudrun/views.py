@@ -907,7 +907,9 @@ def register_phone():
         salt = secrets.token_hex(8)
         pwd_hash = sha256(f"{password or ''}:{salt}".encode(
             'utf-8')).hexdigest() if password else None
+        # Generate masked phone number for display purposes only
         masked = phone[:3] + '****' + phone[-4:] if len(phone) >= 7 else phone
+        app.logger.info(f"Creating user with masked phone: {masked} (phone_hash will be used for uniqueness)")
         nick = nickname or _gen_phone_nickname()
         user = User(wechat_openid=f"phone_{phone}", phone_number=masked, phone_hash=phone_hash, password_hash=pwd_hash,
                     password_salt=salt if password else None, nickname=nick, avatar_url=avatar_url, role=1, status=1)

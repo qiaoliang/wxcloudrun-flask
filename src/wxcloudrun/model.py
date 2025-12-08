@@ -26,7 +26,7 @@ class User(db.Model):
     wechat_openid = db.Column(
         db.String(128), unique=True, nullable=False, comment='微信OpenID，唯一标识用户')
     phone_number = db.Column(
-        db.String(20), unique=True, comment='手机号码，可用于登录和联系')
+        db.String(20), comment='手机号码，仅用于显示')
     phone_hash = db.Column(db.String(64), unique=True,
                            comment='手机号加密哈希，用于安全查找')
     nickname = db.Column(db.String(100), comment='用户昵称')
