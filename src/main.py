@@ -54,12 +54,15 @@ from wxcloudrun import app, db
 
 
 def run_auto_migration():
-    """ENV_TYPE!= unit 时，自动执行数据库迁移。"""
+    """自动执行数据库迁移。"""
     try:
-        # 检查是否为 unit 环境（内存数据库）
+        # 获取数据库配置
         db_config = app.config.get('SQLALCHEMY_DATABASE_URI', '')
+        env_type = os.getenv('ENV_TYPE', 'unit')
 
         migration_logger.info("开始检查数据库迁移...")
+        migration_logger.info(f"当前环境类型: {env_type}")
+        migration_logger.info(f"数据库配置: {db_config}")
 
         # 检查并创建数据库文件（如果是SQLite）
         if 'sqlite://' in db_config:
@@ -105,12 +108,21 @@ def run_auto_migration():
 
             except Exception as e:
                 migration_logger.error(f"数据库迁移执行失败: {e}")
-                migration_logger.error("应用启动失败，请检查数据库配置和迁移文件。")
+                migration_logger.error("数据库迁移配置信息:")
+                migration_logger.error(f"  - 环境类型: {env_type}")
+                migration_logger.error(f"  - 数据库URI: {db_config}")
+                if 'sqlite://' in db_config:
+                    migration_logger.error(f"  - 数据库文件路径: {db_path}")
+                    migration_logger.error(f"  - 数据库目录权限: {oct(os.stat(db_dir).st_mode)[-3:]} if os.path.exists(db_dir) else '目录不存在'")
+                migration_logger.error("请检查数据库配置、文件权限和迁移文件。")
                 sys.exit(1)
 
     except Exception as e:
         migration_logger.error(f"自动迁移过程中发生错误: {e}")
-        migration_logger.error("应用启动失败，请检查迁移配置。")
+        migration_logger.error("迁移失败时的配置信息:")
+        migration_logger.error(f"  - 环境类型: {os.getenv('ENV_TYPE', 'unit')}")
+        migration_logger.error(f"  - 数据库URI: {app.config.get('SQLALCHEMY_DATABASE_URI', '未设置')}")
+        migration_logger.error("请检查迁移配置和环境变量设置。")
         sys.exit(1)
 
 
