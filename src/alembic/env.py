@@ -13,7 +13,7 @@ from config_manager import load_environment_config, get_database_config
 load_environment_config()  # 确保环境变量已加载
 
 # 现在可以安全地获取数据库配置
-from model import Base  # 导入 SQLAlchemy Base
+from wxcloudrun import db  # 导入 Flask-SQLAlchemy db 对象
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -32,7 +32,7 @@ config.set_main_option("sqlalchemy.url", db_config['SQLALCHEMY_DATABASE_URI'])
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
-target_metadata = Base.metadata
+target_metadata = db.metadata
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:
