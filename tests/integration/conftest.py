@@ -58,6 +58,7 @@ def pytest_collection_modifyitems(config, items):
     # 为迁移测试添加标记
     for item in items:
         if "migration" in item.nodeid:
-            item.add_marker(pytest.markmigration)
+            # 使用通用的标记而不是 pytest.markmigration
+            item.add_marker(pytest.mark.migration)
         if "performance" in item.nodeid or "large_data" in item.nodeid:
             item.add_marker(pytest.mark.slow)
