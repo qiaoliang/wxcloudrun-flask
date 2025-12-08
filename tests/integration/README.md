@@ -51,27 +51,6 @@ python -m pytest tests/integration/test_account_merging.py::TestAccountMerging -
 python -m pytest tests/integration/test_registration_flow.py::TestPhoneRegisterRejectsExistingPhone::test_phone_register_rejects_existing_phone -v
 ```
 
-## 测试文件说明
-
-### `test_registration_flow.py`
-包含注册流程相关的所有测试：
-- 手机注册拒绝已存在手机号
-- 账号合并功能
-- 统一登录响应格式
-- 数据迁移完整性
-- 前端错误处理
-- 绑定功能与账号合并
-
-### `test_account_merging.py`
-专门测试账号合并功能：
-- 按注册时间保留较早账号
-- 数据迁移验证
-
-### `test_unified_login_response.py`
-测试统一登录响应格式：
-- 新用户响应格式
-- 老用户响应格式
-
 ## 测试覆盖率
 
 生成测试覆盖率报告：

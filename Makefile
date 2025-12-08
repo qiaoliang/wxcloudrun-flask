@@ -29,19 +29,19 @@ help:
 # 设置测试环境
 setup:
 	@if [ ! -d "venv_py312" ]; then \
+		echo "创建虚拟环境..."; \
 		python3.12 -m venv venv_py312; \
-		source venv_py312/bin/activate; \
-		pip install -r requirements.txt; \
-		echo "虚拟环境设置完成"; \
-	else \
-		echo "虚拟环境已存在"; \
 	fi
+	@echo "激活虚拟环境并安装依赖..."
+	@source venv_py312/bin/activate && pip install -r requirements.txt
+	@source venv_py312/bin/activate && pip install -r requirements-test.txt
+	@echo "环境设置完成"
 
 # 运行集成测试
-test-integration:
+test-integration: setup
 	@echo "运行集成测试..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	if [ "$(VERBOSE)" = "1" ]; then \
 		python -m pytest tests/integration/ -v -s; \
 	else \
@@ -49,54 +49,54 @@ test-integration:
 	fi
 
 # 运行单个集成测试文件
-test-registration:
+test-registration: setup
 	@echo "运行注册流程测试..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/test_registration_flow.py -v
 
-test-account-merge:
+test-account-merge: setup
 	@echo "运行账号合并测试..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/test_account_merging.py -v
 
-test-login-response:
+test-login-response: setup
 	@echo "运行登录响应测试..."
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/test_unified_login_response.py -v
 
-test-migration:
+test-migration: setup
 	@echo "运行数据库迁移测试..."
-	@source venv_py312/bin/activate; 
-	if [ "$(VERBOSE)" = "1" ]; then 
-		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_database_migration.py -v -s; 
-	else 
-		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_database_migration.py -v; 
+	@source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_database_migration.py -v -s; \
+	else \
+		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_database_migration.py -v; \
 	fi
 
-test-migration-method:
+test-migration-method: setup
 	@if [ -z "$(METHOD)" ]; then \
 		echo "请指定测试方法，例如: make test-migration-method METHOD=test_complete_migration_path"; \
 		exit 1; \
 	fi
 	@echo "运行迁移测试方法: $(METHOD)"
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/test_database_migration.py -k $(METHOD) -v
 
-test-migration-performance:
+test-migration-performance: setup
 	@echo "运行迁移性能测试..."
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/test_database_migration.py::TestDatabaseMigration::test_migration_performance -v -s
 
 # 运行单元测试
-test-unit:
+test-unit: setup
 	@echo "运行单元测试..."
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	source venv_py312/bin/activate && \
 	if [ "$(VERBOSE)" = "1" ]; then \
 		python -m pytest tests/unit/ -v -s; \
 	else \
@@ -104,17 +104,17 @@ test-unit:
 	fi
 
 # 运行所有测试
-test-all:
+test-all: setup
 	@echo "运行所有测试..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/ -v
 
 # 生成测试覆盖率报告
-test-coverage:
+test-coverage: setup
 	@echo "生成测试覆盖率报告..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/ --cov=src --cov-report=html --cov-report=term
 
 # 清理测试文件
@@ -127,30 +127,30 @@ clean:
 	@echo "清理完成"
 
 # 仅运行失败的测试（如果之前有失败）
-test-failed:
+test-failed: setup
 	@echo "运行之前失败的测试..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/ --lf -v
 
 # 运行特定测试类
-test-class:
+test-class: setup
 	@if [ -z "$(CLASS)" ]; then \
 		echo "请指定测试类，例如: make test-class CLASS=TestAccountMerging"; \
 		exit 1; \
 	fi
 	@echo "运行测试类: $(CLASS)"
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/ -k $(CLASS) -v
 
 # 运行特定测试方法
-test-method:
+test-method: setup
 	@if [ -z "$(METHOD)" ]; then \
 		echo "请指定测试方法，例如: make test-method METHOD=test_account_merge_functionality"; \
 		exit 1; \
 	fi
 	@echo "运行测试方法: $(METHOD)"
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/ -k $(METHOD) -v

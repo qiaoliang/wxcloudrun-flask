@@ -44,7 +44,7 @@ db = SQLAlchemy(app)
 
 # 初始化 Flask-Migrate
 # 设置migrations目录为相对于src的路径
-migrations_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'migrations')
+migrations_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'migrations')
 migrate = Migrate(app, db, directory=migrations_dir)
 
 # 现在再导入模型和视图，避免循环依赖
