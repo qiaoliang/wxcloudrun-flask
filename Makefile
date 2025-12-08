@@ -8,16 +8,23 @@ help:
 	@echo "  make setup        - 设置测试环境"
 	@echo "  make test-unit    - 运行单元测试"
 	@echo "  make test-integration - 运行集成测试"
+	@echo "  make test-migration - 运行数据库迁移测试"
 	@echo "  make test-all     - 运行所有测试"
 	@echo "  make test-coverage - 生成测试覆盖率报告"
 	@echo "  make clean        - 清理测试文件"
 	@echo "  make test-failed  - 运行之前失败的测试"
+	@echo ""
+	@echo "迁移测试专用命令:"
+	@echo "  make test-migration-method METHOD=<method> - 运行特定测试方法"
+	@echo "  make test-migration-performance - 运行性能测试"
 	@echo ""
 	@echo "示例:"
 	@echo "  make test-unit            # 运行单元测试"
 	@echo "  make test-unit VERBOSE=1  # 详细输出"
 	@echo "  make test-integration     # 运行集成测试"
 	@echo "  make test-integration VERBOSE=1  # 详细输出"
+	@echo "  make test-migration       # 运行迁移测试"
+	@echo "  make test-migration VERBOSE=1  # 详细输出"
 
 # 设置测试环境
 setup:
@@ -56,9 +63,35 @@ test-account-merge:
 
 test-login-response:
 	@echo "运行登录响应测试..."
-	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
 	source venv_py312/bin/activate; \
 	python -m pytest tests/integration/test_unified_login_response.py -v
+
+test-migration:
+	@echo "运行数据库迁移测试..."
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate; \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python -m pytest tests/integration/test_database_migration.py -v -s; \
+	else \
+		python -m pytest tests/integration/test_database_migration.py -v; \
+	fi
+
+test-migration-method:
+	@if [ -z "$(METHOD)" ]; then \
+		echo "请指定测试方法，例如: make test-migration-method METHOD=test_complete_migration_path"; \
+		exit 1; \
+	fi
+	@echo "运行迁移测试方法: $(METHOD)"
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate; \
+	python -m pytest tests/integration/test_database_migration.py -k $(METHOD) -v
+
+test-migration-performance:
+	@echo "运行迁移性能测试..."
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate; \
+	python -m pytest tests/integration/test_database_migration.py::TestDatabaseMigration::test_migration_performance -v -s
 
 # 运行单元测试
 test-unit:
