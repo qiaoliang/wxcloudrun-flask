@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from wxcloudrun import app, db
 from flask_migrate import Migrate
-from migration_test_utils import MigrationTestHelper, TableSchema, ColumnInfo, IndexInfo
+from tests.integration.migration_test_utils import MigrationTestHelper, TableSchema, ColumnInfo, IndexInfo
 
 
 class TestDatabaseMigration:
