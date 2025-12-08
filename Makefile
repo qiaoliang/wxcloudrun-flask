@@ -72,9 +72,9 @@ test-migration:
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
 	source venv_py312/bin/activate; \
 	if [ "$(VERBOSE)" = "1" ]; then \
-		python -m pytest tests/integration/test_database_migration.py -v -s; \
+		python pytest_wrapper.py tests/integration/test_database_migration.py -v -s; \
 	else \
-		python -m pytest tests/integration/test_database_migration.py -v; \
+		python pytest_wrapper.py tests/integration/test_database_migration.py -v; \
 	fi
 
 test-migration-method:
