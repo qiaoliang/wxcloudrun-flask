@@ -42,7 +42,7 @@ migration_logger.info(f'启动时检查 ENV_TYPE: {env_type}')
 if env_type is None or env_type == '':
     migration_logger.error("错误: ENV_TYPE 环境变量未设置！")
     migration_logger.error("请设置 ENV_TYPE 环境变量后重新启动应用:")
-    migration_logger.error("  - 开发测试: ENV_TYPE=function")
+    migration_logger.error("  - 开发环境: ENV_TYPE=func")
     migration_logger.error("  - 单元测试: ENV_TYPE=unit")
     migration_logger.error("  - UAT环境: ENV_TYPE=uat")
     migration_logger.error("  - 生产环境: ENV_TYPE=prod")
@@ -53,89 +53,42 @@ if env_type is None or env_type == '':
 from wxcloudrun import app, db
 
 
-def run_auto_migration():
-    """自动执行数据库迁移。"""
+def create_app():
+    """创建并配置 Flask 应用"""
+    return app
+
+
+def run_migration():
+    """执行数据库迁移，返回是否成功"""
     try:
-        # 获取数据库配置
-        db_config = app.config.get('SQLALCHEMY_DATABASE_URI', '')
-        env_type = os.getenv('ENV_TYPE', 'unit')
-
-        migration_logger.info("开始检查数据库迁移...")
-        migration_logger.info(f"当前环境类型: {env_type}")
-        migration_logger.info(f"数据库配置: {db_config}")
-
-        # 检查并创建数据库文件（如果是SQLite）
-        if 'sqlite://' in db_config:
-            db_path = db_config.replace('sqlite:///', '')
-            db_dir = os.path.dirname(db_path)
-
-            # 确保数据库目录存在
-            if db_dir and not os.path.exists(db_dir):
-                os.makedirs(db_dir, exist_ok=True)
-                migration_logger.info(f"创建数据库目录: {db_dir}")
-
-            # 如果数据库文件不存在，创建空数据库文件
-            if not os.path.exists(db_path):
-                migration_logger.info(f"创建空数据库文件: {db_path}")
-                # 创建空数据库文件
-                open(db_path, 'a').close()
-
-        # 导入 Flask-Migrate 相关模块
-        from flask_migrate import upgrade, current
-
-        # 检查当前数据库版本
-        with app.app_context():
-            try:
-                current_revision = current()
-                migration_logger.info(f"当前数据库版本: {current_revision}")
-            except Exception as e:
-                migration_logger.info(f"数据库未初始化或获取版本失败: {e}")
-                current_revision = None
-
-            # 执行迁移
-            try:
-                migration_logger.info("开始执行数据库迁移...")
-                upgrade()
-                migration_logger.info("数据库迁移执行成功！")
-
-                # 显示迁移后的版本
-                new_revision = current()
-                migration_logger.info(f"迁移后数据库版本: {new_revision}")
-
-                # 检查数据库文件是否创建
-                if 'sqlite://' in db_config and os.path.exists(db_path):
-                    migration_logger.info(f"数据库文件已创建: {db_path}")
-
-            except Exception as e:
-                migration_logger.error(f"数据库迁移执行失败: {e}")
-                migration_logger.error("数据库迁移配置信息:")
-                migration_logger.error(f"  - 环境类型: {env_type}")
-                migration_logger.error(f"  - 数据库URI: {db_config}")
-                if 'sqlite://' in db_config:
-                    migration_logger.error(f"  - 数据库文件路径: {db_path}")
-                    migration_logger.error(f"  - 数据库目录权限: {oct(os.stat(db_dir).st_mode)[-3:]} if os.path.exists(db_dir) else '目录不存在'")
-                migration_logger.error("请检查数据库配置、文件权限和迁移文件。")
-                sys.exit(1)
-
+        from alembic_migration import migrate_database
+        success = migrate_database()
+        if not success:
+            migration_logger.error("数据库迁移失败")
+            return False
+        migration_logger.info("数据库迁移成功")
+        return True
     except Exception as e:
-        migration_logger.error(f"自动迁移过程中发生错误: {e}")
-        migration_logger.error("迁移失败时的配置信息:")
-        migration_logger.error(f"  - 环境类型: {os.getenv('ENV_TYPE', 'unit')}")
-        migration_logger.error(f"  - 数据库URI: {app.config.get('SQLALCHEMY_DATABASE_URI', '未设置')}")
-        migration_logger.error("请检查迁移配置和环境变量设置。")
-        sys.exit(1)
+        migration_logger.error(f"迁移过程中发生异常: {str(e)}")
+        return False
 
 
 def main():
     """主程序入口"""
-    # 在启动应用之前执行自动迁移,unit 使用内存数据库，不用迁移
+    # 1. 首先执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
     env_type = os.getenv('ENV_TYPE', 'unit')
     if env_type not in ['unit']:
-        run_auto_migration()
+        migration_success = run_migration()
+        if not migration_success:
+            migration_logger.error("数据库迁移失败，程序退出")
+            sys.exit(1)
     else:
         migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
-
-    # 仅在非unit环境下启动Flask服务
+    
+    # 2. 创建并启动 Flask 应用
+    create_app()
+    
+    # 3. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
     app.run(host=host, port=port)

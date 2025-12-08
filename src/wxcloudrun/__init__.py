@@ -3,7 +3,7 @@ import sys
 import logging
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from flask_migrate import Migrate
+# Flask-Migrate 已移除，使用独立的 Alembic 迁移系统
 
 # 添加父目录到路径，以便导入 config 模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -42,10 +42,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # 初始化DB操作对象
 db = SQLAlchemy(app)
 
-# 初始化 Flask-Migrate
-# 设置migrations目录为相对于src的路径
-migrations_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'migrations')
-migrate = Migrate(app, db, directory=migrations_dir)
+# Flask-Migrate 已移除，现在使用独立的 Alembic 迁移系统
+# 迁移脚本位于 src/alembic/ 目录
 
 # 现在再导入模型和视图，避免循环依赖
 from .model import Counters, User, CheckinRule, CheckinRecord  # noqa: F401
