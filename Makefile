@@ -69,12 +69,11 @@ test-login-response:
 
 test-migration:
 	@echo "运行数据库迁移测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate; \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python -m pytest tests/integration/test_database_migration.py -v -s; \
-	else \
-		python -m pytest tests/integration/test_database_migration.py -v; \
+	@source venv_py312/bin/activate; 
+	if [ "$(VERBOSE)" = "1" ]; then 
+		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_database_migration.py -v -s; 
+	else 
+		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_database_migration.py -v; 
 	fi
 
 test-migration-method:
