@@ -76,7 +76,7 @@ def login():
     # 调用微信API获取用户信息
     try:
         # 使用新的微信API模块，根据环境变量智能选择真实或模拟API
-        from .wxchat_api import get_user_info_by_code
+        from wxcloudrun.wxchat_api import get_user_info_by_code
 
         app.logger.info('正在通过微信API模块获取用户信息...')
         wx_data = get_user_info_by_code(code)

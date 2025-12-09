@@ -51,6 +51,13 @@ from .model import Counters, User, CheckinRule, CheckinRecord  # noqa: F401
 from .views import misc, sms, auth, user, checkin, supervision, share  # noqa: F401
 from .background_tasks import start_missing_check_service  # noqa: F401
 
+# 在 unit 环境下，为内存数据库创建表
+import config_manager
+if config_manager.is_unit_environment():
+    with app.app_context():
+        db.create_all()
+        app.logger.info("在内存数据库中创建了所有表")
+
 # 加载配置
 app.config.from_object('config')
 

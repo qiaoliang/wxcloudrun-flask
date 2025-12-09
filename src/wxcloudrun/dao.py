@@ -117,9 +117,12 @@ def insert_user(user):
     """
     try:
         db.session.add(user)
+        db.session.flush()  # 刷新以获取数据库生成的ID
         db.session.commit()
     except OperationalError as e:
         logger.info("insert_user errorMsg= {} ".format(e))
+        db.session.rollback()
+        raise
 
 
 def update_user_by_id(user):
