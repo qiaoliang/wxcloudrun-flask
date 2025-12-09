@@ -8,7 +8,7 @@
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "邀请发送成功"
@@ -52,7 +52,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "invite_token": "abc123def456...",
@@ -88,7 +88,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "relation_id": 123,
@@ -124,7 +124,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "type": "received",
@@ -173,7 +173,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "接受邀请成功"
@@ -206,7 +206,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "拒绝邀请成功"
@@ -238,7 +238,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "supervised_users": [
@@ -299,7 +299,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "guardians": [
@@ -343,7 +343,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "start_date": "2025-12-02",

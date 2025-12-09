@@ -6,7 +6,7 @@
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": 5
 }
@@ -14,7 +14,7 @@
 或（清零操作）
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": null
 }
@@ -49,7 +49,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": 5
 }
@@ -74,7 +74,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "environment": "development",

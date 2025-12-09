@@ -5,7 +5,7 @@
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "date": "2025-12-09",
@@ -55,7 +55,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "rule_id": 2,
@@ -91,7 +91,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "record_id": 125,
@@ -125,7 +125,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "record_id": 124,
@@ -160,7 +160,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "start_date": "2025-12-02",
@@ -232,7 +232,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "rules": [

@@ -8,7 +8,7 @@
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -48,7 +48,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -79,7 +79,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "登出成功"
@@ -113,7 +113,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -155,7 +155,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -189,7 +189,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
@@ -224,7 +224,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",

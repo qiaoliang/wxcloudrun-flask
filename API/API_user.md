@@ -16,7 +16,7 @@
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "user_id": 1,
@@ -66,7 +66,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "users": [
@@ -114,7 +114,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "绑定手机号成功"
@@ -124,7 +124,7 @@ print(response.json())
 或（账号合并时）
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "绑定手机号成功，账号已合并"
@@ -160,7 +160,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "绑定微信成功"
@@ -170,7 +170,7 @@ print(response.json())
 或（账号合并时）
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "绑定微信成功，账号已合并"
@@ -207,7 +207,7 @@ print(response.json())
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "身份验证申请已提交，请耐心等待审核",

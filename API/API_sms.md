@@ -7,7 +7,7 @@
 - 响应：200 OK + 示例 JSON
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "验证码已发送"
@@ -17,7 +17,7 @@
 或（调试模式下）
 ```json
 {
-  "code": 0,
+  "code": 1,
   "msg": "success",
   "data": {
     "message": "验证码已发送",
