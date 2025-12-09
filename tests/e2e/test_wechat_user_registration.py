@@ -24,18 +24,18 @@ class TestWechatUserRegistration:
         """
         测试通过 /api/login 新注册一个wechat_user
         注册成功后，可以使用 DAO.py 从数据库中找到这个用户
-        
+
         这是TDD的RED阶段 - 先写测试，观察其失败
         """
         # 使用时间戳确保每次测试都有唯一的code
         import time
         timestamp = int(time.time() * 1000000)  # 微秒级时间戳确保唯一性
-        
+
         # 准备测试数据 - 使用唯一的测试数据避免冲突
         test_code = f"test_code_register_wechat_user_{timestamp}"
         test_nickname = f"测试微信用户_{timestamp}"
         test_avatar_url = f"https://example.com/avatar_wechat_user_{timestamp}.jpg"
-        
+
         # 准备登录请求数据
         login_data = {
             "code": test_code,
@@ -52,13 +52,13 @@ class TestWechatUserRegistration:
 
         # 验证HTTP响应状态
         assert response.status_code == 200
-        
+
         # 验证响应结构
         data = response.json()
         assert data["code"] == 1  # 注册成功
         assert data["msg"] == "success"
         assert "data" in data
-        
+
         # 验证返回的用户数据
         result = data.get("data")
         assert isinstance(result, dict)
@@ -67,7 +67,7 @@ class TestWechatUserRegistration:
         assert result['wechat_openid'] is not None
         assert result['nickname'] == test_nickname
         assert result['avatar_url'] == test_avatar_url
-        
+
         # 在独立进程模式下，不能直接访问服务器的数据库
         # 通过 API 响应验证数据
         print(f"✅ 新注册的微信用户:")
@@ -83,12 +83,12 @@ class TestWechatUserRegistration:
         # 使用时间戳确保每次测试都有唯一的code
         import time
         timestamp = int(time.time() * 1000000)  # 微秒级时间戳确保唯一性
-        
+
         # 准备测试数据
         test_code = f"test_code_register_wechat_user_{timestamp}"
         test_nickname = f"测试微信用户_{timestamp}"
         test_avatar_url = f"https://example.com/avatar_wechat_user_{timestamp}.jpg"
-        
+
         # 准备登录请求数据
         login_data = {
             "code": test_code,
@@ -133,18 +133,21 @@ class TestWechatUserRegistration:
     def test_register_wechat_user_with_minimal_data(self, test_server):
         """
         测试使用最少必需数据注册微信用户
-        只提供code，不提供nickname和avatar_url
+        wechat_user 注册，必须提供code，nickname和avatar_url, 不能为空。
         """
         # 使用时间戳确保每次测试都有唯一的code
         import time
         timestamp = int(time.time() * 1000000)  # 微秒级时间戳确保唯一性
-        
-        # 准备最小登录请求数据
+
+        w_code= f"test_code_minimal_wechat_user_{timestamp}"
+        w_nickname = f"测试微信用户_{timestamp}"
+        w_avatar_url = f"https://example.com/avatar_wechat_user_{timestamp}.jpg"
+        # 准备缺少必要信息的登录请求数据
         login_data = {
-            "code": f"test_code_minimal_wechat_user_{timestamp}"
+            "code": w_code
         }
 
-        # 发送登录请求
+        # 发送缺少必要信息的登录请求
         response = requests.post(
             f"{test_server}/api/login",
             json=login_data,
@@ -154,17 +157,32 @@ class TestWechatUserRegistration:
         # 验证响应
         assert response.status_code == 200
         data = response.json()
-        assert data["code"] == 1
+        assert data["code"] == 0
+
+        # 发送最持有最少信息的登录请求
+
+        login_data = {
+            "code": w_code,
+            "nickname": w_nickname,
+            "avatar_url":w_avatar_url
+        }
+        response = requests.post(
+            f"{test_server}/api/login",
+            json=login_data,
+            timeout=5
+        )
+
+        # 验证响应
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == 0
         assert data["data"]["login_type"] == "new_user"
         assert data["data"]["user_id"] is not None
         assert data["data"]["wechat_openid"] is not None
-
-        # 在独立进程模式下，不能直接访问服务器的数据库
+        assert data['data'].get('nickname') is w_nickname
+        assert data['data'].get('avatar_url') is w_avatar_url
         # 通过 API 响应验证数据
         print(f"✅ 最小数据注册成功:")
-        print(f"   用户ID: {data['data']['user_id']}")
-        print(f"   昵称: {data['data'].get('nickname')}")
-        print(f"   头像: {data['data'].get('avatar_url')}")
 
     def test_register_wechat_user_missing_code_returns_error(self, test_server):
         """
@@ -188,7 +206,7 @@ class TestWechatUserRegistration:
         data = response.json()
         assert data["code"] == 0  # 业务错误码
         assert "缺少" in data["msg"] or "code" in data["msg"].lower()
-        
+
         print(f"✅ 缺少code参数正确返回错误: {data['msg']}")
 
     def test_register_wechat_user_with_empty_code_returns_error(self, test_server):
@@ -214,5 +232,5 @@ class TestWechatUserRegistration:
         data = response.json()
         assert data["code"] == 0
         assert "code" in data["msg"].lower()
-        
+
         print(f"✅ 空code参数正确返回错误: {data['msg']}")
