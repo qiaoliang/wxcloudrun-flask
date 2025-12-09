@@ -1,0 +1,35 @@
+# 测试环境 Dockerfile
+FROM python:3.12
+
+# 设置工作目录
+WORKDIR /app
+
+# 只复制依赖文件，利用 Docker 缓存层
+COPY requirements.txt ./
+
+# 安装 Python 依赖到用户目录（与 localrun.sh 一致）
+RUN pip install --user -r requirements.txt
+
+# 复制 src 目录内容到 /app（src 目录映射为 /app）
+COPY src/ ./
+
+# 创建必要的目录并设置权限
+RUN mkdir -p /app/data /app/logs && \
+    chmod 755 /app/data /app/logs
+
+# 设置环境变量（使用 function 环境配置）
+ENV ENV_TYPE=function
+ENV PYTHONPATH=/app
+ENV PATH=/root/.local/bin:$PATH
+
+# 暴露端口（与 localrun.sh 一致）
+EXPOSE 9999
+
+# 确保启动脚本有执行权限
+RUN chmod +x /app/docker-pre-start.sh
+
+# 运行脚本
+RUN /app/docker-pre-start.sh
+
+# 启动容器（main.py 现在在 /app 下）
+CMD ["python3", "main.py", "0.0.0.0", "9999"]

@@ -1,5 +1,5 @@
 src/data/
-src/alembic/versions/
+# src/alembic/versions/ - 需要包含迁移脚本
 **/.iflow/
 *.log
 .git/
