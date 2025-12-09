@@ -1,6 +1,6 @@
 """
 pytest配置文件
-提供UAT Docker环境的fixture
+提供Function Docker环境的fixture
 """
 
 import os
@@ -16,12 +16,12 @@ from docker.errors import DockerException
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(project_root, 'src'))
 
-# UAT环境配置
-UAT_CONTAINER_NAME = "s-uat-e2e-test"
-UAT_IMAGE_NAME = "safeguard-uat-img"
-UAT_PORT = 8080
-UAT_HOST = "localhost"
-UAT_BASE_URL = f"http://{UAT_HOST}:{UAT_PORT}"
+# Function环境配置
+FUNCTION_CONTAINER_NAME = "s-function-e2e-test"
+FUNCTION_IMAGE_NAME = "safeguard-function-img"
+FUNCTION_PORT = 9999
+FUNCTION_HOST = "localhost"
+FUNCTION_BASE_URL = f"http://{FUNCTION_HOST}:{FUNCTION_PORT}"
 
 # 并发测试管理
 _concurrent_operations = 0
@@ -31,9 +31,9 @@ _concurrent_lock = threading.Lock()
 @pytest.fixture(scope="session")
 def uat_environment():
     """
-    会话级别的fixture, 负责启动和停止UAT Docker环境
+    会话级别的fixture, 负责启动和停止Function Docker环境
     """
-    print("\n=== 启动UAT Docker环境 ===")
+    print("\n=== 启动Function Docker环境 ===")
     
     # 检查Docker是否可用
     try:
@@ -45,30 +45,30 @@ def uat_environment():
     
     # 停止并删除可能存在的同名容器
     try:
-        subprocess.run(["docker", "stop", UAT_CONTAINER_NAME], 
+        subprocess.run(["docker", "stop", FUNCTION_CONTAINER_NAME], 
                       capture_output=True, check=False)
-        subprocess.run(["docker", "rm", UAT_CONTAINER_NAME], 
+        subprocess.run(["docker", "rm", FUNCTION_CONTAINER_NAME], 
                       capture_output=True, check=False)
     except:
         pass
     
-    # 启动UAT容器
+    # 启动Function容器
     try:
         # 检查镜像是否存在
         result = subprocess.run(
-            ["docker", "images", "-q", UAT_IMAGE_NAME],
+            ["docker", "images", "-q", FUNCTION_IMAGE_NAME],
             capture_output=True, text=True, check=True
         )
         if not result.stdout.strip():
-            raise RuntimeError(f"Docker镜像 {UAT_IMAGE_NAME} 不存在，请先构建")
+            raise RuntimeError(f"Docker镜像 {FUNCTION_IMAGE_NAME} 不存在，请先构建")
         
         # 启动容器
         subprocess.run([
             "docker", "run", "-d",
-            "--name", UAT_CONTAINER_NAME,
-            "-p", f"{UAT_PORT}:8080",
-            "-e", "ENV_TYPE=uat",
-            UAT_IMAGE_NAME
+            "--name", FUNCTION_CONTAINER_NAME,
+            "-p", f"{FUNCTION_PORT}:9999",
+            "-e", "ENV_TYPE=function",
+            FUNCTION_IMAGE_NAME
         ], check=True, capture_output=True)
         
         # 等待服务启动
@@ -78,7 +78,7 @@ def uat_environment():
         
         for _ in range(max_wait_time):
             try:
-                response = requests.get(f"{UAT_BASE_URL}/api/count", timeout=2)
+                response = requests.get(f"{FUNCTION_BASE_URL}/api/count", timeout=2)
                 if response.status_code == 200:
                     service_ready = True
                     break
@@ -89,34 +89,34 @@ def uat_environment():
         if not service_ready:
             # 获取容器日志用于调试
             logs = subprocess.run(
-                ["docker", "logs", UAT_CONTAINER_NAME],
+                ["docker", "logs", FUNCTION_CONTAINER_NAME],
                 capture_output=True, text=True
             ).stdout
             raise RuntimeError(
-                f"UAT服务在{max_wait_time}秒内未能启动成功。\n"
+                f"Function服务在{max_wait_time}秒内未能启动成功。\n"
                 f"容器日志:\n{logs}"
             )
         
-        print(f"✅ UAT环境已启动，访问地址: {UAT_BASE_URL}")
+        print(f"✅ Function环境已启动，访问地址: {FUNCTION_BASE_URL}")
         
-        yield UAT_BASE_URL
+        yield FUNCTION_BASE_URL
         
     except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"启动UAT容器失败: {str(e)}\n错误输出: {e.stderr}")
+        raise RuntimeError(f"启动Function容器失败: {str(e)}\n错误输出: {e.stderr}")
     except Exception as e:
-        raise RuntimeError(f"启动UAT环境时发生错误: {str(e)}")
+        raise RuntimeError(f"启动Function环境时发生错误: {str(e)}")
     
     finally:
-        print("\n=== 清理UAT Docker环境 ===")
+        print("\n=== 清理Function Docker环境 ===")
         # 停止并删除容器
         try:
-            subprocess.run(["docker", "stop", UAT_CONTAINER_NAME], 
+            subprocess.run(["docker", "stop", FUNCTION_CONTAINER_NAME], 
                           capture_output=True, check=False)
-            subprocess.run(["docker", "rm", UAT_CONTAINER_NAME], 
+            subprocess.run(["docker", "rm", FUNCTION_CONTAINER_NAME], 
                           capture_output=True, check=False)
-            print("✅ UAT环境已清理")
+            print("✅ Function环境已清理")
         except Exception as e:
-            print(f"⚠️ 清理UAT环境时发生错误: {str(e)}")
+            print(f"⚠️ 清理Function环境时发生错误: {str(e)}")
 
 
 def _increment_concurrent_operations():
