@@ -1,6 +1,6 @@
 """
 pytest配置文件
-提供Function Docker环境的fixture
+提供本地 Flask 测试环境的 fixture
 """
 
 import os
@@ -12,66 +12,59 @@ import requests
 import threading
 import jwt
 import datetime
-from docker.errors import DockerException
+import socket
+import signal
+from typing import Optional
 
 # 添加项目根目录到Python路径
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 sys.path.insert(0, os.path.join(project_root, 'src'))
-
-# Function环境配置
-FUNCTION_CONTAINER_NAME = "s-function-e2e-test"
-FUNCTION_IMAGE_NAME = "safeguard-function-img"
-FUNCTION_PORT = 9999
-FUNCTION_HOST = "localhost"
-FUNCTION_BASE_URL = f"http://{FUNCTION_HOST}:{FUNCTION_PORT}"
 
 # 并发测试管理
 _concurrent_operations = 0
 _concurrent_lock = threading.Lock()
 
 
-@pytest.fixture(scope="session")
-def uat_environment():
+def get_free_port() -> int:
     """
-    会话级别的fixture, 负责启动和停止Function Docker环境
+    获取一个可用的端口号
+    
+    Returns:
+        int: 可用的端口号
     """
-    print("\n=== 启动Function Docker环境 ===")
+    with socket.create_server(('localhost', 0)) as s:
+        return s.getsockname()[1]
+
+
+@pytest.fixture(scope="function")
+def test_server():
+    """
+    函数级别的fixture，为每个测试函数启动独立的 Flask 进程
+    """
+    print("\n=== 启动 Flask 测试服务器 ===")
     
-    # 检查Docker是否可用
-    try:
-        import docker
-        client = docker.from_env()
-        client.ping()
-    except Exception as e:
-        raise RuntimeError(f"Docker不可用: {str(e)}")
+    # 动态分配端口
+    port = get_free_port()
+    base_url = f"http://localhost:{port}"
     
-    # 停止并删除可能存在的同名容器
-    try:
-        subprocess.run(["docker", "stop", FUNCTION_CONTAINER_NAME], 
-                      capture_output=True, check=False)
-        subprocess.run(["docker", "rm", FUNCTION_CONTAINER_NAME], 
-                      capture_output=True, check=False)
-    except:
-        pass
+    # 设置环境变量
+    env = os.environ.copy()
+    env['ENV_TYPE'] = 'unit'  # 使用 unit 环境
+    env['SQLITE_DB_PATH'] = ':memory:'  # 使用内存数据库
+    env['PYTHONPATH'] = os.path.join(project_root, 'src')
     
-    # 启动Function容器
+    # 启动 Flask 进程
+    process = None
     try:
-        # 检查镜像是否存在
-        result = subprocess.run(
-            ["docker", "images", "-q", FUNCTION_IMAGE_NAME],
-            capture_output=True, text=True, check=True
+        # 启动进程
+        process = subprocess.Popen(
+            [sys.executable, 'main.py', 'localhost', str(port)],
+            cwd=os.path.join(project_root, 'src'),
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
         )
-        if not result.stdout.strip():
-            raise RuntimeError(f"Docker镜像 {FUNCTION_IMAGE_NAME} 不存在，请先构建")
-        
-        # 启动容器
-        subprocess.run([
-            "docker", "run", "-d",
-            "--name", FUNCTION_CONTAINER_NAME,
-            "-p", f"{FUNCTION_PORT}:9999",
-            "-e", "ENV_TYPE=function",
-            FUNCTION_IMAGE_NAME
-        ], check=True, capture_output=True)
         
         # 等待服务启动
         max_wait_time = 30  # 最大等待30秒
@@ -80,7 +73,7 @@ def uat_environment():
         
         for _ in range(max_wait_time):
             try:
-                response = requests.get(f"{FUNCTION_BASE_URL}/api/count", timeout=2)
+                response = requests.get(f"{base_url}/api/count", timeout=2)
                 if response.status_code == 200:
                     service_ready = True
                     break
@@ -89,36 +82,38 @@ def uat_environment():
             time.sleep(wait_interval)
         
         if not service_ready:
-            # 获取容器日志用于调试
-            logs = subprocess.run(
-                ["docker", "logs", FUNCTION_CONTAINER_NAME],
-                capture_output=True, text=True
-            ).stdout
+            # 获取进程输出用于调试
+            stdout, stderr = process.communicate(timeout=1)
             raise RuntimeError(
-                f"Function服务在{max_wait_time}秒内未能启动成功。\n"
-                f"容器日志:\n{logs}"
+                f"Flask 服务在{max_wait_time}秒内未能启动成功。\n"
+                f"端口: {port}\n"
+                f"进程输出:\n{stdout}\n"
+                f"错误输出:\n{stderr}"
             )
         
-        print(f"✅ Function环境已启动，访问地址: {FUNCTION_BASE_URL}")
+        print(f"✅ Flask 服务器已启动，访问地址: {base_url}")
         
-        yield FUNCTION_BASE_URL
+        yield base_url
         
-    except subprocess.CalledProcessError as e:
-        raise RuntimeError(f"启动Function容器失败: {str(e)}\n错误输出: {e.stderr}")
     except Exception as e:
-        raise RuntimeError(f"启动Function环境时发生错误: {str(e)}")
+        raise RuntimeError(f"启动 Flask 服务器失败: {str(e)}")
     
     finally:
-        print("\n=== 清理Function Docker环境 ===")
-        # 停止并删除容器
-        try:
-            subprocess.run(["docker", "stop", FUNCTION_CONTAINER_NAME], 
-                          capture_output=True, check=False)
-            subprocess.run(["docker", "rm", FUNCTION_CONTAINER_NAME], 
-                          capture_output=True, check=False)
-            print("✅ Function环境已清理")
-        except Exception as e:
-            print(f"⚠️ 清理Function环境时发生错误: {str(e)}")
+        print("\n=== 清理 Flask 测试服务器 ===")
+        # 清理进程
+        if process:
+            try:
+                # 尝试优雅终止
+                process.terminate()
+                try:
+                    process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    # 如果优雅终止失败，强制杀死
+                    process.kill()
+                    process.wait()
+                print("✅ Flask 服务器已清理")
+            except Exception as e:
+                print(f"⚠️ 清理 Flask 服务器时发生错误: {str(e)}")
 
 
 def _increment_concurrent_operations():
@@ -145,9 +140,9 @@ def _has_concurrent_operations():
 
 
 @pytest.fixture(autouse=True)
-def cleanup_test_data(uat_environment):
+def cleanup_test_data(test_server):
     """
-    自动使用的fixture, 在每个测试后清理数据
+    自动使用的fixture，在每个测试后清理数据
     智能处理并发测试，避免在并发操作期间清理数据
     """
     # 测试前不需要特殊操作
@@ -169,7 +164,7 @@ def cleanup_test_data(uat_environment):
     try:
         # 清理计数器数据
         response = requests.post(
-            f"{uat_environment}/api/count",
+            f"{test_server}/api/count",
             json={"action": "clear"},
             timeout=5
         )
@@ -179,7 +174,7 @@ def cleanup_test_data(uat_environment):
         # 清理所有用户数据（通过直接访问数据库）
         # 这是一个测试环境的特殊清理操作
         clear_response = requests.post(
-            f"{uat_environment}/api/count",
+            f"{test_server}/api/count",
             json={"action": "clear_users"},
             timeout=5
         )

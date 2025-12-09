@@ -80,7 +80,7 @@ class TestAuthAPI:
         }
     """认证API测试类"""
 
-    def test_wechat_login_success(self, uat_environment):
+    def test_wechat_login_success(self, test_server):
         """
         测试微信登录成功
         应该返回token和用户信息
@@ -95,7 +95,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -141,7 +141,7 @@ class TestAuthAPI:
 
         print("✅ 微信登录当前行为测试通过（需要实现以符合API文档）")
 
-    def test_wechat_login_missing_code(self, uat_environment):
+    def test_wechat_login_missing_code(self, test_server):
         """
         测试微信登录缺少code参数
         应该返回400错误
@@ -155,7 +155,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -166,7 +166,7 @@ class TestAuthAPI:
         # assert response.status_code == 400  # 期望行为（根据API文档）
         print("✅ 微信登录缺少code参数当前行为测试通过（需要实现以符合API文档）")
 
-    def test_wechat_login_invalid_code(self, uat_environment):
+    def test_wechat_login_invalid_code(self, test_server):
         """
         测试微信登录无效code
         应该返回401错误
@@ -181,7 +181,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -193,7 +193,7 @@ class TestAuthAPI:
         print("✅ 微信登录无效code当前行为测试通过（需要实现以符合API文档）")
 
     @pytest.mark.skip(reason="暂未实现")
-    def test_refresh_token_success(self, uat_environment,custom_token):
+    def test_refresh_token_success(self, test_server,custom_token):
         """
         测试刷新token成功
         应该返回新的token和refresh_token
@@ -206,7 +206,7 @@ class TestAuthAPI:
 
         # 发送刷新请求
         response = requests.post(
-            f"{uat_environment}/api/refresh_token",
+            f"{test_server}/api/refresh_token",
             json=refresh_data,
             timeout=5
         )
@@ -227,7 +227,7 @@ class TestAuthAPI:
 
         print("✅ 刷新token成功测试通过")
 
-    def test_refresh_token_missing_token(self, uat_environment):
+    def test_refresh_token_missing_token(self, test_server):
         """
         测试刷新token缺少refresh_token参数
         应该返回400错误
@@ -237,7 +237,7 @@ class TestAuthAPI:
 
         # 发送刷新请求
         response = requests.post(
-            f"{uat_environment}/api/refresh_token",
+            f"{test_server}/api/refresh_token",
             json=refresh_data,
             timeout=5
         )
@@ -248,7 +248,7 @@ class TestAuthAPI:
         assert result["msg"] == "缺少请求体参数"  # 刷新token缺少refresh_token参数正确返回空字符串
         print("✅ 刷新token时，缺少原有的token参数，正确返回")
     @pytest.mark.skip(reason="暂未实现")
-    def test_refresh_token_invalid_token(self, uat_environment):
+    def test_refresh_token_invalid_token(self, test_server):
         """
         测试刷新token无效refresh_token
         """
@@ -259,7 +259,7 @@ class TestAuthAPI:
 
         # 发送刷新请求
         response = requests.post(
-            f"{uat_environment}/api/refresh_token",
+            f"{test_server}/api/refresh_token",
             json=refresh_data,
             timeout=5
         )
@@ -271,20 +271,20 @@ class TestAuthAPI:
         print("✅ 刷新token时，使用无效refresh_token, 正确 error code ")
 
     @pytest.mark.skip(reason="等到完成对 注册 API 的测试再实现,以免使用 mock ")
-    def test_logout_with_custom_user(self, uat_environment):
+    def test_logout_with_custom_user(self, test_server):
         """
         测试使用自定义用户登出
         """
         pass
 
-    def test_logout_without_token(self, uat_environment):
+    def test_logout_without_token(self, test_server):
         """
         测试登出时没有提供 token
         应该返回 '缺少token参数'
         """
         # 发送登出请求（没有Authorization头）
         response = requests.post(
-            f"{uat_environment}/api/logout",
+            f"{test_server}/api/logout",
             timeout=5
         )
 
@@ -294,7 +294,7 @@ class TestAuthAPI:
         assert data["code"] == 0
         assert data["msg"] == "缺少token参数"
 
-    def test_logout_invalid_token(self, uat_environment):
+    def test_logout_invalid_token(self, test_server):
         """
         测试登出时提供无效token
         应该返回401错误
@@ -306,7 +306,7 @@ class TestAuthAPI:
 
         # 发送登出请求
         response = requests.post(
-            f"{uat_environment}/api/logout",
+            f"{test_server}/api/logout",
             headers=headers,
             timeout=5
         )
@@ -317,7 +317,7 @@ class TestAuthAPI:
         assert data["code"] == 0           # 业务错误 ERROR CODE
         assert data["msg"] =="token格式错误"
 
-    def test_phone_register_success(self, uat_environment):
+    def test_phone_register_success(self, test_server):
         """
         测试手机号注册成功
         当前实现返回code=1，API文档要求code=0
@@ -333,7 +333,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -368,7 +368,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册当前行为测试通过（需要实现以符合API文档）")
 
-    def test_phone_register_missing_phone(self, uat_environment):
+    def test_phone_register_missing_phone(self, test_server):
         """
         测试手机号注册缺少phone参数
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -382,7 +382,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -398,7 +398,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册缺少phone参数当前行为测试通过（需要实现以符合API文档）")
 
-    def test_phone_register_missing_code(self, uat_environment):
+    def test_phone_register_missing_code(self, test_server):
         """
         测试手机号注册缺少code参数
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -412,7 +412,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -428,7 +428,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册缺少code参数当前行为测试通过（需要实现以符合API文档）")
     @pytest.mark.skip(reason="在mock环境下验证码总是有效")
-    def test_phone_register_invalid_sms_code(self, uat_environment):
+    def test_phone_register_invalid_sms_code(self, test_server):
         """
         测试手机号注册无效验证码
         在mock环境下，所有验证码都会通过验证
@@ -444,7 +444,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -459,7 +459,7 @@ class TestAuthAPI:
         # TODO: 在生产环境中，应该验证无效验证码返回400错误
         print("✅ 手机号注册在mock环境下验证码总是有效（生产环境需要实现验证码验证）")
 
-    def test_phone_register_weak_password(self, uat_environment):
+    def test_phone_register_weak_password(self, test_server):
         """
         测试手机号注册密码强度不足
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -474,7 +474,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -490,7 +490,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册密码强度不足当前行为测试通过（需要实现以符合API文档）")
 
-    def test_phone_register_existing_phone(self, uat_environment):
+    def test_phone_register_existing_phone(self, test_server):
         """
         测试手机号注册手机号已存在
         当前实现返回200状态码和code=0，API文档要求返回409状态码
@@ -503,14 +503,14 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
 
         # 再次注册相同手机号
         response = requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -527,7 +527,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册手机号已存在当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_code_success(self, uat_environment):
+    def test_login_phone_code_success(self, test_server):
         """
         测试手机号验证码登录成功
         当前实现返回code=1，API文档要求code=0
@@ -539,7 +539,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -551,7 +551,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{uat_environment}/api/auth/login_phone_code",
+            f"{test_server}/api/auth/login_phone_code",
             json=login_data,
             timeout=5
         )
@@ -573,7 +573,7 @@ class TestAuthAPI:
 
         print("✅ 手机号验证码登录当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_code_missing_phone(self, uat_environment):
+    def test_login_phone_code_missing_phone(self, test_server):
         """
         测试手机号验证码登录缺少phone参数
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -584,7 +584,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{uat_environment}/api/auth/login_phone_code",
+            f"{test_server}/api/auth/login_phone_code",
             json=login_data,
             timeout=5
         )
@@ -600,7 +600,7 @@ class TestAuthAPI:
 
         print("✅ 手机号验证码登录缺少phone参数当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_code_user_not_exists(self, uat_environment):
+    def test_login_phone_code_user_not_exists(self, test_server):
         """
         测试手机号验证码登录用户不存在
         当前实现返回200状态码和code=0，API文档要求返回404状态码
@@ -612,7 +612,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{uat_environment}/api/auth/login_phone_code",
+            f"{test_server}/api/auth/login_phone_code",
             json=login_data,
             timeout=5
         )
@@ -628,7 +628,7 @@ class TestAuthAPI:
 
         print("✅ 手机号验证码登录用户不存在当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_password_success(self, uat_environment):
+    def test_login_phone_password_success(self, test_server):
         """
         测试手机号密码登录成功
         当前实现返回code=1，API文档要求code=0
@@ -640,7 +640,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -652,7 +652,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{uat_environment}/api/auth/login_phone_password",
+            f"{test_server}/api/auth/login_phone_password",
             json=login_data,
             timeout=5
         )
@@ -674,7 +674,7 @@ class TestAuthAPI:
 
         print("✅ 手机号密码登录当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_password_wrong_password(self, uat_environment):
+    def test_login_phone_password_wrong_password(self, test_server):
         """
         测试手机号密码登录密码错误
         当前实现返回200状态码和code=0，API文档要求返回401状态码
@@ -686,7 +686,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -698,7 +698,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{uat_environment}/api/auth/login_phone_password",
+            f"{test_server}/api/auth/login_phone_password",
             json=login_data,
             timeout=5
         )
@@ -714,7 +714,7 @@ class TestAuthAPI:
 
         print("✅ 手机号密码登录密码错误当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_success(self, uat_environment):
+    def test_login_phone_success(self, test_server):
         """
         测试手机号验证码+密码登录成功
         当前实现返回code=1，API文档要求code=0
@@ -727,7 +727,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{uat_environment}/api/auth/register_phone",
+            f"{test_server}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -740,7 +740,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{uat_environment}/api/auth/login_phone",
+            f"{test_server}/api/auth/login_phone",
             json=login_data,
             timeout=5
         )

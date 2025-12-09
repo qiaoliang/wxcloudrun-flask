@@ -157,37 +157,11 @@ test-method: setup
 	python -m pytest tests/integration/ -k $(METHOD) -v
 
 # 运行E2E测试
-test-e2e:
+test-e2e: setup
 	@echo "=== 运行E2E测试 ==="
-	@# (1) 检查Docker守护进程
-	@if ! docker info > /dev/null 2>&1; then \
-		echo "错误: Docker守护进程未运行，请先启动Docker"; \
-		exit 1; \
-	fi
-	@echo "✓ Docker守护进程正在运行"
-	@# (2) 检查并构建UAT镜像
-	@if ! docker images | grep -q "safeguard-function-img"; then \
-		echo "UAT镜像不存在，正在构建..."; \
-		./scripts/build-function.sh; \
-	else \
-		echo "✓ Function 镜像已存在"; \
-	fi
-	@# (3) 检查并创建虚拟环境
-	@if [ ! -d "venv_py312" ]; then \
-		echo "创建虚拟环境..."; \
-		python3.12 -m venv venv_py312; \
-	fi
-	@# (4) 激活虚拟环境并安装测试依赖
-	@echo "激活虚拟环境并安装测试依赖..."
-	@source venv_py312/bin/activate && pip install -r requirements-test.txt
-	@echo "✓ 测试依赖安装完成"
-	@# (5) 运行E2E测试
-	@echo "运行E2E测试..."
+	@echo "注意: 每个测试函数将启动独立的 Flask 进程，使用内存数据库"
+	@# 运行E2E测试
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
 	source venv_py312/bin/activate && \
-	python -m pytest tests/e2e/ -v || true
-	@# (6) 清理Docker容器
-	@echo "清理Docker容器..."
-	@docker stop s-uat-e2e-test 2>/dev/null || true
-	@docker rm s-uat-e2e-test 2>/dev/null || true
+	python -m pytest tests/e2e/ -v
 	@echo "✓ E2E测试完成"

@@ -20,7 +20,7 @@ from wxcloudrun import dao, app
 class TestWechatUserRegistration:
     """微信用户注册测试类"""
 
-    def test_register_wechat_user_via_login_and_find_in_db(self, uat_environment):
+    def test_register_wechat_user_via_login_and_find_in_db(self, test_server):
         """
         测试通过 /api/login 新注册一个wechat_user
         注册成功后，可以使用 DAO.py 从数据库中找到这个用户
@@ -45,7 +45,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求以注册新用户
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -94,7 +94,7 @@ class TestWechatUserRegistration:
             print(f"   头像: {queried_user.avatar_url}")
             print(f"   角色: {queried_user.role}")
 
-    def test_register_same_wechat_user_twice_returns_existing_user(self, uat_environment):
+    def test_register_same_wechat_user_twice_returns_existing_user(self, test_server):
         """
         测试使用相同的openid再次登录应该返回已存在的用户，而不是创建新用户
         """
@@ -116,7 +116,7 @@ class TestWechatUserRegistration:
 
         # 第一次登录 - 应该注册新用户
         response1 = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -130,7 +130,7 @@ class TestWechatUserRegistration:
 
         # 第二次登录 - 应该返回已存在的用户
         response2 = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -152,7 +152,7 @@ class TestWechatUserRegistration:
             print(f"   用户ID: {queried_user.user_id}")
             print(f"   登录类型: {data2['data']['login_type']}")
 
-    def test_register_wechat_user_with_minimal_data(self, uat_environment):
+    def test_register_wechat_user_with_minimal_data(self, test_server):
         """
         测试使用最少必需数据注册微信用户
         只提供code，不提供nickname和avatar_url
@@ -168,7 +168,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -193,7 +193,7 @@ class TestWechatUserRegistration:
             print(f"   昵称: {queried_user.nickname}")
             print(f"   头像: {queried_user.avatar_url}")
 
-    def test_register_wechat_user_missing_code_returns_error(self, uat_environment):
+    def test_register_wechat_user_missing_code_returns_error(self, test_server):
         """
         测试缺少code参数应该返回错误
         """
@@ -205,7 +205,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
@@ -218,7 +218,7 @@ class TestWechatUserRegistration:
         
         print(f"✅ 缺少code参数正确返回错误: {data['msg']}")
 
-    def test_register_wechat_user_with_empty_code_returns_error(self, uat_environment):
+    def test_register_wechat_user_with_empty_code_returns_error(self, test_server):
         """
         测试空code参数应该返回错误
         """
@@ -231,7 +231,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )

@@ -57,12 +57,12 @@ class TestUserSearchAPI:
 
         return response.json()
 
-    def test_search_users_success(self, uat_environment, auth_headers):
+    def test_search_users_success(self, test_server, auth_headers):
         """
         测试用户搜索成功
         应该返回匹配的用户列表
         """
-        url_env = uat_environment
+        url_env = test_server
         # 创建测试用户
         expected_user_nickname= "t张三"
         a_user=self.create_wechat_user(url_env=url_env, wechat_code="wx-code-13812345678", nickname=expected_user_nickname)
