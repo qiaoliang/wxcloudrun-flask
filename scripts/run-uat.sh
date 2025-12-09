@@ -5,8 +5,12 @@ set -e
 
 echo "启动 UAT 环境的 Docker 容器..."
 
-# 检查镜像是否存在
-if [[ "$(docker images -q safeguard-uat-img 2> /dev/null)" == "" ]]; then
+# 检查镜像是否存在（优先使用修复版本）
+if [[ "$(docker images -q safeguard-uat-img-fixed 2> /dev/null)" != "" ]]; then
+    IMAGE_NAME="safeguard-uat-img-fixed"
+elif [[ "$(docker images -q safeguard-uat-img 2> /dev/null)" != "" ]]; then
+    IMAGE_NAME="safeguard-uat-img"
+else
     echo "错误: 镜像 safeguard-uat-img 不存在，请先运行 ./scripts/build-uat.sh"
     exit 1
 fi
@@ -32,7 +36,7 @@ CONTAINER_ID=$(docker run -d \
   --name s-uat \
   -p 8080:8080 \
   -e ENV_TYPE=uat \
-  safeguard-uat-img)
+  $IMAGE_NAME)
 
 echo "UAT 环境容器已启动！"
 echo "容器ID: $CONTAINER_ID"

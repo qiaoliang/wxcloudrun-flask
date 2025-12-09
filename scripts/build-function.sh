@@ -2,7 +2,7 @@
 # 构建 Function 环境的 Docker 镜像
 
 set -e
-
+echo "========= START ======================"
 echo "开始构建 Function 环境的 Docker 镜像..."
 
 cd "$(dirname "$0")/../"
