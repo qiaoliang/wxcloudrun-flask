@@ -44,7 +44,7 @@ def _process_missed_for_today(now):
     except Exception as e:
         # 如果数据库表不存在，跳过本次检查
         if "no such table" in str(e).lower():
-            app.logger.warning(f"[missing-mark] 数据库表尚未创建，跳过检查: {str(e)}")
+            app.logger.warning(f"[missing-mark] 数据库表尚未创建，跳过检查。如果此日志仅出现一次，属于正常状态。")
             return
         else:
             # 其他错误继续抛出
