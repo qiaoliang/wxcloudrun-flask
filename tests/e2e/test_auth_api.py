@@ -100,19 +100,20 @@ class TestAuthAPI:
         # 验证响应
         assert response.status_code == 200
         data = response.json()
-        # TODO: 当前返回code=1，需要修改API以返回code=0
-        assert data["code"] == 1  # 当前实际行为
-        # assert data["code"] == 0  # 期望行为（根据API文档）
-        assert "data" in data
+        assert data["code"] == 1  # 注册成功
+        assert data["msg"] == "success"  # 注册成功
 
         # 验证返回的数据结构
-        response_data = data["data"]
-        # 当前实际返回了部分用户信息，但格式与API文档不符
-        assert isinstance(response_data, dict)  # 当前实际行为
-        assert "nickname" in response_data  # 已实现
-        assert "avatar_url" in response_data  # 已实现
-        assert "login_type" in response_data  # 已实现
-        assert "phone_number" in response_data  # 已实现（但为None）
+        result = data.get("data")
+        assert isinstance(result, dict)
+        assert result["login_type"] == "new_user"
+        assert result['user_id'] is not None
+        assert result['wechat_openid'] is not None
+        assert "nickname" in result  # 已实现
+        assert "avatar_url" in result  # 已实现
+        assert "login_type" in result  # 已实现
+        assert "phone_number" in result  # 已实现（但为None）
+
 
         # TODO: 需要添加的字段（根据API文档）
         # assert "token" in response_data
