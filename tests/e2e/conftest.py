@@ -10,6 +10,8 @@ import subprocess
 import time
 import requests
 import threading
+import jwt
+import datetime
 from docker.errors import DockerException
 
 # 添加项目根目录到Python路径
@@ -185,3 +187,69 @@ def concurrent_context():
     _increment_concurrent_operations()
     yield
     _decrement_concurrent_operations()
+
+
+@pytest.fixture
+def valid_token():
+    """
+    生成有效的JWT token fixture
+    默认使用mock环境的openid和user_id
+    """
+    # 获取TOKEN_SECRET
+    try:
+        from config_manager import get_token_secret
+        token_secret = get_token_secret()
+    except (ImportError, ValueError):
+        # 如果无法导入或获取TOKEN_SECRET，使用默认值
+        token_secret = os.getenv('TOKEN_SECRET', 'default_token_secret_for_testing')
+    
+    # 创建token payload
+    payload = {
+        'openid': 'mock_openid_fixed_for_testing',
+        'user_id': 1,
+        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+    }
+    
+    # 生成token
+    token = jwt.encode(payload, token_secret, algorithm='HS256')
+    return token
+
+
+@pytest.fixture
+def auth_headers(valid_token):
+    """
+    生成包含认证头的请求头字典fixture
+    自动使用valid_token fixture生成的token
+    """
+    return {
+        "Authorization": f"Bearer {valid_token}",
+        "Content-Type": "application/json"
+    }
+
+
+@pytest.fixture
+def custom_token():
+    """
+    生成自定义参数的JWT token fixture
+    可用于测试特定用户或不同过期时间的场景
+    """
+    def _generate_token(openid="mock_openid_fixed_for_testing", user_id=1, hours=2):
+        # 获取TOKEN_SECRET
+        try:
+            from config_manager import get_token_secret
+            token_secret = get_token_secret()
+        except (ImportError, ValueError):
+            token_secret = os.getenv('TOKEN_SECRET', 'default_token_secret_for_testing')
+        
+        # 创建token payload
+        payload = {
+            'openid': openid,
+            'user_id': user_id,
+            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=hours)
+        }
+        
+        # 生成token
+        token = jwt.encode(payload, token_secret, algorithm='HS256')
+        return token
+    
+    return _generate_token
