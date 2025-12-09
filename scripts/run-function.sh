@@ -15,16 +15,7 @@ fi
 docker stop s-function 2>/dev/null || true
 docker rm s-function 2>/dev/null || true
 
-# 检查并停止其他占用9999端口的容器
-echo "检查9999端口占用情况..."
-OCCUPYING_CONTAINER=$(docker ps -q --filter "publish=9999")
-if [ ! -z "$OCCUPYING_CONTAINER" ]; then
-    echo "发现占用9999端口的容器，正在停止..."
-    docker stop $OCCUPYING_CONTAINER
-    echo "已停止占用9999端口的容器"
-else
-    echo "9999端口未被占用"
-fi
+./scripts/stop-all.sh
 
 # 启动新的容器
 echo "正在启动容器..."
