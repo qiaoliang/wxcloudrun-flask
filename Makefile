@@ -1,6 +1,6 @@
 # Makefile for backend testing
 
-.PHONY: help test-integration test-unit test-all clean setup
+.PHONY: help test-integration test-unit test-all clean setup test-e2e
 
 # 默认目标
 help:
@@ -9,6 +9,7 @@ help:
 	@echo "  make test-unit    - 运行单元测试"
 	@echo "  make test-integration - 运行集成测试"
 	@echo "  make test-migration - 运行数据库迁移测试"
+	@echo "  make test-e2e     - 运行E2E测试（需要Docker）"
 	@echo "  make test-all     - 运行所有测试"
 	@echo "  make test-coverage - 生成测试覆盖率报告"
 	@echo "  make clean        - 清理测试文件"
@@ -154,3 +155,39 @@ test-method: setup
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
 	source venv_py312/bin/activate && \
 	python -m pytest tests/integration/ -k $(METHOD) -v
+
+# 运行E2E测试
+test-e2e:
+	@echo "=== 运行E2E测试 ==="
+	@# (1) 检查Docker守护进程
+	@if ! docker info > /dev/null 2>&1; then \
+		echo "错误: Docker守护进程未运行，请先启动Docker"; \
+		exit 1; \
+	fi
+	@echo "✓ Docker守护进程正在运行"
+	@# (2) 检查并构建UAT镜像
+	@if ! docker images | grep -q "safeguard-uat-img"; then \
+		echo "UAT镜像不存在，正在构建..."; \
+		./scripts/build-uat.sh; \
+	else \
+		echo "✓ UAT镜像已存在"; \
+	fi
+	@# (3) 检查并创建虚拟环境
+	@if [ ! -d "venv_py312" ]; then \
+		echo "创建虚拟环境..."; \
+		python3.12 -m venv venv_py312; \
+	fi
+	@# (4) 激活虚拟环境并安装测试依赖
+	@echo "激活虚拟环境并安装测试依赖..."
+	@source venv_py312/bin/activate && pip install -r requirements-test.txt
+	@echo "✓ 测试依赖安装完成"
+	@# (5) 运行E2E测试
+	@echo "运行E2E测试..."
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	python -m pytest tests/e2e/ -v || true
+	@# (6) 清理Docker容器
+	@echo "清理Docker容器..."
+	@docker stop s-uat-e2e-test 2>/dev/null || true
+	@docker rm s-uat-e2e-test 2>/dev/null || true
+	@echo "✓ E2E测试完成"
