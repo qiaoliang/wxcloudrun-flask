@@ -1,6 +1,9 @@
 #!/bin/bash
 # Docker 数据库迁移脚本
 
+# 确保 alembic/versions 目录存在
+mkdir -p alembic/versions
+
 # 检查是否存在迁移脚本
 if [ ! "$(ls -A alembic/versions/*.py 2>/dev/null)" ]; then
     echo "没有找到迁移脚本，正在生成..."

@@ -14,19 +14,20 @@ RUN pip install --user -r requirements.txt
 COPY src/ ./
 
 # 创建必要的目录并设置权限
-RUN mkdir -p /app/data /app/logs && \
-    chmod 755 /app/data /app/logs
-
-# 设置环境变量（使用 function 环境配置）
-ENV ENV_TYPE=prod
-ENV PYTHONPATH=/app
-ENV PATH=/root/.local/bin:$PATH
+RUN mkdir -p /app/data /app/alembic/versions /app/logs && \
+    chmod 755 /app/data /app/logs /app/alembic/versions
 
 # 暴露端口（与 localrun.sh 一致）
 EXPOSE 8080
 
+# 设置环境变量（使用 prod 环境配置）
+ENV ENV_TYPE=prod
+ENV PYTHONPATH=/app
+ENV PATH=/root/.local/bin:$PATH
+
 # 确保启动脚本有执行权限
 RUN chmod +x /app/docker-pre-start.sh
+
 
 # 运行脚本
 RUN /app/docker-pre-start.sh
