@@ -18,6 +18,9 @@ import pytest
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
+# 导入DAO模块和Flask app
+from wxcloudrun import dao, app
+
 
 
 
@@ -81,12 +84,12 @@ class TestAuthAPI:
         """
         测试微信登录成功
         应该返回token和用户信息
-        当前实现返回code=1，需要修改为符合API文档的code=0
         """
         # 准备请求数据
+        expected_user_nickname = "李四张三"
         login_data = {
-            "code": "wx_auth_code_here",
-            "nickname": "张三",
+            "code": "wx_auth_code_here_create_user",
+            "nickname": expected_user_nickname,
             "avatar_url": "https://example.com/avatar.jpg"
         }
 
@@ -109,11 +112,25 @@ class TestAuthAPI:
         assert result["login_type"] == "new_user"
         assert result['user_id'] is not None
         assert result['wechat_openid'] is not None
+        assert result['nickname'] == expected_user_nickname
         assert "nickname" in result  # 已实现
         assert "avatar_url" in result  # 已实现
         assert "login_type" in result  # 已实现
         assert "phone_number" in result  # 已实现（但为None）
 
+
+        # 使用DAO查询登录用户
+        with app.app_context():
+            queried_user = dao.query_user_by_id(result['user_id'])
+            
+            # 验证DAO查询到的用户数据
+            assert queried_user is not None
+            assert queried_user.user_id == result['user_id']
+            assert queried_user.wechat_openid == result['wechat_openid']
+            assert queried_user.nickname == expected_user_nickname
+            assert queried_user.avatar_url == login_data['avatar_url']
+            
+            print(f"✅ 通过DAO查询到用户: ID={queried_user.user_id}, 昵称={queried_user.nickname}")
 
         # TODO: 需要添加的字段（根据API文档）
         # assert "token" in response_data

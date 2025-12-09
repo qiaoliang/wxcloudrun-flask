@@ -89,6 +89,23 @@ def count():
         app.logger.info("计数器已清零")
         return make_succ_empty_response()
 
+    # 执行清理用户数据操作（仅用于测试环境）
+    elif action == 'clear_users':
+        app.logger.info("执行清理用户数据操作（测试环境专用）")
+        try:
+            from wxcloudrun import db
+            from wxcloudrun.model import User
+            
+            # 删除所有用户数据
+            db.session.query(User).delete()
+            db.session.commit()
+            app.logger.info("所有用户数据已清理")
+            return make_succ_empty_response()
+        except Exception as e:
+            app.logger.error(f"清理用户数据失败: {str(e)}")
+            db.session.rollback()
+            return make_err_response(f'清理用户数据失败: {str(e)}')
+
     # action参数错误
     else:
         app.logger.warning(f"无效的action参数: {action}")

@@ -166,11 +166,11 @@ test-e2e:
 	fi
 	@echo "✓ Docker守护进程正在运行"
 	@# (2) 检查并构建UAT镜像
-	@if ! docker images | grep -q "safeguard-uat-img"; then \
+	@if ! docker images | grep -q "safeguard-function-img"; then \
 		echo "UAT镜像不存在，正在构建..."; \
-		./scripts/build-uat.sh; \
+		./scripts/build-function.sh; \
 	else \
-		echo "✓ UAT镜像已存在"; \
+		echo "✓ Function 镜像已存在"; \
 	fi
 	@# (3) 检查并创建虚拟环境
 	@if [ ! -d "venv_py312" ]; then \

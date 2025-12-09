@@ -13,17 +13,19 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
+# 导入DAO模块和Flask app
+from wxcloudrun import dao, app
 
 class TestUserSearchAPI:
     """用户搜索API测试类"""
 
     @staticmethod
-    def create_wechat_user(uat_environment, wechat_code='wx_auth_code_here',nickname='张三',avatar_url='https://example.com/avatar.jpg'):
+    def create_wechat_user(url_env, wechat_code='wx_auth_code_here',nickname='张三',avatar_url='https://example.com/avatar.jpg'):
         """
         创建测试用户辅助方法
 
         Args:
-            uat_environment: 测试环境URL
+            url_env: 测试环境URL
             phone: 手机号
             nickname: 昵称
             is_supervisor: 是否为监护人
@@ -40,22 +42,30 @@ class TestUserSearchAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{uat_environment}/api/login",
+            f"{url_env}/api/login",
             json=login_data,
             timeout=5
         )
+        result = response.json().get("data")
+        # 使用DAO查询登录用户
+        with app.app_context():
+            queried_user = dao.query_user_by_id(result['user_id'])
+
+            # 验证DAO查询到的用户数据
+            assert queried_user is not None
+            assert queried_user.user_id == result['user_id']
 
         return response.json()
-
 
     def test_search_users_success(self, uat_environment, auth_headers):
         """
         测试用户搜索成功
         应该返回匹配的用户列表
         """
+        url_env = uat_environment
         # 创建测试用户
-        a_user_nickname= "张三"
-        a_user=self.create_wechat_user(uat_environment, wechat_code="wx-code-13812345678", nickname=a_user_nickname)
+        expected_user_nickname= "t张三"
+        a_user=self.create_wechat_user(url_env=url_env, wechat_code="wx-code-13812345678", nickname=expected_user_nickname)
 
         # 使用创建用户返回的token进行搜索
         user_token = a_user["data"]["token"]
@@ -65,9 +75,9 @@ class TestUserSearchAPI:
         }
 
         # 搜索用户
-        params = {"nickname": a_user_nickname}
+        params = {"nickname": expected_user_nickname}
         response = requests.get(
-            f"{uat_environment}/api/users/search",
+            f"{url_env}/api/users/search",
             params=params,
             headers=user_auth_headers,
             timeout=5
@@ -87,16 +97,5 @@ class TestUserSearchAPI:
         # 当搜索功能完善后，应该取消下面的注释
         # # 验证返回的用户包含搜索关键词
         assert len(users) == 1
-        #for user in users:
-        #     assert a_user_nickname in user["nickname"]
-        #     # 验证用户数据结构
-        #     assert "user_id" in user
-        #     assert "nickname" in user
-        #     assert "avatar_url" in user
-        #     assert "is_supervisor" in user
-        #     assert isinstance(user["user_id"], int)
-        #     assert isinstance(user["nickname"], str)
-        #     assert isinstance(user["avatar_url"], str)
-        #     assert isinstance(user["is_supervisor"], bool)
 
         print("✅ 用户搜索成功测试通过（搜索功能可能需要完善）")

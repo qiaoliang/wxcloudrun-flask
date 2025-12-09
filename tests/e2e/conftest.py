@@ -167,13 +167,25 @@ def cleanup_test_data(uat_environment):
         print(f"⚠️ 等待{max_wait_time}秒后仍有并发操作，强制清理数据")
     
     try:
+        # 清理计数器数据
         response = requests.post(
             f"{uat_environment}/api/count",
             json={"action": "clear"},
             timeout=5
         )
         if response.status_code != 200:
-            print(f"⚠️ 清理测试数据失败: {response.text}")
+            print(f"⚠️ 清理计数器数据失败: {response.text}")
+        
+        # 清理所有用户数据（通过直接访问数据库）
+        # 这是一个测试环境的特殊清理操作
+        clear_response = requests.post(
+            f"{uat_environment}/api/count",
+            json={"action": "clear_users"},
+            timeout=5
+        )
+        # 如果清理用户的接口不存在，我们忽略错误（因为这是测试专用的）
+        if clear_response.status_code != 200:
+            print(f"⚠️ 清理用户数据接口不存在或失败（这是正常的）")
     except Exception as e:
         print(f"⚠️ 清理测试数据时发生错误: {str(e)}")
 
