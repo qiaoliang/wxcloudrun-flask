@@ -1,49 +1,4 @@
 # wxcloudrun-flask
-[![GitHub license](https://img.shields.io/github/license/WeixinCloud/wxcloudrun-express)](https://github.com/WeixinCloud/wxcloudrun-express)
-![GitHub package.json dependency version (prod)](https://img.shields.io/badge/python-3.12.11-green)
-
-## 重要说明：Python版本要求
-**本项目必须使用 Python 3.12 版本**。项目经过专门针对 Python 3.12 环境配置和测试，使用其他版本可能会导致兼容性问题。
-
-微信云托管 python Flask 框架模版，实现简单的计数器读写接口，使用 SQLite 文件数据库记录计数值（无需外部数据库）。
-
-![](https://qcloudimg.tencent-cloud.cn/raw/be22992d297d1b9a1a5365e606276781.png)
-
-
-## 快速开始
-前往 [微信云托管快速开始页面](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/basic/guide.html)，选择相应语言的模板，根据引导完成部署。
-
-## 本地调试
-下载代码在本地调试，请参考[微信云托管本地调试指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/)
-
-## 实时开发
-代码变动时，不需要重新构建和启动容器，即可查看变动后的效果。请参考[微信云托管实时开发指南](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/guide/debug/dev.html)
-
-## Dockerfile最佳实践
-请参考[如何提高项目构建效率](https://developers.weixin.qq.com/miniprogram/dev/wxcloudrun/src/scene/build/speed.html)
-
-## 目录结构说明
-
-~~~
-.
-├── Dockerfile dockerfile       dockerfile
-├── README.md README.md         README.md文件
-├── container.config.json       模板部署「服务设置」初始化配置（二开请忽略）
-├── requirements.txt            依赖包文件
-├── config.py                   项目的总配置文件  里面包含数据库 web应用 日志等各种配置
-├── run.py                      flask项目管理文件 与项目进行交互的命令行工具集的入口
-├── venv_py312                  Python 3.12 虚拟环境目录
-└── wxcloudrun                  app目录
-    ├── __init__.py             python项目必带  模块化思想
-    ├── dao.py                  数据库访问模块
-    ├── model.py                数据库对应的模型
-    ├── response.py             响应结构构造
-    ├── templates               模版目录,包含主页index.html文件
-    └── views.py                执行响应的代码所在模块  代码逻辑处理主要地点  项目大部分代码在此编写
-~~~
-
-
-
 ## 服务 API 文档
 
 ### `GET /api/count`
