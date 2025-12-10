@@ -5,10 +5,10 @@
 
 import logging
 from flask import request
-from wxcloudrun import app
+from wxcloudrun import app, db
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.utils.auth import verify_token
-from wxcloudrun.model import User, Community, CommunityAdmin, CommunityApplication
+from wxcloudrun.model import User, Community, CommunityAdmin, CommunityApplication, UserAuditLog
 from wxcloudrun.community_service import CommunityService
 
 app_logger = logging.getLogger('log')
@@ -171,6 +171,73 @@ def get_community(community_id):
     except Exception as e:
         app_logger.error(f'获取社区详情失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取社区详情失败: {str(e)}')
+
+
+@app.route('/api/communities/<int:community_id>', methods=['PUT'])
+def update_community(community_id):
+    """更新社区信息"""
+    app.logger.info(f'=== 开始更新社区信息: {community_id} ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    try:
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 检查权限（超级管理员或该社区管理员）
+        if user.role != 4 and not user.is_community_admin(community_id):
+            return make_err_response({}, '权限不足')
+        
+        params = request.get_json()
+        if not params:
+            return make_err_response({}, '缺少请求参数')
+        
+        # 更新字段
+        if 'name' in params:
+            new_name = params['name']
+            if not new_name:
+                return make_err_response({}, '社区名称不能为空')
+            
+            # 检查名称是否与其他社区重复
+            existing = Community.query.filter(
+                Community.name == new_name,
+                Community.community_id != community_id
+            ).first()
+            if existing:
+                return make_err_response({}, '社区名称已存在')
+            
+            community.name = new_name
+        
+        if 'description' in params:
+            community.description = params['description']
+        
+        if 'location' in params:
+            community.location = params['location']
+        
+        if 'status' in params:
+            community.status = params['status']
+        
+        # 更新时间
+        from datetime import datetime
+        community.updated_at = datetime.now()
+        
+        db.session.commit()
+        
+        result = _format_community_data(community)
+        app.logger.info(f'成功更新社区信息: {community_id}')
+        return make_succ_response(result)
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'更新社区信息失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'更新社区信息失败: {str(e)}')
 
 
 @app.route('/api/communities/<int:community_id>/admins', methods=['GET'])
@@ -417,6 +484,76 @@ def set_user_as_admin(community_id, target_user_id):
     except Exception as e:
         app_logger.error(f'设置用户为管理员失败: {str(e)}', exc_info=True)
         return make_err_response({}, str(e))
+
+
+@app.route('/api/communities/<int:community_id>/users/<int:target_user_id>', methods=['DELETE'])
+def remove_user_from_community(community_id, target_user_id):
+    """从社区中移除用户（超级管理员专用）"""
+    app.logger.info(f'=== 开始从社区中移除用户: {community_id}, 用户: {target_user_id} ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    # 检查权限（仅超级管理员可以移除用户）
+    error = _check_super_admin_permission(user)
+    if error:
+        return error
+    
+    try:
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 检查目标用户是否存在
+        target_user = User.query.get(target_user_id)
+        if not target_user:
+            return make_err_response({}, '用户不存在')
+        
+        # 检查用户是否在该社区中
+        if target_user.community_id != community_id:
+            return make_err_response({}, '用户不在该社区中')
+        
+        # 不能从默认社区移除用户
+        if community.is_default:
+            return make_err_response({}, '不能从默认社区移除用户')
+        
+        # 获取或创建默认社区
+        default_community = CommunityService.get_or_create_default_community()
+        
+        # 将用户移到默认社区
+        target_user.community_id = default_community.community_id
+        
+        # 如果用户是原社区的管理员，移除管理员权限
+        admin_role = CommunityAdmin.query.filter_by(
+            community_id=community_id,
+            user_id=target_user_id
+        ).first()
+        if admin_role:
+            db.session.delete(admin_role)
+        
+        # 记录审计日志
+        audit_log = UserAuditLog(
+            user_id=user_id,
+            action="remove_user_from_community",
+            detail=f"从社区{community_id}移除用户{target_user_id}，移至默认社区{default_community.community_id}"
+        )
+        db.session.add(audit_log)
+        
+        db.session.commit()
+        
+        app.logger.info(f'从社区移除用户成功: {community_id}, 用户: {target_user_id}, 已移至默认社区')
+        return make_succ_response({'message': '移除成功'})
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'从社区移除用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'从社区移除用户失败: {str(e)}')
 
 
 @app.route('/api/community/applications', methods=['GET'])

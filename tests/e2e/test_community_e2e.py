@@ -459,6 +459,215 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '缺少拒绝理由' in data['msg'] or '缺少请求参数' in data['msg']
+    
+    def test_update_community_info(self, test_server):
+        """测试更新社区信息"""
+        base_url = test_server
+        
+        # 1. 超级管理员登录
+        token, user_id = self._get_super_admin_token(base_url)
+        headers = {'Authorization': f'Bearer {token}'}
+        
+        # 2. 创建测试社区
+        response = requests.post(f'{base_url}/api/communities', 
+            headers=headers,
+            json={
+                'name': '待更新社区',
+                'description': '这个社区将被更新',
+                'location': '北京市'
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        community = data['data']
+        community_id = community['community_id']
+        
+        # 3. 更新社区信息
+        update_data = {
+            'name': '已更新社区',
+            'description': '社区信息已更新',
+            'location': '上海市',
+            'status': 1
+        }
+        response = requests.put(f'{base_url}/api/communities/{community_id}', 
+            headers=headers,
+            json=update_data
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        updated_community = data['data']
+        assert updated_community['name'] == '已更新社区'
+        assert updated_community['description'] == '社区信息已更新'
+        assert updated_community['location'] == '上海市'
+        assert updated_community['status'] == 1
+        
+        # 4. 验证更新后的数据
+        response = requests.get(f'{base_url}/api/communities/{community_id}', headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        community = data['data']
+        assert community['name'] == '已更新社区'
+        assert community['description'] == '社区信息已更新'
+        assert community['location'] == '上海市'
+        
+        # 5. 测试权限控制 - 普通用户不能更新社区
+        user_token, user_id = self._create_test_user(base_url, '13900008888', '普通用户')
+        user_headers = {'Authorization': f'Bearer {user_token}'}
+        
+        response = requests.put(f'{base_url}/api/communities/{community_id}', 
+            headers=user_headers,
+            json={'name': '非法更新'}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0  # 应该返回错误
+        assert '权限不足' in data.get('msg', '')
+        
+        # 6. 测试更新不存在的社区
+        response = requests.put(f'{base_url}/api/communities/99999', 
+            headers=headers,
+            json={'name': '不存在的社区'}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0
+        assert '社区不存在' in data.get('msg', '')
+        
+        # 7. 测试社区名称重复
+        # 创建另一个社区
+        response = requests.post(f'{base_url}/api/communities', 
+            headers=headers,
+            json={
+                'name': '重复测试社区',
+                'description': '用于测试名称重复'
+            }
+        )
+        assert response.status_code == 200
+        
+        # 尝试使用重复的名称
+        response = requests.put(f'{base_url}/api/communities/{community_id}', 
+            headers=headers,
+            json={'name': '重复测试社区'}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0
+        assert '社区名称已存在' in data.get('msg', '')
+    
+    def test_remove_user_from_community(self, test_server):
+        """测试从社区中移除用户"""
+        base_url = test_server
+        
+        # 1. 超级管理员登录
+        token, user_id = self._get_super_admin_token(base_url)
+        headers = {'Authorization': f'Bearer {token}'}
+        
+        # 2. 创建测试社区
+        response = requests.post(f'{base_url}/api/communities', 
+            headers=headers,
+            json={
+                'name': '移除用户测试社区',
+                'description': '用于测试移除用户的社区',
+                'location': '深圳市'
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        community = data['data']
+        community_id = community['community_id']
+        
+        # 3. 创建测试用户
+        user_token, test_user_id = self._create_test_user(base_url, '13900009999', '待移除用户')
+        
+        # 4. 用户申请加入测试社区
+        response = requests.post(f'{base_url}/api/community/applications',
+            headers={'Authorization': f'Bearer {user_token}'},
+            json={
+                'community_id': community_id,
+                'reason': '我想加入这个社区'
+            }
+        )
+        assert response.status_code == 200
+        assert response.json().get('code') == 1
+        
+        # 5. 批准申请
+        # 获取申请列表
+        response = requests.get(f'{base_url}/api/community/applications', headers=headers)
+        assert response.status_code == 200
+        applications = response.json().get('data', [])
+        assert len(applications) > 0
+        
+        application_id = None
+        for app in applications:
+            if app['user']['user_id'] == test_user_id and app['community']['community_id'] == community_id:
+                application_id = app['application_id']
+                break
+        
+        assert application_id is not None
+        
+        # 批准申请
+        response = requests.put(f'{base_url}/api/community/applications/{application_id}/approve', 
+            headers=headers)
+        assert response.status_code == 200
+        assert response.json().get('code') == 1
+        
+        # 6. 验证用户已在社区中
+        response = requests.get(f'{base_url}/api/user/community', 
+            headers={'Authorization': f'Bearer {user_token}'})
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        user_community = data['data']['community']
+        assert user_community['community_id'] == community_id
+        
+        # 7. 移除用户（超级管理员操作）
+        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/{test_user_id}', 
+            headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        assert data['data']['message'] == '移除成功'
+        
+        # 8. 验证用户已被移到默认社区
+        response = requests.get(f'{base_url}/api/user/community', 
+            headers={'Authorization': f'Bearer {user_token}'})
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        user_community = data['data']['community']
+        assert user_community['name'] == '安卡大家庭'
+        assert user_community['is_default'] == True
+        
+        # 9. 测试权限控制 - 普通用户不能移除其他用户
+        normal_user_token, normal_user_id = self._create_test_user(base_url, '13900008888', '普通用户')
+        normal_headers = {'Authorization': f'Bearer {normal_user_token}'}
+        
+        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/{test_user_id}', 
+            headers=normal_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0  # 应该返回错误
+        assert '权限不足' in data.get('msg', '') or '需要超级管理员权限' in data.get('msg', '')
+        
+        # 10. 测试移除不存在的用户
+        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/99999', 
+            headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0
+        assert '用户不存在' in data.get('msg', '')
+        
+        # 11. 测试从不存在的社区移除用户
+        response = requests.delete(f'{base_url}/api/communities/99999/users/{test_user_id}', 
+            headers=headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0
+        assert '社区不存在' in data.get('msg', '')
 
 
 class TestCommunityPerformance:
