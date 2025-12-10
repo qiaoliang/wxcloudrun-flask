@@ -48,10 +48,10 @@ class User(db.Model):
         db.Integer, default=0, comment='验证状态：0-未申请/1-待审核/2-已通过/3-已拒绝')
     verification_materials = db.Column(db.Text, comment='验证材料URL')
 
-    # 权限组合字段：用于替代互斥角色模型
-    is_solo_user = db.Column(db.Boolean, default=True, comment='是否为打卡人')
-    is_supervisor = db.Column(db.Boolean, default=False, comment='是否为监护人')
-    is_community_worker = db.Column(
+    # 权限组合字段：用于替代互斥角色模型（内部字段，通过属性装饰器访问）
+    _is_solo_user = db.Column('is_solo_user', db.Boolean, default=True, comment='是否为打卡人')
+    _is_supervisor = db.Column('is_supervisor', db.Boolean, default=False, comment='是否为监护人')
+    _is_community_worker = db.Column('is_community_worker', 
         db.Boolean, default=False, comment='是否为社区工作人员')
 
     community_id = db.Column(db.Integer, db.ForeignKey('communities.community_id'), comment='所属社区ID，仅社区工作人员需要')
@@ -99,6 +99,34 @@ class User(db.Model):
     def status_name(self):
         """获取状态名称"""
         return self.STATUS_MAPPING.get(self.status, 'unknown')
+    
+    # 权限属性装饰器 - 确保超级管理员始终拥有所有权限
+    @property
+    def is_solo_user(self):
+        """是否为打卡人 - 超级管理员始终拥有此权限"""
+        return self.role == 4 or self._is_solo_user
+    
+    @is_solo_user.setter
+    def is_solo_user(self, value):
+        self._is_solo_user = bool(value)
+    
+    @property
+    def is_supervisor(self):
+        """是否为监护人 - 超级管理员始终拥有此权限"""
+        return self.role == 4 or self._is_supervisor
+    
+    @is_supervisor.setter
+    def is_supervisor(self, value):
+        self._is_supervisor = bool(value)
+    
+    @property
+    def is_community_worker(self):
+        """是否为社区工作人员 - 超级管理员始终拥有此权限"""
+        return self.role == 4 or self._is_community_worker
+    
+    @is_community_worker.setter
+    def is_community_worker(self, value):
+        self._is_community_worker = bool(value)
 
     @classmethod
     def get_role_value(cls, role_name):
@@ -111,7 +139,7 @@ class User(db.Model):
     @classmethod
     def get_status_value(cls, status_name):
         """根据状态名称获取状态值"""
-        for value, name in cls.STATUS_MAPPING.items():
+        for value, name in self.STATUS_MAPPING.items():
             if name == status_name:
                 return value
         return None

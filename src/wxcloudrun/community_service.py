@@ -98,7 +98,11 @@ class CommunityService:
                 nickname="系统超级管理员",
                 role=4,  # 社区超级管理员
                 status=1,
-                verification_status=2  # 已通过验证
+                verification_status=2,  # 已通过验证
+                # 超级管理员拥有所有权限
+                is_solo_user=True,
+                is_supervisor=True,
+                is_community_worker=True
             )
             db.session.add(admin_user)
             db.session.flush()  # 获取user_id
