@@ -372,16 +372,30 @@ def user_profile():
 @login_required
 def search_users(decoded):
     """
-    根据昵称关键词搜索用户（排除自己），默认返回最多10条
-    参数：nickname（关键词），limit（可选，默认10）
+    根据关键词搜索用户（支持昵称和手机号），支持scope参数
+    参数：keyword（关键词），scope（搜索范围：all/community），community_id（社区ID，scope=community时必需），limit（可选，默认10）
     """
     try:
         params = request.args
-        keyword = params.get('nickname', '').strip()
+        keyword = params.get('keyword', '').strip()
+        # 兼容旧的nickname参数
+        if not keyword:
+            keyword = params.get('nickname', '').strip()
+        
+        scope = params.get('scope', 'all')
+        community_id = params.get('community_id')
         limit = int(params.get('limit', 10))
 
         if not keyword or len(keyword) < 1:
             return make_succ_response({'users': []})
+
+        # 验证scope参数
+        if scope not in ['all', 'community']:
+            return make_err_response({}, 'Invalid scope parameter')
+
+        # 验证community scope的community_id参数
+        if scope == 'community' and not community_id:
+            return make_err_response({}, 'Community ID required for community scope')
 
         # 当前用户
         openid = decoded.get('openid')
@@ -389,11 +403,30 @@ def search_users(decoded):
         if not current_user:
             return make_err_response({}, '用户不存在')
 
-        # 搜索
-        users = User.query.filter(
-            User.nickname.ilike(f'%{keyword}%'),
+        # 权限验证
+        if scope == 'all' and current_user.role != 4:
+            return make_err_response({}, 'Only super admin can search all users')
+
+        if scope == 'community':
+            # 检查用户是否有该社区的管理权限
+            if not current_user.can_manage_community(int(community_id)):
+                return make_err_response({}, 'No permission for this community')
+
+        # 构建查询条件
+        query = User.query.filter(
+            (User.nickname.ilike(f'%{keyword}%') | User.phone_number.ilike(f'%{keyword}%')),
             User.user_id != current_user.user_id
-        ).order_by(User.updated_at.desc()).limit(limit).all()
+        )
+
+        # 根据scope限制搜索范围
+        if scope == 'community':
+            from wxcloudrun.model import CommunityAdmin
+            query = query.join(CommunityAdmin, User.user_id == CommunityAdmin.user_id).filter(
+                CommunityAdmin.community_id == int(community_id)
+            )
+
+        # 执行搜索
+        users = query.order_by(User.updated_at.desc()).limit(limit).all()
 
         result = []
         for u in users:
@@ -409,6 +442,7 @@ def search_users(decoded):
             result.append({
                 'user_id': u.user_id,
                 'nickname': u.nickname,
+                'phone_number': u.phone_number,
                 'avatar_url': u.avatar_url,
                 'is_supervisor': is_supervisor_flag
             })
