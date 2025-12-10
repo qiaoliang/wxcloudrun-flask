@@ -783,3 +783,70 @@ def get_available_communities():
     except Exception as e:
         app_logger.error(f'获取可申请社区列表失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取可申请社区列表失败: {str(e)}')
+
+
+@app.route('/api/communities/<int:community_id>/admins/<int:user_id>/role', methods=['PUT'])
+def update_admin_role(community_id, user_id):
+    """更新社区管理员角色"""
+    app.logger.info(f'=== 开始更新管理员角色: 社区{community_id}, 用户{user_id} ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    operator_id = decoded.get('user_id')
+    operator = User.query.get(operator_id)
+    
+    # 检查超级管理员权限
+    error = _check_super_admin_permission(operator)
+    if error:
+        return error
+    
+    try:
+        # 获取请求参数
+        params = request.get_json()
+        if not params:
+            return make_err_response({}, '缺少请求参数')
+        
+        new_role = params.get('role')
+        if new_role is None:
+            return make_err_response({}, '缺少角色参数')
+        
+        # 验证角色值
+        if new_role not in [1, 2]:  # 1: 社区主管, 2: 社区专员
+            return make_err_response({}, 'Invalid role')
+        
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 检查用户是否是社区管理员
+        admin = CommunityAdmin.query.filter_by(
+            community_id=community_id,
+            user_id=user_id
+        ).first()
+        if not admin:
+            return make_err_response({}, '用户不是该社区的管理员')
+        
+        # 检查是否会移除最后一个社区主管
+        if admin.role == 1 and new_role != 1:
+            supervisor_count = CommunityAdmin.query.filter_by(
+                community_id=community_id,
+                role=1
+            ).count()
+            if supervisor_count <= 1:
+                return make_err_response({}, '不能移除最后一个社区主管')
+        
+        # 更新角色
+        admin.role = new_role
+        db.session.commit()
+        
+        app_logger.info(f'更新管理员角色成功: 社区{community_id}, 用户{user_id}, 新角色{new_role}')
+        return make_succ_response({'message': 'Role updated successfully'})
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'更新管理员角色失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'更新管理员角色失败: {str(e)}')
