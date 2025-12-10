@@ -214,7 +214,7 @@ def valid_token():
     payload = {
         'openid': 'mock_openid_fixed_for_testing',
         'user_id': 1,
-        'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)
     }
     
     # 生成token
@@ -252,7 +252,7 @@ def custom_token():
         payload = {
             'openid': openid,
             'user_id': user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=hours)
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=hours)
         }
         
         # 生成token

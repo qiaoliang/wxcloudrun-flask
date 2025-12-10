@@ -155,7 +155,7 @@ def login():
         token_payload = {
             'openid': openid,
             'user_id': user.user_id,  # 添加用户ID到token中
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)  # 设置2小时过期时间
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)  # 设置2小时过期时间
         }
         app.logger.info(f'JWT token payload: {token_payload}')
 
@@ -251,7 +251,7 @@ def refresh_token():
         token_payload = {
             'openid': user.wechat_openid,
             'user_id': user.user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)  # 设置2小时过期时间
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)  # 设置2小时过期时间
         }
         try:
             token_secret = get_token_secret()
@@ -362,7 +362,7 @@ def register_phone():
         _audit(user.user_id, 'register_phone', {'phone': phone})
         
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)}
+                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
         try:
             token_secret = get_token_secret()
         except ValueError as e:
@@ -405,7 +405,7 @@ def login_phone_code():
             update_user_by_id(user)
         
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)}
+                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
         try:
             token_secret = get_token_secret()
         except ValueError as e:
@@ -448,7 +448,7 @@ def login_phone_password():
             update_user_by_id(user)
         
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)}
+                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
         try:
             token_secret = get_token_secret()
         except ValueError as e:
@@ -510,7 +510,7 @@ def login_phone():
         
         # 生成token
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)}
+                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
         try:
             token_secret = get_token_secret()
         except ValueError as e:

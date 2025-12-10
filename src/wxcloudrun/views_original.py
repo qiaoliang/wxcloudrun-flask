@@ -359,7 +359,7 @@ def login():
         token_payload = {
             'openid': openid,
             'user_id': user.user_id,  # 添加用户ID到token中
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=2)  # 设置2小时过期时间
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)  # 设置2小时过期时间
         }
         app.logger.info(f'JWT token payload: {token_payload}')
 

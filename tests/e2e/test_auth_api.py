@@ -53,7 +53,7 @@ class TestAuthAPI:
         payload = {
             'openid': openid,
             'user_id': user_id,
-            'exp': datetime.datetime.utcnow() + datetime.timedelta(hours=hours)
+            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=hours)
         }
 
         # 生成token
