@@ -75,7 +75,8 @@ class User(db.Model):
     ROLE_MAPPING = {
         1: 'solo',
         2: 'supervisor',
-        3: 'community'
+        3: 'community_manager',
+        4: 'community_admin'
     }
 
     # 状态映射
@@ -85,6 +86,9 @@ class User(db.Model):
         2: 'verified',
         3: 'rejected'
     }
+
+    # 添加社区相关的外键关系
+    community = db.relationship('Community', foreign_keys=[community_id], backref='users')
 
     @property
     def role_name(self):
@@ -345,11 +349,110 @@ def get_supervised_rules(self, solo_user_id):
     return list(set(rules))  # 去重
 
 
+# 社区相关方法
+def is_community_admin(self, community_id=None):
+    """检查用户是否为社区管理员"""
+    if self.role == 4:  # 社区超级管理员
+        return True
+    
+    if community_id is None:
+        community_id = self.community_id
+    
+    if not community_id:
+        return False
+    
+    admin_role = CommunityAdmin.query.filter_by(
+        community_id=community_id,
+        user_id=self.user_id
+    ).first()
+    return admin_role is not None
+
+
+def is_primary_admin(self, community_id=None):
+    """检查用户是否为社区主管理员"""
+    if self.role == 4:  # 社区超级管理员
+        return True
+    
+    if community_id is None:
+        community_id = self.community_id
+    
+    if not community_id:
+        return False
+    
+    admin_role = CommunityAdmin.query.filter_by(
+        community_id=community_id,
+        user_id=self.user_id,
+        role=1  # 主管理员
+    ).first()
+    return admin_role is not None
+
+
+def get_managed_communities(self):
+    """获取用户管理的社区列表"""
+    if self.role == 4:  # 社区超级管理员
+        return Community.query.filter_by(status=1).all()
+    
+    admin_roles = CommunityAdmin.query.filter_by(user_id=self.user_id).all()
+    return [role.community for role in admin_roles if role.community.status == 1]
+
+
+def can_manage_community(self, community_id):
+    """检查用户是否可以管理指定社区"""
+    if self.role == 4:  # 社区超级管理员
+        return True
+    
+    return self.is_community_admin(community_id)
+
+
+def apply_to_community(self, community_id, reason=None):
+    """申请加入社区"""
+    # 检查是否已经在该社区
+    if self.community_id == community_id:
+        return False, "您已经是该社区的成员"
+    
+    # 检查是否有待处理的申请
+    existing_application = CommunityApplication.query.filter_by(
+        user_id=self.user_id,
+        target_community_id=community_id,
+        status=1  # 待审核
+    ).first()
+    
+    if existing_application:
+        return False, "您已有待处理的申请"
+    
+    # 创建新申请
+    application = CommunityApplication(
+        user_id=self.user_id,
+        target_community_id=community_id,
+        reason=reason
+    )
+    db.session.add(application)
+    db.session.commit()
+    return True, "申请已提交"
+
+
+def get_pending_applications(self):
+    """获取待处理的社区申请（管理员使用）"""
+    managed_communities = self.get_managed_communities()
+    community_ids = [c.community_id for c in managed_communities]
+    
+    return CommunityApplication.query.filter(
+        CommunityApplication.target_community_id.in_(community_ids),
+        CommunityApplication.status == 1  # 待审核
+    ).all()
+
+
 # 绑定方法到User类
 User.can_supervise_user = can_supervise_user
 User.can_supervise_rule = can_supervise_rule
 User.get_supervised_users = get_supervised_users
 User.get_supervised_rules = get_supervised_rules
+User.is_community_admin = is_community_admin
+User.is_primary_admin = is_primary_admin
+User.get_managed_communities = get_managed_communities
+User.can_manage_community = can_manage_community
+User.apply_to_community = apply_to_community
+User.get_pending_applications = get_pending_applications
 
 
 # 分享链接表
@@ -429,3 +532,136 @@ class UserAuditLog(db.Model):
         db.Index('idx_audit_user', 'user_id'),
         db.Index('idx_audit_action', 'action'),
     )
+
+
+# 社区表
+class Community(db.Model):
+    __tablename__ = 'communities'
+
+    community_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False, unique=True, comment='社区名称')
+    description = db.Column(db.Text, comment='社区描述')
+    creator_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), comment='社区创建人ID')
+    status = db.Column(db.Integer, default=1, nullable=False, comment='社区状态：1-启用/2-禁用')
+    settings = db.Column(db.JSON, comment='社区设置，JSON格式')
+    location = db.Column(db.String(200), comment='地理位置信息')
+    is_default = db.Column(db.Boolean, default=False, nullable=False, comment='是否为默认社区')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联关系
+    creator = db.relationship('User', foreign_keys=[creator_user_id], backref='created_communities')
+    admins = db.relationship('CommunityAdmin', backref='community', lazy='dynamic')
+    applications = db.relationship('CommunityApplication', backref='target_community', lazy='dynamic')
+
+    # 索引
+    __table_args__ = (
+        db.Index('idx_communities_status', 'status'),
+        db.Index('idx_communities_creator', 'creator_user_id'),
+    )
+
+    # 状态映射
+    STATUS_MAPPING = {
+        1: 'enabled',
+        2: 'disabled'
+    }
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
+
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
+                return value
+        return None
+
+
+# 社区管理员表
+class CommunityAdmin(db.Model):
+    __tablename__ = 'community_admins'
+
+    admin_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    community_id = db.Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False, comment='社区ID')
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='管理员用户ID')
+    role = db.Column(db.Integer, default=2, nullable=False, comment='管理员角色：1-主管理员/2-普通管理员')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='任命时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联关系
+    user = db.relationship('User', backref='community_admin_roles')
+
+    # 索引
+    __table_args__ = (
+        db.Index('idx_community_admins_community', 'community_id'),
+        db.Index('idx_community_admins_user', 'user_id'),
+        db.UniqueConstraint('community_id', 'user_id', name='uq_community_admin'),
+    )
+
+    # 角色映射
+    ROLE_MAPPING = {
+        1: 'primary',
+        2: 'normal'
+    }
+
+    @property
+    def role_name(self):
+        """获取角色名称"""
+        return self.ROLE_MAPPING.get(self.role, 'unknown')
+
+    @classmethod
+    def get_role_value(cls, role_name):
+        """根据角色名称获取角色值"""
+        for value, name in cls.ROLE_MAPPING.items():
+            if name == role_name:
+                return value
+        return None
+
+
+# 社区申请表
+class CommunityApplication(db.Model):
+    __tablename__ = 'community_applications'
+
+    application_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='申请用户ID')
+    target_community_id = db.Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False, comment='目标社区ID')
+    status = db.Column(db.Integer, default=1, nullable=False, comment='申请状态：1-待审核/2-已批准/3-已拒绝')
+    reason = db.Column(db.Text, comment='申请理由')
+    rejection_reason = db.Column(db.Text, comment='拒绝理由')
+    processed_by = db.Column(db.Integer, db.ForeignKey('users.user_id'), comment='处理人ID')
+    created_at = db.Column(db.DateTime, default=datetime.now, comment='申请时间')
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 关联关系
+    user = db.relationship('User', foreign_keys=[user_id], backref='community_applications')
+    processor = db.relationship('User', foreign_keys=[processed_by], backref='processed_applications')
+
+    # 索引
+    __table_args__ = (
+        db.Index('idx_applications_user', 'user_id'),
+        db.Index('idx_applications_community', 'target_community_id'),
+        db.Index('idx_applications_status', 'status'),
+    )
+
+    # 状态映射
+    STATUS_MAPPING = {
+        1: 'pending',
+        2: 'approved',
+        3: 'rejected'
+    }
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
+
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
+                return value
+        return None

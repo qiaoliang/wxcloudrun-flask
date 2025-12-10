@@ -129,6 +129,15 @@ def login():
             )
             insert_user(user)
             app.logger.info(f'新用户创建成功，用户ID: {user.user_id}, openid: {openid}')
+            
+            # 自动分配到默认社区
+            try:
+                from wxcloudrun.community_service import CommunityService
+                CommunityService.assign_user_to_community(user)
+                app.logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
+            except Exception as e:
+                app.logger.error(f'自动分配社区失败: {str(e)}', exc_info=True)
+                # 不影响登录流程，只记录错误
         else:
             app.logger.info('用户已存在，检查是否需要更新用户信息...')
             # 更新现有用户信息（如果提供了新的头像或昵称）
@@ -360,6 +369,15 @@ def register_phone():
                     password_salt=salt if password else None, nickname=nick, avatar_url=avatar_url, role=1, status=1)
         insert_user(user)
         _audit(user.user_id, 'register_phone', {'phone': phone})
+        
+        # 自动分配到默认社区
+        try:
+            from wxcloudrun.community_service import CommunityService
+            CommunityService.assign_user_to_community(user)
+            app.logger.info(f'手机注册用户已自动分配到默认社区，用户ID: {user.user_id}')
+        except Exception as e:
+            app.logger.error(f'手机注册用户自动分配社区失败: {str(e)}', exc_info=True)
+            # 不影响注册流程，只记录错误
         
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}

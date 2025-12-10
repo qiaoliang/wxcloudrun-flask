@@ -73,6 +73,21 @@ def run_migration():
         return False
 
 
+def initialize_default_community():
+    """初始化默认社区"""
+    try:
+        from wxcloudrun.community_service import CommunityService
+        
+        # 创建或获取默认社区
+        default_community = CommunityService.get_or_create_default_community()
+        migration_logger.info(f"默认社区初始化完成: {default_community.name} (ID: {default_community.community_id})")
+        return True
+        
+    except Exception as e:
+        migration_logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
+        return False
+
+
 def main():
     """主程序入口"""
     # 1. 首先执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
@@ -88,7 +103,13 @@ def main():
     # 2. 创建并启动 Flask 应用
     create_app()
     
-    # 3. 启动 Flask 应用
+    # 3. 初始化默认社区
+    with app.app_context():
+        community_success = initialize_default_community()
+        if not community_success:
+            migration_logger.error("默认社区初始化失败，但程序继续运行")
+    
+    # 4. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
     app.run(host=host, port=port)
