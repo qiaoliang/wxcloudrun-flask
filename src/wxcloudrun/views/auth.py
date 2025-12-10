@@ -15,7 +15,7 @@ from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.dao import query_user_by_openid, insert_user, update_user_by_id
 from wxcloudrun.model import User
 from wxcloudrun.utils.auth import query_user_by_refresh_token
-from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code
+from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
 from config_manager import get_token_secret
 
 app_logger = logging.getLogger('log')
@@ -341,7 +341,11 @@ def register_phone():
         password = params.get('password')
         if not phone or not code:
             return make_err_response({}, '缺少phone或code参数')
-        if not _verify_sms_code(phone, 'register', code):
+        
+        # 标准化电话号码格式
+        normalized_phone = normalize_phone_number(phone)
+        
+        if not _verify_sms_code(normalized_phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
         if password:
             pwd = str(password)
@@ -349,7 +353,7 @@ def register_phone():
                 return make_err_response({}, '密码强度不足')
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
-            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
         existing = User.query.filter_by(phone_hash=phone_hash).first()
         
         # 严格按策略1：不验证密码，直接提示账号已存在
@@ -362,13 +366,13 @@ def register_phone():
         pwd_hash = sha256(f"{password or ''}:{salt}".encode(
             'utf-8')).hexdigest() if password else None
         # Generate masked phone number for display purposes only
-        masked = phone[:3] + '****' + phone[-4:] if len(phone) >= 7 else phone
+        masked = normalized_phone[:3] + '****' + normalized_phone[-4:] if len(normalized_phone) >= 7 else normalized_phone
         app.logger.info(f"Creating user with masked phone: {masked} (phone_hash will be used for uniqueness)")
         nick = nickname or _gen_phone_nickname()
-        user = User(wechat_openid=f"phone_{phone}", phone_number=masked, phone_hash=phone_hash, password_hash=pwd_hash,
+        user = User(wechat_openid=f"phone_{normalized_phone}", phone_number=masked, phone_hash=phone_hash, password_hash=pwd_hash,
                     password_salt=salt if password else None, nickname=nick, avatar_url=avatar_url, role=1, status=1)
         insert_user(user)
-        _audit(user.user_id, 'register_phone', {'phone': phone})
+        _audit(user.user_id, 'register_phone', {'phone': normalized_phone})
         
         # 自动分配到默认社区
         try:
@@ -410,11 +414,15 @@ def login_phone_code():
         code = params.get('code')
         if not phone or not code:
             return make_err_response({}, '缺少phone或code参数')
-        if not _verify_sms_code(phone, 'login', code) and not _verify_sms_code(phone, 'register', code):
+        
+        # 标准化电话号码格式
+        normalized_phone = normalize_phone_number(phone)
+        
+        if not _verify_sms_code(normalized_phone, 'login', code) and not _verify_sms_code(normalized_phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
-            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
         user = User.query.filter_by(phone_hash=phone_hash).first()
         if not user:
             return make_err_response({}, '用户不存在')
@@ -449,9 +457,13 @@ def login_phone_password():
         password = params.get('password')
         if not phone or not password:
             return make_err_response({}, '缺少phone或password参数')
+        
+        # 标准化电话号码格式
+        normalized_phone = normalize_phone_number(phone)
+        
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
-            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
         user = User.query.filter_by(phone_hash=phone_hash).first()
         if not user:
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
@@ -499,15 +511,18 @@ def login_phone():
         if not phone or not code or not password:
             return make_err_response({}, '缺少phone、code或password参数')
         
+        # 标准化电话号码格式
+        normalized_phone = normalize_phone_number(phone)
+        
         # 验证码验证（允许使用login或register类型的验证码）
         # 这样用户可以使用注册时发送的验证码进行登录
-        if not _verify_sms_code(phone, 'login', code) and not _verify_sms_code(phone, 'register', code):
+        if not _verify_sms_code(normalized_phone, 'login', code) and not _verify_sms_code(normalized_phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
         
         # 查找用户
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
-            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
         user = User.query.filter_by(phone_hash=phone_hash).first()
         
         if not user:

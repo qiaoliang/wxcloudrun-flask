@@ -10,6 +10,25 @@ from hashlib import sha256
 from wxcloudrun import app, db
 from wxcloudrun.model import VerificationCode
 
+
+def normalize_phone_number(phone):
+    """
+    标准化电话号码格式
+    - 移除前缀 +86
+    - 确保是纯数字格式
+    """
+    if not phone:
+        return phone
+    
+    # 移除 +86 前缀
+    if phone.startswith('+86'):
+        phone = phone[3:]
+    
+    # 移除所有非数字字符
+    phone = ''.join(filter(str.isdigit, phone))
+    
+    return phone
+
 app_logger = logging.getLogger('log')
 
 

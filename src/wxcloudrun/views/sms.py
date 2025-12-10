@@ -26,12 +26,16 @@ def sms_send_code():
         if not phone:
             return make_err_response({}, '缺少phone参数')
         
+        # 标准化电话号码格式
+        from wxcloudrun.utils.validators import normalize_phone_number
+        normalized_phone = normalize_phone_number(phone)
+        
         # 在 mock 环境下跳过频率限制
         is_mock_env = not should_use_real_sms()
         
         now = datetime.now()
         vc = VerificationCode.query.filter_by(
-            phone_number=phone, purpose=purpose).first()
+            phone_number=normalized_phone, purpose=purpose).first()
         
         # 只在非 mock 环境下检查频率限制
         if not is_mock_env and vc and (now - vc.last_sent_at).total_seconds() < 60:
@@ -43,11 +47,11 @@ def sms_send_code():
         
         # 使用验证工具函数生成哈希
         from wxcloudrun.utils.validators import _hash_code
-        code_hash = _hash_code(phone, code, salt)
+        code_hash = _hash_code(normalized_phone, code, salt)
         
         expires_at = now + timedelta(minutes=_code_expiry_minutes())
         if not vc:
-            vc = VerificationCode(phone_number=phone, purpose=purpose, code_hash=code_hash,
+            vc = VerificationCode(phone_number=normalized_phone, purpose=purpose, code_hash=code_hash,
                                   salt=salt, expires_at=expires_at, last_sent_at=now)
             db.session.add(vc)
         else:
