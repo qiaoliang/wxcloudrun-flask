@@ -54,7 +54,7 @@ class User(db.Model):
     is_community_worker = db.Column(
         db.Boolean, default=False, comment='是否为社区工作人员')
 
-    community_id = db.Column(db.Integer, comment='所属社区ID，仅社区工作人员需要')
+    community_id = db.Column(db.Integer, db.ForeignKey('communities.community_id'), comment='所属社区ID，仅社区工作人员需要')
     
     # Token相关字段
     refresh_token = db.Column(db.String(128), comment='刷新令牌')

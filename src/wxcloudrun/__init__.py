@@ -57,6 +57,14 @@ if config_manager.is_unit_environment():
     with app.app_context():
         db.create_all()
         app.logger.info("在内存数据库中创建了所有表")
+        
+        # 初始化默认社区
+        try:
+            from .community_service import CommunityService
+            default_community = CommunityService.get_or_create_default_community()
+            app.logger.info(f"默认社区初始化完成: {default_community.name} (ID: {default_community.community_id})")
+        except Exception as e:
+            app.logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
 
 # 加载配置
 app.config.from_object('config')

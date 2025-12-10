@@ -73,19 +73,7 @@ def run_migration():
         return False
 
 
-def initialize_default_community():
-    """初始化默认社区"""
-    try:
-        from wxcloudrun.community_service import CommunityService
-        
-        # 创建或获取默认社区
-        default_community = CommunityService.get_or_create_default_community()
-        migration_logger.info(f"默认社区初始化完成: {default_community.name} (ID: {default_community.community_id})")
-        return True
-        
-    except Exception as e:
-        migration_logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
-        return False
+
 
 
 def main():
@@ -103,11 +91,15 @@ def main():
     # 2. 创建并启动 Flask 应用
     create_app()
     
-    # 3. 初始化默认社区
-    with app.app_context():
-        community_success = initialize_default_community()
-        if not community_success:
-            migration_logger.error("默认社区初始化失败，但程序继续运行")
+    # 3. 在非 unit 环境下初始化默认社区（unit 环境已在 __init__.py 中处理）
+    if env_type not in ['unit']:
+        with app.app_context():
+            try:
+                from wxcloudrun.community_service import CommunityService
+                default_community = CommunityService.get_or_create_default_community()
+                migration_logger.info(f"默认社区初始化完成: {default_community.name} (ID: {default_community.community_id})")
+            except Exception as e:
+                migration_logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
     
     # 4. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
