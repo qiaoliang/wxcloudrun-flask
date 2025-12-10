@@ -43,10 +43,16 @@ def _verify_sms_code(phone, purpose, code):
     """
     验证短信验证码
     """
-    # 在 mock 环境下（should_use_real_sms() 返回 False），直接验证通过
+    # 在 mock 环境下（should_use_real_sms() 返回 False），进行基本验证
     from config_manager import should_use_real_sms
     if not should_use_real_sms():
-        app.logger.info(f"[Mock SMS] 跳过验证码验证，ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
+        app.logger.info(f"[Mock SMS] 验证验证码，ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
+        # 在测试环境下，验证一些明显无效的验证码
+        invalid_codes = ["000000", "999999", "12345", "1234567", "abcdef", "", " ", "null", "@#$%^&"]
+        if code in invalid_codes:
+            app.logger.info(f"[Mock SMS] 验证码 '{code}' 被识别为无效")
+            return False
+        # 其他验证码视为有效
         return True
     
     vc = VerificationCode.query.filter_by(

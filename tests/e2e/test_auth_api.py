@@ -218,48 +218,48 @@ class TestAuthAPI:
             "null",
             "undefined"
         ]
-        
+
         for invalid_token in invalid_tokens:
             # 准备请求数据
             refresh_data = {
                 "refresh_token": invalid_token
             }
-            
+
             # 发送刷新请求
             response = requests.post(
                 f"{test_server}/api/refresh_token",
                 json=refresh_data,
                 timeout=5
             )
-            
+
             # 验证响应
             assert response.status_code == 200
             data = response.json()
-            
+
             # 关键断言：应该返回 code: 0（失败）
             assert data["code"] == 0, f"对于无效 token '{invalid_token}'，期望 code 为 0，实际为 {data['code']}"
             assert data["msg"] is not None
             assert len(data["msg"]) > 0
-            
+
             print(f"✅ 无效 refresh_token 正确返回 code: 0")
-        
+
         # 测试看起来有效但不在数据库中的 token
         fake_valid_token = "8tf8k1JlgrDRhPB2kXOSoTbzaLi5w7aOtm_vhy0RPXE"
         refresh_data = {
             "refresh_token": fake_valid_token
         }
-        
+
         response = requests.post(
             f"{test_server}/api/refresh_token",
             json=refresh_data,
             timeout=5
         )
-        
+
         # 验证响应
         assert response.status_code == 200
         data = response.json()
         assert data["code"] == 0, "对于数据库中不存在的 token，期望 code 为 0"
-        
+
         print(f"✅ 数据库中不存在的 refresh_token 正确返回 code: 0")
 
     def test_logout_without_token(self, test_server):
@@ -411,23 +411,60 @@ class TestAuthAPI:
         assert data["code"] == 0  # 错误响应
         assert data["msg"] == "缺少phone或code参数"
 
-        print("✅ 手机号注册缺少code参数当前行为测试通过（需要实现以符合API文档）")
-    @pytest.mark.skip(reason="在mock环境下验证码总是有效")
     def test_phone_register_invalid_sms_code(self, test_server):
         """
         测试手机号注册无效验证码
-        在mock环境下，所有验证码都会通过验证
-        在生产环境下，应该返回400错误
+        应该返回 code: 0 和错误信息
         """
-        # 准备请求数据（无效验证码）
+        # 测试多种无效验证码场景
+        invalid_codes = [
+            "000000",  # 明显错误的验证码
+            "999999",  # 不在有效范围内的验证码
+            "12345",   # 长度不足
+            "1234567", # 长度过长
+            "abcdef",  # 非数字验证码
+            "",        # 空验证码
+            " ",       # 空格
+            "null",    # 字符串 null
+            "@#$%^&"   # 特殊字符
+        ]
+        
+        for invalid_code in invalid_codes:
+            # 准备请求数据
+            register_data = {
+                "phone": "13812345678",
+                "code": invalid_code,
+                "nickname": "测试用户",
+                "password": "password123"
+            }
+
+            # 发送注册请求
+            response = requests.post(
+                f"{test_server}/api/auth/register_phone",
+                json=register_data,
+                timeout=5
+            )
+
+            # 验证响应
+            assert response.status_code == 200
+            data = response.json()
+            
+            # 关键断言：应该返回 code: 0（失败）
+            assert data["code"] == 0, f"对于无效验证码 '{invalid_code}'，期望 code 为 0，实际为 {data['code']}"
+            assert data["msg"] is not None
+            assert len(data["msg"]) > 0
+            
+            print(f"✅ 无效验证码 '{invalid_code}' 正确返回 code: 0")
+            print(f"  错误信息: {data['msg']}")
+        
+        # 测试缺少验证码参数的情况
         register_data = {
             "phone": "13812345678",
-            "code": "000000",
-            "nickname": "张三",
+            "nickname": "测试用户",
             "password": "password123"
+            # 故意缺少 code 参数
         }
 
-        # 发送注册请求
         response = requests.post(
             f"{test_server}/api/auth/register_phone",
             json=register_data,
@@ -435,14 +472,12 @@ class TestAuthAPI:
         )
 
         # 验证响应
-        # 在mock环境下，验证码总是有效的
         assert response.status_code == 200
         data = response.json()
-        assert data["code"] == 1  # 成功响应
-        assert data["msg"] == "success"
-
-        # TODO: 在生产环境中，应该验证无效验证码返回400错误
-        print("✅ 手机号注册在mock环境下验证码总是有效（生产环境需要实现验证码验证）")
+        assert data["code"] == 0, "缺少验证码参数应该返回 code: 0"
+        
+        print(f"✅ 缺少验证码参数正确返回 code: 0")
+        print(f"  错误信息: {data['msg']}")
 
     def test_phone_register_weak_password(self, test_server):
         """
