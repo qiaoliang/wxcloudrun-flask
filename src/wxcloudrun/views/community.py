@@ -79,6 +79,55 @@ def get_communities():
         return make_err_response({}, f'获取社区列表失败: {str(e)}')
 
 
+@app.route('/api/communities', methods=['POST'])
+def create_community():
+    """创建新社区（超级管理员专用）"""
+    app.logger.info('=== 开始创建新社区 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    # 检查权限
+    error = _check_super_admin_permission(user)
+    if error:
+        return error
+    
+    try:
+        params = request.get_json() or {}
+        name = params.get('name')
+        description = params.get('description', '')
+        location = params.get('location', '')
+        
+        # 验证必填参数
+        if not name:
+            return make_err_response({}, '社区名称不能为空')
+        
+        # 使用CommunityService创建社区
+        community = CommunityService.create_community(
+            name=name,
+            description=description,
+            creator_id=user_id,
+            location=location
+        )
+        
+        result = _format_community_data(community)
+        app_logger.info(f'成功创建社区: {name}, ID: {community.community_id}')
+        return make_succ_response(result)
+    
+    except ValueError as e:
+        # 业务逻辑错误（如社区名称已存在）
+        app_logger.warning(f'创建社区失败: {str(e)}')
+        return make_err_response({}, str(e))
+    except Exception as e:
+        app_logger.error(f'创建社区失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'创建社区失败: {str(e)}')
+
+
 @app.route('/api/communities/<int:community_id>', methods=['GET'])
 def get_community(community_id):
     """获取社区详情"""
