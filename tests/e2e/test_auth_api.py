@@ -183,41 +183,6 @@ class TestAuthAPI:
         # assert response.status_code == 401  # 期望行为（根据API文档）
         print("✅ 微信登录无效code当前行为测试通过（需要实现以符合API文档）")
 
-    @pytest.mark.skip(reason="暂未实现")
-    def test_refresh_token_success(self, test_server,custom_token):
-        """
-        测试刷新token成功
-        应该返回新的token和refresh_token
-        """
-        token = custom_token(openid="custom_user_123", user_id=999, hours=2)
-        # 准备请求数据
-        refresh_data = {
-            "refresh_token": token
-        }
-
-        # 发送刷新请求
-        response = requests.post(
-            f"{test_server}/api/refresh_token",
-            json=refresh_data,
-            timeout=5
-        )
-
-        # 验证响应
-        assert response.status_code == 200
-        data = response.json()
-        assert data["code"] == 1
-        assert data["msg"] == "success"
-        assert "data" in data
-
-        # 验证返回的数据结构
-        response_data = data["data"]
-        assert "token" in response_data
-        assert "refresh_token" in response_data
-        assert "expires_in" in response_data
-        assert isinstance(response_data["expires_in"], int)
-
-        print("✅ 刷新token成功测试通过")
-
     def test_refresh_token_missing_token(self, test_server):
         """
         测试刷新token缺少refresh_token参数
@@ -260,13 +225,6 @@ class TestAuthAPI:
         data = response.json()
         assert data["code"] == 0
         print("✅ 刷新token时，使用无效refresh_token, 正确 error code ")
-
-    @pytest.mark.skip(reason="等到完成对 注册 API 的测试再实现,以免使用 mock ")
-    def test_logout_with_custom_user(self, test_server):
-        """
-        测试使用自定义用户登出
-        """
-        pass
 
     def test_logout_without_token(self, test_server):
         """
@@ -764,3 +722,79 @@ class TestAuthAPI:
         assert response_data["login_type"] == "existing_user"  # 已实现
 
         print("✅ 手机号验证码+密码登录当前行为测试通过（需要实现以符合API文档）")
+
+    def test_refresh_token_success(self, test_server):
+        """
+        测试刷新token成功
+        应该返回新的token和refresh_token
+        """
+        # 步骤 1: 先登录获取 refresh_token
+        import time
+        timestamp = int(time.time() * 1000000)
+        login_data = {
+            "code": f"test_code_refresh_{timestamp}",
+            "nickname": f"测试用户_{timestamp}",
+            "avatar_url": f"https://example.com/avatar_{timestamp}.jpg"
+        }
+        
+        # 发送登录请求
+        login_response = requests.post(
+            f"{test_server}/api/login",
+            json=login_data,
+            timeout=5
+        )
+        
+        # 验证登录成功
+        assert login_response.status_code == 200
+        login_result = login_response.json()
+        assert login_result["code"] == 1
+        assert login_result["msg"] == "success"
+        
+        # 获取 refresh_token
+        refresh_token = login_result["data"]["refresh_token"]
+        assert refresh_token is not None
+        print(f"✅ 获取到 refresh_token: {refresh_token[:20]}...")
+        
+        # 步骤 2: 使用 refresh_token 刷新 token
+        refresh_request_data = {
+            "refresh_token": refresh_token
+        }
+        
+        # 发送刷新请求
+        refresh_response = requests.post(
+            f"{test_server}/api/refresh_token",
+            json=refresh_request_data,
+            timeout=5
+        )
+        
+        # 验证刷新响应
+        assert refresh_response.status_code == 200
+        refresh_result = refresh_response.json()
+        
+        # 验证响应结构
+        assert refresh_result["code"] == 1
+        assert refresh_result["msg"] == "success"
+        assert "data" in refresh_result
+        
+        # 验证返回的数据
+        response_data = refresh_result["data"]
+        assert "token" in response_data
+        assert "refresh_token" in response_data
+        assert "expires_in" in response_data
+        
+        # 验证返回的是新的 token
+        new_token = response_data["token"]
+        new_refresh_token = response_data["refresh_token"]
+        assert new_token is not None
+        assert new_refresh_token is not None
+        assert new_refresh_token != refresh_token  # 应该是新的 refresh_token
+        
+        # 验证 expires_in 是数字
+        expires_in = response_data["expires_in"]
+        assert isinstance(expires_in, int)
+        assert expires_in > 0
+        
+        print(f"✅ 刷新 token 成功")
+        print(f"  新 token: {new_token[:20]}...")
+        print(f"  新 refresh_token: {new_refresh_token[:20]}...")
+        print(f"  expires_in: {expires_in} 秒")

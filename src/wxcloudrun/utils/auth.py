@@ -89,9 +89,9 @@ def query_user_by_refresh_token(refresh_token):
     根据refresh token查询用户
     """
     try:
-        from wxcloudrun.dao import session
+        from wxcloudrun import db
         from wxcloudrun.model import User
-        user = session.query(User).filter(
+        user = db.session.query(User).filter(
             User.refresh_token == refresh_token).first()
         return user
     except Exception as e:
