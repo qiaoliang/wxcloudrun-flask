@@ -3,8 +3,8 @@
 - 认证：无需认证
 - 请求参数：
   - code（必填，string，微信授权码）
-  - nickname（可选，string，用户昵称）
-  - avatar_url（可选，string，用户头像URL）
+  - nickname（必填，string，用户昵称）
+  - avatar_url（必填，string，用户头像URL）
 - 响应：200 OK + 示例 JSON
 ```json
 {
@@ -23,7 +23,7 @@
   }
 }
 ```
-- 错误：400（缺少code参数）、401（微信API错误）、500（服务器错误）
+- 错误：400（缺少code、nickname或avatar_url参数）、401（微信API错误）、500（服务器错误）
 - 示例代码：
 ```python
 import requests

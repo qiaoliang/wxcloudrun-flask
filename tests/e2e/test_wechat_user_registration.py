@@ -133,56 +133,39 @@ class TestWechatUserRegistration:
     def test_register_wechat_user_with_minimal_data(self, test_server):
         """
         测试使用最少必需数据注册微信用户
-        wechat_user 注册，必须提供code，nickname和avatar_url, 不能为空。
+        必须提供 code、nickname 和 avatar_url
         """
         # 使用时间戳确保每次测试都有唯一的code
         import time
         timestamp = int(time.time() * 1000000)  # 微秒级时间戳确保唯一性
 
-        w_code= f"test_code_minimal_wechat_user_{timestamp}"
-        w_nickname = f"测试微信用户_{timestamp}"
-        w_avatar_url = f"https://example.com/avatar_wechat_user_{timestamp}.jpg"
-        # 准备缺少必要信息的登录请求数据
+        # 测试: 提供所有必需参数
         login_data = {
-            "code": w_code
+            "code": f"test_code_minimal_{timestamp}",
+            "nickname": f"测试微信用户_{timestamp}",
+            "avatar_url": f"https://example.com/avatar_{timestamp}.jpg"
         }
 
-        # 发送缺少必要信息的登录请求
+        # 发送登录请求
         response = requests.post(
             f"{test_server}/api/login",
             json=login_data,
             timeout=5
         )
 
-        # 验证响应
+        # 验证响应 - 应该成功
         assert response.status_code == 200
         data = response.json()
-        assert data["code"] == 0
-
-        # 发送最持有最少信息的登录请求
-
-        login_data = {
-            "code": w_code,
-            "nickname": w_nickname,
-            "avatar_url":w_avatar_url
-        }
-        response = requests.post(
-            f"{test_server}/api/login",
-            json=login_data,
-            timeout=5
-        )
-
-        # 验证响应
-        assert response.status_code == 200
-        data = response.json()
-        assert data["code"] == 0
+        assert data["code"] == 1  # 成功
+        assert data["msg"] == "success"
         assert data["data"]["login_type"] == "new_user"
         assert data["data"]["user_id"] is not None
         assert data["data"]["wechat_openid"] is not None
-        assert data['data'].get('nickname') is w_nickname
-        assert data['data'].get('avatar_url') is w_avatar_url
-        # 通过 API 响应验证数据
-        print(f"✅ 最小数据注册成功:")
+        # nickname 和 avatar_url 应该有值
+        assert data["data"]["nickname"] == f"测试微信用户_{timestamp}"
+        assert data["data"]["avatar_url"] == f"https://example.com/avatar_{timestamp}.jpg"
+        
+        print("✅ 提供所有必需参数成功注册用户")
 
     def test_register_wechat_user_missing_code_returns_error(self, test_server):
         """
