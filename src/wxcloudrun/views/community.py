@@ -436,26 +436,26 @@ def get_community_applications():
         applications = user.get_pending_applications()
         
         result = []
-        for app in applications:
+        for application in applications:
             result.append({
-                'application_id': app.application_id,
+                'application_id': application.application_id,
                 'user': {
-                    'user_id': app.user.user_id,
-                    'nickname': app.user.nickname,
-                    'avatar_url': app.user.avatar_url,
-                    'phone_number': app.user.phone_number,
-                    'role': app.user.role,
-                    'role_name': app.user.role_name
+                    'user_id': application.user.user_id,
+                    'nickname': application.user.nickname,
+                    'avatar_url': application.user.avatar_url,
+                    'phone_number': application.user.phone_number,
+                    'role': application.user.role,
+                    'role_name': application.user.role_name
                 },
                 'community': {
-                    'community_id': app.target_community.community_id,
-                    'name': app.target_community.name,
-                    'description': app.target_community.description
+                    'community_id': application.target_community.community_id,
+                    'name': application.target_community.name,
+                    'description': application.target_community.description
                 },
-                'reason': app.reason,
-                'status': app.status,
-                'status_name': app.status_name,
-                'created_at': app.created_at.isoformat() if app.created_at else None
+                'reason': application.reason,
+                'status': application.status,
+                'status_name': application.status_name,
+                'created_at': application.created_at.isoformat() if application.created_at else None
             })
         
         app.logger.info(f'成功获取社区申请列表，共 {len(result)} 个申请')
