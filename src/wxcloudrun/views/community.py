@@ -754,6 +754,85 @@ def get_user_community():
         return make_err_response({}, f'获取用户社区信息失败: {str(e)}')
 
 
+@app.route('/api/user/managed-communities', methods=['GET'])
+def get_managed_communities():
+    """获取当前用户管理的社区列表"""
+    app.logger.info('=== 开始获取用户管理的社区列表 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    try:
+        # 检查用户是否为社区工作人员（role >= 3）
+        if user.role < 3:
+            return make_err_response({}, '权限不足，仅社区工作人员可访问')
+        
+        communities_data = []
+        
+        # 超级管理员（role=4）可以看到所有社区
+        if user.role == 4:
+            communities = Community.query.filter_by(status=1).all()
+            for community in communities:
+                # 获取社区管理员数量
+                admin_count = CommunityAdmin.query.filter_by(community_id=community.community_id).count()
+                # 获取社区用户数量
+                user_count = User.query.filter_by(community_id=community.community_id).count()
+                
+                communities_data.append({
+                    'community_id': community.community_id,
+                    'name': community.name,
+                    'description': community.description,
+                    'location': community.location,
+                    'is_default': community.is_default,
+                    'admin_count': admin_count,
+                    'user_count': user_count,
+                    'user_role': 'super_admin',  # 超级管理员标识
+                    'created_at': community.created_at.isoformat() if community.created_at else None
+                })
+        else:
+            # 其他管理员只能看到自己管理的社区
+            admin_roles = CommunityAdmin.query.filter_by(user_id=user_id).all()
+            for admin_role in admin_roles:
+                community = admin_role.community
+                if community and community.status == 1:  # 只显示启用的社区
+                    # 获取社区管理员数量
+                    admin_count = CommunityAdmin.query.filter_by(community_id=community.community_id).count()
+                    # 获取社区用户数量
+                    user_count = User.query.filter_by(community_id=community.community_id).count()
+                    
+                    communities_data.append({
+                        'community_id': community.community_id,
+                        'name': community.name,
+                        'description': community.description,
+                        'location': community.location,
+                        'is_default': community.is_default,
+                        'admin_count': admin_count,
+                        'user_count': user_count,
+                        'user_role': 'primary_admin' if admin_role.role == 1 else 'normal_admin',
+                        'role_in_community': admin_role.role,
+                        'created_at': community.created_at.isoformat() if community.created_at else None
+                    })
+        
+        # 按创建时间倒序排列
+        communities_data.sort(key=lambda x: x['created_at'] or '', reverse=True)
+        
+        app.logger.info(f'成功获取用户管理的社区列表: 用户ID={user_id}, 社区数量={len(communities_data)}')
+        return make_succ_response({
+            'communities': communities_data,
+            'total': len(communities_data),
+            'user_role': 'super_admin' if user.role == 4 else 'community_admin'
+        })
+    
+    except Exception as e:
+        app_logger.error(f'获取用户管理的社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取用户管理的社区列表失败: {str(e)}')
+
+
 @app.route('/api/communities/available', methods=['GET'])
 def get_available_communities():
     """获取可申请的社区列表"""
