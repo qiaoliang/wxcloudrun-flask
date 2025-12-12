@@ -4,6 +4,7 @@
 """
 
 import logging
+import os
 import datetime
 import jwt
 from flask import request
@@ -13,6 +14,22 @@ from wxcloudrun.dao import query_user_by_openid, update_user_by_id
 from wxcloudrun.model import User, SupervisionRuleRelation
 from wxcloudrun.utils.auth import verify_token
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code
+
+
+def _calculate_phone_hash(phone):
+    """
+    计算手机号的hash值
+    
+    Args:
+        phone (str): 手机号
+        
+    Returns:
+        str: 手机号的hash值
+    """
+    from hashlib import sha256
+    phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+    return sha256(
+        f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
 from wxcloudrun.decorators import login_required
 from config_manager import get_token_secret
 
@@ -413,10 +430,27 @@ def search_users(decoded):
                 return make_err_response({}, 'No permission for this community')
 
         # 构建查询条件
-        query = User.query.filter(
-            (User.nickname.ilike(f'%{keyword}%') | User.phone_number.ilike(f'%{keyword}%')),
-            User.user_id != current_user.user_id
-        )
+        # 检查是否是完整手机号（11位数字）
+        import re
+        is_full_phone = re.match(r'^1[3-9]\d{9}$', keyword)
+        
+        if is_full_phone:
+            # 如果是完整手机号，使用phone_hash进行精确匹配
+            phone_hash = _calculate_phone_hash(keyword)
+            
+            # 只使用phone_hash进行搜索，不再搜索昵称
+            # 因为完整手机号搜索应该精确匹配
+            query = User.query.filter(
+                User.phone_hash == phone_hash,
+                User.user_id != current_user.user_id
+            )
+        else:
+            # 只搜索昵称，不搜索部分手机号
+            # 因为部分手机号会导致错误匹配
+            query = User.query.filter(
+                User.nickname.ilike(f'%{keyword}%'),
+                User.user_id != current_user.user_id
+            )
 
         # 根据scope限制搜索范围
         if scope == 'community':
@@ -457,33 +491,36 @@ def search_users(decoded):
 @login_required
 def bind_phone(decoded):
     try:
-        with db.session.begin_nested():
-            params = request.get_json() or {}
-            phone = params.get('phone')
-            code = params.get('code')
-            if not phone or not code:
-                return make_err_response({}, '缺少phone或code参数')
-            if not _verify_sms_code(phone, 'bind_phone', code):
-                return make_err_response({}, '验证码无效或已过期')
-            current_user = query_user_by_openid(decoded.get('openid'))
-            if not current_user:
-                return make_err_response({}, '用户不存在')
-            
-            from hashlib import sha256
-            phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-            phone_hash = sha256(
-                f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
-            target = User.query.filter_by(phone_hash=phone_hash).first()
-            if target and target.user_id != current_user.user_id:
-                primary = _merge_accounts_by_time(current_user, target)
-                _audit(current_user.user_id, 'bind_phone', {'phone': phone})
-                return make_succ_response({'message': '绑定手机号成功，账号已合并'})
-            current_user.phone_hash = phone_hash
-            current_user.phone_number = phone[:3] + '****' + \
-                phone[-4:] if len(phone) >= 7 else phone
-            update_user_by_id(current_user)
+        params = request.get_json() or {}
+        phone = params.get('phone')
+        code = params.get('code')
+        if not phone or not code:
+            return make_err_response({}, '缺少phone或code参数')
+        if not _verify_sms_code(phone, 'bind_phone', code):
+            return make_err_response({}, '验证码无效或已过期')
+        current_user = query_user_by_openid(decoded.get('openid'))
+        if not current_user:
+            return make_err_response({}, '用户不存在')
+        
+        from hashlib import sha256
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(
+            f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
+        target = User.query.filter_by(phone_hash=phone_hash).first()
+        if target and target.user_id != current_user.user_id:
+            primary = _merge_accounts_by_time(current_user, target)
             _audit(current_user.user_id, 'bind_phone', {'phone': phone})
-            return make_succ_response({'message': '绑定手机号成功'})
+            return make_succ_response({'message': '绑定手机号成功，账号已合并'})
+        
+        # 直接更新用户信息，避免嵌套事务问题
+        current_user.phone_hash = phone_hash
+        current_user.phone_number = phone[:3] + '****' + \
+            phone[-4:] if len(phone) >= 7 else phone
+        current_user.updated_at = datetime.datetime.now()
+        
+        db.session.commit()
+        _audit(current_user.user_id, 'bind_phone', {'phone': phone})
+        return make_succ_response({'message': '绑定手机号成功'})
     except Exception as e:
         db.session.rollback()
         app.logger.error(f'绑定手机号失败: {str(e)}', exc_info=True)

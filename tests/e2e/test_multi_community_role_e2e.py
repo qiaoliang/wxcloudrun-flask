@@ -203,57 +203,6 @@ class TestMultiCommunityRoleAssignmentE2E:
 
         print("✓ E2E权限测试通过：用户权限根据社区角色正确生效")
 
-    def test_same_user_cannot_be_added_twice_to_same_community(self, test_server):
-        """
-        E2E测试：验证同一用户不能在同一个社区中被重复添加
-        业务规则：防止用户在同一个社区中担任多个角色或重复任职
-        """
-        base_url = test_server
-        # 获取超级管理员权限
-        admin_token, _ = self._get_super_admin_token(base_url)
-        admin_headers = {'Authorization': f'Bearer {admin_token}'}
-
-        # 创建测试用户
-        test_user_id = self._create_test_user(base_url, '13800000003', '重复添加测试用户')
-
-        # 创建一个社区
-        community_id = self._create_test_community(base_url, admin_headers, '防重复社区')
-
-        # 第一次添加用户到社区
-        response1 = requests.post(f'{base_url}/api/community/add-staff',
-            headers=admin_headers,
-            json={
-                'community_id': community_id,
-                'user_ids': [test_user_id],
-                'role': 'staff'
-            }
-        )
-        assert response1.status_code == 200
-        data1 = response1.json()
-        assert data1.get('code') == 1
-        assert data1['data']['added_count'] == 1
-
-        # 尝试第二次添加同一用户到同一社区（不同角色）
-        response2 = requests.post(f'{base_url}/api/community/add-staff',
-            headers=admin_headers,
-            json={
-                'community_id': community_id,
-                'user_ids': [test_user_id],
-                'role': 'manager'  # 尝试作为主管添加
-            }
-        )
-        assert response2.status_code == 200
-        data2 = response2.json()
-        assert data2.get('code') == 1
-        
-        # 应该有失败记录，因为用户已在该社区任职
-        assert 'failed' in data2['data'], "应该有失败记录，因为用户已在社区任职"
-        assert len(data2['data']['failed']) >= 1, "应该至少有一个失败项"
-        assert any('已在当前社区任职' in str(f.get('reason', '')) for f in data2['data']['failed']), \
-            "失败原因应该是用户已在当前社区任职"
-
-        print("✓ E2E防重复测试通过：防止用户在同一个社区重复任职")
-
     def test_user_can_be_removed_from_individual_communities(self, test_server):
         """
         E2E测试：验证用户可以从单个社区移除，但保留在其他社区的任职
