@@ -49,6 +49,95 @@ def _format_community_data(community):
     }
 
 
+@app.route('/api/community/list', methods=['GET'])
+def get_community_list():
+    """获取社区列表 (新版API,支持分页和筛选)"""
+    from wxcloudrun.model_community_extensions import CommunityStaff
+    
+    app_logger.info('=== 开始获取社区列表 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    # 检查权限: 仅super_admin
+    if user.role != 4:
+        return make_err_response({}, '权限不足，需要超级管理员权限')
+    
+    try:
+        # 获取请求参数
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+        status_filter = request.args.get('status', 'all')  # all/active/inactive
+        
+        # 构建查询
+        query = Community.query
+        
+        # 状态筛选
+        if status_filter == 'active':
+            query = query.filter_by(status=1)
+        elif status_filter == 'inactive':
+            query = query.filter_by(status=2)
+        
+        # 分页
+        total = query.count()
+        offset = (page - 1) * page_size
+        communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
+        
+        # 格式化响应数据
+        result = []
+        for community in communities:
+            # 获取主管信息
+            manager = CommunityStaff.query.filter_by(
+                community_id=community.community_id,
+                role='manager'
+            ).first()
+            
+            manager_name = None
+            manager_id = None
+            if manager:
+                manager_user = User.query.get(manager.user_id)
+                if manager_user:
+                    manager_name = manager_user.nickname
+                    manager_id = str(manager.user_id)
+            
+            community_data = {
+                'id': str(community.community_id),
+                'name': community.name,
+                'location': community.location or '',
+                'location_lat': None,  # TODO: 添加到数据库字段
+                'location_lon': None,  # TODO: 添加到数据库字段
+                'status': 'active' if community.status == 1 else 'inactive',
+                'manager_id': manager_id,
+                'manager_name': manager_name,
+                'description': community.description or '',
+                'created_at': community.created_at.isoformat() if community.created_at else None,
+                'updated_at': community.updated_at.isoformat() if community.updated_at else None
+            }
+            result.append(community_data)
+        
+        has_more = (page * page_size) < total
+        
+        app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
+        return make_succ_response({
+            'communities': result,
+            'total': total,
+            'has_more': has_more,
+            'current_page': page
+        })
+    
+    except Exception as e:
+        app_logger.error(f'获取社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取社区列表失败: {str(e)}')
+
+
 @app.route('/api/communities', methods=['GET'])
 def get_communities():
     """获取社区列表（超级管理员专用）"""
@@ -929,3 +1018,993 @@ def update_admin_role(community_id, user_id):
         db.session.rollback()
         app_logger.error(f'更新管理员角色失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'更新管理员角色失败: {str(e)}')
+
+
+# ============================================
+# 工作人员管理相关API
+# ============================================
+
+@app.route('/api/community/staff/list', methods=['GET'])
+def get_community_staff_list():
+    """获取社区工作人员列表"""
+    from wxcloudrun.model_community_extensions import CommunityStaff
+    
+    app_logger.info('=== 开始获取社区工作人员列表 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    try:
+        # 获取请求参数
+        community_id = request.args.get('community_id')
+        role_filter = request.args.get('role', 'all')  # all/manager/staff
+        sort_by = request.args.get('sort_by', 'time')  # name/role/time
+        
+        if not community_id:
+            return make_err_response({}, '缺少社区ID参数')
+        
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 权限检查: super_admin 或 community_manager
+        if user.role != 4:  # 不是super_admin
+            # 检查是否是该社区的manager
+            staff_record = CommunityStaff.query.filter_by(
+                community_id=community_id,
+                user_id=user_id,
+                role='manager'
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
+        
+        # 构建查询
+        query = CommunityStaff.query.filter_by(community_id=community_id)
+        
+        # 角色筛选
+        if role_filter != 'all':
+            query = query.filter_by(role=role_filter)
+        
+        # 排序
+        if sort_by == 'name':
+            query = query.join(User).order_by(User.nickname)
+        elif sort_by == 'role':
+            query = query.order_by(CommunityStaff.role.desc())  # manager在前
+        else:  # time
+            query = query.order_by(CommunityStaff.added_at.desc())
+        
+        staff_list = query.all()
+        
+        # 格式化响应数据
+        staff_members = []
+        for staff in staff_list:
+            staff_user = User.query.get(staff.user_id)
+            if not staff_user:
+                continue
+            
+            # 获取该用户所属的所有社区
+            user_communities = []
+            user_staff_records = CommunityStaff.query.filter_by(user_id=staff.user_id).all()
+            for record in user_staff_records:
+                comm = Community.query.get(record.community_id)
+                if comm:
+                    user_communities.append({
+                        'id': str(comm.community_id),
+                        'name': comm.name,
+                        'location': comm.location or ''
+                    })
+            
+            member_data = {
+                'user_id': str(staff_user.user_id),
+                'nickname': staff_user.nickname,
+                'avatar_url': staff_user.avatar_url,
+                'phone_number': staff_user.phone_number,
+                'role': staff.role,
+                'communities': user_communities,
+                'added_time': staff.added_at.isoformat() if staff.added_at else None
+            }
+            
+            # 仅staff角色有scope字段
+            if staff.role == 'staff' and staff.scope:
+                member_data['scope'] = staff.scope
+            
+            staff_members.append(member_data)
+        
+        app_logger.info(f'成功获取社区工作人员列表，共 {len(staff_members)} 人')
+        return make_succ_response({'staff_members': staff_members})
+    
+    except Exception as e:
+        app_logger.error(f'获取社区工作人员列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取工作人员列表失败: {str(e)}')
+
+
+@app.route('/api/community/add-staff', methods=['POST'])
+def add_community_staff():
+    """添加社区工作人员"""
+    from wxcloudrun.model_community_extensions import CommunityStaff
+    
+    app_logger.info('=== 开始添加社区工作人员 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        user_ids = data.get('user_ids', [])
+        role = data.get('role', 'staff')  # manager 或 staff
+        
+        if not community_id:
+            return make_err_response({}, '缺少社区ID')
+        
+        if not user_ids or not isinstance(user_ids, list):
+            return make_err_response({}, '用户ID列表不能为空')
+        
+        if role not in ['manager', 'staff']:
+            return make_err_response({}, '角色参数错误，必须是manager或staff')
+        
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 权限检查: super_admin 或 community_manager
+        if user.role != 4:  # 不是super_admin
+            staff_record = CommunityStaff.query.filter_by(
+                community_id=community_id,
+                user_id=user_id,
+                role='manager'
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
+        
+        # 如果是添加主管,只能添加一个
+        if role == 'manager' and len(user_ids) > 1:
+            return make_err_response({}, '主管只能添加一个')
+        
+        # 检查是否已有主管
+        if role == 'manager':
+            existing_manager = CommunityStaff.query.filter_by(
+                community_id=community_id,
+                role='manager'
+            ).first()
+            if existing_manager:
+                return make_err_response({}, '该社区已有主管')
+        
+        added_count = 0
+        failed = []
+        
+        for uid in user_ids:
+            try:
+                # 检查用户是否存在
+                target_user = User.query.get(uid)
+                if not target_user:
+                    failed.append({'user_id': uid, 'reason': '用户不存在'})
+                    continue
+                
+                # 检查是否已是工作人员
+                existing = CommunityStaff.query.filter_by(
+                    community_id=community_id,
+                    user_id=uid
+                ).first()
+                
+                if existing:
+                    failed.append({'user_id': uid, 'reason': '用户已是工作人员'})
+                    continue
+                
+                # 添加工作人员
+                staff = CommunityStaff(
+                    community_id=community_id,
+                    user_id=uid,
+                    role=role
+                )
+                db.session.add(staff)
+                added_count += 1
+                
+            except Exception as e:
+                app_logger.error(f'添加工作人员失败 user_id={uid}: {str(e)}')
+                failed.append({'user_id': uid, 'reason': str(e)})
+        
+        db.session.commit()
+        
+        app_logger.info(f'添加工作人员完成: 成功{added_count}人, 失败{len(failed)}人')
+        
+        if added_count == 0:
+            return make_err_response({'failed': failed}, '添加失败')
+        
+        return make_succ_response({
+            'added_count': added_count,
+            'failed': failed
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'添加社区工作人员失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'添加工作人员失败: {str(e)}')
+
+
+@app.route('/api/community/remove-staff', methods=['POST'])
+def remove_community_staff():
+    """移除社区工作人员"""
+    from wxcloudrun.model_community_extensions import CommunityStaff
+    
+    app_logger.info('=== 开始移除社区工作人员 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        target_user_id = data.get('user_id')
+        
+        if not community_id or not target_user_id:
+            return make_err_response({}, '缺少必要参数')
+        
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 权限检查: super_admin 或 community_manager
+        if user.role != 4:  # 不是super_admin
+            staff_record = CommunityStaff.query.filter_by(
+                community_id=community_id,
+                user_id=user_id,
+                role='manager'
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
+        
+        # 查找工作人员记录
+        staff = CommunityStaff.query.filter_by(
+            community_id=community_id,
+            user_id=target_user_id
+        ).first()
+        
+        if not staff:
+            return make_err_response({}, '工作人员不存在')
+        
+        # 删除记录
+        db.session.delete(staff)
+        db.session.commit()
+        
+        app_logger.info(f'移除工作人员成功: 社区{community_id}, 用户{target_user_id}')
+        return make_succ_response({})
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'移除社区工作人员失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'移除工作人员失败: {str(e)}')
+
+
+# ============================================
+# 社区用户管理相关API
+# ============================================
+
+@app.route('/api/community/users', methods=['GET'])
+def get_community_users_list():
+    """获取社区用户列表 (新版API)"""
+    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    from wxcloudrun.model import CheckinRecord
+    from datetime import date
+    
+    app_logger.info('=== 开始获取社区用户列表 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    try:
+        # 获取请求参数
+        community_id = request.args.get('community_id')
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+        
+        if not community_id:
+            return make_err_response({}, '缺少社区ID参数')
+        
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 权限检查: super_admin, community_manager 或 community_staff
+        if user.role != 4:  # 不是super_admin
+            staff_record = CommunityStaff.query.filter_by(
+                community_id=community_id,
+                user_id=user_id
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
+        
+        # 分页查询社区成员
+        offset = (page - 1) * page_size
+        query = CommunityMember.query.filter_by(community_id=community_id)
+        total = query.count()
+        members = query.order_by(CommunityMember.joined_at.desc()).offset(offset).limit(page_size).all()
+        
+        # 格式化响应数据
+        users = []
+        today = date.today()
+        
+        for member in members:
+            member_user = User.query.get(member.user_id)
+            if not member_user:
+                continue
+            
+            # 获取今日未完成打卡数和详情
+            from sqlalchemy import and_
+            unchecked_records = CheckinRecord.query.filter(
+                and_(
+                    CheckinRecord.user_id == member.user_id,
+                    CheckinRecord.checkin_date == today,
+                    CheckinRecord.status.in_(['pending', 'missed'])
+                )
+            ).all()
+            
+            unchecked_items = []
+            for record in unchecked_records:
+                if record.rule:
+                    unchecked_items.append({
+                        'rule_id': str(record.rule_id),
+                        'rule_name': record.rule.rule_name,
+                        'planned_time': record.rule.planned_time.strftime('%H:%M:%S') if record.rule.planned_time else None
+                    })
+            
+            user_data = {
+                'user_id': str(member_user.user_id),
+                'nickname': member_user.nickname,
+                'avatar_url': member_user.avatar_url,
+                'phone_number': member_user.phone_number,
+                'join_time': member.joined_at.isoformat() if member.joined_at else None,
+                'unchecked_count': len(unchecked_items),
+                'unchecked_items': unchecked_items
+            }
+            
+            users.append(user_data)
+        
+        has_more = (page * page_size) < total
+        
+        app_logger.info(f'成功获取社区用户列表，共 {len(users)} 人')
+        return make_succ_response({
+            'users': users,
+            'total': total,
+            'has_more': has_more,
+            'current_page': page
+        })
+    
+    except Exception as e:
+        app_logger.error(f'获取社区用户列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取用户列表失败: {str(e)}')
+
+
+@app.route('/api/community/add-users', methods=['POST'])
+def add_community_users():
+    """添加社区用户"""
+    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    
+    app_logger.info('=== 开始添加社区用户 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        user_ids = data.get('user_ids', [])
+        
+        if not community_id:
+            return make_err_response({}, '缺少社区ID')
+        
+        if not user_ids or not isinstance(user_ids, list):
+            return make_err_response({}, '用户ID列表不能为空')
+        
+        if len(user_ids) > 50:
+            return make_err_response({}, '最多只能添加50个用户')
+        
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 权限检查: super_admin, community_manager 或 community_staff
+        if user.role != 4:  # 不是super_admin
+            staff_record = CommunityStaff.query.filter_by(
+                community_id=community_id,
+                user_id=user_id
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
+        
+        added_count = 0
+        failed = []
+        
+        for uid in user_ids:
+            try:
+                # 检查用户是否存在
+                target_user = User.query.get(uid)
+                if not target_user:
+                    failed.append({'user_id': uid, 'reason': '用户不存在'})
+                    continue
+                
+                # 检查是否已在社区
+                existing = CommunityMember.query.filter_by(
+                    community_id=community_id,
+                    user_id=uid
+                ).first()
+                
+                if existing:
+                    failed.append({'user_id': uid, 'reason': '用户已在社区'})
+                    continue
+                
+                # 添加用户到社区
+                member = CommunityMember(
+                    community_id=community_id,
+                    user_id=uid
+                )
+                db.session.add(member)
+                added_count += 1
+                
+            except Exception as e:
+                app_logger.error(f'添加用户失败 user_id={uid}: {str(e)}')
+                failed.append({'user_id': uid, 'reason': str(e)})
+        
+        db.session.commit()
+        
+        app_logger.info(f'添加社区用户完成: 成功{added_count}人, 失败{len(failed)}人')
+        
+        if added_count == 0:
+            return make_err_response({'failed': failed}, '添加失败')
+        
+        return make_succ_response({
+            'added_count': added_count,
+            'failed': failed
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'添加社区用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'添加用户失败: {str(e)}')
+
+
+@app.route('/api/community/remove-user', methods=['POST'])
+def remove_community_user():
+    """移除社区用户"""
+    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    
+    app_logger.info('=== 开始移除社区用户 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        target_user_id = data.get('user_id')
+        
+        if not community_id or not target_user_id:
+            return make_err_response({}, '缺少必要参数')
+        
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 权限检查: super_admin, community_manager 或 community_staff
+        if user.role != 4:  # 不是super_admin
+            staff_record = CommunityStaff.query.filter_by(
+                community_id=community_id,
+                user_id=user_id
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
+        
+        # 查找成员记录
+        member = CommunityMember.query.filter_by(
+            community_id=community_id,
+            user_id=target_user_id
+        ).first()
+        
+        if not member:
+            return make_err_response({}, '用户不在该社区')
+        
+        # 特殊社区逻辑处理
+        moved_to = None
+        
+        # 获取特殊社区ID
+        anka_family = Community.query.filter_by(name='安卡大家庭').first()
+        blackhouse = Community.query.filter_by(name='黑屋').first()
+        
+        # 如果从"安卡大家庭"移除,移入"黑屋"
+        if community.name == '安卡大家庭' and blackhouse:
+            # 检查是否已在黑屋
+            existing_in_blackhouse = CommunityMember.query.filter_by(
+                community_id=blackhouse.community_id,
+                user_id=target_user_id
+            ).first()
+            
+            if not existing_in_blackhouse:
+                blackhouse_member = CommunityMember(
+                    community_id=blackhouse.community_id,
+                    user_id=target_user_id
+                )
+                db.session.add(blackhouse_member)
+                moved_to = '黑屋'
+        
+        # 如果从普通社区移除
+        elif community.name not in ['安卡大家庭', '黑屋']:
+            # 检查用户是否还属于其他普通社区
+            other_memberships = CommunityMember.query.filter(
+                CommunityMember.user_id == target_user_id,
+                CommunityMember.community_id != community_id
+            ).join(Community).filter(
+                Community.name.notin_(['安卡大家庭', '黑屋'])
+            ).count()
+            
+            # 如果不属于任何其他普通社区,移入"安卡大家庭"
+            if other_memberships == 0 and anka_family:
+                # 检查是否已在安卡大家庭
+                existing_in_anka = CommunityMember.query.filter_by(
+                    community_id=anka_family.community_id,
+                    user_id=target_user_id
+                ).first()
+                
+                if not existing_in_anka:
+                    anka_member = CommunityMember(
+                        community_id=anka_family.community_id,
+                        user_id=target_user_id
+                    )
+                    db.session.add(anka_member)
+                    moved_to = '安卡大家庭'
+        
+        # 删除成员记录
+        db.session.delete(member)
+        db.session.commit()
+        
+        app_logger.info(f'移除社区用户成功: 社区{community_id}, 用户{target_user_id}, 移至{moved_to}')
+        return make_succ_response({'moved_to': moved_to})
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'移除社区用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'移除用户失败: {str(e)}')
+
+
+# ============================================
+# 社区CRUD相关API (中优先级)
+# ============================================
+
+@app.route('/api/community/create', methods=['POST'])
+def create_community_new():
+    """创建社区 (新版API)"""
+    app_logger.info('=== 开始创建社区 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    # 检查权限: 仅super_admin
+    if user.role != 4:
+        return make_err_response({}, '权限不足，需要超级管理员权限')
+    
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        location = data.get('location', '').strip()
+        location_lat = data.get('location_lat')
+        location_lon = data.get('location_lon')
+        manager_id = data.get('manager_id')
+        description = data.get('description', '').strip()
+        
+        # 参数验证
+        if not name:
+            return make_err_response({}, '社区名称不能为空')
+        
+        if len(name) < 2 or len(name) > 50:
+            return make_err_response({}, '社区名称长度必须在2-50个字符之间')
+        
+        if not location:
+            return make_err_response({}, '社区位置不能为空')
+        
+        if description and len(description) > 200:
+            return make_err_response({}, '社区描述不能超过200个字符')
+        
+        # 检查社区名称是否已存在
+        existing = Community.query.filter_by(name=name).first()
+        if existing:
+            return make_err_response({}, '社区名称已存在')
+        
+        # 如果指定了主管,检查用户是否存在
+        if manager_id:
+            manager = User.query.get(manager_id)
+            if not manager:
+                return make_err_response({}, '指定的主管不存在')
+        
+        # 创建社区
+        community = Community(
+            name=name,
+            description=description,
+            creator_user_id=user_id,
+            location=location,
+            status=1,  # 默认启用
+            is_default=False
+        )
+        
+        db.session.add(community)
+        db.session.flush()  # 获取community_id
+        
+        # 如果指定了主管,添加到工作人员表
+        if manager_id:
+            from wxcloudrun.model_community_extensions import CommunityStaff
+            staff = CommunityStaff(
+                community_id=community.community_id,
+                user_id=manager_id,
+                role='manager'
+            )
+            db.session.add(staff)
+        
+        db.session.commit()
+        
+        app_logger.info(f'创建社区成功: {name} (ID: {community.community_id})')
+        return make_succ_response({
+            'community_id': str(community.community_id),
+            'name': community.name,
+            'location': community.location,
+            'status': 'active',
+            'created_at': community.created_at.isoformat() if community.created_at else None
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'创建社区失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'创建社区失败: {str(e)}')
+
+
+@app.route('/api/community/update', methods=['POST'])
+def update_community_new():
+    """更新社区信息 (新版API)"""
+    app_logger.info('=== 开始更新社区信息 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    # 检查权限: 仅super_admin
+    if user.role != 4:
+        return make_err_response({}, '权限不足，需要超级管理员权限')
+    
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        
+        if not community_id:
+            return make_err_response({}, '缺少社区ID')
+        
+        # 查找社区
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 更新字段
+        if 'name' in data:
+            name = data['name'].strip()
+            if not name:
+                return make_err_response({}, '社区名称不能为空')
+            if len(name) < 2 or len(name) > 50:
+                return make_err_response({}, '社区名称长度必须在2-50个字符之间')
+            
+            # 检查名称是否与其他社区重复
+            existing = Community.query.filter(
+                Community.name == name,
+                Community.community_id != community_id
+            ).first()
+            if existing:
+                return make_err_response({}, '社区名称已存在')
+            
+            community.name = name
+        
+        if 'location' in data:
+            community.location = data['location'].strip()
+        
+        if 'location_lat' in data:
+            community.location_lat = data['location_lat']
+        
+        if 'location_lon' in data:
+            community.location_lon = data['location_lon']
+        
+        if 'description' in data:
+            desc = data['description'].strip()
+            if desc and len(desc) > 200:
+                return make_err_response({}, '社区描述不能超过200个字符')
+            community.description = desc
+        
+        # 如果更新了主管
+        if 'manager_id' in data:
+            from wxcloudrun.model_community_extensions import CommunityStaff
+            new_manager_id = data['manager_id']
+            
+            if new_manager_id:
+                # 检查新主管是否存在
+                new_manager = User.query.get(new_manager_id)
+                if not new_manager:
+                    return make_err_response({}, '指定的主管不存在')
+                
+                # 移除旧主管
+                old_manager = CommunityStaff.query.filter_by(
+                    community_id=community_id,
+                    role='manager'
+                ).first()
+                if old_manager:
+                    db.session.delete(old_manager)
+                
+                # 添加新主管
+                new_staff = CommunityStaff(
+                    community_id=community_id,
+                    user_id=new_manager_id,
+                    role='manager'
+                )
+                db.session.add(new_staff)
+        
+        db.session.commit()
+        
+        app_logger.info(f'更新社区成功: {community.name} (ID: {community_id})')
+        return make_succ_response({
+            'community_id': str(community_id),
+            'updated_at': community.updated_at.isoformat() if community.updated_at else None
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'更新社区失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'更新社区失败: {str(e)}')
+
+
+@app.route('/api/community/toggle-status', methods=['POST'])
+def toggle_community_status_new():
+    """切换社区状态 (新版API)"""
+    app_logger.info('=== 开始切换社区状态 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    # 检查权限: 仅super_admin
+    if user.role != 4:
+        return make_err_response({}, '权限不足，需要超级管理员权限')
+    
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        status = data.get('status', '').strip()
+        
+        if not community_id:
+            return make_err_response({}, '缺少社区ID')
+        
+        if status not in ['active', 'inactive']:
+            return make_err_response({}, '状态参数错误，必须是active或inactive')
+        
+        # 查找社区
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 特殊社区不能停用
+        if community.name in ['安卡大家庭', '黑屋']:
+            return make_err_response({}, '特殊社区不能停用')
+        
+        # 更新状态
+        community.status = 1 if status == 'active' else 2
+        db.session.commit()
+        
+        app_logger.info(f'切换社区状态成功: {community.name} -> {status}')
+        return make_succ_response({
+            'community_id': str(community_id),
+            'status': status
+        })
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'切换社区状态失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'切换状态失败: {str(e)}')
+
+
+@app.route('/api/community/delete', methods=['POST'])
+def delete_community_new():
+    """删除社区 (新版API)"""
+    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    
+    app_logger.info('=== 开始删除社区 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    # 检查权限: 仅super_admin
+    if user.role != 4:
+        return make_err_response({}, '权限不足，需要超级管理员权限')
+    
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        
+        if not community_id:
+            return make_err_response({}, '缺少社区ID')
+        
+        # 查找社区
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        # 特殊社区不能删除
+        if community.name in ['安卡大家庭', '黑屋']:
+            return make_err_response({}, '特殊社区不能删除')
+        
+        # 检查社区状态
+        if community.status == 1:
+            return make_err_response({}, '请先停用社区')
+        
+        # 检查社区内是否还有用户
+        member_count = CommunityMember.query.filter_by(community_id=community_id).count()
+        if member_count > 0:
+            return make_err_response({
+                'user_count': member_count
+            }, '社区内还有用户，无法删除')
+        
+        # 删除相关数据
+        CommunityStaff.query.filter_by(community_id=community_id).delete()
+        CommunityAdmin.query.filter_by(community_id=community_id).delete()
+        CommunityApplication.query.filter_by(target_community_id=community_id).delete()
+        
+        # 删除社区
+        db.session.delete(community)
+        db.session.commit()
+        
+        app_logger.info(f'删除社区成功: {community.name} (ID: {community_id})')
+        return make_succ_response({})
+    
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'删除社区失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'删除社区失败: {str(e)}')
+
+
+@app.route('/api/user/search', methods=['GET'])
+def search_users_for_community():
+    """搜索用户 (社区管理用)"""
+    from wxcloudrun.model_community_extensions import CommunityStaff, CommunityMember
+    
+    app_logger.info('=== 开始搜索用户 ===')
+    
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+    
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+    
+    try:
+        keyword = request.args.get('keyword', '').strip()
+        community_id = request.args.get('community_id')
+        
+        if not keyword:
+            return make_err_response({}, '搜索关键词不能为空')
+        
+        # 搜索用户 (按昵称或手机号)
+        users_query = User.query.filter(
+            (User.nickname.like(f'%{keyword}%')) | 
+            (User.phone_number.like(f'%{keyword}%'))
+        ).limit(20)
+        
+        users = users_query.all()
+        
+        # 格式化响应
+        result = []
+        for u in users:
+            # 检查是否已是任何社区的工作人员
+            is_staff = CommunityStaff.query.filter_by(user_id=u.user_id).first() is not None
+            
+            user_data = {
+                'user_id': str(u.user_id),
+                'nickname': u.nickname,
+                'avatar_url': u.avatar_url,
+                'phone_number': u.phone_number,
+                'is_staff': is_staff
+            }
+            
+            # 如果指定了community_id,检查是否已在该社区
+            if community_id:
+                already_in = CommunityMember.query.filter_by(
+                    community_id=community_id,
+                    user_id=u.user_id
+                ).first() is not None
+                user_data['already_in_community'] = already_in
+            
+            result.append(user_data)
+        
+        app_logger.info(f'搜索用户成功: 关键词"{keyword}", 找到{len(result)}个用户')
+        return make_succ_response({'users': result})
+    
+    except Exception as e:
+        app_logger.error(f'搜索用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'搜索用户失败: {str(e)}')
