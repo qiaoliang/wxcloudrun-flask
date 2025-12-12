@@ -68,3 +68,9 @@ def test_rule(test_db, test_user):
     test_db.session.add(rule)
     test_db.session.commit()
     return rule
+
+
+@pytest.fixture(scope='function')
+def test_client(test_app):
+    """创建测试客户端"""
+    return test_app.test_client()

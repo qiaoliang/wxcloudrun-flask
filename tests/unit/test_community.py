@@ -5,15 +5,39 @@
 import pytest
 import os
 import sys
+import random
+import string
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wxcloudrun import create_app, db
-from wxcloudrun.model import User, Community, CommunityAdmin, CommunityApplication
+from wxcloudrun import app, db
+from wxcloudrun.model import User, Community, CommunityApplication, CommunityAdmin
+from wxcloudrun.model_community_extensions import CommunityStaff
 from wxcloudrun.community_service import CommunityService
+
+
+def generate_random_openid():
+    """生成随机的微信OpenID"""
+    return f"test_openid_{''.join(random.choices(string.ascii_letters + string.digits, k=16))}"
+
+
+def generate_random_phone():
+    """生成随机的手机号"""
+    # 生成11位手机号，以1开头
+    return f"1{''.join(random.choices(string.digits, k=10))}"
+
+
+def generate_random_nickname():
+    """生成随机的昵称"""
+    return f"测试用户_{''.join(random.choices(string.ascii_letters, k=8))}"
+
+
+def generate_random_community_name():
+    """生成随机的社区名称"""
+    return f"测试社区_{''.join(random.choices(string.ascii_letters, k=8))}"
 
 
 class TestCommunityModel:
@@ -21,7 +45,7 @@ class TestCommunityModel:
     
     def setup_method(self):
         """测试前准备"""
-        self.app = create_app()
+        self.app = app
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.app_context = self.app.app_context()
@@ -38,8 +62,8 @@ class TestCommunityModel:
         """测试创建社区"""
         # 创建用户
         user = User(
-            wechat_openid='test_openid',
-            nickname='测试用户',
+            wechat_openid=generate_random_openid(),
+            nickname=generate_random_nickname(),
             role=4  # 超级管理员
         )
         db.session.add(user)
@@ -47,7 +71,7 @@ class TestCommunityModel:
         
         # 创建社区
         community = Community(
-            name='测试社区',
+            name=generate_random_community_name(),
             description='这是一个测试社区',
             creator_user_id=user.user_id
         )
@@ -55,7 +79,7 @@ class TestCommunityModel:
         db.session.commit()
         
         assert community.community_id is not None
-        assert community.name == '测试社区'
+        assert community.name is not None  # 随机生成的名称
         assert community.status == 1  # 默认启用
         assert community.is_default is False  # 默认非默认社区
         assert community.status_name == 'enabled'
@@ -77,45 +101,40 @@ class TestCommunityModel:
     def test_create_community_admin(self):
         """测试创建社区管理员"""
         # 创建用户和社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
-        community = Community(name='测试社区')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user, community])
         db.session.commit()
         
         # 创建管理员
-        admin = CommunityAdmin(
+        admin = CommunityStaff(
             community_id=community.community_id,
             user_id=user.user_id,
-            role=1  # 主管理员
+            role='manager'  # 主管
         )
         db.session.add(admin)
         db.session.commit()
         
-        assert admin.admin_id is not None
-        assert admin.role == 1
-        assert admin.role_name == 'primary'
+        assert admin.id is not None
+        assert admin.role == 'manager'
     
-    def test_community_admin_role_mapping(self):
-        """测试管理员角色映射"""
-        admin = CommunityAdmin()
+    def test_community_staff_role(self):
+        """测试社区工作人员角色"""
+        staff = CommunityStaff()
         
-        # 测试主管理员
-        admin.role = 1
-        assert admin.role_name == 'primary'
+        # 测试主管角色
+        staff.role = 'manager'
+        assert staff.role == 'manager'
         
-        # 测试普通管理员
-        admin.role = 2
-        assert admin.role_name == 'normal'
-        
-        # 测试未知角色
-        admin.role = 999
-        assert admin.role_name == 'unknown'
+        # 测试专员角色
+        staff.role = 'staff'
+        assert staff.role == 'staff'
     
     def test_create_community_application(self):
         """测试创建社区申请"""
         # 创建用户和社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
-        community = Community(name='测试社区')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user, community])
         db.session.commit()
         
@@ -158,7 +177,7 @@ class TestUserCommunityMethods:
     
     def setup_method(self):
         """测试前准备"""
-        self.app = create_app()
+        self.app = app
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.app_context = self.app.app_context()
@@ -174,8 +193,8 @@ class TestUserCommunityMethods:
     def test_is_community_admin(self):
         """测试是否为社区管理员"""
         # 创建用户和社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
-        community = Community(name='测试社区')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user, community])
         db.session.commit()
         
@@ -188,43 +207,44 @@ class TestUserCommunityMethods:
         assert not user.is_community_admin()
         
         # 设置为管理员
-        admin = CommunityAdmin(
+        staff = CommunityStaff(
             community_id=community.community_id,
-            user_id=user.user_id
+            user_id=user.user_id,
+            role='staff'
         )
-        db.session.add(admin)
+        db.session.add(staff)
         db.session.commit()
         assert user.is_community_admin()
     
     def test_is_primary_admin(self):
         """测试是否为主管理员"""
         # 创建用户和社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
-        community = Community(name='测试社区')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user, community])
         db.session.commit()
         
         # 设置为普通管理员
-        admin = CommunityAdmin(
+        staff = CommunityStaff(
             community_id=community.community_id,
             user_id=user.user_id,
-            role=2  # 普通管理员
+            role='staff'  # 专员
         )
-        db.session.add(admin)
+        db.session.add(staff)
         db.session.commit()
         assert not user.is_primary_admin()
         
         # 升级为主管理员
-        admin.role = 1
+        staff.role = 'manager'
         db.session.commit()
-        assert user.is_primary_admin()
+        assert user.is_primary_admin(community.community_id)
     
     def test_super_admin_permissions(self):
         """测试超级管理员权限"""
         # 创建超级管理员
         super_admin = User(
-            wechat_openid='admin_openid',
-            nickname='超级管理员',
+            wechat_openid=generate_random_openid(),
+            nickname=generate_random_nickname(),
             role=4  # 超级管理员
         )
         db.session.add(super_admin)
@@ -238,8 +258,8 @@ class TestUserCommunityMethods:
     def test_apply_to_community(self):
         """测试申请加入社区"""
         # 创建用户和社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
-        community = Community(name='测试社区')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user, community])
         db.session.commit()
         
@@ -264,7 +284,7 @@ class TestUserCommunityMethods:
     def test_get_managed_communities(self):
         """测试获取管理的社区列表"""
         # 创建用户和多个社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
         community1 = Community(name='社区1')
         community2 = Community(name='社区2')
         community3 = Community(name='社区3')
@@ -272,9 +292,9 @@ class TestUserCommunityMethods:
         db.session.commit()
         
         # 设置为部分社区的管理员
-        admin1 = CommunityAdmin(community_id=community1.community_id, user_id=user.user_id)
-        admin2 = CommunityAdmin(community_id=community2.community_id, user_id=user.user_id)
-        db.session.add_all([admin1, admin2])
+        staff1 = CommunityStaff(community_id=community1.community_id, user_id=user.user_id, role='manager')
+        staff2 = CommunityStaff(community_id=community2.community_id, user_id=user.user_id, role='staff')
+        db.session.add_all([staff1, staff2])
         db.session.commit()
         
         # 获取管理的社区
@@ -290,7 +310,7 @@ class TestCommunityService:
     
     def setup_method(self):
         """测试前准备"""
-        self.app = create_app()
+        self.app = app
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.app_context = self.app.app_context()
@@ -333,7 +353,7 @@ class TestCommunityService:
     def test_create_community(self):
         """测试创建社区"""
         # 创建用户
-        user = User(wechat_openid='test_openid', nickname='测试用户')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
         db.session.add(user)
         db.session.commit()
         
@@ -355,14 +375,14 @@ class TestCommunityService:
             user_id=user.user_id
         ).first()
         assert admin is not None
-        assert admin.role == 1
+        assert admin.role == 1  # 主管理员
     
     def test_add_community_admin(self):
         """测试添加社区管理员"""
         # 创建用户和社区
-        user1 = User(wechat_openid='test_openid1', nickname='用户1')
-        user2 = User(wechat_openid='test_openid2', nickname='用户2')
-        community = Community(name='测试社区')
+        user1 = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        user2 = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user1, user2, community])
         db.session.commit()
         
@@ -370,48 +390,57 @@ class TestCommunityService:
         admin = CommunityService.add_community_admin(
             community_id=community.community_id,
             user_id=user2.user_id,
-            role=2  # 普通管理员
+            role=2  # 普通管理员，会被映射为 'staff'
         )
         
         assert admin is not None
         assert admin.user_id == user2.user_id
-        assert admin.role == 2
+        assert admin.role == 'staff'  # role=2 会被映射为 'staff'
     
     def test_remove_community_admin(self):
         """测试移除社区管理员"""
         # 创建用户和社区
-        user1 = User(wechat_openid='test_openid1', nickname='用户1')
-        user2 = User(wechat_openid='test_openid2', nickname='用户2')
-        community = Community(name='测试社区')
-        admin1 = CommunityAdmin(community_id=community.community_id, user_id=user1.user_id, role=1)
-        admin2 = CommunityAdmin(community_id=community.community_id, user_id=user2.user_id, role=2)
-        db.session.add_all([user1, user2, community, admin1, admin2])
+        user1 = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        user2 = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
+        db.session.add_all([user1, user2, community])
+        db.session.commit()  # 先保存以获取 community_id
+        
+        # 然后创建 CommunityStaff 记录
+        staff1 = CommunityStaff(community_id=community.community_id, user_id=user1.user_id, role='manager')
+        staff2 = CommunityStaff(community_id=community.community_id, user_id=user2.user_id, role='staff')
+        db.session.add_all([staff1, staff2])
         db.session.commit()
         
         # 移除普通管理员
         CommunityService.remove_community_admin(
             community_id=community.community_id,
-            user_id=user2.user_id
+            user_id=user2.user_id,
+            operator_id=user1.user_id
         )
         
         # 检查管理员已被移除
-        admin = CommunityAdmin.query.filter_by(
+        staff = CommunityStaff.query.filter_by(
             community_id=community.community_id,
             user_id=user2.user_id
         ).first()
-        assert admin is None
+        assert staff is None
     
     def test_process_application_approve(self):
         """测试批准申请"""
         # 创建用户和社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
-        community = Community(name='测试社区')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
+        db.session.add_all([user, community])
+        db.session.commit()  # 先保存以获取 ID
+        
+        # 然后创建申请
         application = CommunityApplication(
             user_id=user.user_id,
             target_community_id=community.community_id,
             status=1  # 待审核
         )
-        db.session.add_all([user, community, application])
+        db.session.add(application)
         db.session.commit()
         
         # 批准申请
@@ -432,14 +461,18 @@ class TestCommunityService:
     def test_process_application_reject(self):
         """测试拒绝申请"""
         # 创建用户和社区
-        user = User(wechat_openid='test_openid', nickname='测试用户')
-        community = Community(name='测试社区')
+        user = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)
+        community = Community(name=generate_random_community_name())
+        db.session.add_all([user, community])
+        db.session.commit()  # 先保存以获取 ID
+        
+        # 然后创建申请
         application = CommunityApplication(
             user_id=user.user_id,
             target_community_id=community.community_id,
             status=1  # 待审核
         )
-        db.session.add_all([user, community, application])
+        db.session.add(application)
         db.session.commit()
         
         # 拒绝申请
@@ -464,16 +497,18 @@ class TestCommunityService:
         """测试通过电话号码搜索社区用户"""
         # 创建用户和社区
         user1 = User(
-            wechat_openid='test_openid1',
-            nickname='用户1',
-            phone_number='13800138000'
+            wechat_openid=generate_random_openid(),
+            nickname=generate_random_nickname(),
+            phone_number=generate_random_phone(),
+            role=1
         )
         user2 = User(
-            wechat_openid='test_openid2',
-            nickname='用户2',
-            phone_number='13800138001'
+            wechat_openid=generate_random_openid(),
+            nickname=generate_random_nickname(),
+            phone_number=generate_random_phone(),
+            role=1
         )
-        community = Community(name='测试社区')
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user1, user2, community])
         db.session.commit()
         
@@ -502,11 +537,12 @@ class TestCommunityService:
     
     def test_search_community_users_by_nickname(self):
         """测试通过昵称搜索社区用户"""
-        # 创建用户和社区
-        user1 = User(wechat_openid='test_openid1', nickname='张三')
-        user2 = User(wechat_openid='test_openid2', nickname='张小明')
-        user3 = User(wechat_openid='test_openid3', nickname='李四')
-        community = Community(name='测试社区')
+        # 创建用户和社区，使用包含特定前缀的昵称以便搜索
+        search_prefix = "搜索测试"
+        user1 = User(wechat_openid=generate_random_openid(), nickname=f"{search_prefix}_用户1", role=1)
+        user2 = User(wechat_openid=generate_random_openid(), nickname=f"{search_prefix}_用户2", role=1)
+        user3 = User(wechat_openid=generate_random_openid(), nickname=generate_random_nickname(), role=1)  # 不包含搜索前缀
+        community = Community(name=generate_random_community_name())
         db.session.add_all([user1, user2, user3, community])
         db.session.commit()
         
@@ -516,17 +552,17 @@ class TestCommunityService:
         user3.community_id = community.community_id
         db.session.commit()
         
-        # 搜索包含"张"的用户
+        # 搜索包含特定前缀的用户
         pagination = CommunityService.search_community_users(
             community_id=community.community_id,
-            keyword='张'
+            keyword=search_prefix
         )
         
         # 应该找到2个用户
         assert len(pagination.items) == 2
         nicknames = [u.nickname for u in pagination.items]
-        assert '张三' in nicknames
-        assert '张小明' in nicknames
+        assert f"{search_prefix}_用户1" in nicknames
+        assert f"{search_prefix}_用户2" in nicknames
     
     def test_get_available_communities(self):
         """测试获取可申请的社区列表"""

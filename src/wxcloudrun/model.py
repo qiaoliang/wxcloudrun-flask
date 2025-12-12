@@ -380,7 +380,7 @@ def get_supervised_rules(self, solo_user_id):
 # 社区相关方法
 def is_community_admin(self, community_id=None):
     """检查用户是否为社区管理员（主管或专员）"""
-    if self.role == 4:  # 社区超级管理员
+    if self.is_super_admin():
         return True
     
     # 动态导入以避免循环导入
@@ -405,7 +405,7 @@ def is_community_admin(self, community_id=None):
 
 def is_primary_admin(self, community_id=None):
     """检查用户是否为社区主管（原主管理员）"""
-    if self.role == 4:  # 社区超级管理员
+    if self.is_super_admin():
         return True
     
     if community_id is None:
@@ -426,7 +426,7 @@ def is_primary_admin(self, community_id=None):
 
 def get_managed_communities(self):
     """获取用户管理的社区列表"""
-    if self.role == 4:  # 社区超级管理员
+    if self.is_super_admin():
         return Community.query.filter_by(status=1).all()
     
     # 从 CommunityStaff 表获取用户管理的社区
@@ -435,9 +435,14 @@ def get_managed_communities(self):
     return [role.community for role in staff_roles if role.community and role.community.status == 1]
 
 
+def is_super_admin(self):
+    """检查用户是否为超级管理员"""
+    return self.role == 4
+
+
 def can_manage_community(self, community_id):
     """检查用户是否可以管理指定社区"""
-    if self.role == 4:  # 社区超级管理员
+    if self.is_super_admin():
         return True
     
     return self.is_community_admin(community_id)
@@ -486,6 +491,7 @@ User.can_supervise_user = can_supervise_user
 User.can_supervise_rule = can_supervise_rule
 User.get_supervised_users = get_supervised_users
 User.get_supervised_rules = get_supervised_rules
+User.is_super_admin = is_super_admin
 User.is_community_admin = is_community_admin
 User.is_primary_admin = is_primary_admin
 User.get_managed_communities = get_managed_communities

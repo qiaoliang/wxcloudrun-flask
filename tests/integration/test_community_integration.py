@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wxcloudrun import create_app, db
+from wxcloudrun import app, db
 from wxcloudrun.model import User, Community, CommunityAdmin, CommunityApplication
 from wxcloudrun.community_service import CommunityService
 from config_manager import get_token_secret
@@ -23,7 +23,7 @@ class TestCommunityAPI:
     
     def setup_method(self):
         """测试前准备"""
-        self.app = create_app()
+        self.app = app
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.client = self.app.test_client()
@@ -441,7 +441,7 @@ class TestCommunityWorkflow:
     
     def setup_method(self):
         """测试前准备"""
-        self.app = create_app()
+        self.app = app
         self.app.config['TESTING'] = True
         self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
         self.client = self.app.test_client()
