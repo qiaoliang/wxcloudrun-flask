@@ -77,7 +77,7 @@
 
 ### 1.2 创建社区
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/create`
 - **认证**: Bearer Token (super_admin)
@@ -121,7 +121,7 @@
 
 ### 1.3 更新社区信息
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/update`
 - **认证**: Bearer Token (super_admin)
@@ -163,7 +163,7 @@
 
 ### 1.4 切换社区状态
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/toggle-status`
 - **认证**: Bearer Token (super_admin)
@@ -202,7 +202,7 @@
 
 ### 1.5 删除社区
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/delete`
 - **认证**: Bearer Token (super_admin)
@@ -249,7 +249,7 @@
 
 ### 1.6 合并社区
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/merge`
 - **认证**: Bearer Token (super_admin)
@@ -292,7 +292,7 @@
 
 ### 1.7 拆分社区
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/split`
 - **认证**: Bearer Token (super_admin)
@@ -355,7 +355,7 @@
 
 ### 2.1 获取工作人员列表
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `GET /api/community/staff/list`
 - **认证**: Bearer Token (super_admin, community_manager)
@@ -409,7 +409,7 @@
 
 ### 2.2 添加工作人员
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/add-staff`
 - **认证**: Bearer Token (super_admin, community_manager)
@@ -469,7 +469,7 @@
 
 ### 2.3 移除工作人员
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/remove-staff`
 - **认证**: Bearer Token (super_admin, community_manager)
@@ -503,7 +503,7 @@
 
 ### 2.4 搜索用户
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `GET /api/user/search`
 - **认证**: Bearer Token (super_admin, community_manager, community_staff)
@@ -550,7 +550,7 @@
 
 ### 3.1 获取社区用户列表
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `GET /api/community/users`
 - **认证**: Bearer Token (super_admin, community_manager, community_staff)
@@ -606,7 +606,7 @@
 
 ### 3.2 添加社区用户
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/add-users`
 - **认证**: Bearer Token (super_admin, community_manager, community_staff)
@@ -660,7 +660,7 @@
 
 ### 3.3 移除社区用户
 
-**状态**: ⏳ 待实现
+**状态**: ✅ 已实现
 
 - **路径**: `POST /api/community/remove-user`
 - **认证**: Bearer Token (super_admin, community_manager, community_staff)
