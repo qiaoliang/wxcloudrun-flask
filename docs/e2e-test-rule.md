@@ -10,7 +10,13 @@
 在本文件所在目录的父目录下执行命令 `make test-e2e`，运行端到端的全部测试套件。即：
 
 ```bash
-cd .. && make test-e2e
+cd .. 
+# 运行所有测试文件
+make test-e2e
+# 运行单个测试文件
+make test-e2e-single TEST=test_multi_community_role_e2e.py
+# 运行单个测试函数
+make test-e2e-single TEST=test_multi_community_role_e2e.py::TestMultiCommunityRole::test_user_can_join_multiple_communities
 ```
 
 ### 端到端测试代码的位置

@@ -10,6 +10,7 @@ help:
 	@echo "  make test-integration - 运行集成测试"
 	@echo "  make test-migration - 运行数据库迁移测试"
 	@echo "  make test-e2e     - 运行E2E测试（需要Docker）"
+	@echo "  make test-e2e-single TEST=<test> - 运行单个E2E测试用例"
 	@echo "  make test-all     - 运行所有测试"
 	@echo "  make test-coverage - 生成测试覆盖率报告"
 	@echo "  make clean        - 清理测试文件"
@@ -26,6 +27,8 @@ help:
 	@echo "  make test-integration VERBOSE=1  # 详细输出"
 	@echo "  make test-migration       # 运行迁移测试"
 	@echo "  make test-migration VERBOSE=1  # 详细输出"
+	@echo "  make test-e2e-single TEST=test_multi_community_role_e2e.py  # 运行单个E2E测试文件"
+	@echo "  make test-e2e-single TEST=test_multi_community_role_e2e.py::TestMultiCommunityRole::test_user_can_join_multiple_communities  # 运行单个测试函数"
 
 # 设置测试环境
 setup:
@@ -165,3 +168,19 @@ test-e2e: setup
 	source venv_py312/bin/activate && \
 	python -m pytest tests/e2e/ -v
 	@echo "✓ E2E测试完成"
+
+# 运行单个E2E测试用例
+test-e2e-single: setup
+	@if [ -z "$(TEST)" ]; then \
+		echo "请指定测试文件或测试函数，例如:"; \
+		echo "  make test-e2e-single TEST=test_multi_community_role_e2e.py"; \
+		echo "  make test-e2e-single TEST=test_multi_community_role_e2e.py::TestMultiCommunityRole::test_user_can_join_multiple_communities"; \
+		exit 1; \
+	fi
+	@echo "=== 运行单个E2E测试用例 ==="
+	@echo "测试: $(TEST)"
+	@echo "注意: 测试将启动独立的 Flask 进程，使用内存数据库"
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	python -m pytest tests/e2e/$(TEST) -v
+	@echo "✓ 单个E2E测试完成"

@@ -846,6 +846,8 @@ def get_user_community():
 @app.route('/api/user/managed-communities', methods=['GET'])
 def get_managed_communities():
     """获取当前用户管理的社区列表"""
+    from wxcloudrun.model_community_extensions import CommunityStaff
+    
     app.logger.info('=== 开始获取用户管理的社区列表 ===')
     
     # 验证token
@@ -856,9 +858,18 @@ def get_managed_communities():
     user_id = decoded.get('user_id')
     user = User.query.get(user_id)
     
+    app.logger.info(f'用户信息: ID={user_id}, role={user.role}')
+    
     try:
-        # 检查用户是否为社区工作人员（role >= 3）或社区工作人员
-        if user.role < 3 and not user.is_community_admin():
+        # 检查用户是否为超级管理员或社区工作人员
+        # 使用新的统一角色权限模型：不再基于user.role字段，而是检查CommunityStaff表
+        is_super_admin = user.role == 4
+        is_community_admin_result = user.is_community_admin()
+        
+        app.logger.info(f'权限检查: is_super_admin={is_super_admin}, is_community_admin={is_community_admin_result}')
+        
+        if not is_super_admin and not is_community_admin_result:
+            app.logger.info('权限检查失败，返回权限不足错误')
             return make_err_response({}, '权限不足，仅社区工作人员可访问')
         
         communities_data = []

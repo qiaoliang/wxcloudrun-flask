@@ -383,13 +383,17 @@ def is_community_admin(self, community_id=None):
     if self.role == 4:  # 社区超级管理员
         return True
     
+    # 动态导入以避免循环导入
+    from .model_community_extensions import CommunityStaff
+    
+    # 如果没有指定community_id，检查用户是否为任何社区的管理员
     if community_id is None:
-        community_id = self.community_id
+        staff_role = CommunityStaff.query.filter_by(
+            user_id=self.user_id
+        ).first()
+        return staff_role is not None and staff_role.role in ['manager', 'staff']
     
-    if not community_id:
-        return False
-    
-    # 从 CommunityStaff 表检查用户在特定社区的角色
+    # 如果指定了community_id，检查用户在该特定社区的角色
     staff_role = CommunityStaff.query.filter_by(
         community_id=community_id,
         user_id=self.user_id
@@ -411,6 +415,7 @@ def is_primary_admin(self, community_id=None):
         return False
     
     # 从 CommunityStaff 表检查用户是否为社区主管
+    from .model_community_extensions import CommunityStaff
     staff_role = CommunityStaff.query.filter_by(
         community_id=community_id,
         user_id=self.user_id,
@@ -425,6 +430,7 @@ def get_managed_communities(self):
         return Community.query.filter_by(status=1).all()
     
     # 从 CommunityStaff 表获取用户管理的社区
+    from .model_community_extensions import CommunityStaff
     staff_roles = CommunityStaff.query.filter_by(user_id=self.user_id).all()
     return [role.community for role in staff_roles if role.community and role.community.status == 1]
 

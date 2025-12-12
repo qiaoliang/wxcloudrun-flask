@@ -3,14 +3,18 @@
 使用test_server fixture，移除skip标记，确保所有测试成功运行
 """
 
-import pytest
+import os
+import sys
 import requests
-from datetime import datetime
+import logging
 
+from .testutil import random_str
+
+#logger = logging.getLogger(__name__)
 
 class TestCommunityE2E:
     """社区功能端到端测试"""
-    
+
     def _get_super_admin_token(self, base_url):
         """获取超级管理员token的辅助方法"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
@@ -21,7 +25,7 @@ class TestCommunityE2E:
         login_data = login_response.json()
         assert login_data.get('code') == 1
         return login_data['data']['token'], login_data['data']['user_id']
-    
+
     def _create_test_user(self, base_url, phone, nickname):
         """创建测试用户的辅助方法"""
         register_response = requests.post(f'{base_url}/api/auth/register_phone', json={
@@ -34,47 +38,47 @@ class TestCommunityE2E:
         register_data = register_response.json()
         assert register_data.get('code') == 1
         return register_data['data']['token'], register_data['data']['user_id']
-    
+
     def test_get_communities_list_with_super_admin(self, test_server):
         """测试超级管理员获取社区列表"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         token, user_id = self._get_super_admin_token(base_url)
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 2. 获取社区列表
         response = requests.get(f'{base_url}/api/communities', headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+
         communities = data['data']
         assert len(communities) >= 1
-        
+
         # 3. 验证默认社区存在
         default_community = None
         for community in communities:
             if community['name'] == '安卡大家庭':
                 default_community = community
                 break
-        
+
         assert default_community is not None
         assert default_community['is_default'] is True
         assert default_community['description'] == "系统默认社区，新注册用户自动加入"
         assert default_community['status'] == 1
         assert default_community['status_name'] == 'enabled'
-    
+
     def test_create_community_as_super_admin(self, test_server):
         """测试超级管理员创建社区"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         token, user_id = self._get_super_admin_token(base_url)
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 2. 创建新社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=headers,
             json={
                 'name': '测试社区',
@@ -85,23 +89,23 @@ class TestCommunityE2E:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+
         community = data['data']
         assert community['name'] == '测试社区'
         assert community['description'] == '用于测试的社区'
         assert community['location'] == '北京市'
         assert community['is_default'] is False
-        
+
         # 不返回值，避免pytest警告
-    
+
     def test_create_community_validation_errors(self, test_server):
         """测试创建社区的参数验证"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         token, user_id = self._get_super_admin_token(base_url)
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 2. 测试空名称
         response = requests.post(f'{base_url}/api/communities',
             headers=headers,
@@ -113,7 +117,7 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '社区名称不能为空' in data['msg']
-        
+
         # 3. 测试重复名称
         # 首先创建一个社区
         response = requests.post(f'{base_url}/api/communities',
@@ -125,7 +129,7 @@ class TestCommunityE2E:
         )
         assert response.status_code == 200
         assert response.json().get('code') == 1
-        
+
         # 尝试创建同名社区
         response = requests.post(f'{base_url}/api/communities',
             headers=headers,
@@ -138,22 +142,22 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '社区名称已存在' in data['msg']
-    
+
     def test_normal_user_permission_denied(self, test_server):
         """测试普通用户权限被拒绝"""
         base_url = test_server
-        
+
         # 1. 创建普通用户
         token, user_id = self._create_test_user(base_url, '13800138000', '普通用户')
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 2. 普通用户尝试获取社区列表（应该被拒绝）
         response = requests.get(f'{base_url}/api/communities', headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 0  # 业务错误
         assert '权限不足' in data['msg'] or '需要超级管理员权限' in data['msg']
-        
+
         # 3. 普通用户尝试创建社区（应该被拒绝）
         response = requests.post(f'{base_url}/api/communities',
             headers=headers,
@@ -166,17 +170,17 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '权限不足' in data['msg'] or '需要超级管理员权限' in data['msg']
-    
+
     def test_complete_community_management_workflow(self, test_server):
         """测试完整的社区管理工作流"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         admin_token, admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
-        
+
         # 2. 创建测试社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=admin_headers,
             json={
                 'name': '管理工作流测试社区',
@@ -189,7 +193,7 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         community = data['data']
         community_id = community['community_id']
-        
+
         # 3. 获取社区详情
         response = requests.get(f'{base_url}/api/communities/{community_id}', headers=admin_headers)
         assert response.status_code == 200
@@ -197,10 +201,10 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         community_detail = data['data']
         assert community_detail['name'] == '管理工作流测试社区'
-        
+
         # 4. 创建社区管理员用户
         admin_user_token, admin_user_id = self._create_test_user(base_url, '13800138001', '社区管理员')
-        
+
         # 5. 添加社区管理员
         response = requests.post(
             f'{base_url}/api/communities/{community_id}/admins',
@@ -213,33 +217,33 @@ class TestCommunityE2E:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+
         # 6. 社区管理员查看管理的社区
         admin_user_headers = {'Authorization': f'Bearer {admin_user_token}'}
         response = requests.get(f'{base_url}/api/communities/{community_id}', headers=admin_user_headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+
         # 7. 社区管理员查看社区用户
         response = requests.get(f'{base_url}/api/communities/{community_id}/users', headers=admin_user_headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-    
+
     def test_user_join_community_flow(self, test_server):
         """测试用户加入社区流程"""
         base_url = test_server
-        
+
         # 1. 创建普通用户
         user_token, user_id = self._create_test_user(base_url, '13800138002', '申请用户')
         user_headers = {'Authorization': f'Bearer {user_token}'}
-        
+
         # 2. 创建目标社区
         admin_token, admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
-        
-        response = requests.post(f'{base_url}/api/communities', 
+
+        response = requests.post(f'{base_url}/api/communities',
             headers=admin_headers,
             json={
                 'name': '申请流程测试社区',
@@ -252,7 +256,7 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         community = data['data']
         community_id = community['community_id']
-        
+
         # 3. 用户查看当前社区信息
         response = requests.get(f'{base_url}/api/user/community', headers=user_headers)
         assert response.status_code == 200
@@ -260,7 +264,7 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         current_community = data['data']['community']
         assert current_community['name'] == '安卡大家庭'  # 默认社区
-        
+
         # 4. 用户查看可申请的社区
         response = requests.get(f'{base_url}/api/communities/available', headers=user_headers)
         assert response.status_code == 200
@@ -268,7 +272,7 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         available_communities = data['data']
         assert len(available_communities) >= 1
-        
+
         # 5. 用户申请加入社区
         response = requests.post(f'{base_url}/api/community/applications',
             headers=user_headers,
@@ -280,7 +284,7 @@ class TestCommunityE2E:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+
         # 6. 管理员查看申请
         response = requests.get(f'{base_url}/api/community/applications', headers=admin_headers)
         assert response.status_code == 200
@@ -290,17 +294,17 @@ class TestCommunityE2E:
         # 在测试环境中，可能需要等待一下才能看到申请
         # 或者申请可能需要一些时间才能出现在列表中
         assert len(applications) >= 0  # 至少不报错
-        
+
         # 找到刚提交的申请
         application = None
         for app in applications:
             if app['user']['user_id'] == user_id:
                 application = app
                 break
-        
+
         assert application is not None
         application_id = application['application_id']
-        
+
         # 7. 管理员批准申请
         response = requests.put(
             f'{base_url}/api/community/applications/{application_id}/approve',
@@ -309,7 +313,7 @@ class TestCommunityE2E:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+
         # 8. 用户查看更新后的社区信息
         response = requests.get(f'{base_url}/api/user/community', headers=user_headers)
         assert response.status_code == 200
@@ -317,17 +321,17 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         updated_community = data['data']['community']
         assert updated_community['community_id'] == community_id
-    
+
     def test_user_search_and_promote_flow(self, test_server):
         """测试用户搜索和提升管理员流程"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         admin_token, admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
-        
+
         # 2. 创建测试社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=admin_headers,
             json={
                 'name': '用户管理测试社区',
@@ -340,10 +344,12 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         community = data['data']
         community_id = community['community_id']
-        
+
         # 3. 创建测试用户
-        user_token, user_id = self._create_test_user(base_url, '13800138003', '待提升用户')
-        
+        testuser_phone = f"138{random_str(8)}"
+        testuser_nickname = f"待提升用户_{random_str(8)}"
+        user_token, user_id = self._create_test_user(base_url,testuser_phone ,testuser_nickname )
+
         # 4. 用户申请加入测试社区
         response = requests.post(f'{base_url}/api/community/applications',
             headers={'Authorization': f'Bearer {user_token}'},
@@ -355,24 +361,24 @@ class TestCommunityE2E:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+
         # 5. 管理员批准申请
         response = requests.get(f'{base_url}/api/community/applications', headers=admin_headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
         applications = data['data']
-        
+
         # 找到刚提交的申请
         application = None
         for app in applications:
             if app['user']['user_id'] == user_id:
                 application = app
                 break
-        
+
         assert application is not None
         application_id = application['application_id']
-        
+
         # 批准申请
         response = requests.put(
             f'{base_url}/api/community/applications/{application_id}/approve',
@@ -381,10 +387,11 @@ class TestCommunityE2E:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+        assert data['data']['message'] == '批准成功'
+
         # 6. 搜索用户
         response = requests.get(
-            f'{base_url}/api/communities/{community_id}/users?keyword=13800138003',
+            f'{base_url}/api/communities/{community_id}/users?keyword={testuser_phone}',
             headers=admin_headers
         )
         assert response.status_code == 200
@@ -392,8 +399,8 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         users = data['data']['users']
         assert len(users) == 1
-        assert users[0]['nickname'] == '待提升用户'
-        
+        assert users[0]['nickname'] == testuser_nickname
+
         # 7. 将用户提升为管理员
         response = requests.post(
             f'{base_url}/api/communities/{community_id}/users/{user_id}/set-admin',
@@ -403,7 +410,8 @@ class TestCommunityE2E:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        
+        assert data['data'] == {'message': '设置成功'}
+
         # 8. 验证用户已成为管理员
         response = requests.get(
             f'{base_url}/api/communities/{community_id}/admins',
@@ -413,32 +421,33 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 1
         admins = data['data']
-        
+        assert admins is not None
+
         # 查找新提升的管理员
         new_admin = None
         for admin in admins:
             if admin['user_id'] == user_id:
                 new_admin = admin
                 break
-        
+
         assert new_admin is not None
         assert new_admin['role_name'] == 'normal'
-    
+
     def test_error_handling(self, test_server):
         """测试错误处理"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         token, user_id = self._get_super_admin_token(base_url)
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 2. 访问不存在的社区
         response = requests.get(f'{base_url}/api/communities/99999', headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 0
         assert '社区不存在' in data['msg']
-        
+
         # 3. 处理不存在的申请
         response = requests.put(
             f'{base_url}/api/community/applications/99999/approve',
@@ -448,7 +457,7 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '申请不存在' in data['msg']
-        
+
         # 4. 拒绝申请未提供理由
         response = requests.put(
             f'{base_url}/api/community/applications/99999/reject',
@@ -459,17 +468,17 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '缺少拒绝理由' in data['msg'] or '缺少请求参数' in data['msg']
-    
+
     def test_update_community_info(self, test_server):
         """测试更新社区信息"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         token, user_id = self._get_super_admin_token(base_url)
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 2. 创建测试社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=headers,
             json={
                 'name': '待更新社区',
@@ -482,7 +491,7 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         community = data['data']
         community_id = community['community_id']
-        
+
         # 3. 更新社区信息
         update_data = {
             'name': '已更新社区',
@@ -490,7 +499,7 @@ class TestCommunityE2E:
             'location': '上海市',
             'status': 1
         }
-        response = requests.put(f'{base_url}/api/communities/{community_id}', 
+        response = requests.put(f'{base_url}/api/communities/{community_id}',
             headers=headers,
             json=update_data
         )
@@ -502,7 +511,7 @@ class TestCommunityE2E:
         assert updated_community['description'] == '社区信息已更新'
         assert updated_community['location'] == '上海市'
         assert updated_community['status'] == 1
-        
+
         # 4. 验证更新后的数据
         response = requests.get(f'{base_url}/api/communities/{community_id}', headers=headers)
         assert response.status_code == 200
@@ -512,12 +521,12 @@ class TestCommunityE2E:
         assert community['name'] == '已更新社区'
         assert community['description'] == '社区信息已更新'
         assert community['location'] == '上海市'
-        
+
         # 5. 测试权限控制 - 普通用户不能更新社区
         user_token, user_id = self._create_test_user(base_url, '13900008888', '普通用户')
         user_headers = {'Authorization': f'Bearer {user_token}'}
-        
-        response = requests.put(f'{base_url}/api/communities/{community_id}', 
+
+        response = requests.put(f'{base_url}/api/communities/{community_id}',
             headers=user_headers,
             json={'name': '非法更新'}
         )
@@ -525,9 +534,9 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0  # 应该返回错误
         assert '权限不足' in data.get('msg', '')
-        
+
         # 6. 测试更新不存在的社区
-        response = requests.put(f'{base_url}/api/communities/99999', 
+        response = requests.put(f'{base_url}/api/communities/99999',
             headers=headers,
             json={'name': '不存在的社区'}
         )
@@ -535,10 +544,10 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '社区不存在' in data.get('msg', '')
-        
+
         # 7. 测试社区名称重复
         # 创建另一个社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=headers,
             json={
                 'name': '重复测试社区',
@@ -546,9 +555,9 @@ class TestCommunityE2E:
             }
         )
         assert response.status_code == 200
-        
+
         # 尝试使用重复的名称
-        response = requests.put(f'{base_url}/api/communities/{community_id}', 
+        response = requests.put(f'{base_url}/api/communities/{community_id}',
             headers=headers,
             json={'name': '重复测试社区'}
         )
@@ -556,17 +565,17 @@ class TestCommunityE2E:
         data = response.json()
         assert data.get('code') == 0
         assert '社区名称已存在' in data.get('msg', '')
-    
+
     def test_remove_user_from_community(self, test_server):
         """测试从社区中移除用户"""
         base_url = test_server
-        
+
         # 1. 超级管理员登录
         token, user_id = self._get_super_admin_token(base_url)
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 2. 创建测试社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=headers,
             json={
                 'name': '移除用户测试社区',
@@ -579,10 +588,10 @@ class TestCommunityE2E:
         assert data.get('code') == 1
         community = data['data']
         community_id = community['community_id']
-        
+
         # 3. 创建测试用户
         user_token, test_user_id = self._create_test_user(base_url, '13900009999', '待移除用户')
-        
+
         # 4. 用户申请加入测试社区
         response = requests.post(f'{base_url}/api/community/applications',
             headers={'Authorization': f'Bearer {user_token}'},
@@ -593,47 +602,47 @@ class TestCommunityE2E:
         )
         assert response.status_code == 200
         assert response.json().get('code') == 1
-        
+
         # 5. 批准申请
         # 获取申请列表
         response = requests.get(f'{base_url}/api/community/applications', headers=headers)
         assert response.status_code == 200
         applications = response.json().get('data', [])
         assert len(applications) > 0
-        
+
         application_id = None
         for app in applications:
             if app['user']['user_id'] == test_user_id and app['community']['community_id'] == community_id:
                 application_id = app['application_id']
                 break
-        
+
         assert application_id is not None
-        
+
         # 批准申请
-        response = requests.put(f'{base_url}/api/community/applications/{application_id}/approve', 
+        response = requests.put(f'{base_url}/api/community/applications/{application_id}/approve',
             headers=headers)
         assert response.status_code == 200
         assert response.json().get('code') == 1
-        
+
         # 6. 验证用户已在社区中
-        response = requests.get(f'{base_url}/api/user/community', 
+        response = requests.get(f'{base_url}/api/user/community',
             headers={'Authorization': f'Bearer {user_token}'})
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
         user_community = data['data']['community']
         assert user_community['community_id'] == community_id
-        
+
         # 7. 移除用户（超级管理员操作）
-        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/{test_user_id}', 
+        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/{test_user_id}',
             headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
         assert data['data']['message'] == '移除成功'
-        
+
         # 8. 验证用户已被移到默认社区
-        response = requests.get(f'{base_url}/api/user/community', 
+        response = requests.get(f'{base_url}/api/user/community',
             headers={'Authorization': f'Bearer {user_token}'})
         assert response.status_code == 200
         data = response.json()
@@ -641,28 +650,28 @@ class TestCommunityE2E:
         user_community = data['data']['community']
         assert user_community['name'] == '安卡大家庭'
         assert user_community['is_default'] == True
-        
+
         # 9. 测试权限控制 - 普通用户不能移除其他用户
         normal_user_token, normal_user_id = self._create_test_user(base_url, '13900008888', '普通用户')
         normal_headers = {'Authorization': f'Bearer {normal_user_token}'}
-        
-        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/{test_user_id}', 
+
+        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/{test_user_id}',
             headers=normal_headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 0  # 应该返回错误
         assert '权限不足' in data.get('msg', '') or '需要超级管理员权限' in data.get('msg', '')
-        
+
         # 10. 测试移除不存在的用户
-        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/99999', 
+        response = requests.delete(f'{base_url}/api/communities/{community_id}/users/99999',
             headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 0
         assert '用户不存在' in data.get('msg', '')
-        
+
         # 11. 测试从不存在的社区移除用户
-        response = requests.delete(f'{base_url}/api/communities/99999/users/{test_user_id}', 
+        response = requests.delete(f'{base_url}/api/communities/99999/users/{test_user_id}',
             headers=headers)
         assert response.status_code == 200
         data = response.json()
@@ -672,11 +681,11 @@ class TestCommunityE2E:
 
 class TestCommunityPerformance:
     """社区功能性能测试"""
-    
+
     def test_large_community_user_search(self, test_server):
         """测试大社区用户搜索性能"""
         base_url = test_server
-        
+
         # 获取超级管理员token
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
@@ -687,9 +696,9 @@ class TestCommunityPerformance:
         assert login_data.get('code') == 1
         token = login_data['data']['token']
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 创建测试社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=headers,
             json={
                 'name': '性能测试社区',
@@ -702,7 +711,7 @@ class TestCommunityPerformance:
         assert data.get('code') == 1
         community = data['data']
         community_id = community['community_id']
-        
+
         # 测试搜索性能
         response = requests.get(
             f'{base_url}/api/communities/{community_id}/users?keyword=test',
@@ -711,11 +720,11 @@ class TestCommunityPerformance:
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-    
+
     def test_concurrent_applications(self, test_server):
         """测试并发申请处理"""
         base_url = test_server
-        
+
         # 获取超级管理员token
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
@@ -726,9 +735,9 @@ class TestCommunityPerformance:
         assert login_data.get('code') == 1
         token = login_data['data']['token']
         headers = {'Authorization': f'Bearer {token}'}
-        
+
         # 创建测试社区
-        response = requests.post(f'{base_url}/api/communities', 
+        response = requests.post(f'{base_url}/api/communities',
             headers=headers,
             json={
                 'name': '并发测试社区',
@@ -741,9 +750,295 @@ class TestCommunityPerformance:
         assert data.get('code') == 1
         community = data['data']
         community_id = community['community_id']
-        
+
         # 测试获取申请列表
         response = requests.get(f'{base_url}/api/community/applications', headers=headers)
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
+
+    def test_set_admin_api(self, test_server):
+        """测试设置用户为社区管理员API"""
+        base_url = test_server
+
+        # 1. 超级管理员登录
+        admin_token, admin_id = self._get_super_admin_token(base_url)
+        admin_headers = {'Authorization': f'Bearer {admin_token}'}
+
+        # 2. 创建测试社区
+        response = requests.post(f'{base_url}/api/communities',
+            headers=admin_headers,
+            json={
+                'name': '管理员设置测试社区',
+                'description': '用于测试管理员设置功能的社区',
+                'location': '南京市'
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        community = data['data']
+        community_id = community['community_id']
+
+        # 3. 创建测试用户
+        test_user_phone = f"139{random_str(8)}"
+        test_user_nickname = f"测试管理员_{random_str(8)}"
+        user_token, user_id = self._create_test_user(base_url, test_user_phone, test_user_nickname)
+
+        # 4. 用户申请加入测试社区
+        response = requests.post(f'{base_url}/api/community/applications',
+            headers={'Authorization': f'Bearer {user_token}'},
+            json={
+                'community_id': community_id,
+                'reason': '我想加入这个社区并成为管理员'
+            }
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+
+        # 5. 批准用户申请
+        response = requests.get(f'{base_url}/api/community/applications', headers=admin_headers)
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        applications = data['data']
+
+        # 找到刚提交的申请
+        application = None
+        for app in applications:
+            if app['user']['user_id'] == user_id and app['community']['community_id'] == community_id:
+                application = app
+                break
+
+        assert application is not None
+        application_id = application['application_id']
+
+        # 批准申请
+        response = requests.put(
+            f'{base_url}/api/community/applications/{application_id}/approve',
+            headers=admin_headers
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+
+        # 6. 测试设置用户为普通管理员 (role=2)
+        response = requests.post(
+            f'{base_url}/api/communities/{community_id}/users/{user_id}/set-admin',
+            headers=admin_headers,
+            json={'role': 2}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        assert data['data'] == {'message': '设置成功'}
+
+        # 7. 验证用户已成为管理员
+        response = requests.get(
+            f'{base_url}/api/communities/{community_id}/admins',
+            headers=admin_headers
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        admins = data['data']
+        
+        # 查找新设置的管理员
+        new_admin = None
+        for admin in admins:
+            if admin['user_id'] == user_id:
+                new_admin = admin
+                break
+
+        assert new_admin is not None
+        assert new_admin['role_name'] == 'normal'  # role=2对应normal角色
+
+        # 8. 测试重复设置管理员（应该失败）
+        response = requests.post(
+            f'{base_url}/api/communities/{community_id}/users/{user_id}/set-admin',
+            headers=admin_headers,
+            json={'role': 2}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0  # 应该返回错误
+        assert '用户已经是该社区的管理员' in data['msg']
+
+        # 9. 测试设置用户为主管理员 (role=1)
+        another_user_phone = f"138{random_str(8)}"
+        another_user_nickname = f"主管理员_{random_str(8)}"
+        another_user_token, another_user_id = self._create_test_user(base_url, another_user_phone, another_user_nickname)
+
+        # 另一个用户申请加入社区
+        response = requests.post(f'{base_url}/api/community/applications',
+            headers={'Authorization': f'Bearer {another_user_token}'},
+            json={
+                'community_id': community_id,
+                'reason': '我想加入这个社区'
+            }
+        )
+        assert response.status_code == 200
+
+        # 批准申请
+        response = requests.get(f'{base_url}/api/community/applications', headers=admin_headers)
+        applications = response.json()['data']
+        for app in applications:
+            if app['user']['user_id'] == another_user_id:
+                response = requests.put(
+                    f'{base_url}/api/community/applications/{app["application_id"]}/approve',
+                    headers=admin_headers
+                )
+                assert response.status_code == 200
+                break
+
+        # 设置为主管理员
+        response = requests.post(
+            f'{base_url}/api/communities/{community_id}/users/{another_user_id}/set-admin',
+            headers=admin_headers,
+            json={'role': 1}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        assert data['data'] == {'message': '设置成功'}
+
+        # 验证主管理员角色
+        response = requests.get(
+            f'{base_url}/api/communities/{community_id}/admins',
+            headers=admin_headers
+        )
+        admins = response.json()['data']
+        main_admin = None
+        for admin in admins:
+            if admin['user_id'] == another_user_id:
+                main_admin = admin
+                break
+        assert main_admin is not None
+        assert main_admin['role_name'] == 'main'  # role=1对应main角色
+
+        # 10. 测试权限控制 - 普通用户不能设置管理员
+        normal_user_token, normal_user_id = self._create_test_user(base_url, '13700007777', '普通用户')
+        normal_headers = {'Authorization': f'Bearer {normal_user_token}'}
+
+        response = requests.post(
+            f'{base_url}/api/communities/{community_id}/users/{user_id}/set-admin',
+            headers=normal_headers,
+            json={'role': 2}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0  # 应该返回错误
+        assert '权限不足' in data['msg']
+
+        # 11. 测试设置不存在的用户为管理员
+        response = requests.post(
+            f'{base_url}/api/communities/{community_id}/users/99999/set-admin',
+            headers=admin_headers,
+            json={'role': 2}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0
+        assert '用户不存在' in data['msg']
+
+        # 12. 测试在不存在的社区中设置管理员
+        response = requests.post(
+            f'{base_url}/api/communities/99999/users/{user_id}/set-admin',
+            headers=admin_headers,
+            json={'role': 2}
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 0
+        assert '社区不存在' in data['msg']
+
+        # 13. 测试无效的role参数
+        test_user_phone2 = f"136{random_str(8)}"
+        test_user_nickname2 = f"无效角色用户_{random_str(8)}"
+        user_token2, user_id2 = self._create_test_user(base_url, test_user_phone2, test_user_nickname2)
+
+        # 用户申请加入社区
+        response = requests.post(f'{base_url}/api/community/applications',
+            headers={'Authorization': f'Bearer {user_token2}'},
+            json={
+                'community_id': community_id,
+                'reason': '我想加入这个社区'
+            }
+        )
+        assert response.status_code == 200
+
+        # 批准申请
+        response = requests.get(f'{base_url}/api/community/applications', headers=admin_headers)
+        applications = response.json()['data']
+        for app in applications:
+            if app['user']['user_id'] == user_id2:
+                response = requests.put(
+                    f'{base_url}/api/community/applications/{app["application_id"]}/approve',
+                    headers=admin_headers
+                )
+                assert response.status_code == 200
+                break
+
+        # 使用无效的role参数
+        response = requests.post(
+            f'{base_url}/api/communities/{community_id}/users/{user_id2}/set-admin',
+            headers=admin_headers,
+            json={'role': 99}  # 无效的角色值
+        )
+        assert response.status_code == 200
+        data = response.json()
+        # 根据实现，无效role应该默认为staff(2)，所以应该成功
+        assert data.get('code') == 1
+
+        # 14. 测试不提供role参数（应该使用默认值2）
+        test_user_phone3 = f"135{random_str(8)}"
+        test_user_nickname3 = f"默认角色用户_{random_str(8)}"
+        user_token3, user_id3 = self._create_test_user(base_url, test_user_phone3, test_user_nickname3)
+
+        # 用户申请加入社区
+        response = requests.post(f'{base_url}/api/community/applications',
+            headers={'Authorization': f'Bearer {user_token3}'},
+            json={
+                'community_id': community_id,
+                'reason': '我想加入这个社区'
+            }
+        )
+        assert response.status_code == 200
+
+        # 批准申请
+        response = requests.get(f'{base_url}/api/community/applications', headers=admin_headers)
+        applications = response.json()['data']
+        for app in applications:
+            if app['user']['user_id'] == user_id3:
+                response = requests.put(
+                    f'{base_url}/api/community/applications/{app["application_id"]}/approve',
+                    headers=admin_headers
+                )
+                assert response.status_code == 200
+                break
+
+        # 不提供role参数
+        response = requests.post(
+            f'{base_url}/api/communities/{community_id}/users/{user_id3}/set-admin',
+            headers=admin_headers,
+            json={}  # 空的JSON，不提供role
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        assert data['data'] == {'message': '设置成功'}
+
+        # 验证默认设置为普通管理员
+        response = requests.get(
+            f'{base_url}/api/communities/{community_id}/admins',
+            headers=admin_headers
+        )
+        admins = response.json()['data']
+        default_admin = None
+        for admin in admins:
+            if admin['user_id'] == user_id3:
+                default_admin = admin
+                break
+        assert default_admin is not None
+        assert default_admin['role_name'] == 'normal'  # 默认为normal角色

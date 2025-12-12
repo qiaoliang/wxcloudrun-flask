@@ -179,8 +179,16 @@ class CommunityService:
     @staticmethod
     def add_community_admin(community_id, user_id, role=2, operator_id=None):
         """添加社区管理员"""
+        # 导入新的CommunityStaff模型
+        from .model_community_extensions import CommunityStaff
+        
+        # 将role值映射到新的角色系统
+        # role: 1(主管理员) -> 'manager', 2(普通管理员) -> 'staff'
+        role_mapping = {1: 'manager', 2: 'staff'}
+        staff_role = role_mapping.get(role, 'staff')
+        
         # 检查用户是否已经是该社区的管理员
-        existing = CommunityAdmin.query.filter_by(
+        existing = CommunityStaff.query.filter_by(
             community_id=community_id,
             user_id=user_id
         ).first()
@@ -188,47 +196,52 @@ class CommunityService:
         if existing:
             raise ValueError("用户已经是该社区的管理员")
 
-        # 添加管理员
-        admin_role = CommunityAdmin(
+        # 添加管理员到CommunityStaff表
+        staff_record = CommunityStaff(
             community_id=community_id,
             user_id=user_id,
-            role=role
+            role=staff_role
         )
-        db.session.add(admin_role)
+        db.session.add(staff_record)
 
         # 记录审计日志
         audit_log = UserAuditLog(
             user_id=operator_id or user_id,
             action="add_community_admin",
-            detail=f"添加社区管理员: 社区ID={community_id}, 用户ID={user_id}, 角色={role}"
+            detail=f"添加社区管理员: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}"
         )
         db.session.add(audit_log)
 
         db.session.commit()
-        logger.info(f"社区管理员添加成功: 社区ID={community_id}, 用户ID={user_id}")
-        return admin_role
+        logger.info(f"社区管理员添加成功: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}")
+        return staff_record
 
     @staticmethod
     def remove_community_admin(community_id, user_id, operator_id=None):
         """移除社区管理员"""
-        admin_role = CommunityAdmin.query.filter_by(
+        # 导入新的CommunityStaff模型
+        from .model_community_extensions import CommunityStaff
+        
+        # 从CommunityStaff表中查找
+        staff_record = CommunityStaff.query.filter_by(
             community_id=community_id,
             user_id=user_id
         ).first()
 
-        if not admin_role:
+        if not staff_record:
             raise ValueError("用户不是该社区的管理员")
 
         # 检查是否是唯一的主管理员
-        if admin_role.role == 1:
-            primary_admins = CommunityAdmin.query.filter_by(
+        if staff_record.role == 'manager':
+            manager_count = CommunityStaff.query.filter_by(
                 community_id=community_id,
-                role=1
+                role='manager'
             ).count()
-            if primary_admins <= 1:
+            if manager_count <= 1:
                 raise ValueError("不能移除唯一的主管理员")
 
-        db.session.delete(admin_role)
+        # 删除CommunityStaff记录
+        db.session.delete(staff_record)
 
         # 记录审计日志
         audit_log = UserAuditLog(

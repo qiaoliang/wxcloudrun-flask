@@ -109,7 +109,7 @@ class TestMultiCommunityRoleAssignmentE2E:
         staff_data_a = staff_response_a.json()
         assert staff_data_a.get('code') == 1
         staff_list_a = staff_data_a['data'].get('staff_members', [])
-        user_in_community_a = next((s for s in staff_list_a if s['user_id'] == test_user_id), None)
+        user_in_community_a = next((s for s in staff_list_a if s['user_id'] == str(test_user_id)), None)
         assert user_in_community_a is not None, f"用户应该在社区A中，但未找到: {staff_list_a}"
         assert user_in_community_a['role'] == 'staff', f"用户在社区A的角色应该是staff，实际是: {user_in_community_a['role']}"
 
@@ -122,7 +122,7 @@ class TestMultiCommunityRoleAssignmentE2E:
         staff_data_b = staff_response_b.json()
         assert staff_data_b.get('code') == 1
         staff_list_b = staff_data_b['data'].get('staff_members', [])
-        user_in_community_b = next((s for s in staff_list_b if s['user_id'] == test_user_id), None)
+        user_in_community_b = next((s for s in staff_list_b if s['user_id'] == str(test_user_id)), None)
         assert user_in_community_b is not None, f"用户应该在社区B中，但未找到: {staff_list_b}"
         assert user_in_community_b['role'] == 'manager', f"用户在社区B的角色应该是manager，实际是: {user_in_community_b['role']}"
 
@@ -292,7 +292,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             )
             assert staff_response.status_code == 200
             staff_list = staff_response.json()['data'].get('staff_members', [])
-            user_in_community = next((s for s in staff_list if s['user_id'] == test_user_id), None)
+            user_in_community = next((s for s in staff_list if s['user_id'] == str(test_user_id)), None)
             assert user_in_community is not None, f"用户应该在社区{cid}中"
             assert user_in_community['role'] == expected_role, f"用户在社区{cid}的角色应该是{expected_role}"
 
@@ -313,7 +313,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             params={'community_id': community_a_id}
         )
         staff_list_a = staff_response_a.json()['data'].get('staff_members', [])
-        user_in_community_a = next((s for s in staff_list_a if s['user_id'] == test_user_id), None)
+        user_in_community_a = next((s for s in staff_list_a if s['user_id'] == str(test_user_id)), None)
         assert user_in_community_a is None, "用户应该已从社区A移除"
 
         # 检查社区B（应该仍有该用户，角色为manager）
@@ -322,7 +322,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             params={'community_id': community_b_id}
         )
         staff_list_b = staff_response_b.json()['data'].get('staff_members', [])
-        user_in_community_b = next((s for s in staff_list_b if s['user_id'] == test_user_id), None)
+        user_in_community_b = next((s for s in staff_list_b if s['user_id'] == str(test_user_id)), None)
         assert user_in_community_b is not None, "用户应该仍在社区B中"
         assert user_in_community_b['role'] == 'manager', "用户在社区B的角色应该仍是manager"
 
@@ -332,7 +332,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             params={'community_id': community_c_id}
         )
         staff_list_c = staff_response_c.json()['data'].get('staff_members', [])
-        user_in_community_c = next((s for s in staff_list_c if s['user_id'] == test_user_id), None)
+        user_in_community_c = next((s for s in staff_list_c if s['user_id'] == str(test_user_id)), None)
         assert user_in_community_c is not None, "用户应该仍在社区C中"
         assert user_in_community_c['role'] == 'staff', "用户在社区C的角色应该仍是staff"
 
