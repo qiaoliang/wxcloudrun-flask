@@ -379,7 +379,7 @@ def get_supervised_rules(self, solo_user_id):
 
 # 社区相关方法
 def is_community_admin(self, community_id=None):
-    """检查用户是否为社区管理员"""
+    """检查用户是否为社区管理员（主管或专员）"""
     if self.role == 4:  # 社区超级管理员
         return True
     
@@ -389,15 +389,18 @@ def is_community_admin(self, community_id=None):
     if not community_id:
         return False
     
-    admin_role = CommunityAdmin.query.filter_by(
+    # 从 CommunityStaff 表检查用户在特定社区的角色
+    staff_role = CommunityStaff.query.filter_by(
         community_id=community_id,
         user_id=self.user_id
     ).first()
-    return admin_role is not None
+    
+    # 社区主管或专员都是社区管理员
+    return staff_role is not None and staff_role.role in ['manager', 'staff']
 
 
 def is_primary_admin(self, community_id=None):
-    """检查用户是否为社区主管理员"""
+    """检查用户是否为社区主管（原主管理员）"""
     if self.role == 4:  # 社区超级管理员
         return True
     
@@ -407,12 +410,13 @@ def is_primary_admin(self, community_id=None):
     if not community_id:
         return False
     
-    admin_role = CommunityAdmin.query.filter_by(
+    # 从 CommunityStaff 表检查用户是否为社区主管
+    staff_role = CommunityStaff.query.filter_by(
         community_id=community_id,
         user_id=self.user_id,
-        role=1  # 主管理员
+        role='manager'  # 社区主管
     ).first()
-    return admin_role is not None
+    return staff_role is not None
 
 
 def get_managed_communities(self):
@@ -420,8 +424,9 @@ def get_managed_communities(self):
     if self.role == 4:  # 社区超级管理员
         return Community.query.filter_by(status=1).all()
     
-    admin_roles = CommunityAdmin.query.filter_by(user_id=self.user_id).all()
-    return [role.community for role in admin_roles if role.community.status == 1]
+    # 从 CommunityStaff 表获取用户管理的社区
+    staff_roles = CommunityStaff.query.filter_by(user_id=self.user_id).all()
+    return [role.community for role in staff_roles if role.community and role.community.status == 1]
 
 
 def can_manage_community(self, community_id):

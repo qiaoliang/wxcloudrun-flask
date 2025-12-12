@@ -857,8 +857,8 @@ def get_managed_communities():
     user = User.query.get(user_id)
     
     try:
-        # 检查用户是否为社区工作人员（role >= 3）
-        if user.role < 3:
+        # 检查用户是否为社区工作人员（role >= 3）或社区工作人员
+        if user.role < 3 and not user.is_community_admin():
             return make_err_response({}, '权限不足，仅社区工作人员可访问')
         
         communities_data = []
@@ -867,8 +867,8 @@ def get_managed_communities():
         if user.role == 4:
             communities = Community.query.filter_by(status=1).all()
             for community in communities:
-                # 获取社区管理员数量
-                admin_count = CommunityAdmin.query.filter_by(community_id=community.community_id).count()
+                # 获取社区工作人员数量
+                staff_count = CommunityStaff.query.filter_by(community_id=community.community_id).count()
                 # 获取社区用户数量
                 user_count = User.query.filter_by(community_id=community.community_id).count()
                 
@@ -878,19 +878,19 @@ def get_managed_communities():
                     'description': community.description,
                     'location': community.location,
                     'is_default': community.is_default,
-                    'admin_count': admin_count,
+                    'staff_count': staff_count,
                     'user_count': user_count,
                     'user_role': 'super_admin',  # 超级管理员标识
                     'created_at': community.created_at.isoformat() if community.created_at else None
                 })
         else:
-            # 其他管理员只能看到自己管理的社区
-            admin_roles = CommunityAdmin.query.filter_by(user_id=user_id).all()
-            for admin_role in admin_roles:
-                community = admin_role.community
+            # 其他工作人员只能看到自己管理的社区
+            staff_roles = CommunityStaff.query.filter_by(user_id=user_id).all()
+            for staff_role in staff_roles:
+                community = staff_role.community
                 if community and community.status == 1:  # 只显示启用的社区
-                    # 获取社区管理员数量
-                    admin_count = CommunityAdmin.query.filter_by(community_id=community.community_id).count()
+                    # 获取社区工作人员数量
+                    staff_count = CommunityStaff.query.filter_by(community_id=community.community_id).count()
                     # 获取社区用户数量
                     user_count = User.query.filter_by(community_id=community.community_id).count()
                     
@@ -900,10 +900,10 @@ def get_managed_communities():
                         'description': community.description,
                         'location': community.location,
                         'is_default': community.is_default,
-                        'admin_count': admin_count,
+                        'staff_count': staff_count,
                         'user_count': user_count,
-                        'user_role': 'primary_admin' if admin_role.role == 1 else 'normal_admin',
-                        'role_in_community': admin_role.role,
+                        'user_role': staff_role.role,  # 'manager' 或 'staff'
+                        'role_in_community': staff_role.role,
                         'created_at': community.created_at.isoformat() if community.created_at else None
                     })
         
@@ -914,7 +914,7 @@ def get_managed_communities():
         return make_succ_response({
             'communities': communities_data,
             'total': len(communities_data),
-            'user_role': 'super_admin' if user.role == 4 else 'community_admin'
+            'user_role': 'super_admin' if user.role == 4 else 'community_staff'
         })
     
     except Exception as e:
@@ -1199,14 +1199,14 @@ def add_community_staff():
                     failed.append({'user_id': uid, 'reason': '用户不存在'})
                     continue
                 
-                # 检查是否已是工作人员
-                existing = CommunityStaff.query.filter_by(
+                # 检查用户是否已在当前社区任职（避免在同一社区重复任职）
+                existing_in_current_community = CommunityStaff.query.filter_by(
                     community_id=community_id,
                     user_id=uid
                 ).first()
                 
-                if existing:
-                    failed.append({'user_id': uid, 'reason': '用户已是工作人员'})
+                if existing_in_current_community:
+                    failed.append({'user_id': uid, 'reason': '用户已在当前社区任职'})
                     continue
                 
                 # 添加工作人员

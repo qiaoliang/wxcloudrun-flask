@@ -33,7 +33,8 @@ class CommunityStaff(db.Model):
         db.Index('idx_community_staff_community', 'community_id'),
         db.Index('idx_community_staff_user', 'user_id'),
         db.Index('idx_community_staff_role', 'role'),
-        db.UniqueConstraint('community_id', 'user_id', name='uq_community_staff'),
+        # 移除唯一约束，允许用户在多个社区任职
+        # db.UniqueConstraint('community_id', 'user_id', name='uq_community_staff'),
     )
     
     def to_dict(self):
