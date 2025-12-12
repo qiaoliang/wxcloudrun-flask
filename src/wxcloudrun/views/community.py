@@ -1366,12 +1366,12 @@ def get_community_users_list():
                 continue
             
             # 获取今日未完成打卡数和详情
-            from sqlalchemy import and_
+            from sqlalchemy import and_, func
             unchecked_records = CheckinRecord.query.filter(
                 and_(
-                    CheckinRecord.user_id == member.user_id,
-                    CheckinRecord.checkin_date == today,
-                    CheckinRecord.status.in_(['pending', 'missed'])
+                    CheckinRecord.solo_user_id == member.user_id,
+                    func.date(CheckinRecord.planned_time) == today,
+                    CheckinRecord.status == 0  # 0-missed(未打卡)
                 )
             ).all()
             
