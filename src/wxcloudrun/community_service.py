@@ -101,8 +101,6 @@ class CommunityService:
                 status=1,
                 verification_status=2,  # 已通过验证
                 # 超级管理员拥有所有权限
-                is_solo_user=True,
-                is_supervisor=True,
                 is_community_worker=True
             )
             db.session.add(admin_user)

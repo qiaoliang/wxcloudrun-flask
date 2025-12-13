@@ -54,12 +54,7 @@ def _process_missed_for_today(now):
             user = User.query.get(rule.solo_user_id)
             if not user:
                 continue
-            if hasattr(user, 'is_solo_user'):
-                if not bool(user.is_solo_user):
-                    continue
-            else:
-                if user.role != 1:
-                    continue
+            # 所有用户都可以有打卡规则，不需要特殊检查
 
             if not _should_check_today(rule, today):
                 continue

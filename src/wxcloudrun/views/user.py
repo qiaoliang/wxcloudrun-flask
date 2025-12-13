@@ -244,8 +244,6 @@ def user_profile():
                 'role': user.role_name,  # 返回字符串形式的角色名
                 'community_id': user.community_id,
                 'status': user.status_name,  # 返回字符串形式的状态名
-                'is_solo_user': getattr(user, 'is_solo_user', True),
-                'is_supervisor': getattr(user, 'is_supervisor', False),
                 'is_community_worker': getattr(user, 'is_community_worker', False)
             }
             app.logger.info(f'返回的用户数据: {user_data}')
@@ -269,8 +267,6 @@ def user_profile():
             community_id = params.get('community_id')
             status = params.get('status')
             # 权限组合字段
-            is_solo_user = params.get('is_solo_user')
-            is_supervisor = params.get('is_supervisor')
             is_community_worker = params.get('is_community_worker')
 
             app.logger.info(
@@ -298,14 +294,6 @@ def user_profile():
                 elif isinstance(role, int):
                     user.role = role
             # 更新权限组合字段
-            if is_solo_user is not None:
-                app.logger.info(
-                    f'更新is_solo_user: {user.is_solo_user} -> {is_solo_user}')
-                user.is_solo_user = bool(is_solo_user)
-            if is_supervisor is not None:
-                app.logger.info(
-                    f'更新is_supervisor: {user.is_supervisor} -> {is_supervisor}')
-                user.is_supervisor = bool(is_supervisor)
             if is_community_worker is not None:
                 app.logger.info(
                     f'更新is_community_worker: {user.is_community_worker} -> {is_community_worker}')
@@ -464,14 +452,14 @@ def search_users(decoded):
 
         result = []
         for u in users:
-            # 计算是否具备监护能力（已有任意已批准监督关系，或者标记为is_supervisor）
-            is_supervisor_flag = getattr(u, 'is_supervisor', False)
-            if not is_supervisor_flag:
-                rel_exists = SupervisionRuleRelation.query.filter(
-                    SupervisionRuleRelation.supervisor_user_id == u.user_id,
-                    SupervisionRuleRelation.status == 2
-                ).first()
-                is_supervisor_flag = rel_exists is not None
+            # 计算是否具备监护能力（已有任意已批准监督关系）
+            is_supervisor_flag = False
+            # 检查是否有已批准的监督关系
+            rel_exists = SupervisionRuleRelation.query.filter(
+                SupervisionRuleRelation.supervisor_user_id == u.user_id,
+                SupervisionRuleRelation.status == 2
+            ).first()
+            is_supervisor_flag = rel_exists is not None
 
             result.append({
                 'user_id': u.user_id,

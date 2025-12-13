@@ -49,8 +49,6 @@ class User(db.Model):
     verification_materials = db.Column(db.Text, comment='验证材料URL')
 
     # 权限组合字段：用于替代互斥角色模型（内部字段，通过属性装饰器访问）
-    _is_solo_user = db.Column('is_solo_user', db.Boolean, default=True, comment='是否为打卡人')
-    _is_supervisor = db.Column('is_supervisor', db.Boolean, default=False, comment='是否为监护人')
     _is_community_worker = db.Column('is_community_worker', 
         db.Boolean, default=False, comment='是否为社区工作人员')
 
@@ -100,24 +98,7 @@ class User(db.Model):
         """获取状态名称"""
         return self.STATUS_MAPPING.get(self.status, 'unknown')
     
-    # 权限属性装饰器 - 确保超级管理员始终拥有所有权限
-    @property
-    def is_solo_user(self):
-        """是否为打卡人 - 超级管理员始终拥有此权限"""
-        return self.role == 4 or self._is_solo_user
     
-    @is_solo_user.setter
-    def is_solo_user(self, value):
-        self._is_solo_user = bool(value)
-    
-    @property
-    def is_supervisor(self):
-        """是否为监护人 - 超级管理员始终拥有此权限"""
-        return self.role == 4 or self._is_supervisor
-    
-    @is_supervisor.setter
-    def is_supervisor(self, value):
-        self._is_supervisor = bool(value)
     
     @property
     def is_community_worker(self):
