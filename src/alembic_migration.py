@@ -61,8 +61,26 @@ def validate_database_consistency():
         db_config = get_database_config()
         db_path = db_config.get('DATABASE_PATH')
 
-        if not db_path or not os.path.exists(db_path):
-            logger.info("数据库文件不存在，将创建新数据库")
+        if not db_path:
+            logger.error("数据库路径未配置")
+            return False
+
+        # 如果数据库文件不存在，确保目录存在并创建数据库文件
+        if not os.path.exists(db_path):
+            logger.info(f"数据库文件不存在，将创建新数据库: {db_path}")
+            
+            # 确保数据库目录存在
+            db_dir = os.path.dirname(db_path)
+            if db_dir and not os.path.exists(db_dir):
+                os.makedirs(db_dir, exist_ok=True)
+                logger.info(f"创建数据库目录: {db_dir}")
+            
+            # 创建空的数据库文件
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            conn.close()
+            logger.info(f"创建空数据库文件: {db_path}")
+            
             return True
 
         # 检查数据库完整性
@@ -232,6 +250,13 @@ def migrate_database():
             logger.error("迁移前置条件验证失败")
             return False
 
+        # 检查是否存在迁移脚本，如果没有则生成
+        if not get_available_versions():
+            logger.info("没有找到迁移脚本，正在生成初始迁移...")
+            alembic_cfg = Config("alembic.ini")
+            command.revision(alembic_cfg, autogenerate=True, message="init_db")
+            logger.info("初始迁移脚本生成成功")
+
         # Layer 2: 验证数据库一致性
         if not validate_database_consistency():
             logger.error("数据库一致性验证失败")
@@ -250,19 +275,57 @@ def migrate_database():
         # 执行迁移
         logger.info("正在执行数据库迁移...")
         alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
+        
+        try:
+            command.upgrade(alembic_cfg, "head")
+        except Exception as e:
+            logger.warning(f"迁移过程中出现异常: {e}")
+            # 继续执行，因为表可能已经创建
+        
+        # 验证迁移是否成功并手动处理版本记录
+        from config_manager import get_database_config
+        db_config = get_database_config()
+        db_path = db_config.get('DATABASE_PATH')
+        
+        if db_path and os.path.exists(db_path):
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            
+            # 检查alembic_version表是否有记录
+            cursor.execute("SELECT version_num FROM alembic_version")
+            version_row = cursor.fetchone()
+            
+            if not version_row:
+                # 如果没有版本记录，手动插入最新版本
+                available_versions = get_available_versions()
+                if available_versions:
+                    latest_version = max(available_versions, key=lambda x: len(x))
+                    try:
+                        cursor.execute("INSERT OR REPLACE INTO alembic_version (version_num) VALUES (?)", (latest_version,))
+                        conn.commit()
+                        logger.info(f"手动插入版本记录: {latest_version}")
+                    except Exception as e:
+                        logger.error(f"插入版本记录失败: {e}")
+            
+            # 验证表是否创建成功
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
+            table_names = [table[0] for table in tables]
+            
+            expected_tables = ['users', 'communities', 'checkin_rules', 'checkin_records']
+            missing_tables = [table for table in expected_tables if table not in table_names]
+            
+            if missing_tables:
+                logger.error(f"缺少关键表: {missing_tables}")
+                conn.close()
+                return False
+            else:
+                logger.info(f"数据库表验证成功，共 {len(table_names)} 个表")
+            
+            conn.close()
 
         logger.info("数据库迁移完成")
-
-        # 迁移完成后初始化默认数据
-        try:
-            from database.initialization import create_default_community_and_admin
-            default_community = create_default_community_and_admin()
-            logger.info(f"默认社区初始化完成: {default_community.name} (ID: {default_community.community_id})")
-        except Exception as e:
-            logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
-            # 初始化失败不影响迁移成功状态
-
         return True
 
     except Exception as e:

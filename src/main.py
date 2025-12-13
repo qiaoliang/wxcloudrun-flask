@@ -102,19 +102,21 @@ def main():
         env_type = os.getenv('ENV_TYPE', 'unit')
         if env_type in ['unit']:
             migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
-
-        migration_success = run_migration()
+            migration_success = True
+        else:
+            migration_success = run_migration()
+            if not migration_success:
+                migration_logger.error("数据库迁移失败，程序退出")
+                sys.exit(1)
+        
         app.logger.info("开始注入超级管理员和默认社区.....")
         
         # 创建超级管理员和默认社区
         create_super_admin_and_default_community(db_core)
         
         app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
-        if not migration_success:
-                migration_logger.error("数据库迁移失败，程序退出")
-                sys.exit(1)
 
-# 4. 默认社区初始化已在数据库迁移完成后自动执行
+    # 4. 默认社区初始化已在数据库迁移完成后自动执行
 
     # 5. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
