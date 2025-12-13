@@ -39,8 +39,8 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # 初始化 Flask-SQLAlchemy（仅用于Web服务）
 db = SQLAlchemy(app)
 
-# 绑定到新的数据库核心
-db_core = bind_flask_db(db)
+# 数据库核心将在 main.py 中绑定
+db_core = None
 
 # 导入模型（使用新的数据库模块）
 from database.models import (

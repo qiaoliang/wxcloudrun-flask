@@ -32,11 +32,11 @@ class CommunityStaff(Base):
     
     # 索引和约束
     __table_args__ = (
-        db.Index('idx_community_staff_community', 'community_id'),
-        db.Index('idx_community_staff_user', 'user_id'),
-        db.Index('idx_community_staff_role', 'role'),
+        Index('idx_community_staff_community', 'community_id'),
+        Index('idx_community_staff_user', 'user_id'),
+        Index('idx_community_staff_role', 'role'),
         # 移除唯一约束，允许用户在多个社区任职
-        # db.UniqueConstraint('community_id', 'user_id', name='uq_community_staff'),
+        # UniqueConstraint('community_id', 'user_id', name='uq_community_staff'),
     )
     
     def to_dict(self):

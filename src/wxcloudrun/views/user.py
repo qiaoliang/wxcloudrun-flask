@@ -447,7 +447,7 @@ def search_users(decoded):
 
         # 根据scope限制搜索范围
         if scope == 'community':
-            from wxcloudrun.model_community_extensions import CommunityStaff
+            from database.models import CommunityStaff
             query = query.join(CommunityStaff, User.user_id == CommunityStaff.user_id).filter(
                 CommunityStaff.community_id == int(community_id)
             )
@@ -528,10 +528,10 @@ def bind_wechat(decoded):
     try:
         with db.get_session() as session:
             with session.begin_nested():
-            params = request.get_json() or {}
-            wx_code = params.get('code')
-            phone_code = params.get('phone_code')
-            phone = params.get('phone')
+                params = request.get_json() or {}
+                wx_code = params.get('code')
+                phone_code = params.get('phone_code')
+                phone = params.get('phone')
             if not wx_code:
                 return make_err_response({}, '缺少code参数')
             if phone and not _verify_sms_code(phone, 'bind_wechat', phone_code or ''):

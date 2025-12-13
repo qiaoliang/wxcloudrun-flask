@@ -78,22 +78,35 @@ def run_migration():
 
 def main():
     """主程序入口"""
-    # 1. 首先执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
-    env_type = os.getenv('ENV_TYPE', 'unit')
-    if env_type not in ['unit']:
-        migration_success = run_migration()
-        if not migration_success:
-            migration_logger.error("数据库迁移失败，程序退出")
-            sys.exit(1)
-    else:
-        migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
+    # 1. 创建 Flask 应用
+    flask_app = create_app()
     
-    # 2. 创建并启动 Flask 应用
-    create_app()
-    
-    # 3. 在非 unit 环境下初始化默认社区（unit 环境已在 __init__.py 中处理）
-    if env_type not in ['unit']:
-        with app.app_context():
+    # 2. 初始化数据库并绑定到 Flask
+    migration_logger.info("正在初始化数据库并绑定到 Flask 应用...")
+    with flask_app.app_context():
+        # 导入数据库绑定函数
+        from database import bind_flask_db
+        from wxcloudrun import db
+        
+        # 绑定数据库到 Flask
+        db_core = bind_flask_db(db, flask_app)
+        migration_logger.info("数据库成功绑定到 Flask 应用")
+        
+        # 将 db_core 保存到 app 中供后续使用
+        flask_app.db_core = db_core
+        
+        # 3. 执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
+        env_type = os.getenv('ENV_TYPE', 'unit')
+        if env_type not in ['unit']:
+            migration_success = run_migration()
+            if not migration_success:
+                migration_logger.error("数据库迁移失败，程序退出")
+                sys.exit(1)
+        else:
+            migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
+        
+        # 4. 在非 unit 环境下初始化默认社区（unit 环境已在 __init__.py 中处理）
+        if env_type not in ['unit']:
             try:
                 from wxcloudrun.community_service import CommunityService
                 default_community = CommunityService.get_or_create_default_community()
@@ -101,10 +114,10 @@ def main():
             except Exception as e:
                 migration_logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
     
-    # 4. 启动 Flask 应用
+    # 5. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
-    app.run(host=host, port=port)
+    flask_app.run(host=host, port=port)
 
 
 # 根据环境变量决定是否启动Flask Web服务

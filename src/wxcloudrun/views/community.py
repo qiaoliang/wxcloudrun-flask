@@ -9,8 +9,7 @@ from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.utils.auth import verify_token
 from database import get_database
-from database.models import User, Community, CommunityApplication, UserAuditLog
-from wxcloudrun.model_community_extensions import CommunityStaff
+from database.models import User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_service import CommunityService
 
 app_logger = logging.getLogger('log')
@@ -57,7 +56,7 @@ def _format_community_data(community):
 @app.route('/api/community/list', methods=['GET'])
 def get_community_list():
     """获取社区列表 (新版API,支持分页和筛选)"""
-    from wxcloudrun.model_community_extensions import CommunityStaff
+    from database.models import CommunityStaff
 
     app_logger.info('=== 开始获取社区列表 ===')
 
@@ -450,7 +449,7 @@ def remove_user_from_community(community_id, target_user_id):
         target_user.community_id = default_community.community_id
 
         # 如果用户是原社区的管理员，移除管理员权限
-        from wxcloudrun.model_community_extensions import CommunityStaff
+        from database.models import CommunityStaff
         staff_role = CommunityStaff.query.filter_by(
             community_id=community_id,
             user_id=target_user_id
@@ -678,7 +677,7 @@ def get_user_community():
 @app.route('/api/user/managed-communities', methods=['GET'])
 def get_managed_communities():
     """获取当前用户管理的社区列表"""
-    from wxcloudrun.model_community_extensions import CommunityStaff
+    from database.models import CommunityStaff
 
     app.logger.info('=== 开始获取用户管理的社区列表 ===')
 
@@ -806,7 +805,7 @@ def get_available_communities():
 @app.route('/api/community/staff/list', methods=['GET'])
 def get_community_staff_list():
     """获取社区工作人员列表"""
-    from wxcloudrun.model_community_extensions import CommunityStaff
+    from database.models import CommunityStaff
 
     app_logger.info('=== 开始获取社区工作人员列表 ===')
 
@@ -909,7 +908,7 @@ def get_community_staff_list():
 @app.route('/api/community/add-staff', methods=['POST'])
 def add_community_staff():
     """添加社区工作人员"""
-    from wxcloudrun.model_community_extensions import CommunityStaff
+    from database.models import CommunityStaff
 
     app_logger.info('=== 开始添加社区工作人员 ===')
 
@@ -1022,7 +1021,7 @@ def add_community_staff():
 @app.route('/api/community/remove-staff', methods=['POST'])
 def remove_community_staff():
     """移除社区工作人员"""
-    from wxcloudrun.model_community_extensions import CommunityStaff
+    from database.models import CommunityStaff
 
     app_logger.info('=== 开始移除社区工作人员 ===')
 
@@ -1089,7 +1088,7 @@ def remove_community_staff():
 @app.route('/api/community/users', methods=['GET'])
 def get_community_users_list():
     """获取社区用户列表 (新版API)"""
-    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    from database.models import CommunityMember, CommunityStaff
     from database.models import CheckinRecord
     from datetime import date
 
@@ -1193,7 +1192,7 @@ def get_community_users_list():
 @app.route('/api/community/add-users', methods=['POST'])
 def add_community_users():
     """添加社区用户"""
-    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    from database.models import CommunityMember, CommunityStaff
 
     app_logger.info('=== 开始添加社区用户 ===')
 
@@ -1290,7 +1289,7 @@ def add_community_users():
 @app.route('/api/community/remove-user', methods=['POST'])
 def remove_community_user():
     """移除社区用户"""
-    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    from database.models import CommunityMember, CommunityStaff
 
     app_logger.info('=== 开始移除社区用户 ===')
 
@@ -1470,7 +1469,7 @@ def create_community_new():
 
         # 如果指定了主管,添加到工作人员表
         if manager_id:
-            from wxcloudrun.model_community_extensions import CommunityStaff
+            from database.models import CommunityStaff
             staff = CommunityStaff(
                 community_id=community.community_id,
                 user_id=manager_id,
@@ -1562,7 +1561,7 @@ def update_community_new():
 
         # 如果更新了主管
         if 'manager_id' in data:
-            from wxcloudrun.model_community_extensions import CommunityStaff
+            from database.models import CommunityStaff
             new_manager_id = data['manager_id']
 
             if new_manager_id:
@@ -1660,7 +1659,7 @@ def toggle_community_status_new():
 @app.route('/api/community/delete', methods=['POST'])
 def delete_community_new():
     """删除社区 (新版API)"""
-    from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
+    from database.models import CommunityMember, CommunityStaff
 
     app_logger.info('=== 开始删除社区 ===')
 
@@ -1726,7 +1725,7 @@ def delete_community_new():
 @app.route('/api/user/search', methods=['GET'])
 def search_users_for_community():
     """搜索用户 (社区管理用)"""
-    from wxcloudrun.model_community_extensions import CommunityStaff, CommunityMember
+    from database.models import CommunityStaff, CommunityMember
 
     app_logger.info('=== 开始搜索用户 ===')
 
