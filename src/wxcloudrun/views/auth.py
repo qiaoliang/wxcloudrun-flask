@@ -133,7 +133,7 @@ def login():
             # 自动分配到默认社区
             try:
                 from wxcloudrun.community_service import CommunityService
-                CommunityService.assign_user_to_community(user)
+                CommunityService.assign_user_to_community(user, "安卡大家庭")
                 app.logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
             except Exception as e:
                 app.logger.error(f'自动分配社区失败: {str(e)}', exc_info=True)
@@ -377,7 +377,7 @@ def register_phone():
         # 自动分配到默认社区
         try:
             from wxcloudrun.community_service import CommunityService
-            CommunityService.assign_user_to_community(user)
+            CommunityService.assign_user_to_community(user, "安卡大家庭")
             app.logger.info(f'手机注册用户已自动分配到默认社区，用户ID: {user.user_id}')
         except Exception as e:
             app.logger.error(f'手机注册用户自动分配社区失败: {str(e)}', exc_info=True)

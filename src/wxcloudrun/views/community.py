@@ -442,8 +442,16 @@ def remove_user_from_community(community_id, target_user_id):
         if community.is_default:
             return make_err_response({}, '不能从默认社区移除用户')
 
-        # 获取或创建默认社区
-        default_community = CommunityService.get_or_create_default_community()
+        # 获取默认社区
+        from database.initialization import get_default_community
+        default_community_info = get_default_community()
+        if not default_community_info:
+            return make_err_response({}, '默认社区不存在，请确保数据库已正确初始化')
+        
+        # 获取默认社区对象
+        default_community = Community.query.get(default_community_info['community_id'])
+        if not default_community:
+            return make_err_response({}, '默认社区不存在，请确保数据库已正确初始化')
 
         # 将用户移到默认社区
         target_user.community_id = default_community.community_id

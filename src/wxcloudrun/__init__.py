@@ -39,7 +39,7 @@ db_core = None
 
 # 导入模型（使用新的数据库模块）
 from database.models import (
-    User, Community, CheckinRule, CheckinRecord, 
+    User, Community, CheckinRule, CheckinRecord,
     SupervisionRuleRelation, CommunityStaff, CommunityMember,
     CommunityApplication, ShareLink, ShareLinkAccessLog,
     VerificationCode, UserAuditLog, Counters
@@ -53,19 +53,14 @@ from .background_tasks import start_missing_check_service
 import config_manager
 if config_manager.is_unit_environment():
     with app.app_context():
-        try:
-            from .community_service import CommunityService
-            default_community = CommunityService.get_or_create_default_community()
-            app.logger.info(f"默认社区初始化完成: {default_community.name} (ID: {default_community.community_id})")
-        except Exception as e:
-            app.logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
+        app.logger.info("默认社区初始化已在数据库迁移完成后自动执行")
 
 # 加载配置
 app.config.from_object('config')
 
-# 启动后台服务
 try:
     if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+        app.logger.error(f"# 启动后台服务")
         start_missing_check_service()
 except Exception as e:
     app.logger.error(f"启动后台missing服务失败: {str(e)}")

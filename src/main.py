@@ -6,6 +6,9 @@ import logging
 # 添加当前目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+# 导入初始化函数
+from database.initialization import create_super_admin_and_default_community
+
 # 配置迁移日志
 import datetime
 migration_logger = logging.getLogger('migration')
@@ -80,40 +83,39 @@ def main():
     """主程序入口"""
     # 1. 创建 Flask 应用
     flask_app = create_app()
-    
+
     # 2. 初始化数据库并绑定到 Flask
     migration_logger.info("正在初始化数据库并绑定到 Flask 应用...")
     with flask_app.app_context():
         # 导入数据库核心
         from database import get_database
-        
+
         # 获取数据库核心实例（使用环境配置）
         db_core = get_database('standalone')
         db_core.initialize()
         migration_logger.info("数据库核心初始化成功")
-        
+
         # 将 db_core 保存到 app 中供后续使用
         flask_app.db_core = db_core
-        
+
         # 3. 执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
         env_type = os.getenv('ENV_TYPE', 'unit')
-        if env_type not in ['unit']:
-            migration_success = run_migration()
-            if not migration_success:
+        if env_type in ['unit']:
+            migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
+
+        migration_success = run_migration()
+        app.logger.info("开始注入超级管理员和默认社区.....")
+        
+        # 创建超级管理员和默认社区
+        create_super_admin_and_default_community(db_core)
+        
+        app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
+        if not migration_success:
                 migration_logger.error("数据库迁移失败，程序退出")
                 sys.exit(1)
-        else:
-            migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
-        
-        # 4. 在非 unit 环境下初始化默认社区（unit 环境已在 __init__.py 中处理）
-        if env_type not in ['unit']:
-            try:
-                from wxcloudrun.community_service import CommunityService
-                default_community = CommunityService.get_or_create_default_community()
-                migration_logger.info(f"默认社区初始化完成: {default_community.name} (ID: {default_community.community_id})")
-            except Exception as e:
-                migration_logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
-    
+
+# 4. 默认社区初始化已在数据库迁移完成后自动执行
+
     # 5. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
     port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080

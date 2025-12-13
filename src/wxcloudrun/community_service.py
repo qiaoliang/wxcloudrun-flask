@@ -15,119 +15,15 @@ logger = logging.getLogger('log')
 # 获取数据库实例
 db = get_database()
 
-# 默认社区配置
-DEFAULT_COMMUNITY_NAME = "安卡大家庭"
-DEFAULT_ADMIN_PHONE = "+8613900007997"
-DEFAULT_ADMIN_PASSWORD = "Firefox0820"
-
 
 class CommunityService:
     """社区服务类"""
 
     @staticmethod
-    def get_or_create_default_community():
-        """获取或创建默认社区"""
-        with db.get_session() as session:
-            community = session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
-
-            if not community:
-                logger.info(f"创建默认社区: {DEFAULT_COMMUNITY_NAME}")
-
-            # 确保超级管理员存在
-            admin_user = CommunityService._ensure_super_admin_exists()
-
-            # 创建默认社区
-            community = Community(
-                name=DEFAULT_COMMUNITY_NAME,
-                description="系统默认社区，新注册用户自动加入",
-                creator_user_id=admin_user.user_id,
-                status=1,  # 启用
-                is_default=True,
-                settings={
-                    "max_users": 10000,
-                    "auto_approve": False
-                }
-            )
-            db.session.add(community)
-            db.session.flush()  # 获取community_id
-
-            # 将超级管理员设为社区主管
-            from .model_community_extensions import CommunityStaff
-            staff_role = CommunityStaff(
-                community_id=community.community_id,
-                user_id=admin_user.user_id,
-                role='manager'  # 主管
-            )
-            db.session.add(staff_role)
-
-            # 记录审计日志
-            audit_log = UserAuditLog(
-                user_id=admin_user.user_id,
-                action="create_default_community",
-                detail=f"创建默认社区: {DEFAULT_COMMUNITY_NAME}"
-            )
-            db.session.add(audit_log)
-
-            db.session.commit()
-            logger.info(f"默认社区创建成功，ID: {community.community_id}")
-
-        return community
-
-    @staticmethod
-    def _ensure_super_admin_exists():
-        """确保超级管理员账户存在"""
-        # 标准化电话号码格式
-        from .utils.validators import normalize_phone_number
-        normalized_phone = normalize_phone_number(DEFAULT_ADMIN_PHONE)
-
-        # 使用phone_hash查找超级管理员
-        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-        phone_hash = sha256(f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
-
-        admin_user = User.query.filter_by(phone_hash=phone_hash).first()
-
-        if not admin_user:
-            logger.info(f"创建超级管理员账户: {DEFAULT_ADMIN_PHONE}")
-
-            # 创建超级管理员账户
-            from secrets import token_hex
-            salt = token_hex(8)
-            pwd_hash = sha256(f"{DEFAULT_ADMIN_PASSWORD}:{salt}".encode('utf-8')).hexdigest()
-
-            admin_user = User(
-                wechat_openid=f"admin_{normalized_phone}",
-                phone_number=normalized_phone,
-                phone_hash=phone_hash,
-                password_hash=pwd_hash,
-                password_salt=salt,
-                nickname="系统超级管理员",
-                role=4,  # 社区超级管理员
-                status=1,
-                verification_status=2,  # 已通过验证
-                # 超级管理员拥有所有权限
-                is_community_worker=True
-            )
-            db.session.add(admin_user)
-            db.session.flush()  # 获取user_id
-
-            # 记录审计日志
-            audit_log = UserAuditLog(
-                user_id=admin_user.user_id,
-                action="create_super_admin",
-                detail=f"创建超级管理员账户: {DEFAULT_ADMIN_PHONE}"
-            )
-            db.session.add(audit_log)
-
-            db.session.commit()
-            logger.info(f"超级管理员账户创建成功，ID: {admin_user.user_id}")
-
-        return admin_user
-
-    @staticmethod
-    def assign_user_to_community(user, community_name=None):
+    def assign_user_to_community(user, community_name):
         """将用户分配到社区"""
-        if community_name is None:
-            community_name = DEFAULT_COMMUNITY_NAME
+        if not community_name:
+            raise ValueError("社区名称不能为空")
 
         community = Community.query.filter_by(name=community_name).first()
         if not community:

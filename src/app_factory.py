@@ -120,13 +120,8 @@ class ApplicationFactory:
     
     def _create_default_data(self, app: Flask):
         """创建默认数据（仅测试环境）"""
-        with app.app_context():
-            try:
-                from .community_service import CommunityService
-                default_community = CommunityService.get_or_create_default_community()
-                app.logger.info(f"默认社区初始化完成: {default_community.name}")
-            except Exception as e:
-                app.logger.error(f"初始化默认社区失败: {str(e)}", exc_info=True)
+        # 默认社区初始化已在数据库迁移完成后自动执行
+        app.logger.info("默认社区初始化已在数据库迁移完成后自动执行")
 
 
 # 创建应用工厂实例
