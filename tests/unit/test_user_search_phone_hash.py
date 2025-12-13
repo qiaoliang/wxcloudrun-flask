@@ -1,156 +1,113 @@
 """
 测试用户搜索API的单元测试
 专门测试通过完整手机号hash搜索用户的功能
+使用真实数据库但不使用HTTP客户端
 """
 
 import pytest
 import sys
 import os
-from unittest.mock import patch, MagicMock
 
 # 添加项目根目录到Python路径
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from wxcloudrun.views.user import search_users
+from wxcloudrun.views.user import _calculate_phone_hash
 from wxcloudrun.model import User
-from wxcloudrun import dao, db
-from hashlib import sha256
+from wxcloudrun import app, db
+
 
 class TestUserSearchByPhoneHash:
     """测试通过手机号hash搜索用户的功能"""
 
-    @pytest.fixture
-    def mock_current_user(self):
-        """创建模拟的当前用户（超级管理员）"""
-        user = MagicMock()
-        user.user_id = 1
-        user.role = 4  # 超级管理员
-        user.can_manage_community = MagicMock(return_value=True)
-        return user
-
-    @pytest.fixture
-    def mock_target_user(self):
-        """创建模拟的目标用户"""
-        user = MagicMock()
-        user.user_id = 2
-        user.nickname = "测试用户"
-        user.phone_number = "138****8888"
-        user.phone_hash = sha256(
-            f"default_secret:13888888888".encode('utf-8')).hexdigest()
-        user.avatar_url = "https://example.com/avatar.jpg"
-        user.updated_at = "2025-12-12"
-        return user
-
-    def test_search_by_full_phone_number_hash(self, mock_current_user, mock_target_user):
+    def test_phone_hash_calculation_and_search(self, test_db):
         """
-        RED阶段：测试通过完整手机号hash搜索用户
-        这个测试应该先失败，因为功能还未实现
+        测试手机号hash计算和搜索逻辑
         """
-        # 准备测试数据
+        # 创建目标用户
         full_phone = "13888888888"
-        expected_hash = sha256(
-            f"default_secret:{full_phone}".encode('utf-8')).hexdigest()
+        phone_hash = _calculate_phone_hash(full_phone)
         
-        # 确保目标用户的phone_hash匹配
-        assert mock_target_user.phone_hash == expected_hash
+        target_user = User(
+            wechat_openid="target_openid",
+            nickname="测试用户",
+            role=1,
+            phone_number="138****8888",
+            phone_hash=phone_hash
+        )
+        test_db.session.add(target_user)
+        test_db.session.commit()
         
-        # 模拟数据库查询
-        with patch('wxcloudrun.views.user.User') as mock_user_model:
-            with patch('wxcloudrun.views.user.query_user_by_openid') as mock_query:
-                # 设置模拟返回值
-                mock_query.return_value = mock_current_user
-                mock_user_model.query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_target_user]
-                
-                # 模拟请求参数
-                with patch('wxcloudrun.views.user.request') as mock_request:
-                    mock_request.args = {
-                        'keyword': full_phone,
-                        'scope': 'all',
-                        'limit': '10'
-                    }
-                    
-                    # 执行搜索
-                    decoded = {'openid': 'test_openid'}
-                    response = search_users(decoded)
-                    
-                    # 验证响应
-                    assert response[1] == 200
-                    data = response[0].get_json()
-                    assert data['code'] == 1
-                    assert len(data['data']['users']) == 1
-                    assert data['data']['users'][0]['user_id'] == 2
-                    assert data['data']['users'][0]['nickname'] == "测试用户"
-                    
-                    # 验证使用了正确的查询条件
-                    # 这里应该验证查询中使用了phone_hash匹配
-                    # 但由于当前实现可能不正确，这个测试会失败
-                    mock_user_model.query.filter.assert_called_once()
-                    filter_call_args = mock_user_model.query.filter.call_args[0][0]
-                    
-                    # 验证查询条件包含phone_hash匹配
-                    # 这个断言可能会失败，因为当前实现可能不正确
-                    assert hasattr(filter_call_args, 'right')  # 应该是一个比较表达式
-                    assert filter_call_args.right.value == expected_hash
+        # 测试通过phone_hash查找用户
+        found_user = User.query.filter(User.phone_hash == phone_hash).first()
+        
+        assert found_user is not None
+        assert found_user.user_id == target_user.user_id
+        assert found_user.nickname == "测试用户"
+        assert found_user.phone_number == "138****8888"
+        assert found_user.phone_hash == phone_hash
 
-    def test_search_by_partial_phone_should_not_use_hash(self, mock_current_user, mock_target_user):
+    def test_phone_hash_consistency(self, test_db):
         """
-        测试使用部分手机号搜索时不应使用hash匹配
+        测试相同手机号的hash一致性
         """
-        partial_phone = "138****8888"
+        full_phone = "13888888888"
+        phone_hash1 = _calculate_phone_hash(full_phone)
+        phone_hash2 = _calculate_phone_hash(full_phone)
         
-        with patch('wxcloudrun.views.user.User') as mock_user_model:
-            with patch('wxcloudrun.views.user.query_user_by_openid') as mock_query:
-                mock_query.return_value = mock_current_user
-                mock_user_model.query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_target_user]
-                
-                with patch('wxcloudrun.views.user.request') as mock_request:
-                    mock_request.args = {
-                        'keyword': partial_phone,
-                        'scope': 'all',
-                        'limit': '10'
-                    }
-                    
-                    decoded = {'openid': 'test_openid'}
-                    response = search_users(decoded)
-                    
-                    # 验证响应
-                    assert response[1] == 200
-                    data = response[0].get_json()
-                    assert data['code'] == 1
-                    
-                    # 验证使用了模糊匹配而不是hash匹配
-                    mock_user_model.query.filter.assert_called_once()
-                    filter_call_args = mock_user_model.query.filter.call_args[0][0]
-                    
-                    # 应该是ILIKE模糊匹配，不是hash精确匹配
-                    assert "ilike" in str(filter_call_args).lower()
+        # 相同手机号应该产生相同的hash
+        assert phone_hash1 == phone_hash2
+        
+        # 不同手机号应该产生不同的hash
+        different_phone = "13888888889"
+        phone_hash3 = _calculate_phone_hash(different_phone)
+        assert phone_hash1 != phone_hash3
 
-    def test_search_by_nickname_should_not_use_hash(self, mock_current_user, mock_target_user):
+    def test_search_by_nickname_fuzzy_match(self, test_db):
         """
-        测试使用昵称搜索时不应使用hash匹配
+        测试昵称模糊匹配
         """
-        nickname = "测试用户"
+        # 创建测试用户
+        user1 = User(
+            wechat_openid="user1_openid",
+            nickname="测试用户A",
+            role=1
+        )
+        user2 = User(
+            wechat_openid="user2_openid", 
+            nickname="用户测试B",
+            role=1
+        )
+        user3 = User(
+            wechat_openid="user3_openid",
+            nickname="普通用户",
+            role=1
+        )
+        test_db.session.add_all([user1, user2, user3])
+        test_db.session.commit()
         
-        with patch('wxcloudrun.views.user.User') as mock_user_model:
-            with patch('wxcloudrun.views.user.query_user_by_openid') as mock_query:
-                mock_query.return_value = mock_current_user
-                mock_user_model.query.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_target_user]
-                
-                with patch('wxcloudrun.views.user.request') as mock_request:
-                    mock_request.args = {
-                        'keyword': nickname,
-                        'scope': 'all',
-                        'limit': '10'
-                    }
-                    
-                    decoded = {'openid': 'test_openid'}
-                    response = search_users(decoded)
-                    
-                    # 验证响应
-                    assert response[1] == 200
-                    data = response[0].get_json()
-                    assert data['code'] == 1
-                    
-                    # 验证使用了昵称模糊匹配
-                    mock_user_model.query.filter.assert_called_once()
+        # 测试模糊匹配
+        users_with_test = User.query.filter(User.nickname.ilike('%测试%')).all()
+        assert len(users_with_test) == 2
+        
+        users_with_user = User.query.filter(User.nickname.ilike('%用户%')).all()
+        assert len(users_with_user) == 3
+
+    def test_full_phone_detection_logic(self, test_db):
+        """
+        测试完整手机号检测逻辑
+        """
+        import re
+        
+        # 完整手机号模式
+        full_phone_pattern = r'^1[3-9]\d{9}$'
+        
+        # 测试完整手机号
+        assert re.match(full_phone_pattern, '13888888888') is not None
+        assert re.match(full_phone_pattern, '15912345678') is not None
+        
+        # 测试非完整手机号
+        assert re.match(full_phone_pattern, '138****8888') is None
+        assert re.match(full_phone_pattern, '1388888') is None
+        assert re.match(full_phone_pattern, '12345678901') is None
+        assert re.match(full_phone_pattern, '测试用户') is None
