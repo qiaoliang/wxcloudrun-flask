@@ -7,7 +7,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from hashlib import sha256
-from wxcloudrun import app, db
+from wxcloudrun import app
 from database.models import VerificationCode
 
 
@@ -87,7 +87,11 @@ def _verify_sms_code(phone, purpose, code):
     if vc.code_hash == _hash_code(phone, code, vc.salt):
         # 验证成功后立即标记为已使用
         vc.is_used = True
-        db.session.commit()
+        from flask import current_app
+        db_core = current_app.db_core
+        with db_core.get_session() as session:
+            session.add(vc)
+            session.commit()
         return True
     return False
 
@@ -101,7 +105,10 @@ def _audit(user_id, action, detail=None):
         from database.models import UserAuditLog
         log = UserAuditLog(user_id=user_id, action=action, detail=json.dumps(
             detail) if isinstance(detail, dict) else detail)
-        db.session.add(log)
-        db.session.commit()
+        from flask import current_app
+        db_core = current_app.db_core
+        with db_core.get_session() as session:
+            session.add(log)
+            session.commit()
     except Exception:
         pass

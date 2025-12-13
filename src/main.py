@@ -50,7 +50,7 @@ if env_type is None or env_type == '':
     sys.exit(1)
 
 # 现在可以安全地导入 wxcloudrun
-from wxcloudrun import app, db
+from wxcloudrun import app
 
 
 def create_app():
@@ -84,13 +84,13 @@ def main():
     # 2. 初始化数据库并绑定到 Flask
     migration_logger.info("正在初始化数据库并绑定到 Flask 应用...")
     with flask_app.app_context():
-        # 导入数据库绑定函数
-        from database import bind_flask_db
-        from wxcloudrun import db
+        # 导入数据库核心
+        from database import get_database
         
-        # 绑定数据库到 Flask
-        db_core = bind_flask_db(db, flask_app)
-        migration_logger.info("数据库成功绑定到 Flask 应用")
+        # 获取数据库核心实例（使用环境配置）
+        db_core = get_database('standalone')
+        db_core.initialize()
+        migration_logger.info("数据库核心初始化成功")
         
         # 将 db_core 保存到 app 中供后续使用
         flask_app.db_core = db_core

@@ -3,7 +3,7 @@ import threading
 import time as time_module
 from datetime import datetime, date, time, timedelta
 
-from wxcloudrun import app, db
+from wxcloudrun import app
 from database.models import CheckinRule, CheckinRecord, User
 from wxcloudrun.dao import (
     query_checkin_records_by_rule_id_and_date,

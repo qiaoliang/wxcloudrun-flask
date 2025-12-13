@@ -43,7 +43,10 @@ class DatabaseCore:
             if self.mode == 'test':
                 db_uri = 'sqlite:///:memory:'
             elif self.mode == 'standalone':
-                db_uri = 'sqlite:///safeGuard.db'
+                # 使用环境配置中的数据库路径
+                from config_manager import get_database_config
+                db_config = get_database_config()
+                db_uri = db_config['SQLALCHEMY_DATABASE_URI']
             elif self.mode == 'flask':
                 # Flask模式下等待外部注入
                 return
@@ -109,6 +112,20 @@ class DatabaseCore:
                 raise
             finally:
                 session.close()
+    
+    def query(self, *entities, **kwargs):
+        """
+        提供类似 Flask-SQLAlchemy 的 query 方法
+        """
+        if not self._is_initialized:
+            raise RuntimeError("数据库未初始化")
+        
+        if self.mode == 'flask':
+            from flask import current_app
+            flask_db = current_app.extensions['sqlalchemy'].db
+            return flask_db.session.query(*entities, **kwargs)
+        else:
+            return self.session_factory().query(*entities, **kwargs)
     
     def create_tables(self):
         """创建所有表"""

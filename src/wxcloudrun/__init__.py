@@ -2,7 +2,6 @@ import os
 import sys
 import logging
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
 
 # 添加父目录到路径，以便导入 config 模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -31,13 +30,9 @@ app = Flask(__name__, instance_relative_config=True)
 # 配置调试模式
 app.config['DEBUG'] = config.DEBUG
 
-# 获取数据库配置并应用到Flask
+# 获取数据库配置（用于日志记录）
 db_config = get_database_config()
-app.config['SQLALCHEMY_DATABASE_URI'] = db_config['SQLALCHEMY_DATABASE_URI']
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-
-# 初始化 Flask-SQLAlchemy（仅用于Web服务）
-db = SQLAlchemy(app)
+app.config['DATABASE_CONFIG'] = db_config
 
 # 数据库核心将在 main.py 中绑定
 db_core = None

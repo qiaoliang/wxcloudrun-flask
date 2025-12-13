@@ -3,7 +3,7 @@ from datetime import datetime
 import os
 
 from sqlalchemy import Column, Integer, String, DateTime, Text, text
-from wxcloudrun import db  # 导入db对象
+# 移除 Flask-SQLAlchemy 依赖，直接使用数据库模型
 from datetime import datetime
 
 

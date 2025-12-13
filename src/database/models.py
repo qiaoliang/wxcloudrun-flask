@@ -6,12 +6,13 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
+from .query_mixin import QueryMixin
 
 # 创建基础模型类
 Base = declarative_base()
 
 
-class User(Base):
+class User(Base, QueryMixin):
     """用户表"""
     __tablename__ = 'users'
     
@@ -40,7 +41,7 @@ class User(Base):
     community = relationship('Community', foreign_keys=[community_id], backref='users')
 
 
-class Community(Base):
+class Community(Base, QueryMixin):
     """社区表"""
     __tablename__ = 'communities'
     
@@ -59,7 +60,7 @@ class Community(Base):
     creator = relationship('User', foreign_keys=[creator_user_id], backref='created_communities')
 
 
-class CheckinRule(Base):
+class CheckinRule(Base, QueryMixin):
     """打卡规则表"""
     __tablename__ = 'checkin_rules'
     
@@ -82,7 +83,7 @@ class CheckinRule(Base):
     user = relationship('User', backref='checkin_rules')
 
 
-class CheckinRecord(Base):
+class CheckinRecord(Base, QueryMixin):
     """打卡记录表"""
     __tablename__ = 'checkin_records'
     
@@ -100,7 +101,7 @@ class CheckinRecord(Base):
     user = relationship('User', backref='checkin_records')
 
 
-class SupervisionRuleRelation(Base):
+class SupervisionRuleRelation(Base, QueryMixin):
     """监督规则关系表"""
     __tablename__ = 'supervision_rule_relations'
     
@@ -120,7 +121,7 @@ class SupervisionRuleRelation(Base):
     rule = relationship('CheckinRule', backref='supervision_relations')
 
 
-class CommunityStaff(Base):
+class CommunityStaff(Base, QueryMixin):
     """社区工作人员表"""
     __tablename__ = 'community_staff'
     
@@ -137,7 +138,7 @@ class CommunityStaff(Base):
     user = relationship('User', backref='staff_roles')
 
 
-class CommunityMember(Base):
+class CommunityMember(Base, QueryMixin):
     """社区成员表"""
     __tablename__ = 'community_members'
     
@@ -152,7 +153,7 @@ class CommunityMember(Base):
     user = relationship('User', backref='community_memberships')
 
 
-class CommunityApplication(Base):
+class CommunityApplication(Base, QueryMixin):
     """社区申请表"""
     __tablename__ = 'community_applications'
     
@@ -172,7 +173,7 @@ class CommunityApplication(Base):
     target_community = relationship('Community', backref='applications')
 
 
-class ShareLink(Base):
+class ShareLink(Base, QueryMixin):
     """分享链接表"""
     __tablename__ = 'share_links'
     
@@ -189,7 +190,7 @@ class ShareLink(Base):
     rule = relationship('CheckinRule', backref='share_links')
 
 
-class ShareLinkAccessLog(Base):
+class ShareLinkAccessLog(Base, QueryMixin):
     """分享链接访问日志表"""
     __tablename__ = 'share_link_access_logs'
     
@@ -204,7 +205,7 @@ class ShareLinkAccessLog(Base):
     # supervisor_user = relationship('User', backref='access_logs')
 
 
-class VerificationCode(Base):
+class VerificationCode(Base, QueryMixin):
     """验证码表"""
     __tablename__ = 'verification_codes'
     
@@ -220,7 +221,7 @@ class VerificationCode(Base):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
-class UserAuditLog(Base):
+class UserAuditLog(Base, QueryMixin):
     """用户审计日志表"""
     __tablename__ = 'user_audit_logs'
     
@@ -234,7 +235,7 @@ class UserAuditLog(Base):
     # user = relationship('User', backref='audit_logs')
 
 
-class Counters(Base):
+class Counters(Base, QueryMixin):
     """计数器表"""
     __tablename__ = 'Counters'
     
