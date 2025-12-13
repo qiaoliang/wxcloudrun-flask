@@ -58,6 +58,25 @@ class Community(Base, QueryMixin):
     
     # 关系
     creator = relationship('User', foreign_keys=[creator_user_id], backref='created_communities')
+    
+    # 状态映射
+    STATUS_MAPPING = {
+        1: 'enabled',
+        2: 'disabled'
+    }
+    
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
+    
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
+                return value
+        return None
 
 
 class CheckinRule(Base, QueryMixin):

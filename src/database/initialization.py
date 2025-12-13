@@ -5,6 +5,7 @@
 
 import logging
 import secrets
+import os
 from hashlib import sha256
 from database.models import User, Community, CommunityStaff
 from database.core import get_database
@@ -36,14 +37,18 @@ def create_super_admin_and_default_community(db_core):
                 logger.info("开始创建超级管理员...")
                 # 创建超级管理员
                 salt = secrets.token_hex(8)
-                password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
+                password_hash = sha256(f"Firefox0820:{salt}".encode('utf-8')).hexdigest()
 
+                # 使用与auth.py相同的手机号哈希方法
+                phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+                phone_hash = sha256(f"{phone_secret}:13900007997".encode('utf-8')).hexdigest()
+                
                 super_admin = User(
                     wechat_openid=f"super_admin_{secrets.token_hex(16)}",  # 生成唯一openid
                     phone_number='13900007997',
-                    phone_hash=sha256('13900007997'.encode('utf-8')).hexdigest(),
-                    nickname='超级系统管理员',
-                    name='超级系统管理员',
+                    phone_hash=phone_hash,
+                    nickname='系统超级管理员',
+                    name='系统超级管理员',
                     password_hash=password_hash,
                     password_salt=salt,
                     role=4,  # 社区工作人员角色
@@ -100,7 +105,7 @@ def create_super_admin_and_default_community(db_core):
                 # 创建默认社区
                 default_community = Community(
                     name='安卡大家庭',
-                    description='系统默认社区',
+                    description='系统默认社区，新注册用户自动加入',
                     creator_user_id=admin_user.user_id,
                     status=1,  # 启用状态
                     is_default=True

@@ -14,7 +14,7 @@ class TestMultiCommunityRoleAssignment:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()

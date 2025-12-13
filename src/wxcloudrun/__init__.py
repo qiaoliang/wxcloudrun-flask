@@ -58,9 +58,13 @@ if config_manager.is_unit_environment():
 # 加载配置
 app.config.from_object('config')
 
-try:
-    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
-        app.logger.error(f"# 启动后台服务")
-        start_missing_check_service()
-except Exception as e:
-    app.logger.error(f"启动后台missing服务失败: {str(e)}")
+# 在 unit 环境下不启动后台服务
+if not config_manager.is_unit_environment():
+    try:
+        if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+            app.logger.error(f"# 启动后台服务")
+            start_missing_check_service()
+    except Exception as e:
+        app.logger.error(f"启动后台missing服务失败: {str(e)}")
+else:
+    app.logger.info("unit 环境下不启动后台服务")

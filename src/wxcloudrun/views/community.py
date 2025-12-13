@@ -161,7 +161,12 @@ def get_communities():
         return error
 
     try:
-        communities = Community.query.all()
+        # Eager load relationships to avoid session issues
+        from sqlalchemy.orm import joinedload
+        communities = Community.query.options(
+            joinedload(Community.creator),
+            joinedload(Community.users)
+        ).all()
         result = [_format_community_data(c) for c in communities]
 
         app.logger.info(f'成功获取社区列表，共 {len(result)} 个社区')

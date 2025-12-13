@@ -83,6 +83,9 @@ def main():
     """主程序入口"""
     # 1. 创建 Flask 应用
     flask_app = create_app()
+    
+    # 获取环境类型
+    env_type = os.getenv('ENV_TYPE', 'unit')
 
     # 2. 初始化数据库并绑定到 Flask
     migration_logger.info("正在初始化数据库并绑定到 Flask 应用...")
@@ -91,7 +94,11 @@ def main():
         from database import get_database
 
         # 获取数据库核心实例（使用环境配置）
-        db_core = get_database('standalone')
+        # 在 unit 环境下使用 'test' 模式以确保使用相同的内存数据库
+        if env_type in ['unit']:
+            db_core = get_database('test')
+        else:
+            db_core = get_database('standalone')
         db_core.initialize()
         migration_logger.info("数据库核心初始化成功")
 
@@ -99,7 +106,6 @@ def main():
         flask_app.db_core = db_core
 
         # 3. 执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
-        env_type = os.getenv('ENV_TYPE', 'unit')
         if env_type in ['unit']:
             migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
             migration_success = True

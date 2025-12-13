@@ -2,15 +2,27 @@ import logging
 from datetime import datetime, date
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import and_, or_
+from flask import current_app
 
 from database import get_database
 from database.models import Counters, User, CheckinRule, CheckinRecord
 
-# 获取数据库实例
-db = get_database()
-
 # 初始化日志
 logger = logging.getLogger('log')
+
+
+def get_db():
+    """获取数据库实例，优先从Flask应用上下文获取"""
+    try:
+        # 尝试从Flask应用上下文获取数据库实例
+        if hasattr(current_app, 'db_core'):
+            return current_app.db_core
+    except RuntimeError:
+        # 不在Flask应用上下文中，回退到全局实例
+        pass
+    
+    # 回退到全局数据库实例
+    return get_database()
 
 
 def query_counterbyid(id):
@@ -20,7 +32,7 @@ def query_counterbyid(id):
     :return: Counter实体
     """
     try:
-        with db.get_session() as session:
+        with get_db().get_session() as session:
             result = session.query(Counters).filter(Counters.id == id).first()
             logger.info(f"query_counterbyid: 查询ID {id} 的结果 - {'找到计数器' if result else '未找到计数器'}")
             if result:
@@ -37,7 +49,7 @@ def delete_counterbyid(id):
     :param id: Counter的ID
     """
     try:
-        with db.get_session() as session:
+        with get_db().get_session() as session:
             logger.info(f"delete_counterbyid: 准备删除ID为 {id} 的计数器")
             counter = session.query(Counters).get(id)
             if counter is None:
@@ -57,7 +69,7 @@ def insert_counter(counter):
     :param counter: Counters实体
     """
     try:
-        with db.get_session() as session:
+        with get_db().get_session() as session:
             logger.info(f"insert_counter: 准备插入计数器，ID: {counter.id}, 值: {counter.count}")
             session.add(counter)
             session.commit()
@@ -72,20 +84,21 @@ def update_counterbyid(counter):
     :param counter实体
     """
     try:
-        logger.info(f"update_counterbyid: 准备更新计数器，ID: {counter.id}, 新值: {counter.count}")
-        existing_counter = query_counterbyid(counter.id)
-        if existing_counter is None:
-            logger.warning(f"update_counterbyid: 未找到ID为 {counter.id} 的计数器进行更新")
-            return
-        logger.info(f"update_counterbyid: 找到现有计数器，当前值: {existing_counter.count}")
-        # 更新现有记录的值
-        existing_counter.count = counter.count
-        existing_counter.updated_at = counter.updated_at
-        logger.info(f"update_counterbyid: 设置新值为 {existing_counter.count}")
-        db.session.flush()
-        logger.info("update_counterbyid: 执行session flush")
-        db.session.commit()
-        logger.info(f"update_counterbyid: 成功提交更新，ID: {counter.id}, 值: {existing_counter.count}")
+        with get_db().get_session() as session:
+            logger.info(f"update_counterbyid: 准备更新计数器，ID: {counter.id}, 新值: {counter.count}")
+            existing_counter = session.query(Counters).filter(Counters.id == counter.id).first()
+            if existing_counter is None:
+                logger.warning(f"update_counterbyid: 未找到ID为 {counter.id} 的计数器进行更新")
+                return
+            logger.info(f"update_counterbyid: 找到现有计数器，当前值: {existing_counter.count}")
+            # 更新现有记录的值
+            existing_counter.count = counter.count
+            existing_counter.updated_at = counter.updated_at
+            logger.info(f"update_counterbyid: 设置新值为 {existing_counter.count}")
+            session.flush()
+            logger.info("update_counterbyid: 执行session flush")
+            # session.commit() is handled by the context manager
+            logger.info(f"update_counterbyid: 成功提交更新，ID: {counter.id}, 值: {existing_counter.count}")
     except OperationalError as e:
         logger.error("update_counterbyid errorMsg= {} ".format(e))
 
@@ -97,7 +110,7 @@ def query_user_by_openid(openid):
     :return: User实体
     """
     try:
-        with db.get_session() as session:
+        with get_db().get_session() as session:
             return session.query(User).filter(User.wechat_openid == openid).first()
     except OperationalError as e:
         logger.info("query_user_by_openid errorMsg= {} ".format(e))
@@ -111,7 +124,7 @@ def query_user_by_id(user_id):
     :return: User实体
     """
     try:
-        with db.get_session() as session:
+        with get_db().get_session() as session:
             return session.query(User).filter(User.user_id == user_id).first()
     except OperationalError as e:
         logger.info("query_user_by_id errorMsg= {} ".format(e))
@@ -124,12 +137,12 @@ def insert_user(user):
     :param user: User实体
     """
     try:
-        db.session.add(user)
-        db.session.flush()  # 刷新以获取数据库生成的ID
-        db.session.commit()
+        with get_db().get_session() as session:
+            session.add(user)
+            session.flush()  # 刷新以获取数据库生成的ID
+            # session.commit() is handled by the context manager
     except OperationalError as e:
         logger.info("insert_user errorMsg= {} ".format(e))
-        db.session.rollback()
         raise
 
 
@@ -139,46 +152,47 @@ def update_user_by_id(user):
     :param user: User实体
     """
     try:
-        existing_user = query_user_by_id(user.user_id)
-        if existing_user is None:
-            return
-        # 更新用户信息
-        if user.nickname is not None:
-            existing_user.nickname = user.nickname
-        if user.avatar_url is not None:
-            existing_user.avatar_url = user.avatar_url
-        if user.name is not None:
-            existing_user.name = user.name
-        if user.work_id is not None:
-            existing_user.work_id = user.work_id
-        if user.phone_number is not None:
-            existing_user.phone_number = user.phone_number
-        if user.role is not None:
-            # 如果传入的是字符串，转换为对应的整数值
-            if isinstance(user.role, str):
-                role_value = User.get_role_value(user.role)
-                if role_value is not None:
-                    existing_user.role = role_value
-            elif isinstance(user.role, int):
-                existing_user.role = user.role
-        if user.verification_status is not None:
-            existing_user.verification_status = user.verification_status
-        if user.verification_materials is not None:
-            existing_user.verification_materials = user.verification_materials
-        if user.community_id is not None:
-            existing_user.community_id = user.community_id
-        if user.status is not None:
-            # 如果传入的是字符串，转换为对应的整数值
-            if isinstance(user.status, str):
-                status_value = User.get_status_value(user.status)
-                if status_value is not None:
-                    existing_user.status = status_value
-            elif isinstance(user.status, int):
-                existing_user.status = user.status
-        existing_user.updated_at = user.updated_at or datetime.now()
-        
-        db.session.flush()
-        db.session.commit()
+        with get_db().get_session() as session:
+            existing_user = session.query(User).filter(User.user_id == user.user_id).first()
+            if existing_user is None:
+                return
+            # 更新用户信息
+            if user.nickname is not None:
+                existing_user.nickname = user.nickname
+            if user.avatar_url is not None:
+                existing_user.avatar_url = user.avatar_url
+            if user.name is not None:
+                existing_user.name = user.name
+            if user.work_id is not None:
+                existing_user.work_id = user.work_id
+            if user.phone_number is not None:
+                existing_user.phone_number = user.phone_number
+            if user.role is not None:
+                # 如果传入的是字符串，转换为对应的整数值
+                if isinstance(user.role, str):
+                    role_value = User.get_role_value(user.role)
+                    if role_value is not None:
+                        existing_user.role = role_value
+                elif isinstance(user.role, int):
+                    existing_user.role = user.role
+            if user.verification_status is not None:
+                existing_user.verification_status = user.verification_status
+            if user.verification_materials is not None:
+                existing_user.verification_materials = user.verification_materials
+            if user.community_id is not None:
+                existing_user.community_id = user.community_id
+            if user.status is not None:
+                # 如果传入的是字符串，转换为对应的整数值
+                if isinstance(user.status, str):
+                    status_value = User.get_status_value(user.status)
+                    if status_value is not None:
+                        existing_user.status = status_value
+                elif isinstance(user.status, int):
+                    existing_user.status = user.status
+            existing_user.updated_at = user.updated_at or datetime.now()
+            
+            session.flush()
+            # session.commit() is handled by the context manager
     except OperationalError as e:
         logger.info("update_user_by_id errorMsg= {} ".format(e))
 

@@ -17,7 +17,7 @@ class TestCommunityStaffManagement:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
@@ -454,7 +454,7 @@ class TestCommunityUserManagement:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
@@ -793,7 +793,7 @@ class TestSpecialCommunityLogic:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
@@ -1079,7 +1079,7 @@ class TestCommunityPermissions:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
@@ -1442,7 +1442,7 @@ class TestCommunityCRUD:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
@@ -1632,7 +1632,7 @@ class TestUserSearch:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
@@ -1783,7 +1783,7 @@ class TestEdgeCases:
         """获取超级管理员token"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()

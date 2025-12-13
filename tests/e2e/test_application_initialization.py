@@ -35,7 +35,7 @@ class TestApplicationInitialization:
         # 首先尝试通过超级管理员登录获取token
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'F1234567'
+            'password': 'Firefox0820'
         }, timeout=5)
 
         # 验证登录接口响应
