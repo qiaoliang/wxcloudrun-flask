@@ -11,18 +11,37 @@ if TYPE_CHECKING:
 T = TypeVar('T', bound='QueryMixin')
 
 
+class QueryProperty:
+    """查询属性描述符，模仿 Flask-SQLAlchemy 的 query 属性"""
+    
+    def __get__(self, instance, owner):
+        if instance is not None:
+            # 实例访问时返回 None
+            return None
+        
+        # 类访问时返回查询对象
+        # 尝试检测是否在 Flask 应用上下文中
+        try:
+            from flask import current_app
+            # 如果在 Flask 应用上下文中，使用应用的数据库核心
+            if hasattr(current_app, 'db_core'):
+                return current_app.db_core.query(owner)
+        except (RuntimeError, ImportError):
+            # 不在 Flask 应用上下文中，使用全局数据库
+            pass
+        
+        # 使用全局数据库
+        db = get_database()
+        return db.query(owner)
+
+
 class QueryMixin:
     """
     查询混入类，为模型提供 query 属性
     """
     
-    @classmethod
-    def query(cls: type[T]) -> 'Query':
-        """
-        获取查询对象，模仿 Flask-SQLAlchemy 的 query 属性
-        """
-        db = get_database()
-        return db.query(cls)
+    # 将 query 定义为类属性
+    query = QueryProperty()
     
     @classmethod
     def get(cls: type[T], ident):

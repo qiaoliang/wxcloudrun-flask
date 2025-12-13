@@ -120,12 +120,19 @@ class DatabaseCore:
         if not self._is_initialized:
             raise RuntimeError("数据库未初始化")
         
-        if self.mode == 'flask':
-            from flask import current_app
-            flask_db = current_app.extensions['sqlalchemy'].db
-            return flask_db.session.query(*entities, **kwargs)
-        else:
+        # 直接使用 session_factory 创建查询
+        if self.session_factory:
             return self.session_factory().query(*entities, **kwargs)
+        else:
+            # 如果没有 session_factory（如 Flask 模式），尝试从应用获取
+            try:
+                from flask import current_app
+                if hasattr(current_app, 'db_core'):
+                    return current_app.db_core.session_factory().query(*entities, **kwargs)
+            except (RuntimeError, AttributeError):
+                pass
+            
+            raise RuntimeError("无法获取数据库会话")
     
     def create_tables(self):
         """创建所有表"""
