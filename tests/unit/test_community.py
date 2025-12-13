@@ -11,7 +11,7 @@ from datetime import datetime
 from unittest.mock import patch, MagicMock
 
 # 添加项目路径
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from wxcloudrun import app, db
 from wxcloudrun.model import User, Community, CommunityApplication

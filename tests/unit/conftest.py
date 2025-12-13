@@ -35,13 +35,31 @@ def test_app():
 def test_db(test_app):
     """为每个测试函数提供干净的数据库"""
     with test_app.app_context():
+        # 确保会话状态正常
+        if not db.session.is_active:
+            db.session.rollback()
+        
+        # 确保所有表存在
+        db.create_all()
+        
         yield db
-        # 清理所有表
-        SupervisionRuleRelation.query.delete()
-        CheckinRecord.query.delete()
-        CheckinRule.query.delete()
-        User.query.delete()
-        db.session.commit()
+        
+        # 清理：先确保会话状态正常
+        try:
+            if not db.session.is_active:
+                db.session.rollback()
+            
+            # 清理所有表数据
+            SupervisionRuleRelation.query.delete()
+            CheckinRecord.query.delete()
+            CheckinRule.query.delete()
+            User.query.delete()
+            db.session.commit()
+        except Exception:
+            # 如果清理失败，强制回滚并重新创建表
+            db.session.rollback()
+            db.drop_all()
+            db.create_all()
 
 
 @pytest.fixture(scope='function')

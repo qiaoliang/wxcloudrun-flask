@@ -2,7 +2,13 @@
 Test cases for SupervisionRuleRelation model and related functionality
 """
 import pytest
+import sys
+import os
 from datetime import datetime
+
+# 添加项目根目录到Python路径
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+
 from wxcloudrun.model import User, CheckinRule, SupervisionRuleRelation
 from wxcloudrun import db
 
