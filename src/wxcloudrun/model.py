@@ -66,13 +66,12 @@ class User(db.Model):
     __table_args__ = (
         db.Index('idx_openid', 'wechat_openid'),  # 微信OpenID索引，支持快速登录查询
         db.Index('idx_phone', 'phone_number'),    # 手机号索引，支持手机号登录
-        db.Index('idx_role', 'role'),             # 角色索引，支持按角色查询
+        db.Index('idx_role', 'role'),             # 角色索引，支持按角色查询（仅超级管理员）
     )
 
     # 角色映射
     ROLE_MAPPING = {
-        3: 'community_manager',
-        4: 'community_admin'
+        4: 'super_admin'
     }
 
     # 状态映射
