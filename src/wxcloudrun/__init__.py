@@ -46,8 +46,9 @@ db = SQLAlchemy(app)
 # 迁移脚本位于 src/alembic/ 目录
 
 # 现在再导入模型和视图，避免循环依赖
-from .model import Counters, User, CheckinRule, CheckinRecord, Community, CommunityAdmin, CommunityApplication  # noqa: F401
+from .model import Counters, User, CheckinRule, CheckinRecord, Community, CommunityApplication  # noqa: F401
 from .model_community_extensions import CommunityStaff, CommunityMember  # noqa: F401
+
 # 导入各个视图模块以注册路由
 from .views import misc, sms, auth, user, checkin, supervision, share, community  # noqa: F401
 from .background_tasks import start_missing_check_service  # noqa: F401

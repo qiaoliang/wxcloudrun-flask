@@ -207,11 +207,12 @@ class TestCommunityE2E:
 
         # 5. 添加社区管理员
         response = requests.post(
-            f'{base_url}/api/communities/{community_id}/admins',
+            f'{base_url}/api/community/add-staff',
             headers=admin_headers,
             json={
+                'community_id': community_id,
                 'user_ids': [admin_user_id],
-                'role': 2
+                'role': 'staff'
             }
         )
         assert response.status_code == 200
@@ -403,20 +404,21 @@ class TestCommunityE2E:
 
         # 7. 将用户提升为管理员
         response = requests.post(
-            f'{base_url}/api/communities/{community_id}/users/{user_id}/set-admin',
+            f'{base_url}/api/community/add-staff',
             headers=admin_headers,
-            json={'role': 2}
+            json={
+                'community_id': community_id,
+                'user_ids': [user_id],
+                'role': 'staff'
+            }
         )
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
-        assert data['data']['user_id'] == 2
-
-
 
         # 8. 验证用户已成为管理员
         response = requests.get(
-            f'{base_url}/api/communities/{community_id}/admins',
+            f'{base_url}/api/community/staff/list?community_id={community_id}',
             headers=admin_headers
         )
         assert response.status_code == 200

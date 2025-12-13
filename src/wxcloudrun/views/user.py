@@ -454,9 +454,9 @@ def search_users(decoded):
 
         # 根据scope限制搜索范围
         if scope == 'community':
-            from wxcloudrun.model import CommunityAdmin
-            query = query.join(CommunityAdmin, User.user_id == CommunityAdmin.user_id).filter(
-                CommunityAdmin.community_id == int(community_id)
+            from wxcloudrun.model_community_extensions import CommunityStaff
+            query = query.join(CommunityStaff, User.user_id == CommunityStaff.user_id).filter(
+                CommunityStaff.community_id == int(community_id)
             )
 
         # 执行搜索

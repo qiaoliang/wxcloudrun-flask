@@ -8,7 +8,8 @@ from flask import request
 from wxcloudrun import app, db
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.utils.auth import verify_token
-from wxcloudrun.model import User, Community, CommunityAdmin, CommunityApplication, UserAuditLog
+from wxcloudrun.model import User, Community, CommunityApplication, UserAuditLog
+from wxcloudrun.model_community_extensions import CommunityStaff
 from wxcloudrun.community_service import CommunityService
 
 app_logger = logging.getLogger('log')
@@ -44,7 +45,7 @@ def _format_community_data(community):
             'user_id': community.creator_user_id,
             'nickname': community.creator.nickname if community.creator else None
         } if community.creator else None,
-        'admin_count': community.admins.count(),
+        'admin_count': CommunityStaff.query.filter_by(community_id=community.community_id).count(),
         'user_count': len(community.users) if community.users else 0
     }
 
@@ -243,14 +244,15 @@ def get_community(community_id):
 
         # 添加管理员列表
         admins = []
-        for admin in community.admins:
+        staff_members = CommunityStaff.query.filter_by(community_id=community.community_id).all()
+        for staff in staff_members:
             admins.append({
-                'user_id': admin.user_id,
-                'nickname': admin.user.nickname,
-                'avatar_url': admin.user.avatar_url,
-                'role': admin.role,
-                'role_name': admin.role_name,
-                'created_at': admin.created_at.isoformat() if admin.created_at else None
+                'user_id': staff.user_id,
+                'nickname': staff.user.nickname,
+                'avatar_url': staff.user.avatar_url,
+                'role': staff.role,
+                'role_name': staff.role,
+                'added_at': staff.added_at.isoformat() if staff.added_at else None
             })
         result['admins'] = admins
 
@@ -329,159 +331,13 @@ def update_community(community_id):
         return make_err_response({}, f'更新社区信息失败: {str(e)}')
 
 
-@app.route('/api/communities/<int:community_id>/admins', methods=['GET'])
-def get_community_admins(community_id):
-    """获取社区管理员列表"""
-    app.logger.info(f'=== 开始获取社区管理员列表: {community_id} ===')
-
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
-
-    # 检查权限
-    error = _check_community_admin_permission(user, community_id)
-    if error:
-        return error
-
-    try:
-        community = Community.query.get(community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
-
-        admins = []
-        for admin in community.admins:
-            admins.append({
-                'user_id': admin.user_id,
-                'nickname': admin.user.nickname,
-                'avatar_url': admin.user.avatar_url,
-                'phone_number': admin.user.phone_number,
-                'role': admin.role,
-                'role_name': admin.role_name,
-                'created_at': admin.created_at.isoformat() if admin.created_at else None
-            })
-
-        app.logger.info(f'成功获取社区管理员列表: {community_id}, 共 {len(admins)} 个管理员')
-        return make_succ_response(admins)
-
-    except Exception as e:
-        app_logger.error(f'获取社区管理员列表失败: {str(e)}', exc_info=True)
-        return make_err_response({}, f'获取社区管理员列表失败: {str(e)}')
 
 
-@app.route('/api/communities/<int:community_id>/admins', methods=['POST'])
-def add_community_admin(community_id):
-    """添加社区管理员"""
-    app.logger.info(f'=== 开始添加社区管理员: {community_id} ===')
-
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
-
-    # 检查权限
-    error = _check_community_admin_permission(user, community_id)
-    if error:
-        return error
-
-    try:
-        params = request.get_json()
-        if not params:
-            return make_err_response({}, '缺少请求参数')
-
-        user_ids = params.get('user_ids', [])
-        if not user_ids:
-            return make_err_response({}, '缺少用户ID列表')
-
-        role = params.get('role', 2)  # 默认普通管理员
-
-        community = Community.query.get(community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
-
-        results = []
-        for target_user_id in user_ids:
-            try:
-                target_user = User.query.get(target_user_id)
-                if not target_user:
-                    results.append({
-                        'user_id': target_user_id,
-                        'success': False,
-                        'message': '用户不存在'
-                    })
-                    continue
-
-                # 添加管理员
-                CommunityService.add_community_admin(
-                    community_id=community_id,
-                    user_id=target_user_id,
-                    role=role,
-                    operator_id=user_id
-                )
-
-                results.append({
-                    'user_id': target_user_id,
-                    'success': True,
-                    'message': '添加成功'
-                })
-
-            except Exception as e:
-                results.append({
-                    'user_id': target_user_id,
-                    'success': False,
-                    'message': str(e)
-                })
-
-        app.logger.info(f'添加社区管理员完成: {community_id}')
-        return make_succ_response(results)
-
-    except Exception as e:
-        app_logger.error(f'添加社区管理员失败: {str(e)}', exc_info=True)
-        return make_err_response({}, f'添加社区管理员失败: {str(e)}')
 
 
-@app.route('/api/communities/<int:community_id>/admins/<int:target_user_id>', methods=['DELETE'])
-def remove_community_admin(community_id, target_user_id):
-    """移除社区管理员"""
-    app.logger.info(f'=== 开始移除社区管理员: {community_id}, 用户: {target_user_id} ===')
 
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
 
-    user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
 
-    # 检查权限
-    error = _check_community_admin_permission(user, community_id)
-    if error:
-        return error
-
-    try:
-        CommunityService.remove_community_admin(
-            community_id=community_id,
-            user_id=target_user_id,
-            operator_id=user_id
-        )
-        result={
-                    'community_id':community_id,
-                    'user_id': target_user_id,
-                    'success': True,
-                    'message': '移除社区管理员成功'
-        }
-        app.logger.info(f'移除社区管理员成功: {community_id}, 用户: {target_user_id}')
-        return make_succ_response(result)
-
-    except Exception as e:
-        app_logger.error(f'移除社区管理员失败: {str(e)}', exc_info=True)
-        return make_err_response({}, str(e))
 
 
 @app.route('/api/communities/<int:community_id>/users', methods=['GET'])
@@ -543,46 +399,7 @@ def get_community_users(community_id):
         return make_err_response({}, f'获取社区用户列表失败: {str(e)}')
 
 
-@app.route('/api/communities/<int:community_id>/users/<int:target_user_id>/set-admin', methods=['POST'])
-def set_user_as_admin(community_id, target_user_id):
-    """将用户设为社区管理员"""
-    app.logger.info(f'=== 开始设置用户为管理员: {community_id}, 用户: {target_user_id} ===')
 
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
-
-    # 检查权限
-    error = _check_community_admin_permission(user, community_id)
-    if error:
-        return error
-
-    try:
-        params = request.get_json() or {}
-        role = params.get('role', 2)  # 默认普通管理员
-
-        CommunityService.add_community_admin(
-            community_id=community_id,
-            user_id=target_user_id,
-            role=role,
-            operator_id=user_id
-        )
-        result={
-            'community_id':community_id,
-            'user_id': target_user_id,
-            'success': True,
-            'message': '设置用户为管理员成功'
-        }
-        app.logger.info(f'设置用户为管理员成功: {community_id}, 用户: {target_user_id}')
-        return make_succ_response(result)
-
-    except Exception as e:
-        app_logger.error(f'设置用户为管理员失败: {str(e)}', exc_info=True)
-        return make_err_response({}, str(e))
 
 
 @app.route('/api/communities/<int:community_id>/users/<int:target_user_id>', methods=['DELETE'])
@@ -629,12 +446,13 @@ def remove_user_from_community(community_id, target_user_id):
         target_user.community_id = default_community.community_id
 
         # 如果用户是原社区的管理员，移除管理员权限
-        admin_role = CommunityAdmin.query.filter_by(
+        from wxcloudrun.model_community_extensions import CommunityStaff
+        staff_role = CommunityStaff.query.filter_by(
             community_id=community_id,
             user_id=target_user_id
         ).first()
-        if admin_role:
-            db.session.delete(admin_role)
+        if staff_role:
+            db.session.delete(staff_role)
 
         # 记录审计日志
         audit_log = UserAuditLog(
@@ -974,71 +792,7 @@ def get_available_communities():
         return make_err_response({}, f'获取可申请社区列表失败: {str(e)}')
 
 
-@app.route('/api/communities/<int:community_id>/admins/<int:user_id>/role', methods=['PUT'])
-def update_admin_role(community_id, user_id):
-    """更新社区管理员角色"""
-    app.logger.info(f'=== 开始更新管理员角色: 社区{community_id}, 用户{user_id} ===')
 
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    operator_id = decoded.get('user_id')
-    operator = User.query.get(operator_id)
-
-    # 检查超级管理员权限
-    error = _check_super_admin_permission(operator)
-    if error:
-        return error
-
-    try:
-        # 获取请求参数
-        params = request.get_json()
-        if not params:
-            return make_err_response({}, '缺少请求参数')
-
-        new_role = params.get('role')
-        if new_role is None:
-            return make_err_response({}, '缺少角色参数')
-
-        # 验证角色值
-        if new_role not in [1, 2]:  # 1: 社区主管, 2: 社区专员
-            return make_err_response({}, 'Invalid role')
-
-        # 检查社区是否存在
-        community = Community.query.get(community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
-
-        # 检查用户是否是社区管理员
-        admin = CommunityAdmin.query.filter_by(
-            community_id=community_id,
-            user_id=user_id
-        ).first()
-        if not admin:
-            return make_err_response({}, '用户不是该社区的管理员')
-
-        # 检查是否会移除最后一个社区主管
-        if admin.role == 1 and new_role != 1:
-            supervisor_count = CommunityAdmin.query.filter_by(
-                community_id=community_id,
-                role=1
-            ).count()
-            if supervisor_count <= 1:
-                return make_err_response({}, '不能移除最后一个社区主管')
-
-        # 更新角色
-        admin.role = new_role
-        db.session.commit()
-
-        app_logger.info(f'更新管理员角色成功: 社区{community_id}, 用户{user_id}, 新角色{new_role}')
-        return make_succ_response({'message': 'Role updated successfully'})
-
-    except Exception as e:
-        db.session.rollback()
-        app_logger.error(f'更新管理员角色失败: {str(e)}', exc_info=True)
-        return make_err_response({}, f'更新管理员角色失败: {str(e)}')
 
 
 # ============================================
@@ -1950,7 +1704,6 @@ def delete_community_new():
 
         # 删除相关数据
         CommunityStaff.query.filter_by(community_id=community_id).delete()
-        CommunityAdmin.query.filter_by(community_id=community_id).delete()
         CommunityApplication.query.filter_by(target_community_id=community_id).delete()
 
         # 删除社区

@@ -14,7 +14,7 @@ from unittest.mock import patch, MagicMock
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from wxcloudrun import app, db
-from wxcloudrun.model import User, Community, CommunityApplication, CommunityAdmin
+from wxcloudrun.model import User, Community, CommunityApplication
 from wxcloudrun.model_community_extensions import CommunityStaff
 from wxcloudrun.community_service import CommunityService
 
@@ -369,13 +369,14 @@ class TestCommunityService:
         assert community.name == '新社区'
         assert community.creator_user_id == user.user_id
         
-        # 创建者应该自动成为主管理员
-        admin = CommunityAdmin.query.filter_by(
+        # 创建者应该自动成为主管
+        from wxcloudrun.model_community_extensions import CommunityStaff
+        admin = CommunityStaff.query.filter_by(
             community_id=community.community_id,
             user_id=user.user_id
         ).first()
         assert admin is not None
-        assert admin.role == 1  # 主管理员
+        assert admin.role == 'manager'  # 主管
     
     def test_add_community_admin(self):
         """测试添加社区管理员"""

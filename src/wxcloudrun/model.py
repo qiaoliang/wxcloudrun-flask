@@ -596,7 +596,6 @@ class Community(db.Model):
 
     # 关联关系
     creator = db.relationship('User', foreign_keys=[creator_user_id], backref='created_communities')
-    admins = db.relationship('CommunityAdmin', backref='community', lazy='dynamic')
     applications = db.relationship('CommunityApplication', backref='target_community', lazy='dynamic')
 
     # 索引
@@ -625,45 +624,7 @@ class Community(db.Model):
         return None
 
 
-# 社区管理员表
-class CommunityAdmin(db.Model):
-    __tablename__ = 'community_admins'
 
-    admin_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    community_id = db.Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False, comment='社区ID')
-    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='管理员用户ID')
-    role = db.Column(db.Integer, default=2, nullable=False, comment='管理员角色：1-主管理员/2-普通管理员')
-    created_at = db.Column(db.DateTime, default=datetime.now, comment='任命时间')
-    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
-
-    # 关联关系
-    user = db.relationship('User', backref='community_admin_roles')
-
-    # 索引
-    __table_args__ = (
-        db.Index('idx_community_admins_community', 'community_id'),
-        db.Index('idx_community_admins_user', 'user_id'),
-        db.UniqueConstraint('community_id', 'user_id', name='uq_community_admin'),
-    )
-
-    # 角色映射
-    ROLE_MAPPING = {
-        1: 'primary',
-        2: 'normal'
-    }
-
-    @property
-    def role_name(self):
-        """获取角色名称"""
-        return self.ROLE_MAPPING.get(self.role, 'unknown')
-
-    @classmethod
-    def get_role_value(cls, role_name):
-        """根据角色名称获取角色值"""
-        for value, name in cls.ROLE_MAPPING.items():
-            if name == role_name:
-                return value
-        return None
 
 
 # 社区申请表

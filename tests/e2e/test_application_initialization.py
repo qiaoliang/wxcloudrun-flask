@@ -78,21 +78,21 @@ class TestApplicationInitialization:
         assert default_community['is_default'] is True
         
         # 7. 验证超级管理员是默认社区的管理员
-        admins_response = requests.get(f'{base_url}/api/communities/{default_community["community_id"]}/admins', 
+        staff_response = requests.get(f'{base_url}/api/community/staff/list?community_id={default_community["community_id"]}', 
                                      headers=headers, timeout=5)
-        assert admins_response.status_code == 200
-        admins_data = admins_response.json()
-        assert admins_data.get('code') == 1
+        assert staff_response.status_code == 200
+        staff_data = staff_response.json()
+        assert staff_data.get('code') == 1
         
-        admins = admins_data['data']
+        staff = staff_data['data']
         super_admin_found = False
         
-        for admin in admins:
-            if admin['user_id'] == login_data['data']['user_id'] and admin['role'] == 1:
+        for member in staff:
+            if member['user_id'] == login_data['data']['user_id'] and member['role'] == 'manager':
                 super_admin_found = True
                 break
         
-        assert super_admin_found, "超级管理员不是默认社区的主管理员"
+        assert super_admin_found, "超级管理员不是默认社区的主管"
         
         # 验证社区的创建者信息
         assert default_community['creator']['user_id'] == login_data['data']['user_id']

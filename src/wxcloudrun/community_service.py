@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 from hashlib import sha256
 from wxcloudrun import db
-from wxcloudrun.model import User, Community, CommunityAdmin, CommunityApplication, UserAuditLog
+from wxcloudrun.model import User, Community, CommunityApplication, UserAuditLog
 
 logger = logging.getLogger('log')
 
@@ -47,13 +47,14 @@ class CommunityService:
             db.session.add(community)
             db.session.flush()  # 获取community_id
 
-            # 将超级管理员设为社区主管理员
-            admin_role = CommunityAdmin(
+            # 将超级管理员设为社区主管
+            from .model_community_extensions import CommunityStaff
+            staff_role = CommunityStaff(
                 community_id=community.community_id,
                 user_id=admin_user.user_id,
-                role=1  # 主管理员
+                role='manager'  # 主管
             )
-            db.session.add(admin_role)
+            db.session.add(staff_role)
 
             # 记录审计日志
             audit_log = UserAuditLog(
@@ -156,13 +157,14 @@ class CommunityService:
         db.session.add(community)
         db.session.flush()  # 获取community_id
 
-        # 创建者自动成为主管理员
-        admin_role = CommunityAdmin(
+        # 创建者自动成为主管
+        from .model_community_extensions import CommunityStaff
+        staff_role = CommunityStaff(
             community_id=community.community_id,
             user_id=creator_id,
-            role=1  # 主管理员
+            role='manager'  # 主管
         )
-        db.session.add(admin_role)
+        db.session.add(staff_role)
 
         # 记录审计日志
         audit_log = UserAuditLog(
@@ -312,7 +314,8 @@ class CommunityService:
         query = User.query.filter_by(community_id=community_id)
 
         # 排除社区管理员
-        admin_user_ids = db.session.query(CommunityAdmin.user_id).filter_by(
+        from .model_community_extensions import CommunityStaff
+        admin_user_ids = db.session.query(CommunityStaff.user_id).filter_by(
             community_id=community_id
         ).subquery()
         query = query.filter(~User.user_id.in_(admin_user_ids))
