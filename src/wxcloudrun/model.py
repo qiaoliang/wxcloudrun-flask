@@ -71,8 +71,6 @@ class User(db.Model):
 
     # 角色映射
     ROLE_MAPPING = {
-        1: 'solo',
-        2: 'supervisor',
         3: 'community_manager',
         4: 'community_admin'
     }

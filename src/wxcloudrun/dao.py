@@ -455,8 +455,6 @@ def query_unchecked_users_by_date(checkin_date=None):
         ).join(
             User
         ).filter(
-            # 只考虑独居者
-            User.role == 1,
             # 规则启用
             CheckinRule.status == 1
         ).all()
