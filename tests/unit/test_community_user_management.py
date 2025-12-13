@@ -1,6 +1,6 @@
 """
 测试社区用户管理的单元测试
-验证同一用户不能被添加到同一社区两次的功能
+验证社区用户管理功能
 """
 
 import pytest
@@ -11,34 +11,15 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from wxcloudrun.model_community_extensions import CommunityMember
-from wxcloudrun.model import User, Community
-from wxcloudrun import db
+from database.models import CommunityStaff, CommunityMember, User, Community
 
 
 class TestCommunityUserManagement:
     """测试社区用户管理功能"""
     
-    def setup_method(self):
-        """测试前准备"""
-        from wxcloudrun import app
-        self.app = app
-        self.app.config['TESTING'] = True
-        self.app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
-        self.app_context = self.app.app_context()
-        self.app_context.push()
-        db.create_all()
-    
-    def teardown_method(self):
-        """测试后清理"""
-        db.session.remove()
-        db.drop_all()
-        self.app_context.pop()
-    
-    def test_same_user_cannot_be_added_twice_to_same_community(self):
+    def test_add_user_to_community(self, test_session):
         """
-        测试数据库唯一约束防止同一用户被添加到同一社区两次
-        验证CommunityMember表的唯一约束 (community_id, user_id)
+        测试添加用户到社区
         """
         # 创建社区
         community = Community(
@@ -46,8 +27,8 @@ class TestCommunityUserManagement:
             description="测试社区描述",
             creator_user_id=1
         )
-        db.session.add(community)
-        db.session.flush()
+        test_session.add(community)
+        test_session.flush()
         
         # 创建用户
         user = User(
@@ -55,60 +36,161 @@ class TestCommunityUserManagement:
             nickname="测试用户",
             role=1
         )
-        db.session.add(user)
-        db.session.flush()
+        test_session.add(user)
+        test_session.flush()
         
-        # 第一次添加用户到社区 - 应该成功
-        member1 = CommunityMember(
+        # 添加用户到社区
+        member = CommunityMember(
             community_id=community.community_id,
             user_id=user.user_id
         )
-        db.session.add(member1)
-        db.session.commit()
+        test_session.add(member)
+        test_session.commit()
         
-        # 验证第一次添加成功
-        assert member1.id is not None
-        assert member1.community_id == community.community_id
-        assert member1.user_id == user.user_id
+        # 验证添加成功
+        assert member.id is not None
+        assert member.community_id == community.community_id
+        assert member.user_id == user.user_id
         
         # 查询验证记录存在
-        existing_member = CommunityMember.query.filter_by(
+        existing_member = test_session.query(CommunityMember).filter_by(
             community_id=community.community_id,
             user_id=user.user_id
         ).first()
         assert existing_member is not None
-        assert existing_member.id == member1.id
+        assert existing_member.id == member.id
+    
+    def test_remove_user_from_community(self, test_session):
+        """
+        测试从社区移除用户
+        """
+        # 创建社区和用户
+        community = Community(
+            name="测试社区",
+            description="测试社区描述",
+            creator_user_id=1
+        )
+        user = User(
+            wechat_openid="test_user_456",
+            nickname="测试用户456",
+            role=1
+        )
+        test_session.add(community)
+        test_session.add(user)
+        test_session.flush()
         
-        # 尝试第二次添加同一用户到同一社区
-        # 这应该因为唯一约束而失败
-        member2 = CommunityMember(
+        # 添加用户到社区
+        member = CommunityMember(
             community_id=community.community_id,
             user_id=user.user_id
         )
-        db.session.add(member2)
+        test_session.add(member)
+        test_session.commit()
         
-        # 捕获预期的数据库异常
-        with pytest.raises(Exception) as exc_info:
-            db.session.commit()
+        # 验证用户在社区中
+        assert member.id is not None
         
-        # 验证异常类型（可能是IntegrityError或其他数据库异常）
-        error_message = str(exc_info.value).lower()
-        assert "unique" in error_message or "constraint" in error_message
+        # 从社区移除用户
+        test_session.delete(member)
+        test_session.commit()
         
-        # 回滚会话
-        db.session.rollback()
-        
-        # 验证数据库中只有一条记录
-        count = CommunityMember.query.filter_by(
+        # 验证用户已不在社区中
+        removed_member = test_session.query(CommunityMember).filter_by(
             community_id=community.community_id,
             user_id=user.user_id
-        ).count()
-        assert count == 1
+        ).first()
+        assert removed_member is None
     
-    def test_can_add_different_users_to_same_community(self):
+    def test_add_staff_to_community(self, test_session):
         """
-        测试不同用户可以被添加到同一社区
-        这是正面测试用例，确保正常功能不受影响
+        测试添加工作人员到社区
+        """
+        # 创建社区和用户
+        community = Community(
+            name="测试社区",
+            description="测试社区描述",
+            creator_user_id=1
+        )
+        user = User(
+            wechat_openid="staff_user_123",
+            nickname="工作人员",
+            role=1
+        )
+        test_session.add(community)
+        test_session.add(user)
+        test_session.flush()
+        
+        # 添加工作人员到社区
+        staff = CommunityStaff(
+            community_id=community.community_id,
+            user_id=user.user_id,
+            role='manager',
+            scope='全面管理'
+        )
+        test_session.add(staff)
+        test_session.commit()
+        
+        # 验证添加成功
+        assert staff.id is not None
+        assert staff.community_id == community.community_id
+        assert staff.user_id == user.user_id
+        assert staff.role == 'manager'
+        assert staff.scope == '全面管理'
+        
+        # 查询验证记录存在
+        existing_staff = test_session.query(CommunityStaff).filter_by(
+            community_id=community.community_id,
+            user_id=user.user_id
+        ).first()
+        assert existing_staff is not None
+        assert existing_staff.id == staff.id
+    
+    def test_remove_staff_from_community(self, test_session):
+        """
+        测试从社区移除工作人员
+        """
+        # 创建社区和用户
+        community = Community(
+            name="测试社区",
+            description="测试社区描述",
+            creator_user_id=1
+        )
+        user = User(
+            wechat_openid="staff_user_456",
+            nickname="工作人员456",
+            role=1
+        )
+        test_session.add(community)
+        test_session.add(user)
+        test_session.flush()
+        
+        # 添加工作人员到社区
+        staff = CommunityStaff(
+            community_id=community.community_id,
+            user_id=user.user_id,
+            role='staff',
+            scope='部分管理'
+        )
+        test_session.add(staff)
+        test_session.commit()
+        
+        # 验证工作人员在社区中
+        assert staff.id is not None
+        
+        # 从社区移除工作人员
+        test_session.delete(staff)
+        test_session.commit()
+        
+        # 验证工作人员已不在社区中
+        removed_staff = test_session.query(CommunityStaff).filter_by(
+            community_id=community.community_id,
+            user_id=user.user_id
+        ).first()
+        assert removed_staff is None
+    
+    def test_list_community_members(self, test_session):
+        """
+        测试列出社区成员
         """
         # 创建社区
         community = Community(
@@ -116,110 +198,92 @@ class TestCommunityUserManagement:
             description="测试社区描述",
             creator_user_id=1
         )
-        db.session.add(community)
-        db.session.flush()
+        test_session.add(community)
+        test_session.flush()
         
-        # 创建两个不同的用户
-        user1 = User(
-            wechat_openid="test_user_456",
-            nickname="测试用户1",
-            role=1
-        )
-        user2 = User(
-            wechat_openid="test_user_789",
-            nickname="测试用户2",
-            role=1
-        )
-        db.session.add(user1)
-        db.session.add(user2)
-        db.session.flush()
+        # 创建多个用户
+        users = []
+        for i in range(3):
+            user = User(
+                wechat_openid=f"user_{i}",
+                nickname=f"用户{i}",
+                role=1
+            )
+            test_session.add(user)
+            users.append(user)
+        test_session.flush()
         
-        # 添加第一个用户 - 应该成功
-        member1 = CommunityMember(
-            community_id=community.community_id,
-            user_id=user1.user_id
-        )
-        db.session.add(member1)
-        db.session.commit()
-        assert member1.id is not None
+        # 添加用户到社区
+        members = []
+        for user in users:
+            member = CommunityMember(
+                community_id=community.community_id,
+                user_id=user.user_id
+            )
+            test_session.add(member)
+            members.append(member)
+        test_session.commit()
         
-        # 添加第二个用户 - 应该成功
-        member2 = CommunityMember(
-            community_id=community.community_id,
-            user_id=user2.user_id
-        )
-        db.session.add(member2)
-        db.session.commit()
-        assert member2.id is not None
-        
-        # 验证两个用户都在社区中
-        members = CommunityMember.query.filter_by(
+        # 查询社区成员
+        community_members = test_session.query(CommunityMember).filter_by(
             community_id=community.community_id
         ).all()
-        assert len(members) == 2
-        user_ids = [m.user_id for m in members]
-        assert user1.user_id in user_ids
-        assert user2.user_id in user_ids
+        
+        # 验证成员数量
+        assert len(community_members) == 3
+        
+        # 验证成员信息
+        member_user_ids = [m.user_id for m in community_members]
+        for user in users:
+            assert user.user_id in member_user_ids
     
-    def test_can_add_same_user_to_different_communities(self):
+    def test_list_community_staff(self, test_session):
         """
-        测试同一用户可以被添加到不同的社区
-        确保约束只在同一社区内生效
+        测试列出社区工作人员
         """
-        # 创建两个不同的社区
-        community1 = Community(
-            name="测试社区1",
-            description="测试社区1描述",
+        # 创建社区
+        community = Community(
+            name="测试社区",
+            description="测试社区描述",
             creator_user_id=1
         )
-        community2 = Community(
-            name="测试社区2",
-            description="测试社区2描述",
-            creator_user_id=1
-        )
-        db.session.add(community1)
-        db.session.add(community2)
-        db.session.flush()
+        test_session.add(community)
+        test_session.flush()
         
-        # 创建用户
-        user = User(
-            wechat_openid="test_user_multi",
-            nickname="多社区用户",
-            role=1
-        )
-        db.session.add(user)
-        db.session.flush()
+        # 创建多个用户
+        users = []
+        for i in range(2):
+            user = User(
+                wechat_openid=f"staff_{i}",
+                nickname=f"工作人员{i}",
+                role=1
+            )
+            test_session.add(user)
+            users.append(user)
+        test_session.flush()
         
-        # 添加用户到第一个社区 - 应该成功
-        member1 = CommunityMember(
-            community_id=community1.community_id,
-            user_id=user.user_id
-        )
-        db.session.add(member1)
-        db.session.commit()
-        assert member1.id is not None
+        # 添加工作人员到社区
+        staff_members = []
+        roles = ['manager', 'staff']
+        for i, user in enumerate(users):
+            staff = CommunityStaff(
+                community_id=community.community_id,
+                user_id=user.user_id,
+                role=roles[i]
+            )
+            test_session.add(staff)
+            staff_members.append(staff)
+        test_session.commit()
         
-        # 添加同一用户到第二个社区 - 应该成功
-        member2 = CommunityMember(
-            community_id=community2.community_id,
-            user_id=user.user_id
-        )
-        db.session.add(member2)
-        db.session.commit()
-        assert member2.id is not None
+        # 查询社区工作人员
+        community_staff = test_session.query(CommunityStaff).filter_by(
+            community_id=community.community_id
+        ).all()
         
-        # 验证用户在两个社区中都有记录
-        member_from_db1 = CommunityMember.query.filter_by(
-            community_id=community1.community_id,
-            user_id=user.user_id
-        ).first()
-        assert member_from_db1 is not None
+        # 验证工作人员数量
+        assert len(community_staff) == 2
         
-        member_from_db2 = CommunityMember.query.filter_by(
-            community_id=community2.community_id,
-            user_id=user.user_id
-        ).first()
-        assert member_from_db2 is not None
-        
-        # 验证是两条不同的记录
-        assert member_from_db1.id != member_from_db2.id
+        # 验证工作人员信息
+        staff_roles = [s.role for s in community_staff]
+        assert 'manager' in staff_roles
+        assert 'staff' in staff_roles

@@ -12,15 +12,33 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from wxcloudrun.views.user import _calculate_phone_hash
-from wxcloudrun.model import User
-from wxcloudrun import app, db
+from database.models import User
+from database import initialize_for_test
+from hashlib import sha256
+import os
+
+def _calculate_phone_hash(phone):
+    """
+    计算手机号的hash值
+    
+    Args:
+        phone (str): 手机号
+        
+    Returns:
+        str: 手机号的hash值
+    """
+    phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+    return sha256(
+        f"{phone_secret}{phone}".encode('utf-8')
+    ).hexdigest()
+
+db = initialize_for_test()
 
 
 class TestUserSearchByPhoneHash:
     """测试通过手机号hash搜索用户的功能"""
 
-    def test_phone_hash_calculation_and_search(self, test_db):
+    def test_phone_hash_calculation_and_search(self, test_session):
         """
         测试手机号hash计算和搜索逻辑
         """
@@ -35,11 +53,11 @@ class TestUserSearchByPhoneHash:
             phone_number="138****8888",
             phone_hash=phone_hash
         )
-        test_db.session.add(target_user)
-        test_db.session.commit()
+        test_session.add(target_user)
+        test_session.commit()
         
         # 测试通过phone_hash查找用户
-        found_user = User.query.filter(User.phone_hash == phone_hash).first()
+        found_user = test_session.query(User).filter(User.phone_hash == phone_hash).first()
         
         assert found_user is not None
         assert found_user.user_id == target_user.user_id
@@ -47,7 +65,7 @@ class TestUserSearchByPhoneHash:
         assert found_user.phone_number == "138****8888"
         assert found_user.phone_hash == phone_hash
 
-    def test_phone_hash_consistency(self, test_db):
+    def test_phone_hash_consistency(self, test_session):
         """
         测试相同手机号的hash一致性
         """
@@ -63,7 +81,7 @@ class TestUserSearchByPhoneHash:
         phone_hash3 = _calculate_phone_hash(different_phone)
         assert phone_hash1 != phone_hash3
 
-    def test_search_by_nickname_fuzzy_match(self, test_db):
+    def test_search_by_nickname_fuzzy_match(self, test_session):
         """
         测试昵称模糊匹配
         """
@@ -83,17 +101,17 @@ class TestUserSearchByPhoneHash:
             nickname="普通用户",
             role=1
         )
-        test_db.session.add_all([user1, user2, user3])
-        test_db.session.commit()
+        test_session.add_all([user1, user2, user3])
+        test_session.commit()
         
         # 测试模糊匹配
-        users_with_test = User.query.filter(User.nickname.ilike('%测试%')).all()
+        users_with_test = test_session.query(User).filter(User.nickname.ilike('%测试%')).all()
         assert len(users_with_test) == 2
         
-        users_with_user = User.query.filter(User.nickname.ilike('%用户%')).all()
+        users_with_user = test_session.query(User).filter(User.nickname.ilike('%用户%')).all()
         assert len(users_with_user) == 3
 
-    def test_full_phone_detection_logic(self, test_db):
+    def test_full_phone_detection_logic(self, test_session):
         """
         测试完整手机号检测逻辑
         """

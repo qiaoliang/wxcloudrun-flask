@@ -21,7 +21,7 @@ from wxcloudrun.dao import (
     delete_checkin_rule_by_id,
     query_checkin_records_by_user_and_date_range
 )
-from wxcloudrun.model import CheckinRule, CheckinRecord
+from database.models import CheckinRule, CheckinRecord
 from wxcloudrun.decorators import login_required
 
 app_logger = logging.getLogger('log')

@@ -9,7 +9,7 @@ from flask import render_template, request, Response
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response, make_succ_empty_response
 from wxcloudrun.dao import query_counterbyid, delete_counterbyid, insert_counter, update_counterbyid
-from wxcloudrun.model import Counters
+from database.models import Counters
 from config_manager import analyze_all_configs, detect_external_systems_status
 
 app_logger = logging.getLogger('log')
@@ -93,12 +93,14 @@ def count():
     elif action == 'clear_users':
         app.logger.info("执行清理用户数据操作（测试环境专用）")
         try:
-            from wxcloudrun import db
-            from wxcloudrun.model import User
+            from database import get_database
+            from database.models import User
             
-            # 删除所有用户数据
-            db.session.query(User).delete()
-            db.session.commit()
+            db = get_database()
+            with db.get_session() as session:
+                # 删除所有用户数据
+                session.query(User).delete()
+                session.commit()
             app.logger.info("所有用户数据已清理")
             return make_succ_empty_response()
         except Exception as e:

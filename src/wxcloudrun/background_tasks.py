@@ -4,7 +4,7 @@ import time as time_module
 from datetime import datetime, date, time, timedelta
 
 from wxcloudrun import app, db
-from wxcloudrun.model import CheckinRule, CheckinRecord, User
+from database.models import CheckinRule, CheckinRecord, User
 from wxcloudrun.dao import (
     query_checkin_records_by_rule_id_and_date,
     insert_checkin_record,

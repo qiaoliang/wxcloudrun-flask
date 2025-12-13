@@ -89,11 +89,14 @@ def query_user_by_refresh_token(refresh_token):
     根据refresh token查询用户
     """
     try:
-        from wxcloudrun import db
-        from wxcloudrun.model import User
-        user = db.session.query(User).filter(
-            User.refresh_token == refresh_token).first()
-        return user
+        from database import get_database
+        from database.models import User
+        
+        db = get_database()
+        with db.get_session() as session:
+            user = session.query(User).filter(
+                User.refresh_token == refresh_token).first()
+            return user
     except Exception as e:
         app.logger.error(f'查询用户失败: {str(e)}')
         return None
@@ -118,7 +121,7 @@ def require_role(required_role):
                 return error_response
             
             user_id = decoded.get('user_id')
-            from wxcloudrun.model import User
+            from database.models import User
             user = User.query.get(user_id)
             
             if not user:
@@ -159,7 +162,7 @@ def require_community_admin():
                 return error_response
             
             user_id = decoded.get('user_id')
-            from wxcloudrun.model import User
+            from database.models import User
             user = User.query.get(user_id)
             
             if not user:
@@ -194,7 +197,7 @@ def check_community_permission(community_id):
         return error_response, None
     
     user_id = decoded.get('user_id')
-    from wxcloudrun.model import User
+    from database.models import User
     user = User.query.get(user_id)
     
     if not user:
@@ -216,5 +219,5 @@ def get_current_user():
         return None
     
     user_id = decoded.get('user_id')
-    from wxcloudrun.model import User
+    from database.models import User
     return User.query.get(user_id)

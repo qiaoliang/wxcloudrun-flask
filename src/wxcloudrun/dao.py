@@ -3,8 +3,11 @@ from datetime import datetime, date
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import and_, or_
 
-from wxcloudrun import db
-from wxcloudrun.model import Counters, User, CheckinRule, CheckinRecord
+from database import get_database
+from database.models import Counters, User, CheckinRule, CheckinRecord
+
+# 获取数据库实例
+db = get_database()
 
 # 初始化日志
 logger = logging.getLogger('log')
@@ -17,11 +20,12 @@ def query_counterbyid(id):
     :return: Counter实体
     """
     try:
-        result = Counters.query.filter(Counters.id == id).first()
-        logger.info(f"query_counterbyid: 查询ID {id} 的结果 - {'找到计数器' if result else '未找到计数器'}")
-        if result:
-            logger.info(f"query_counterbyid: 计数器值为 {result.count}")
-        return result
+        with db.get_session() as session:
+            result = session.query(Counters).filter(Counters.id == id).first()
+            logger.info(f"query_counterbyid: 查询ID {id} 的结果 - {'找到计数器' if result else '未找到计数器'}")
+            if result:
+                logger.info(f"query_counterbyid: 计数器值为 {result.count}")
+            return result
     except OperationalError as e:
         logger.error("query_counterbyid errorMsg= {} ".format(e))
         return None
@@ -33,15 +37,16 @@ def delete_counterbyid(id):
     :param id: Counter的ID
     """
     try:
-        logger.info(f"delete_counterbyid: 准备删除ID为 {id} 的计数器")
-        counter = Counters.query.get(id)
-        if counter is None:
-            logger.warning(f"delete_counterbyid: 未找到ID为 {id} 的计数器进行删除")
-            return
-        logger.info(f"delete_counterbyid: 找到计数器，值为 {counter.count}")
-        db.session.delete(counter)
-        db.session.commit()
-        logger.info(f"delete_counterbyid: 成功删除ID为 {id} 的计数器")
+        with db.get_session() as session:
+            logger.info(f"delete_counterbyid: 准备删除ID为 {id} 的计数器")
+            counter = session.query(Counters).get(id)
+            if counter is None:
+                logger.warning(f"delete_counterbyid: 未找到ID为 {id} 的计数器进行删除")
+                return
+            logger.info(f"delete_counterbyid: 找到计数器，值为 {counter.count}")
+            session.delete(counter)
+            session.commit()
+            logger.info(f"delete_counterbyid: 成功删除ID为 {id} 的计数器")
     except OperationalError as e:
         logger.error("delete_counterbyid errorMsg= {} ".format(e))
 
@@ -52,10 +57,11 @@ def insert_counter(counter):
     :param counter: Counters实体
     """
     try:
-        logger.info(f"insert_counter: 准备插入计数器，ID: {counter.id}, 值: {counter.count}")
-        db.session.add(counter)
-        db.session.commit()
-        logger.info(f"insert_counter: 成功插入计数器，ID: {counter.id}, 值: {counter.count}")
+        with db.get_session() as session:
+            logger.info(f"insert_counter: 准备插入计数器，ID: {counter.id}, 值: {counter.count}")
+            session.add(counter)
+            session.commit()
+            logger.info(f"insert_counter: 成功插入计数器，ID: {counter.id}, 值: {counter.count}")
     except OperationalError as e:
         logger.error("insert_counter errorMsg= {} ".format(e))
 
@@ -91,7 +97,8 @@ def query_user_by_openid(openid):
     :return: User实体
     """
     try:
-        return User.query.filter(User.wechat_openid == openid).first()
+        with db.get_session() as session:
+            return session.query(User).filter(User.wechat_openid == openid).first()
     except OperationalError as e:
         logger.info("query_user_by_openid errorMsg= {} ".format(e))
         return None
@@ -104,7 +111,8 @@ def query_user_by_id(user_id):
     :return: User实体
     """
     try:
-        return User.query.filter(User.user_id == user_id).first()
+        with db.get_session() as session:
+            return session.query(User).filter(User.user_id == user_id).first()
     except OperationalError as e:
         logger.info("query_user_by_id errorMsg= {} ".format(e))
         return None
@@ -391,7 +399,7 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
     :return: 打卡记录列表
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         from sqlalchemy import and_
         
         # 获取监督者可以监督的所有用户和规则
@@ -490,7 +498,7 @@ def query_supervision_relations_by_solo_user(solo_user_id):
     :return: 监督关系列表
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         return SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.solo_user_id == solo_user_id
         ).all()
@@ -506,7 +514,7 @@ def query_supervision_relations_by_supervisor(supervisor_user_id):
     :return: 监督关系列表
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         return SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.supervisor_user_id == supervisor_user_id
         ).all()
@@ -524,7 +532,7 @@ def query_supervision_relations_by_user_and_rule(solo_user_id, supervisor_user_i
     :return: 监督关系列表
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         query = SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.solo_user_id == solo_user_id,
             SupervisionRuleRelation.supervisor_user_id == supervisor_user_id
@@ -549,7 +557,7 @@ def query_pending_supervision_invitations_by_supervisor(supervisor_user_id):
     :return: 待处理邀请列表
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         return SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
             SupervisionRuleRelation.status == 1  # 待同意
@@ -565,7 +573,7 @@ def insert_supervision_relation(relation):
     :param relation: 监督关系实体
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         db.session.add(relation)
         db.session.commit()
     except OperationalError as e:
@@ -578,7 +586,7 @@ def update_supervision_relation_by_id(relation):
     :param relation: 监督关系实体
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         existing_relation = SupervisionRuleRelation.query.get(relation.relation_id)
         if existing_relation is None:
             return
@@ -599,7 +607,7 @@ def delete_supervision_relation_by_id(relation_id):
     :param relation_id: 关系ID
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         relation = SupervisionRuleRelation.query.get(relation_id)
         if relation is None:
             return
@@ -617,7 +625,7 @@ def query_supervised_rules_for_supervisor(supervisor_user_id, solo_user_id):
     :return: 规则列表
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         relations = SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
             SupervisionRuleRelation.solo_user_id == solo_user_id,
@@ -627,13 +635,13 @@ def query_supervised_rules_for_supervisor(supervisor_user_id, solo_user_id):
         rules = []
         for relation in relations:
             if relation.rule_id is None:  # 监督所有规则
-                from wxcloudrun.model import CheckinRule
+                from database.models import CheckinRule
                 rules.extend(CheckinRule.query.filter(
                     CheckinRule.solo_user_id == solo_user_id,
                     CheckinRule.status != 2  # 排除已删除的规则
                 ).all())
             else:  # 监督特定规则
-                from wxcloudrun.model import CheckinRule
+                from database.models import CheckinRule
                 rule = CheckinRule.query.get(relation.rule_id)
                 if rule:
                     rules.append(rule)
@@ -652,7 +660,7 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
     :return: 打卡记录列表
     """
     try:
-        from wxcloudrun.model import SupervisionRuleRelation
+        from database.models import SupervisionRuleRelation
         from sqlalchemy import and_
         
         # 获取监督者可以监督的所有用户和规则

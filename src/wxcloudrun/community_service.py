@@ -7,10 +7,13 @@ import logging
 import os
 from datetime import datetime
 from hashlib import sha256
-from wxcloudrun import db
-from wxcloudrun.model import User, Community, CommunityApplication, UserAuditLog
+from database import get_database
+from database.models import User, Community, CommunityApplication, UserAuditLog
 
 logger = logging.getLogger('log')
+
+# 获取数据库实例
+db = get_database()
 
 # 默认社区配置
 DEFAULT_COMMUNITY_NAME = "安卡大家庭"
@@ -24,10 +27,11 @@ class CommunityService:
     @staticmethod
     def get_or_create_default_community():
         """获取或创建默认社区"""
-        community = Community.query.filter_by(name=DEFAULT_COMMUNITY_NAME).first()
+        with db.get_session() as session:
+            community = session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
 
-        if not community:
-            logger.info(f"创建默认社区: {DEFAULT_COMMUNITY_NAME}")
+            if not community:
+                logger.info(f"创建默认社区: {DEFAULT_COMMUNITY_NAME}")
 
             # 确保超级管理员存在
             admin_user = CommunityService._ensure_super_admin_exists()

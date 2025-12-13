@@ -10,8 +10,10 @@ import pytest
 # 添加src路径
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from wxcloudrun import db, app
-from wxcloudrun.model import User, CheckinRule, CheckinRecord, SupervisionRuleRelation
+from database import get_database
+
+db = get_database(), app
+from database.models import User, CheckinRule, CheckinRecord, SupervisionRuleRelation
 from wxcloudrun.views import _merge_accounts_by_time
 
 

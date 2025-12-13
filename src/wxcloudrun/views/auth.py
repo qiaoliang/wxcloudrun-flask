@@ -13,7 +13,7 @@ from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.dao import query_user_by_openid, insert_user, update_user_by_id
-from wxcloudrun.model import User
+from database.models import User
 from wxcloudrun.utils.auth import query_user_by_refresh_token
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
 from config_manager import get_token_secret

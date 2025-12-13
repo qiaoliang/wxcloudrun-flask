@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from hashlib import sha256
 from wxcloudrun import app, db
-from wxcloudrun.model import VerificationCode
+from database.models import VerificationCode
 
 
 def normalize_phone_number(phone):
@@ -98,7 +98,7 @@ def _audit(user_id, action, detail=None):
     """
     try:
         import json
-        from wxcloudrun.model import UserAuditLog
+        from database.models import UserAuditLog
         log = UserAuditLog(user_id=user_id, action=action, detail=json.dumps(
             detail) if isinstance(detail, dict) else detail)
         db.session.add(log)

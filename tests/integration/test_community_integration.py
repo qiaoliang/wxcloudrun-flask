@@ -12,8 +12,11 @@ from datetime import datetime, timedelta
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from wxcloudrun import app, db
-from wxcloudrun.model import User, Community, CommunityApplication
+from wxcloudrun import app
+from database import get_database
+
+db = get_database()
+from database.models import User, Community, CommunityApplication
 from wxcloudrun.community_service import CommunityService
 from config_manager import get_token_secret
 

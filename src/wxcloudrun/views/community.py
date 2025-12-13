@@ -5,14 +5,18 @@
 
 import logging
 from flask import request
-from wxcloudrun import app, db
+from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.utils.auth import verify_token
-from wxcloudrun.model import User, Community, CommunityApplication, UserAuditLog
+from database import get_database
+from database.models import User, Community, CommunityApplication, UserAuditLog
 from wxcloudrun.model_community_extensions import CommunityStaff
 from wxcloudrun.community_service import CommunityService
 
 app_logger = logging.getLogger('log')
+
+# 获取数据库实例
+db = get_database()
 
 
 def _check_community_admin_permission(user, community_id):
@@ -1086,7 +1090,7 @@ def remove_community_staff():
 def get_community_users_list():
     """获取社区用户列表 (新版API)"""
     from wxcloudrun.model_community_extensions import CommunityMember, CommunityStaff
-    from wxcloudrun.model import CheckinRecord
+    from database.models import CheckinRecord
     from datetime import date
 
     app_logger.info('=== 开始获取社区用户列表 ===')
