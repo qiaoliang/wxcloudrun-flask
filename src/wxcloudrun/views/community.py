@@ -1516,7 +1516,7 @@ def add_community_users():
         app_logger.info(f'添加社区用户完成: 成功{added_count}人, 失败{len(failed)}人')
 
         if added_count == 0:
-            return make_err_response({'failed': failed}, '添加失败')
+            return make_err_response({'added_count': added_count, 'failed': failed}, '添加失败')
 
         return make_succ_response({
             'added_count': added_count,
