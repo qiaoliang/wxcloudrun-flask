@@ -84,11 +84,14 @@ class TestApplicationInitialization:
         staff_data = staff_response.json()
         assert staff_data.get('code') == 1
         
-        staff = staff_data['data']
+        staff_members = staff_data['data']['staff_members']
         super_admin_found = False
         
-        for member in staff:
-            if member['user_id'] == login_data['data']['user_id'] and member['role'] == 'manager':
+        # 将 login_data 的 user_id 转换为字符串进行比较
+        login_user_id = str(login_data['data']['user_id'])
+        
+        for member in staff_members:
+            if member['user_id'] == login_user_id and member['role'] == 'manager':
                 super_admin_found = True
                 break
         
