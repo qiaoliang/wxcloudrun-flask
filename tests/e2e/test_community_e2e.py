@@ -19,7 +19,7 @@ class TestCommunityE2E:
         """获取超级管理员token的辅助方法"""
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'Firefox0820'
+            'password': 'F1234567'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
@@ -693,7 +693,7 @@ class TestCommunityPerformance:
         # 获取超级管理员token
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
-            'password': 'Firefox0820'
+            'password': 'F1234567'
         })
         assert login_response.status_code == 200
         login_data = login_response.json()
