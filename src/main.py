@@ -38,6 +38,9 @@ console_handler.setFormatter(formatter)
 migration_logger.addHandler(file_handler)
 migration_logger.addHandler(console_handler)
 
+# 关闭传播以避免与根日志器重复处理
+migration_logger.propagate = False
+
 # 在导入 wxcloudrun 之前检查 ENV_TYPE
 env_type = os.getenv('ENV_TYPE')
 migration_logger.info(f'启动时检查 ENV_TYPE: {env_type}')

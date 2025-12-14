@@ -20,6 +20,9 @@ formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(messag
 console_handler.setFormatter(formatter)
 logger.addHandler(console_handler)
 
+# 关闭传播以避免与根日志器重复处理
+logger.propagate = False
+
 # 文件处理器（在需要时创建）
 def setup_file_handler():
     """设置文件处理器"""
@@ -28,6 +31,9 @@ def setup_file_handler():
     file_handler.setLevel(logging.INFO)
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler)
+    
+    # 确保传播关闭（可能在之前被重置）
+    logger.propagate = False
 
 def validate_migration_prerequisites():
     """Layer 1: 验证迁移前置条件"""
