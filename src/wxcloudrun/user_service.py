@@ -72,6 +72,24 @@ class UserService:
         return (new_user.wechat_openid!=None and new_user.wechat_openid !="")
     @staticmethod
     def create_user(new_user):
+        # 验证：必须提供 wechat_openid 或 phone_number 至少一个
+        has_openid = hasattr(new_user, 'wechat_openid') and new_user.wechat_openid
+        has_phone = hasattr(new_user, 'phone_number') and new_user.phone_number
+        
+        if not has_openid and not has_phone:
+            raise ValueError("必须提供微信OpenID或手机号至少一个")
+        
+        # 验证：不能同时提供 wechat_openid 和 phone_number
+        if has_openid and has_phone:
+            raise ValueError("不能同时提供微信OpenID和手机号")
+        
+        # 验证手机号格式（如果提供了手机号）
+        if has_phone:
+            from .utils.validators import normalize_phone_number
+            normalized_phone = normalize_phone_number(new_user.phone_number)
+            if not normalized_phone or len(normalized_phone) < 11:
+                raise ValueError("手机号格式无效")
+        
         existing = UserService.is_user_existed(new_user)
         if existing:
                 raise ValueError("用户已存在")

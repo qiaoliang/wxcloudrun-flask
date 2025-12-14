@@ -159,13 +159,13 @@ class TestUserService:
             avatar_url="https://example.com/1.jpg"
         )
         created_user = UserService.create_user(new_user)
-        
+
         # 创建一个测试用户对象，使用相同的 openid
         test_user = User(wechat_openid="test_openid_exists")
-        
+
         # Act - 检查用户是否存在
         result = UserService.is_user_existed(test_user)
-        
+
         # Assert - 用户应该存在
         assert result is True
 
@@ -177,14 +177,14 @@ class TestUserService:
         new_user = User(phone_number="13900139000")
         new_user.password = "test_password_123"
         created_user = UserService.create_user(new_user)
-        
+
         # 创建一个测试用户对象，使用相同的手机号
         test_user = User(phone_number="13900139000")
         test_user.password = "test_password_123"
-        
+
         # Act - 检查用户是否存在
         result = UserService.is_user_existed(test_user)
-        
+
         # Assert - 用户应该存在
         assert result is True
 
@@ -199,14 +199,14 @@ class TestUserService:
             avatar_url="https://example.com/1.jpg"
         )
         created_user = UserService.create_user(new_user)
-        
+
         # 创建一个测试用户对象，设置相同的 user_id
         test_user = User()
         test_user.user_id = created_user['user_id']  # 使用 create_user 返回的 ID
-        
+
         # Act - 检查用户是否存在
         result = UserService.is_user_existed(test_user)
-        
+
         # Assert - 用户应该存在
         assert result is True
 
@@ -220,10 +220,10 @@ class TestUserService:
             phone_number="13800138000"
         )
         test_user.password = "test_password"
-        
+
         # Act - 检查用户是否存在
         result = UserService.is_user_existed(test_user)
-        
+
         # Assert - 用户不应该存在
         assert result is False
 
@@ -238,25 +238,152 @@ class TestUserService:
             avatar_url="https://example.com/1.jpg"
         )
         created_wechat_user = UserService.create_user(wechat_user)
-        
+
         phone_user = User(phone_number="13800138001")
         phone_user.password = "test_password"
         created_phone_user = UserService.create_user(phone_user)
-        
+
         # 创建测试用户，使用微信用户的 ID 和手机号
         test_user = User()
         test_user.user_id = created_wechat_user['user_id']
         test_user.phone_number = "13800138001"  # 手机号用户的信息
         test_user.password = "test_password"
-        
+
         # Act - 检查用户是否存在
         result = UserService.is_user_existed(test_user)
-        
+
         # Assert - 应该找到微信用户（通过 ID），而不是手机号用户
         assert result is True
-        
+
         # 验证确实是通过 ID 找到的
         with get_db().get_session() as verify_session:
             found_user = verify_session.query(User).filter_by(user_id=created_wechat_user['user_id']).first()
             assert found_user is not None
             assert found_user.wechat_openid == "openid_1"  # 确认是微信用户
+
+    def test_query_user_by_phone_number_exists(self, test_db, test_session):
+        """
+        测试查询存在的手机号用户
+        """
+        # Arrange - 使用 create_user 创建手机号用户
+        new_user = User(phone_number="13700137000")
+        new_user.password = "test_password_123"
+        created_user = UserService.create_user(new_user)
+
+        # Act - 通过原始手机号查询用户
+        result = UserService.query_user_by_phone_number("13700137000")
+
+        # Assert - 应该找到用户
+        assert result is not None
+        # 只验证 user_id，避免访问脱离会话的属性
+        assert result.user_id == created_user['user_id']
+
+    def test_query_user_by_phone_number_not_exists(self, test_db, test_session):
+        """
+        测试查询不存在的手机号
+        """
+        # Arrange - 不创建用户，直接查询不存在的手机号
+
+        # Act - 通过不存在的手机号查询用户
+        result = UserService.query_user_by_phone_number("13700137999")
+
+        # Assert - 应该返回 None
+        assert result is None
+
+    def test_query_user_by_phone_number_with_prefix(self, test_db, test_session):
+        """
+        测试查询带+86前缀的手机号用户
+        """
+        # Arrange - 使用 create_user 创建带前缀的用户
+        new_user = User(phone_number="+8613600136000")
+        new_user.password = "test_password_123"
+        created_user = UserService.create_user(new_user)
+
+        # Act - 使用带前缀的手机号查询
+        result = UserService.query_user_by_phone_number("+8613600136000")
+
+        # Assert - 应该找到用户
+        assert result is not None
+        assert result.user_id == created_user['user_id']
+
+        # Act - 使用不带前缀的手机号查询
+        result2 = UserService.query_user_by_phone_number("13600136000")
+
+        # Assert - 应该找不到用户（因为哈希值不同）
+        assert result2 is None  # 因为哈希值不同
+
+    def test_query_user_by_phone_number_hash_consistency(self, test_db, test_session):
+        """
+        测试手机号哈希的一致性
+        """
+        # Arrange - 使用 create_user 创建用户
+        phone = "13700137001"
+        new_user = User(phone_number=phone)
+        new_user.password = "test_password"
+        created_user = UserService.create_user(new_user)
+
+        # Act - 多次查询相同的手机号
+        result1 = UserService.query_user_by_phone_number(phone)
+        result2 = UserService.query_user_by_phone_number(phone)
+
+        # Assert - 应该返回相同的用户
+        assert result1 is not None
+        assert result2 is not None
+        assert result1.user_id == result2.user_id
+        assert result1.user_id == created_user['user_id']
+
+    def test_query_user_by_phone_number_wechat_user(self, test_db, test_session):
+        """
+        测试查询微信用户（微信用户的phone_hash为空）
+        """
+        # Arrange - 使用 create_user 创建一个微信用户
+        wechat_user = User(
+            wechat_openid="wechat_openid_test",
+            nickname="微信用户",
+            avatar_url="https://example.com/1.jpg"
+        )
+        created_user = UserService.create_user(wechat_user)
+
+        # Act - 尝试通过手机号查询微信用户
+        result = UserService.query_user_by_phone_number("13700137002")
+
+        # Assert - 应该返回 None，因为微信用户没有手机号
+        assert result is None
+
+    def test_create_user_validation_no_identifier(self, test_db, test_session):
+        """
+        测试创建用户时既没有提供 openid 也没有提供手机号
+        """
+        # Arrange - 创建一个既没有 openid 也没有 phone 的用户
+        new_user = User(nickname="无标识用户")
+
+        # Act & Assert - 应该抛出验证错误
+        with pytest.raises(ValueError, match="必须提供微信OpenID或手机号至少一个"):
+            UserService.create_user(new_user)
+
+    def test_create_user_validation_both_identifiers(self, test_db, test_session):
+        """
+        测试创建用户时同时提供了 openid 和手机号
+        """
+        # Arrange - 创建一个同时有 openid 和 phone 的用户
+        new_user = User(
+            wechat_openid="test_openid",
+            phone_number="13700137000"
+        )
+        new_user.password = "test_password"
+
+        # Act & Assert - 应该抛出验证错误
+        with pytest.raises(ValueError, match="不能同时提供微信OpenID和手机号"):
+            UserService.create_user(new_user)
+
+    def test_create_user_validation_invalid_phone(self, test_db, test_session):
+        """
+        测试创建用户时提供了无效的手机号
+        """
+        # Arrange - 创建一个手机号太短的用户
+        new_user = User(phone_number="123")
+        new_user.password = "test_password"
+
+        # Act & Assert - 应该抛出验证错误
+        with pytest.raises(ValueError, match="手机号格式无效"):
+            UserService.create_user(new_user)

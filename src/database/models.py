@@ -17,9 +17,9 @@ class User(Base, QueryMixin):
     __tablename__ = 'users'
     
     user_id = Column(Integer, primary_key=True, autoincrement=True)
-    wechat_openid = Column(String(128), unique=True, nullable=False, comment='微信OpenID')
+    wechat_openid = Column(String(128), unique=True, nullable=True, comment='微信OpenID')
     phone_number = Column(String(20), comment='手机号码')
-    phone_hash = Column(String(64), unique=True, comment='手机号哈希')
+    phone_hash = Column(String(64), unique=True, nullable=True, comment='手机号哈希')
     nickname = Column(String(100), comment='用户昵称')
     avatar_url = Column(String(500), comment='用户头像URL')
     name = Column(String(100), comment='真实姓名')
