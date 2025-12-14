@@ -821,6 +821,7 @@ def get_community_staff_list():
 def add_community_staff():
     """添加社区工作人员"""
     from database.models import CommunityStaff
+    from wxcloudrun.dao import get_db
 
     app_logger.info('=== 开始添加社区工作人员 ===')
 
@@ -850,82 +851,80 @@ def add_community_staff():
         if role not in ['manager', 'staff']:
             return make_err_response({}, '角色参数错误，必须是manager或staff')
 
-        # 检查社区是否存在
-        community = Community.query.get(community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
+        # 使用 get_db().get_session() 方式操作数据库
+        db = get_db()
+        with db.get_session() as session:
+            # 检查社区是否存在
+            community = session.query(Community).get(community_id)
+            if not community:
+                return make_err_response({}, '社区不存在')
 
-        # 权限检查: super_admin 或 community_manager
-        if user.role != 4:  # 不是super_admin
-            staff_record = CommunityStaff.query.filter_by(
-                community_id=community_id,
-                user_id=user_id,
-                role='manager'
-            ).first()
-            if not staff_record:
-                return make_err_response({}, '权限不足')
-
-        # 如果是添加主管,只能添加一个
-        if role == 'manager' and len(user_ids) > 1:
-            return make_err_response({}, '主管只能添加一个')
-
-        # 检查是否已有主管
-        if role == 'manager':
-            existing_manager = CommunityStaff.query.filter_by(
-                community_id=community_id,
-                role='manager'
-            ).first()
-            if existing_manager:
-                return make_err_response({}, '该社区已有主管')
-
-        added_count = 0
-        failed = []
-
-        for uid in user_ids:
-            try:
-                # 检查用户是否存在
-                target_user = User.query.get(uid)
-                if not target_user:
-                    failed.append({'user_id': uid, 'reason': '用户不存在'})
-                    continue
-
-                # 检查用户是否已在当前社区任职（避免在同一社区重复任职）
-                existing_in_current_community = CommunityStaff.query.filter_by(
+            # 权限检查: super_admin 或 community_manager
+            if user.role != 4:  # 不是super_admin
+                staff_record = session.query(CommunityStaff).filter_by(
                     community_id=community_id,
-                    user_id=uid
+                    user_id=user_id,
+                    role='manager'
                 ).first()
+                if not staff_record:
+                    return make_err_response({}, '权限不足')
 
-                if existing_in_current_community:
-                    failed.append({'user_id': uid, 'reason': '用户已在当前社区任职'})
-                    continue
+            # 如果是添加主管,只能添加一个
+            if role == 'manager' and len(user_ids) > 1:
+                return make_err_response({}, '主管只能添加一个')
 
-                # 添加工作人员
-                staff = CommunityStaff(
+            # 检查是否已有主管
+            if role == 'manager':
+                existing_manager = session.query(CommunityStaff).filter_by(
                     community_id=community_id,
-                    user_id=uid,
-                    role=role
-                )
-                db.session.add(staff)
-                added_count += 1
+                    role='manager'
+                ).first()
+                if existing_manager:
+                    return make_err_response({}, '该社区已有主管')
 
-            except Exception as e:
-                app_logger.error(f'添加工作人员失败 user_id={uid}: {str(e)}')
-                failed.append({'user_id': uid, 'reason': str(e)})
+            added_count = 0
+            failed = []
 
-        db.session.commit()
+            for uid in user_ids:
+                try:
+                    # 检查用户是否存在
+                    target_user = session.query(User).get(uid)
+                    if not target_user:
+                        failed.append({'user_id': uid, 'reason': '用户不存在'})
+                        continue
 
-        app_logger.info(f'添加工作人员完成: 成功{added_count}人, 失败{len(failed)}人')
+                    # 检查用户是否已在当前社区任职（避免在同一社区重复任职）
+                    existing_in_current_community = session.query(CommunityStaff).filter_by(
+                        community_id=community_id,
+                        user_id=uid
+                    ).first()
 
-        if added_count == 0:
-            return make_err_response({'failed': failed}, '添加失败')
+                    if existing_in_current_community:
+                        failed.append({'user_id': uid, 'reason': '用户已在当前社区任职'})
+                        continue
 
-        return make_succ_response({
-            'added_count': added_count,
-            'failed': failed
-        })
+                    # 添加工作人员
+                    staff = CommunityStaff(
+                        community_id=community_id,
+                        user_id=uid,
+                        role=role
+                    )
+                    session.add(staff)
+                    added_count += 1
+
+                except Exception as e:
+                    app_logger.error(f'添加工作人员失败 user_id={uid}: {str(e)}')
+                    failed.append({'user_id': uid, 'reason': str(e)})
+
+            if added_count == 0:
+                return make_err_response({'failed': failed}, '添加失败')
+
+            return make_succ_response({
+                'added_count': added_count,
+                'failed': failed
+            })
 
     except Exception as e:
-        db.session.rollback()
         app_logger.error(f'添加社区工作人员失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'添加工作人员失败: {str(e)}')
 
@@ -934,6 +933,7 @@ def add_community_staff():
 def remove_community_staff():
     """移除社区工作人员"""
     from database.models import CommunityStaff
+    from wxcloudrun.dao import get_db
 
     app_logger.info('=== 开始移除社区工作人员 ===')
 
@@ -956,39 +956,41 @@ def remove_community_staff():
         if not community_id or not target_user_id:
             return make_err_response({}, '缺少必要参数')
 
-        # 检查社区是否存在
-        community = Community.query.get(community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
+        # 使用 get_db().get_session() 方式操作数据库
+        db = get_db()
+        with db.get_session() as session:
+            # 检查社区是否存在
+            community = session.query(Community).get(community_id)
+            if not community:
+                return make_err_response({}, '社区不存在')
 
-        # 权限检查: super_admin 或 community_manager
-        if user.role != 4:  # 不是super_admin
-            staff_record = CommunityStaff.query.filter_by(
+            # 权限检查: super_admin 或 community_manager
+            if user.role != 4:  # 不是super_admin
+                staff_record = session.query(CommunityStaff).filter_by(
+                    community_id=community_id,
+                    user_id=user_id,
+                    role='manager'
+                ).first()
+                if not staff_record:
+                    return make_err_response({}, '权限不足')
+
+            # 查找工作人员记录
+            staff = session.query(CommunityStaff).filter_by(
                 community_id=community_id,
-                user_id=user_id,
-                role='manager'
+                user_id=target_user_id
             ).first()
-            if not staff_record:
-                return make_err_response({}, '权限不足')
 
-        # 查找工作人员记录
-        staff = CommunityStaff.query.filter_by(
-            community_id=community_id,
-            user_id=target_user_id
-        ).first()
+            if not staff:
+                return make_err_response({}, '工作人员不存在')
 
-        if not staff:
-            return make_err_response({}, '工作人员不存在')
+            # 删除记录
+            session.delete(staff)
+            session.commit()
 
-        # 删除记录
-        db.session.delete(staff)
-        db.session.commit()
-
-        app_logger.info(f'移除工作人员成功: 社区{community_id}, 用户{target_user_id}')
-        return make_succ_response({})
+            app_logger.info(f'移除工作人员成功: 社区{community_id}, 用户{target_user_id}')
+            return make_succ_response({})
 
     except Exception as e:
-        db.session.rollback()
         app_logger.error(f'移除社区工作人员失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'移除工作人员失败: {str(e)}')
 
@@ -1105,6 +1107,7 @@ def get_community_users_list():
 def add_community_users():
     """添加社区用户"""
     from database.models import CommunityMember, CommunityStaff
+    from wxcloudrun.dao import get_db
 
     app_logger.info('=== 开始添加社区用户 ===')
 
@@ -1133,67 +1136,65 @@ def add_community_users():
         if len(user_ids) > 50:
             return make_err_response({}, '最多只能添加50个用户')
 
-        # 检查社区是否存在
-        community = Community.query.get(community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
+        # 使用 get_db().get_session() 方式操作数据库
+        db = get_db()
+        with db.get_session() as session:
+            # 检查社区是否存在
+            community = session.query(Community).get(community_id)
+            if not community:
+                return make_err_response({}, '社区不存在')
 
-        # 权限检查: super_admin, community_manager 或 community_staff
-        if user.role != 4:  # 不是super_admin
-            staff_record = CommunityStaff.query.filter_by(
-                community_id=community_id,
-                user_id=user_id
-            ).first()
-            if not staff_record:
-                return make_err_response({}, '权限不足')
-
-        added_count = 0
-        failed = []
-
-        for uid in user_ids:
-            try:
-                # 检查用户是否存在
-                target_user = User.query.get(uid)
-                if not target_user:
-                    failed.append({'user_id': uid, 'reason': '用户不存在'})
-                    continue
-
-                # 检查是否已在社区
-                existing = CommunityMember.query.filter_by(
+            # 权限检查: super_admin, community_manager 或 community_staff
+            if user.role != 4:  # 不是super_admin
+                staff_record = session.query(CommunityStaff).filter_by(
                     community_id=community_id,
-                    user_id=uid
+                    user_id=user_id
                 ).first()
+                if not staff_record:
+                    return make_err_response({}, '权限不足')
 
-                if existing:
-                    failed.append({'user_id': uid, 'reason': '用户已在社区'})
-                    continue
+            added_count = 0
+            failed = []
 
-                # 添加用户到社区
-                member = CommunityMember(
-                    community_id=community_id,
-                    user_id=uid
-                )
-                db.session.add(member)
-                added_count += 1
+            for uid in user_ids:
+                try:
+                    # 检查用户是否存在
+                    target_user = session.query(User).get(uid)
+                    if not target_user:
+                        failed.append({'user_id': uid, 'reason': '用户不存在'})
+                        continue
 
-            except Exception as e:
-                app_logger.error(f'添加用户失败 user_id={uid}: {str(e)}')
-                failed.append({'user_id': uid, 'reason': str(e)})
+                    # 检查是否已在社区
+                    existing = session.query(CommunityMember).filter_by(
+                        community_id=community_id,
+                        user_id=uid
+                    ).first()
 
-        db.session.commit()
+                    if existing:
+                        failed.append({'user_id': uid, 'reason': '用户已在社区'})
+                        continue
 
-        app_logger.info(f'添加社区用户完成: 成功{added_count}人, 失败{len(failed)}人')
+                    # 添加用户到社区
+                    member = CommunityMember(
+                        community_id=community_id,
+                        user_id=uid
+                    )
+                    session.add(member)
+                    added_count += 1
 
-        if added_count == 0:
-            return make_err_response({'added_count': added_count, 'failed': failed}, '添加失败')
+                except Exception as e:
+                    app_logger.error(f'添加用户失败 user_id={uid}: {str(e)}')
+                    failed.append({'user_id': uid, 'reason': str(e)})
 
-        return make_succ_response({
-            'added_count': added_count,
-            'failed': failed
-        })
+            if added_count == 0:
+                return make_err_response({'added_count': added_count, 'failed': failed}, '添加失败')
+
+            return make_succ_response({
+                'added_count': added_count,
+                'failed': failed
+            })
 
     except Exception as e:
-        db.session.rollback()
         app_logger.error(f'添加社区用户失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'添加用户失败: {str(e)}')
 

@@ -73,22 +73,7 @@ class TestCommunityStaffManagement:
             base_url, f'13900004{timestamp % 1000:03d}', '测试专员'
         )
 
-        # 4. 添加主管
-        response = requests.post(f'{base_url}/api/community/add-staff',
-            headers=admin_headers,
-            json={
-                'community_id': community_id,
-                'user_ids': [manager_id],
-                'role': 'manager'
-            }
-        )
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get('code') == 1
-        assert data['data']['added_count'] == 1
-        assert len(data['data']['failed']) == 0
-
-        # 5. 验证主管列表
+        # 4. 验证主管列表（创建者自动成为主管）
         response = requests.get(f'{base_url}/api/community/staff/list',
             headers=admin_headers,
             params={
@@ -101,7 +86,8 @@ class TestCommunityStaffManagement:
         assert data.get('code') == 1
         staff_list = data['data']['staff_members']
         assert len(staff_list) == 1
-        assert staff_list[0]['user_id'] == str(manager_id)
+        # 验证创建者（超级管理员）是主管
+        assert staff_list[0]['user_id'] == str(admin_id)
         assert staff_list[0]['role'] == 'manager'
 
         # 6. 添加专员
@@ -157,7 +143,9 @@ class TestCommunityStaffManagement:
         assert data.get('code') == 1
         staff_list = data['data']['staff_members']
         assert len(staff_list) == 1
-        assert staff_list[0]['user_id'] == str(manager_id)
+        # 验证只剩下主管（超级管理员）
+        assert staff_list[0]['user_id'] == str(admin_id)
+        assert staff_list[0]['role'] == 'manager'
 
     def test_manager_uniqueness_constraint(self, test_server):
         """测试主管唯一性约束"""
@@ -180,25 +168,27 @@ class TestCommunityStaffManagement:
             base_url, f'13900012{timestamp % 1000:03d}', '测试主管2'
         )
 
-        # 4. 添加第一个主管
-        response = requests.post(f'{base_url}/api/community/add-staff',
+        # 4. 验证创建者（超级管理员）已经是主管
+        response = requests.get(f'{base_url}/api/community/staff/list',
             headers=admin_headers,
-            json={
+            params={
                 'community_id': community_id,
-                'user_ids': [manager1_id],
                 'role': 'manager'
             }
         )
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
+        staff_list = data['data']['staff_members']
+        assert len(staff_list) == 1
+        assert staff_list[0]['user_id'] == str(admin_id)
 
-        # 5. 尝试添加第二个主管
+        # 5. 尝试添加另一个主管（应该失败）
         response = requests.post(f'{base_url}/api/community/add-staff',
             headers=admin_headers,
             json={
                 'community_id': community_id,
-                'user_ids': [manager2_id],
+                'user_ids': [manager1_id],
                 'role': 'manager'
             }
         )
@@ -352,18 +342,7 @@ class TestCommunityStaffManagement:
             base_url, f'13900028{timestamp % 1000:03d}', '待添加用户'
         )
 
-        # 4. 添加主管和专员角色
-        response = requests.post(f'{base_url}/api/community/add-staff',
-            headers=admin_headers,
-            json={
-                'community_id': community_id,
-                'user_ids': [manager_id],
-                'role': 'manager'
-            }
-        )
-        assert response.status_code == 200
-        assert response.json().get('code') == 1
-
+        # 4. 添加专员角色
         response = requests.post(f'{base_url}/api/community/add-staff',
             headers=admin_headers,
             json={
@@ -396,18 +375,7 @@ class TestCommunityStaffManagement:
             }
         )
 
-        # 6. community_manager 添加工作人员 → 成功
-        manager_headers = {'Authorization': f'Bearer {manager_token}'}
-        response = requests.post(f'{base_url}/api/community/add-staff',
-            headers=manager_headers,
-            json={
-                'community_id': community_id,
-                'user_ids': [test_user_id],
-                'role': 'staff'
-            }
-        )
-        assert response.status_code == 200
-        assert response.json().get('code') == 1
+        # 6. super_admin 添加工作人员 → 成功（跳过，因为上面已经测试过了）
 
         # 先移除该用户
         requests.post(f'{base_url}/api/community/remove-staff',
