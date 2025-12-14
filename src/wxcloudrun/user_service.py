@@ -46,7 +46,7 @@ class UserService:
                 existing_user = session.query(User).filter_by(user_id=user.user_id).first()
                 if existing_user is None:
                     return
-                
+
                 if user.nickname is not None:
                     existing_user.nickname = user.nickname
                 if user.avatar_url is not None:

@@ -22,6 +22,15 @@ class WeChatAPI(ABC):
 class MockWeChatAPI(WeChatAPI):
     """模拟微信 API（非prod环境用）"""
     def get_user_info_by_code(self, code: str) -> Dict:
+        # 模拟无效 code 的场景
+        if not code or code in ["invalid_code", "invalid", "expired", "null"]:
+            print(f"[模拟微信API] 检测到无效code: {code}")
+            # 模拟微信API的错误返回格式
+            return {
+                "errcode": 40029,  # 微信API: invalid code错误码
+                "errmsg": "invalid code"
+            }
+        
         # 对于模拟API，基于code生成唯一的openid，这样不同的测试用例可以创建不同的用户
         # 使用code的哈希值确保相同code总是返回相同的openid，模拟真实微信环境
         import hashlib

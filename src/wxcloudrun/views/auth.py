@@ -14,7 +14,6 @@ from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.dao import query_user_by_openid, insert_user, update_user_by_id
 from database.models import User
-from wxcloudrun.utils.auth import query_user_by_refresh_token
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
 from config_manager import get_token_secret
 
@@ -85,7 +84,7 @@ def login():
     try:
         # 使用新的微信API模块，根据环境变量智能选择真实或模拟API
         from wxcloudrun.wxchat_api import get_user_info_by_code
-
+        from wxcloudrun.user_service import UserService
         app.logger.info('正在通过微信API模块获取用户信息...')
         wx_data = get_user_info_by_code(code)
 
@@ -114,7 +113,7 @@ def login():
         app.logger.info('成功获取openid和session_key，开始查询数据库中的用户信息')
 
         # 检查用户是否已存在
-        existing_user = query_user_by_openid(openid)
+        existing_user = UserService.query_user_by_openid(openid)
         is_new = not bool(existing_user)
         app.logger.info(f'用户查询结果 - 是否为新用户: {is_new}, openid: {openid}')
 
@@ -128,11 +127,11 @@ def login():
                 role=1,  # 默认为独居者角色
                 status=1  # 默认为正常状态
             )
-            user_id = insert_user(user_data)
+            user_id = UserService.create_user(user_data)
             app.logger.info(f'新用户创建成功，用户ID: {user_id}, openid: {openid}')
 
             # 重新查询用户对象以获取完整的用户信息
-            user = query_user_by_openid(openid)
+            user = UserService.query_user_by_openid(openid)
 
             # 自动分配到默认社区
             try:
@@ -192,7 +191,7 @@ def login():
         # 更新用户信息，保存refresh token
         user.refresh_token = refresh_token
         user.refresh_token_expire = refresh_token_expire
-        update_user_by_id(user)
+        UserService.update_user_by_id(user)
 
         # 打印生成的token用于调试（只打印前50个字符）
         app.logger.info(f'生成的token前50字符: {token[:50]}...')
