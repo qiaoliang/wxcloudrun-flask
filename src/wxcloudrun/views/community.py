@@ -426,7 +426,7 @@ def remove_user_from_community(community_id, target_user_id):
         default_community_info = get_default_community()
         if not default_community_info:
             return make_err_response({}, '默认社区不存在，请确保数据库已正确初始化')
-        
+
         # 获取默认社区对象
         default_community = CommunityService.get_community_by_id(default_community_info['community_id'])
         if not default_community:
@@ -1386,6 +1386,7 @@ def remove_community_user():
 
 # ============================================
 # 社区CRUD相关API (中优先级)
+# 从 request中 读取 open_id
 # ============================================
 
 @app.route('/api/community/create', methods=['POST'])
@@ -1398,8 +1399,15 @@ def create_community_new():
     if error_response:
         return error_response
 
-    user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = None
+    # 使用 openid 查找用户
+    openid = decoded.get('openid')
+    if openid:
+        user = User.query.filter_by(wechat_openid=openid).first()
+    else:
+        #TODO：使用电话号码查找用户，
+        pass
+    user_id = user.user_id if user else None
 
     if not user:
         return make_err_response({}, '用户不存在')
@@ -1431,7 +1439,7 @@ def create_community_new():
             return make_err_response({}, '社区描述不能超过200个字符')
 
         # 使用CommunityService创建社区
-        community = CommunityService.create_community(
+        community_dict = CommunityService.create_community(
             name=name,
             description=description,
             creator_id=user_id,
@@ -1441,13 +1449,13 @@ def create_community_new():
             location_lon=location_lon
         )
 
-        app_logger.info(f'创建社区成功: {name} (ID: {community.community_id})')
+        app_logger.info(f'创建社区成功: {name} (ID: {community_dict["community_id"]})')
         return make_succ_response({
-            'community_id': str(community.community_id),
-            'name': community.name,
-            'location': community.location,
+            'community_id': str(community_dict['community_id']),
+            'name': community_dict['name'],
+            'location': community_dict['location'],
             'status': 'active',
-            'created_at': community.created_at.isoformat() if community.created_at else None
+            'created_at': community_dict['created_at'].isoformat() if community_dict['created_at'] else None
         })
 
     except ValueError as e:

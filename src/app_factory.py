@@ -89,12 +89,9 @@ class ApplicationFactory:
     
     def _import_models(self):
         """导入所有模型"""
-        # 现在可以安全导入模型，因为数据库已经初始化
-        from . import model
-        from . import model_community_extensions
-        
-        # 将db对象注入到模型模块中（保持向后兼容）
-        model.db = self.db_manager.get_standalone_db()
+        # 注意：所有模型都已迁移到 database.models
+        # model.py 和 model_community_extensions 已被弃用
+        pass
     
     def _register_blueprints(self, app: Flask):
         """注册蓝图和路由"""

@@ -5,6 +5,7 @@
 
 import logging
 import os
+import json
 from datetime import datetime
 from hashlib import sha256
 from .dao import get_db
@@ -58,20 +59,16 @@ class CommunityService:
                 description=description,
                 creator_user_id=creator_id,
                 location=location,
-                settings=settings or {}
+                settings=json.dumps(settings or {}, ensure_ascii=False)
             )
             
-            # 设置额外字段（如果提供）
-            if location_lat is not None:
-                community.location_lat = location_lat
-            if location_lon is not None:
-                community.location_lon = location_lon
+            # 注意：location_lat 和 location_lon 字段在当前模型中不存在
             
             session.add(community)
             session.flush()  # 获取community_id
 
             # 设置主管：优先使用指定的manager_id，否则创建者自动成为主管
-            from .model_community_extensions import CommunityStaff
+            from database.models import CommunityStaff
             final_manager_id = manager_id if manager_id else creator_id
             
             staff_role = CommunityStaff(
@@ -90,14 +87,27 @@ class CommunityService:
             session.add(audit_log)
 
             session.commit()
+            session.refresh(community)  # 确保所有属性都已加载
             logger.info(f"社区创建成功: {name}, ID: {community.community_id}, 主管: {final_manager_id}")
-            return community
+            
+            # 返回字典而不是对象，避免 session 关闭后的 DetachedInstanceError
+            return {
+                'community_id': community.community_id,
+                'name': community.name,
+                'description': community.description,
+                'location': community.location,
+                'status': community.status,
+                'is_default': community.is_default,
+                'creator_user_id': community.creator_user_id,
+                'created_at': community.created_at,
+                'updated_at': community.updated_at
+            }
 
     @staticmethod
     def add_community_admin(community_id, user_id, role=2, operator_id=None):
         """添加社区管理员"""
         # 导入新的CommunityStaff模型
-        from .model_community_extensions import CommunityStaff
+        from database.models import CommunityStaff
         
         # 将role值映射到新的角色系统
         # role: 1(主管理员) -> 'manager', 2(普通管理员) -> 'staff'
@@ -139,7 +149,7 @@ class CommunityService:
     def remove_community_admin(community_id, user_id, operator_id=None):
         """移除社区管理员"""
         # 导入新的CommunityStaff模型
-        from .model_community_extensions import CommunityStaff
+        from database.models import CommunityStaff
         
         db = get_db()
         with db.get_session() as session:
@@ -237,7 +247,7 @@ class CommunityService:
             query = session.query(User).filter_by(community_id=community_id)
 
             # 排除社区管理员
-            from .model_community_extensions import CommunityStaff
+            from database.models import CommunityStaff
             admin_user_ids = session.query(CommunityStaff.user_id).filter_by(
                 community_id=community_id
             ).subquery()
