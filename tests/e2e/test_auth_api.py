@@ -14,14 +14,14 @@ import sys
 from unittest.mock import patch, MagicMock
 import pytest
 
+
 # 添加项目根目录到Python路径，以便导入config_manager
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
+from hashutil import random_str,uuid_str
 # 导入DAO模块和Flask app
 from wxcloudrun import dao, app
-
-
 
 
 
@@ -308,12 +308,16 @@ class TestAuthAPI:
         当前实现返回code=1，API文档要求code=0
         """
         # 准备请求数据
+        phone_number = f"138{random_str(8)}"
+        nickname = uuid_str(16)
+        # 确保密码符合强度要求：至少8位，包含字母和数字
+        password = f"test{random_str(8)}"
         register_data = {
-            "phone": "13812345678",
+            "phone": phone_number,
             "code": "123456",
-            "nickname": "张三",
+            "nickname": nickname,
             "avatar_url": "https://example.com/avatar.jpg",
-            "password": "password123"
+            "password": password
         }
 
         # 发送注册请求
@@ -345,10 +349,13 @@ class TestAuthAPI:
         assert "login_type" in response_data  # 已实现
 
         # 验证具体值
-        assert response_data["nickname"] == "张三"
+        assert response_data["nickname"] == nickname
         assert response_data["avatar_url"] == "https://example.com/avatar.jpg"
-        assert response_data["phone_number"] == "138****5678"
-        assert response_data["wechat_openid"] == "phone_13812345678"
+        # 验证手机号脱敏格式：前3位+****+后4位
+        expected_masked_phone = f"{phone_number[:3]}****{phone_number[-4:]}"
+        assert response_data["phone_number"] == expected_masked_phone
+        # 手机号注册用户的wechat_openid应该为空
+        assert response_data["wechat_openid"] == ""
         assert response_data["login_type"] == "new_user"  # 已实现
 
         print("✅ 手机号注册当前行为测试通过（需要实现以符合API文档）")
@@ -428,7 +435,7 @@ class TestAuthAPI:
             "null",    # 字符串 null
             "@#$%^&"   # 特殊字符
         ]
-        
+
         for invalid_code in invalid_codes:
             # 准备请求数据
             register_data = {
@@ -448,15 +455,15 @@ class TestAuthAPI:
             # 验证响应
             assert response.status_code == 200
             data = response.json()
-            
+
             # 关键断言：应该返回 code: 0（失败）
             assert data["code"] == 0, f"对于无效验证码 '{invalid_code}'，期望 code 为 0，实际为 {data['code']}"
             assert data["msg"] is not None
             assert len(data["msg"]) > 0
-            
+
             print(f"✅ 无效验证码 '{invalid_code}' 正确返回 code: 0")
             print(f"  错误信息: {data['msg']}")
-        
+
         # 测试缺少验证码参数的情况
         register_data = {
             "phone": "13812345678",
@@ -475,7 +482,7 @@ class TestAuthAPI:
         assert response.status_code == 200
         data = response.json()
         assert data["code"] == 0, "缺少验证码参数应该返回 code: 0"
-        
+
         print(f"✅ 缺少验证码参数正确返回 code: 0")
         print(f"  错误信息: {data['msg']}")
 
@@ -789,7 +796,7 @@ class TestAuthAPI:
         # 验证具体值
         assert response_data["nickname"] == "张三"
         assert response_data["phone_number"] == "138****5678"
-        assert response_data["wechat_openid"] == "phone_13812345678"
+        assert response_data["wechat_openid"] == ""  # 手机用户的 wechat_openid 为空字符串
         assert response_data["login_type"] == "existing_user"  # 已实现
 
         print("✅ 手机号验证码+密码登录当前行为测试通过（需要实现以符合API文档）")

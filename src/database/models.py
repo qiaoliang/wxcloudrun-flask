@@ -15,7 +15,7 @@ Base = declarative_base()
 class User(Base, QueryMixin):
     """用户表"""
     __tablename__ = 'users'
-    
+
     user_id = Column(Integer, primary_key=True, autoincrement=True)
     wechat_openid = Column(String(128), unique=True, nullable=True, comment='微信OpenID')
     phone_number = Column(String(20), comment='手机号码')
@@ -36,15 +36,36 @@ class User(Base, QueryMixin):
     refresh_token_expire = Column(DateTime, comment='刷新令牌过期时间')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     community = relationship('Community', foreign_keys=[community_id], backref='users')
+
+    # 角色映射
+    ROLE_MAPPING = {
+        1: '普通用户',  # 普通用户
+        2: '社区专员',  # 社区专员
+        3: '社区主管',     # 社区主管
+        4: '超级系统管理员'      # 超级系统管理员
+    }
+
+    @property
+    def role_name(self):
+        """获取角色名称"""
+        return self.ROLE_MAPPING.get(self.role, 'unknown')
+
+    @classmethod
+    def get_role_value(cls, role_name):
+        """根据角色名称获取角色值"""
+        for value, name in cls.ROLE_MAPPING.items():
+            if name == role_name:
+                return value
+        return None
 
 
 class Community(Base, QueryMixin):
     """社区表"""
     __tablename__ = 'communities'
-    
+
     community_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False, unique=True, comment='社区名称')
     description = Column(Text, comment='社区描述')
@@ -55,21 +76,21 @@ class Community(Base, QueryMixin):
     is_default = Column(Boolean, default=False, nullable=False, comment='是否默认社区')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     creator = relationship('User', foreign_keys=[creator_user_id], backref='created_communities')
-    
+
     # 状态映射
     STATUS_MAPPING = {
         1: 'enabled',
         2: 'disabled'
     }
-    
+
     @property
     def status_name(self):
         """获取状态名称"""
         return self.STATUS_MAPPING.get(self.status, 'unknown')
-    
+
     @classmethod
     def get_status_value(cls, status_name):
         """根据状态名称获取状态值"""
@@ -82,7 +103,7 @@ class Community(Base, QueryMixin):
 class CheckinRule(Base, QueryMixin):
     """打卡规则表"""
     __tablename__ = 'checkin_rules'
-    
+
     rule_id = Column(Integer, primary_key=True, autoincrement=True)
     solo_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     rule_name = Column(String(100), nullable=False, comment='规则名称')
@@ -97,7 +118,7 @@ class CheckinRule(Base, QueryMixin):
     deleted_at = Column(DateTime, comment='删除时间')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     user = relationship('User', backref='checkin_rules')
 
@@ -105,7 +126,7 @@ class CheckinRule(Base, QueryMixin):
 class CheckinRecord(Base, QueryMixin):
     """打卡记录表"""
     __tablename__ = 'checkin_records'
-    
+
     record_id = Column(Integer, primary_key=True, autoincrement=True)
     rule_id = Column(Integer, ForeignKey('checkin_rules.rule_id'), nullable=False)
     solo_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
@@ -114,7 +135,7 @@ class CheckinRecord(Base, QueryMixin):
     planned_time = Column(DateTime, nullable=False, comment='计划时间')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     rule = relationship('CheckinRule', backref='checkin_records')
     user = relationship('User', backref='checkin_records')
@@ -123,7 +144,7 @@ class CheckinRecord(Base, QueryMixin):
 class SupervisionRuleRelation(Base, QueryMixin):
     """监督规则关系表"""
     __tablename__ = 'supervision_rule_relations'
-    
+
     relation_id = Column(Integer, primary_key=True, autoincrement=True)
     solo_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     supervisor_user_id = Column(Integer, ForeignKey('users.user_id'))
@@ -133,7 +154,7 @@ class SupervisionRuleRelation(Base, QueryMixin):
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
     invite_token = Column(String(64), unique=True)
     invite_expires_at = Column(DateTime)
-    
+
     # 关系
     solo_user = relationship('User', foreign_keys=[solo_user_id], backref='supervised_by_relations')
     supervisor_user = relationship('User', foreign_keys=[supervisor_user_id], backref='supervising_relations')
@@ -143,7 +164,7 @@ class SupervisionRuleRelation(Base, QueryMixin):
 class CommunityStaff(Base, QueryMixin):
     """社区工作人员表"""
     __tablename__ = 'community_staff'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
@@ -151,7 +172,7 @@ class CommunityStaff(Base, QueryMixin):
     scope = Column(String(200), comment='负责范围')
     added_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     community = relationship('Community', backref='staff_members')
     user = relationship('User', backref='staff_roles')
@@ -160,13 +181,13 @@ class CommunityStaff(Base, QueryMixin):
 class CommunityMember(Base, QueryMixin):
     """社区成员表"""
     __tablename__ = 'community_members'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
     user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     joined_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     community = relationship('Community', backref='members')
     user = relationship('User', backref='community_memberships')
@@ -175,7 +196,7 @@ class CommunityMember(Base, QueryMixin):
 class CommunityApplication(Base, QueryMixin):
     """社区申请表"""
     __tablename__ = 'community_applications'
-    
+
     application_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     target_community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
@@ -185,7 +206,7 @@ class CommunityApplication(Base, QueryMixin):
     processed_by = Column(Integer, ForeignKey('users.user_id'))
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     user = relationship('User', foreign_keys=[user_id], backref='community_applications')
     processor = relationship('User', foreign_keys=[processed_by], backref='processed_applications')
@@ -195,7 +216,7 @@ class CommunityApplication(Base, QueryMixin):
 class ShareLink(Base, QueryMixin):
     """分享链接表"""
     __tablename__ = 'share_links'
-    
+
     link_id = Column(Integer, primary_key=True, autoincrement=True)
     token = Column(String(64), unique=True, nullable=False)
     solo_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
@@ -203,7 +224,7 @@ class ShareLink(Base, QueryMixin):
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     solo_user = relationship('User', backref='share_links')
     rule = relationship('CheckinRule', backref='share_links')
@@ -212,14 +233,14 @@ class ShareLink(Base, QueryMixin):
 class ShareLinkAccessLog(Base, QueryMixin):
     """分享链接访问日志表"""
     __tablename__ = 'share_link_access_logs'
-    
+
     log_id = Column(Integer, primary_key=True, autoincrement=True)
     token = Column(String(64), nullable=False)
     accessed_at = Column(DateTime, default=datetime.now)
     ip_address = Column(String(64))
     user_agent = Column(String(512))
     supervisor_user_id = Column(Integer)
-    
+
     # 关系
     # supervisor_user = relationship('User', backref='access_logs')
 
@@ -227,7 +248,7 @@ class ShareLinkAccessLog(Base, QueryMixin):
 class VerificationCode(Base, QueryMixin):
     """验证码表"""
     __tablename__ = 'verification_codes'
-    
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     phone_number = Column(String(20), nullable=False)
     purpose = Column(String(50), nullable=False)
@@ -243,13 +264,13 @@ class VerificationCode(Base, QueryMixin):
 class UserAuditLog(Base, QueryMixin):
     """用户审计日志表"""
     __tablename__ = 'user_audit_logs'
-    
+
     log_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, nullable=False)
     action = Column(String(100), nullable=False)
     detail = Column(Text)
     created_at = Column(DateTime, default=datetime.now)
-    
+
     # 关系
     # user = relationship('User', backref='audit_logs')
 
@@ -257,7 +278,7 @@ class UserAuditLog(Base, QueryMixin):
 class Counters(Base, QueryMixin):
     """计数器表"""
     __tablename__ = 'Counters'
-    
+
     id = Column(Integer, primary_key=True)
     count = Column(Integer, default=1)
     created_at = Column(DateTime, default=datetime.now)

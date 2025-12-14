@@ -181,7 +181,9 @@ def create_community():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    from wxcloudrun.user_service import UserService
+
+    user = UserService.query_user_by_id(user_id)
 
     # 检查权限
     error = _check_super_admin_permission(user)

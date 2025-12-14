@@ -192,8 +192,11 @@ class UserService:
             new_user.password_hash = pwd_hash(new_user.password)
             new_user.password_salt = PWD_SALT
             new_user.wechat_openid =""
-            new_user.nickname="用户_"+random_str(5)
-            new_user.avatar_url="http://exampl.com/1.jpg"
+            # Only set defaults if not provided
+            if not new_user.nickname:
+                new_user.nickname="用户_"+random_str(5)
+            if not new_user.avatar_url:
+                new_user.avatar_url="http://exampl.com/1.jpg"
         # 以下为新用户的默认值
         new_user.name=new_user.nickname  # 用户名都使用 nickname
         new_user.role = 1 # 默认是普通用户

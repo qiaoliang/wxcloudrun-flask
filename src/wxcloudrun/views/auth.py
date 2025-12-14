@@ -22,7 +22,6 @@ app_logger = logging.getLogger('log')
 
 def _format_user_login_response(user, token, refresh_token, is_new_user=False):
     """统一格式化登录响应"""
-    role_name = '超级管理员' if user.role ==4 else '普通用户'
     return {
         'token': token,
         'refresh_token': refresh_token,
@@ -31,7 +30,7 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
         'phone_number': user.phone_number,
         'nickname': user.nickname,
         'avatar_url': user.avatar_url,
-        'role': role_name,
+        'role': user.role_name,
         'login_type': 'new_user' if is_new_user else 'existing_user'
     }
 
@@ -367,17 +366,20 @@ def register_phone():
             app.logger.info(f'手机号已注册，提示用户直接登录: {phone}')
             return make_err_response({'code': 'PHONE_EXISTS'}, '该手机号已注册，请直接登录')
 
-        # Create new user
-        salt = secrets.token_hex(8)
-        pwd_hash = sha256(f"{password or ''}:{salt}".encode(
-            'utf-8')).hexdigest() if password else None
+        # Create new user using UserService to avoid session issues
+        from wxcloudrun.user_service import UserService
         # Generate masked phone number for display purposes only
         masked = normalized_phone[:3] + '****' + normalized_phone[-4:] if len(normalized_phone) >= 7 else normalized_phone
         app.logger.info(f"Creating user with masked phone: {masked} (phone_hash will be used for uniqueness)")
         nick = nickname or _gen_phone_nickname()
-        user = User(wechat_openid=f"phone_{normalized_phone}", phone_number=masked, phone_hash=phone_hash, password_hash=pwd_hash,
-                    password_salt=salt if password else None, nickname=nick, avatar_url=avatar_url, role=1, status=1)
-        insert_user(user)
+
+        # For phone users, create user with phone_number only (UserService will set wechat_openid to empty)
+        user = User(phone_number=normalized_phone, nickname=nick, avatar_url=avatar_url, role=1, status=1)
+        if password:
+            user.password = password
+
+        # Use UserService.create_user to properly handle sessions
+        user = UserService.create_user(user)
         _audit(user.user_id, 'register_phone', {'phone': normalized_phone})
 
         # 自动分配到默认社区
@@ -400,7 +402,7 @@ def register_phone():
         refresh_token = secrets.token_urlsafe(32)
         user.refresh_token = refresh_token
         user.refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
-        update_user_by_id(user)
+        UserService.update_user_by_id(user)
 
         # 使用统一的响应格式
         response_data = _format_user_login_response(
