@@ -3,7 +3,7 @@
 完全独立于Flask，使用标准的SQLAlchemy ORM
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from .query_mixin import QueryMixin
@@ -73,6 +73,8 @@ class Community(Base, QueryMixin):
     status = Column(Integer, default=1, nullable=False, comment='社区状态')
     settings = Column(Text, comment='社区设置（JSON）')
     location = Column(String(200), comment='地理位置')
+    location_lat = Column(Float, comment='纬度')
+    location_lon = Column(Float, comment='经度')
     is_default = Column(Boolean, default=False, nullable=False, comment='是否默认社区')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)

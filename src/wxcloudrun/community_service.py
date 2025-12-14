@@ -59,10 +59,10 @@ class CommunityService:
                 description=description,
                 creator_user_id=creator_id,
                 location=location,
+                location_lat=location_lat,
+                location_lon=location_lon,
                 settings=json.dumps(settings or {}, ensure_ascii=False)
             )
-
-            # 注意：location_lat 和 location_lon 字段在当前模型中不存在
 
             session.add(community)
             session.flush()  # 获取community_id
@@ -88,20 +88,24 @@ class CommunityService:
 
             session.commit()
             session.refresh(community)  # 确保所有属性都已加载
-            logger.info(f"社区创建成功: {name}, ID: {community.community_id}, 主管: {final_manager_id}")
-
-            # 返回字典而不是对象，避免 session 关闭后的 DetachedInstanceError
-            return {
+            
+            # 创建一个字典副本，避免会话问题
+            community_dict = {
                 'community_id': community.community_id,
                 'name': community.name,
                 'description': community.description,
                 'location': community.location,
-                'status': community.status,
-                'is_default': community.is_default,
+                'location_lat': community.location_lat,
+                'location_lon': community.location_lon,
                 'creator_user_id': community.creator_user_id,
+                'status': community.status,
                 'created_at': community.created_at,
                 'updated_at': community.updated_at
             }
+            
+            logger.info(f"社区创建成功: {name}, ID: {community.community_id}, 主管: {final_manager_id}")
+            return community_dict
+
 
     @staticmethod
     def add_community_admin(community_id, user_id, role=2, operator_id=None):
