@@ -81,19 +81,12 @@ def get_community_list():
         page_size = int(request.args.get('page_size', 20))
         status_filter = request.args.get('status', 'all')  # all/active/inactive
 
-        # 构建查询
-        query = Community.query
-
-        # 状态筛选
-        if status_filter == 'active':
-            query = query.filter_by(status=1)
-        elif status_filter == 'inactive':
-            query = query.filter_by(status=2)
-
-        # 分页
-        total = query.count()
-        offset = (page - 1) * page_size
-        communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
+        # 使用CommunityService获取社区列表
+        communities, total = CommunityService.get_communities_with_filters(
+            status_filter=status_filter,
+            page=page,
+            page_size=page_size
+        )
 
         # 格式化响应数据
         result = []
@@ -240,7 +233,7 @@ def get_community(community_id):
     user = User.query.get(user_id)
 
     try:
-        community = Community.query.get(community_id)
+        community = CommunityService.get_community_by_id(community_id)
         if not community:
             return make_err_response({}, '社区不存在')
 
@@ -286,7 +279,7 @@ def update_community(community_id):
     user = User.query.get(user_id)
 
     try:
-        community = Community.query.get(community_id)
+        community = CommunityService.get_community_by_id(community_id)
         if not community:
             return make_err_response({}, '社区不存在')
 
@@ -298,43 +291,24 @@ def update_community(community_id):
         if not params:
             return make_err_response({}, '缺少请求参数')
 
-        # 更新字段
-        if 'name' in params:
-            new_name = params['name']
-            if not new_name:
-                return make_err_response({}, '社区名称不能为空')
-
-            # 检查名称是否与其他社区重复
-            existing = Community.query.filter(
-                Community.name == new_name,
-                Community.community_id != community_id
-            ).first()
-            if existing:
-                return make_err_response({}, '社区名称已存在')
-
-            community.name = new_name
-
-        if 'description' in params:
-            community.description = params['description']
-
-        if 'location' in params:
-            community.location = params['location']
-
-        if 'status' in params:
-            community.status = params['status']
-
-        # 更新时间
-        from datetime import datetime
-        community.updated_at = datetime.now()
-
-        db.session.commit()
+        # 使用CommunityService更新社区信息
+        community = CommunityService.update_community_info(
+            community_id=community_id,
+            name=params.get('name'),
+            description=params.get('description'),
+            location=params.get('location'),
+            status=params.get('status')
+        )
 
         result = _format_community_data(community)
         app.logger.info(f'成功更新社区信息: {community_id}')
         return make_succ_response(result)
 
+    except ValueError as e:
+        # 业务逻辑错误
+        app_logger.warning(f'更新社区信息失败: {str(e)}')
+        return make_err_response({}, str(e))
     except Exception as e:
-        db.session.rollback()
         app_logger.error(f'更新社区信息失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'更新社区信息失败: {str(e)}')
 
@@ -430,7 +404,7 @@ def remove_user_from_community(community_id, target_user_id):
 
     try:
         # 检查社区是否存在
-        community = Community.query.get(community_id)
+        community = CommunityService.get_community_by_id(community_id)
         if not community:
             return make_err_response({}, '社区不存在')
 
@@ -454,7 +428,7 @@ def remove_user_from_community(community_id, target_user_id):
             return make_err_response({}, '默认社区不存在，请确保数据库已正确初始化')
         
         # 获取默认社区对象
-        default_community = Community.query.get(default_community_info['community_id'])
+        default_community = CommunityService.get_community_by_id(default_community_info['community_id'])
         if not default_community:
             return make_err_response({}, '默认社区不存在，请确保数据库已正确初始化')
 
@@ -1456,41 +1430,16 @@ def create_community_new():
         if description and len(description) > 200:
             return make_err_response({}, '社区描述不能超过200个字符')
 
-        # 检查社区名称是否已存在
-        existing = Community.query.filter_by(name=name).first()
-        if existing:
-            return make_err_response({}, '社区名称已存在')
-
-        # 如果指定了主管,检查用户是否存在
-        if manager_id:
-            manager = User.query.get(manager_id)
-            if not manager:
-                return make_err_response({}, '指定的主管不存在')
-
-        # 创建社区
-        community = Community(
+        # 使用CommunityService创建社区
+        community = CommunityService.create_community(
             name=name,
             description=description,
-            creator_user_id=user_id,
+            creator_id=user_id,
             location=location,
-            status=1,  # 默认启用
-            is_default=False
+            manager_id=manager_id,
+            location_lat=location_lat,
+            location_lon=location_lon
         )
-
-        db.session.add(community)
-        db.session.flush()  # 获取community_id
-
-        # 如果指定了主管,添加到工作人员表
-        if manager_id:
-            from database.models import CommunityStaff
-            staff = CommunityStaff(
-                community_id=community.community_id,
-                user_id=manager_id,
-                role='manager'
-            )
-            db.session.add(staff)
-
-        db.session.commit()
 
         app_logger.info(f'创建社区成功: {name} (ID: {community.community_id})')
         return make_succ_response({
@@ -1501,8 +1450,11 @@ def create_community_new():
             'created_at': community.created_at.isoformat() if community.created_at else None
         })
 
+    except ValueError as e:
+        # 业务逻辑错误
+        app_logger.warning(f'创建社区失败: {str(e)}')
+        return make_err_response({}, str(e))
     except Exception as e:
-        db.session.rollback()
         app_logger.error(f'创建社区失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'创建社区失败: {str(e)}')
 
