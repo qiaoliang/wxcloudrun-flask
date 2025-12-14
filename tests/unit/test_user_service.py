@@ -158,7 +158,7 @@ class TestUserService:
             nickname="已存在的微信用户",
             avatar_url="https://example.com/1.jpg"
         )
-        created_user = UserService.create_user(new_user)
+        UserService.create_user(new_user)
 
         # 创建一个测试用户对象，使用相同的 openid
         test_user = User(wechat_openid="test_openid_exists")
@@ -167,7 +167,7 @@ class TestUserService:
         result = UserService.is_user_existed(test_user)
 
         # Assert - 用户应该存在
-        assert result is True
+        assert result is not None
 
     def test_is_user_existed_with_phone_user(self, test_db, test_session):
         """
@@ -186,9 +186,10 @@ class TestUserService:
         result = UserService.is_user_existed(test_user)
 
         # Assert - 用户应该存在
-        assert result is True
-
-    def test_is_user_existed_with_user_id(self, test_db, test_session):
+        assert result is not None
+    def test_get_user_by_phone_number(self):
+        pass
+    def test_is_user_existed_with_user_id(self):
         """
         测试通过 user_id 检查已存在的用户
         """
@@ -208,7 +209,7 @@ class TestUserService:
         result = UserService.is_user_existed(test_user)
 
         # Assert - 用户应该存在
-        assert result is True
+        assert result is not None
 
     def test_is_user_existed_not_found(self, test_db, test_session):
         """
@@ -225,7 +226,7 @@ class TestUserService:
         result = UserService.is_user_existed(test_user)
 
         # Assert - 用户不应该存在
-        assert result is False
+        assert result is None
 
     def test_is_user_existed_priority_by_user_id(self, test_db, test_session):
         """
@@ -253,7 +254,7 @@ class TestUserService:
         result = UserService.is_user_existed(test_user)
 
         # Assert - 应该找到微信用户（通过 ID），而不是手机号用户
-        assert result is True
+        assert result is not None
 
         # 验证确实是通过 ID 找到的
         with get_db().get_session() as verify_session:

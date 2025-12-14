@@ -35,7 +35,10 @@ class UserService:
         """
         try:
             with get_db().get_session() as session:
-                return session.query(User).filter(User.wechat_openid == openid).first()
+                user = session.query(User).filter(User.wechat_openid == openid).first()
+                if user:
+                     session.expunge(user)
+                return user
         except OperationalError as e:
             logger.info("query_user_by_openid errorMsg= {} ".format(e))
             return None
@@ -43,15 +46,22 @@ class UserService:
     def query_user_by_id(user_id):
         """根据ID获取社区"""
         db = get_db()
+        user = None
         with db.get_session() as session:
-            return session.query(User).filter_by(user_id=user_id).first()
+            user= session.query(User).filter_by(user_id=user_id).first()
+            if user:
+                session.expunge(user)
+            return user
 
     @staticmethod
     def query_user_by_phone_number(phone_number):
         db = get_db()
         # 检查社区名称是否已存在
         with db.get_session() as session:
-            return session.query(User).filter_by(phone_hash=phone_hash(phone_number)).first()
+            user = session.query(User).filter_by(phone_hash=phone_hash(phone_number)).first()
+            if user:
+                session.expunge(user)
+            return user
 
     @staticmethod
     def is_user_existed(user):
@@ -59,14 +69,14 @@ class UserService:
         if hasattr(user, 'user_id') and user.user_id is not None:
             existing = UserService.query_user_by_id(user.user_id)
             if existing:
-                    return True
+                    return existing
         existing = UserService.query_user_by_openid(user.wechat_openid)
         if existing:
-                return True
+                return existing
         existing = UserService.query_user_by_phone_number(user.phone_number)
         if existing:
-                return True
-        return False
+                return existing
+        return None
     @staticmethod
     def _is_wechat_user(new_user):
         return (new_user.wechat_openid!=None and new_user.wechat_openid !="")
@@ -75,21 +85,21 @@ class UserService:
         # 验证：必须提供 wechat_openid 或 phone_number 至少一个
         has_openid = hasattr(new_user, 'wechat_openid') and new_user.wechat_openid
         has_phone = hasattr(new_user, 'phone_number') and new_user.phone_number
-        
+
         if not has_openid and not has_phone:
             raise ValueError("必须提供微信OpenID或手机号至少一个")
-        
+
         # 验证：不能同时提供 wechat_openid 和 phone_number
         if has_openid and has_phone:
             raise ValueError("不能同时提供微信OpenID和手机号")
-        
+
         # 验证手机号格式（如果提供了手机号）
         if has_phone:
             from .utils.validators import normalize_phone_number
             normalized_phone = normalize_phone_number(new_user.phone_number)
             if not normalized_phone or len(normalized_phone) < 11:
                 raise ValueError("手机号格式无效")
-        
+
         existing = UserService.is_user_existed(new_user)
         if existing:
                 raise ValueError("用户已存在")
