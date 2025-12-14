@@ -42,6 +42,7 @@ def login():
     登录接口，通过code获取用户信息并返回token
     :return: token
     """
+    from const_default import DEFUALT_COMMUNITY_NAME
     app.logger.info('=== 开始执行登录接口 ===')
 
     # 在日志中打印登录请求
@@ -69,7 +70,7 @@ def login():
     if not nickname:
         app.logger.warning('登录请求缺少nickname参数')
         return make_err_response({}, '缺少nickname参数')
-    
+
     avatar_url = params.get('avatar_url')
     if not avatar_url:
         app.logger.warning('登录请求缺少avatar_url参数')
@@ -120,20 +121,23 @@ def login():
         if not existing_user:
             app.logger.info('用户不存在，创建新用户...')
             # 创建新用户
-            user = User(
+            user_data = User(
                 wechat_openid=openid,
                 nickname=nickname,
                 avatar_url=avatar_url,
                 role=1,  # 默认为独居者角色
                 status=1  # 默认为正常状态
             )
-            insert_user(user)
-            app.logger.info(f'新用户创建成功，用户ID: {user.user_id}, openid: {openid}')
-            
+            user_id = insert_user(user_data)
+            app.logger.info(f'新用户创建成功，用户ID: {user_id}, openid: {openid}')
+
+            # 重新查询用户对象以获取完整的用户信息
+            user = query_user_by_openid(openid)
+
             # 自动分配到默认社区
             try:
                 from wxcloudrun.community_service import CommunityService
-                CommunityService.assign_user_to_community(user, "安卡大家庭")
+                CommunityService.assign_user_to_community(user, DEFUALT_COMMUNITY_NAME)
                 app.logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
             except Exception as e:
                 app.logger.error(f'自动分配社区失败: {str(e)}', exc_info=True)
@@ -303,7 +307,7 @@ def logout():
     用户登出接口，清除refresh token
     """
     app.logger.info('=== 开始执行登出接口 ===')
-    
+
     # 验证token
     from wxcloudrun.utils.auth import verify_token
     decoded, error_response = verify_token()
@@ -332,6 +336,7 @@ def logout():
 
 @app.route('/api/auth/register_phone', methods=['POST'])
 def register_phone():
+    from const_default import DEFUALT_COMMUNITY_NAME
     try:
         params = request.get_json() or {}
         phone = params.get('phone')
@@ -341,10 +346,10 @@ def register_phone():
         password = params.get('password')
         if not phone or not code:
             return make_err_response({}, '缺少phone或code参数')
-        
+
         # 标准化电话号码格式
         normalized_phone = normalize_phone_number(phone)
-        
+
         if not _verify_sms_code(normalized_phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
         if password:
@@ -355,12 +360,12 @@ def register_phone():
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
         existing = User.query.filter_by(phone_hash=phone_hash).first()
-        
+
         # 严格按策略1：不验证密码，直接提示账号已存在
         if existing:
             app.logger.info(f'手机号已注册，提示用户直接登录: {phone}')
             return make_err_response({'code': 'PHONE_EXISTS'}, '该手机号已注册，请直接登录')
-        
+
         # Create new user
         salt = secrets.token_hex(8)
         pwd_hash = sha256(f"{password or ''}:{salt}".encode(
@@ -373,16 +378,16 @@ def register_phone():
                     password_salt=salt if password else None, nickname=nick, avatar_url=avatar_url, role=1, status=1)
         insert_user(user)
         _audit(user.user_id, 'register_phone', {'phone': normalized_phone})
-        
+
         # 自动分配到默认社区
         try:
             from wxcloudrun.community_service import CommunityService
-            CommunityService.assign_user_to_community(user, "安卡大家庭")
+            CommunityService.assign_user_to_community(user, DEFUALT_COMMUNITY_NAME)
             app.logger.info(f'手机注册用户已自动分配到默认社区，用户ID: {user.user_id}')
         except Exception as e:
             app.logger.error(f'手机注册用户自动分配社区失败: {str(e)}', exc_info=True)
             # 不影响注册流程，只记录错误
-        
+
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
         try:
@@ -395,7 +400,7 @@ def register_phone():
         user.refresh_token = refresh_token
         user.refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
         update_user_by_id(user)
-        
+
         # 使用统一的响应格式
         response_data = _format_user_login_response(
             user, token, refresh_token, is_new_user=True
@@ -414,10 +419,10 @@ def login_phone_code():
         code = params.get('code')
         if not phone or not code:
             return make_err_response({}, '缺少phone或code参数')
-        
+
         # 标准化电话号码格式
         normalized_phone = normalize_phone_number(phone)
-        
+
         if not _verify_sms_code(normalized_phone, 'login', code) and not _verify_sms_code(normalized_phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
@@ -429,7 +434,7 @@ def login_phone_code():
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
             update_user_by_id(user)
-        
+
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
         try:
@@ -457,10 +462,10 @@ def login_phone_password():
         password = params.get('password')
         if not phone or not password:
             return make_err_response({}, '缺少phone或password参数')
-        
+
         # 标准化电话号码格式
         normalized_phone = normalize_phone_number(phone)
-        
+
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
@@ -476,7 +481,7 @@ def login_phone_password():
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
             update_user_by_id(user)
-        
+
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
         try:
@@ -506,41 +511,41 @@ def login_phone():
         phone = params.get('phone')
         code = params.get('code')
         password = params.get('password')
-        
+
         # 参数验证
         if not phone or not code or not password:
             return make_err_response({}, '缺少phone、code或password参数')
-        
+
         # 标准化电话号码格式
         normalized_phone = normalize_phone_number(phone)
-        
+
         # 验证码验证（允许使用login或register类型的验证码）
         # 这样用户可以使用注册时发送的验证码进行登录
         if not _verify_sms_code(normalized_phone, 'login', code) and not _verify_sms_code(normalized_phone, 'register', code):
             return make_err_response({}, '验证码无效或已过期')
-        
+
         # 查找用户
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
         user = User.query.filter_by(phone_hash=phone_hash).first()
-        
+
         if not user:
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
         if not user.password_hash or not user.password_salt:
             return make_err_response({}, '账号未设置密码')
-        
+
         # 密码验证
         pwd_hash = sha256(
             f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
         if pwd_hash != user.password_hash:
             return make_err_response({}, '密码不正确')
-        
+
         # 更新用户昵称（如果需要）
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
             update_user_by_id(user)
-        
+
         # 生成token
         token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
                          'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
@@ -549,21 +554,21 @@ def login_phone():
         except ValueError as e:
             app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
             return make_err_response({}, '服务器配置错误')
-        
+
         token = jwt.encode(token_payload, token_secret, algorithm='HS256')
         refresh_token = secrets.token_urlsafe(32)
         user.refresh_token = refresh_token
         user.refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
         update_user_by_id(user)
-        
+
         _audit(user.user_id, 'login_phone', {'phone': phone})
-        
+
         # 使用统一的响应格式
         response_data = _format_user_login_response(
             user, token, refresh_token, is_new_user=False
         )
         return make_succ_response(response_data)
-    
+
     except Exception as e:
         app.logger.error(f'手机号登录失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')

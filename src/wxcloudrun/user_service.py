@@ -1,0 +1,147 @@
+"""
+社区服务模块
+处理社区相关的核心业务逻辑
+"""
+
+import logging
+import os
+import json
+from datetime import datetime
+from hashlib import sha256
+from sqlalchemy.exc import OperationalError
+from .dao import get_db
+from database.models import User,UserAuditLog
+from hashutil import pwd_hash,phone_hash,sms_code_hash,PWD_SALT,PHONE_SALT,random_str
+
+logger = logging.getLogger('log')
+
+class UserService:
+
+    @staticmethod
+    def insert_user(user):
+        """
+        插入一个User实体
+        :param user: User实体
+        :return: 用户ID
+        """
+        try:
+            with get_db().get_session() as session:
+                session.add(user)
+                session.flush()  # 刷新以获取数据库生成的ID
+                session.refresh(user)  # 确保获取数据库生成的值
+                user_id = user.user_id  # 在会话关闭前获取ID
+                # session.commit() is handled by the context manager
+                return user_id  # 返回用户ID而不是对象
+        except OperationalError as e:
+            logger.info("insert_user errorMsg= {} ".format(e))
+            raise
+
+    @staticmethod
+    def update_user_by_id(user_to_update):
+        """
+        根据ID更新用户信息
+        :param user: User实体
+        """
+        if not UserService.is_user_existed(user_to_update):
+            raise
+
+    @staticmethod
+    def query_user_by_openid(openid):
+        """
+        根据微信OpenID查询用户实体
+        :param openid: 微信OpenID
+        :return: User实体
+        """
+        try:
+            with get_db().get_session() as session:
+                return session.query(User).filter(User.wechat_openid == openid).first()
+        except OperationalError as e:
+            logger.info("query_user_by_openid errorMsg= {} ".format(e))
+            return None
+    @staticmethod
+    def query_user_by_id(user_id):
+        """根据ID获取社区"""
+        db = get_db()
+        with db.get_session() as session:
+            return session.query(User).filter_by(user_id=user_id).first()
+
+    @staticmethod
+    def query_user_by_phone_number(phone_number):
+        db = get_db()
+        # 检查社区名称是否已存在
+        with db.get_session() as session:
+            return session.query(User).filter_by(phone_hash=phone_hash(phone_number)).first()
+
+    @staticmethod
+    def is_user_existed(user):
+        # 只有当 user_id 不为 None 时才查询（已存在的用户）
+        if hasattr(user, 'user_id') and user.user_id is not None:
+            existing = UserService.query_user_by_id(user.user_id)
+            if existing:
+                    return True
+        existing = UserService.query_user_by_openid(user.wechat_openid)
+        if existing:
+                return True
+        existing = UserService.query_user_by_phone_number(user.phone_number)
+        if existing:
+                return True
+        return False
+    @staticmethod
+    def _is_wechat_user(new_user):
+        return (new_user.wechat_openid!=None and new_user.wechat_openid !="")
+    @staticmethod
+    def create_user(new_user):
+        existing = UserService.is_user_existed(new_user)
+        if existing:
+                raise ValueError("用户已存在")
+
+        db = get_db()
+        if UserService._is_wechat_user(new_user): # 微信注册用户
+            new_user.phone_number = ""
+            new_user.phone_hash= ""
+            new_user.password_hash = ""
+            new_user.password_salt=PWD_SALT
+        else: # phone 注册用户
+            new_user.phone_hash = phone_hash(new_user.phone_number)
+            new_user.password_hash = pwd_hash(new_user.password)
+            new_user.password_salt = PWD_SALT
+            new_user.wechat_openid =""
+            new_user.nickname="用户_"+random_str(5)
+            new_user.avatar_url="http://exampl.com/1.jpg"
+        # 以下为新用户的默认值
+        new_user.name=new_user.nickname  # 用户名都使用 nickname
+        new_user.role = 1 # 默认是普通用户
+        new_user.community_id = 1 # 默认为‘安卡大家庭’
+        new_user.status=1
+        new_user.verification_status=2
+        new_user._is_community_worker = False
+        with db.get_session() as session:
+            session.add(new_user)
+            session.flush()  # 刷新以获取数据库生成的ID
+            session.refresh(new_user)  # 确保获取数据库生成的值
+
+            # 记录审计日志
+            audit_log = UserAuditLog(
+                user_id=new_user.user_id,
+                action="create_user",
+                detail=f"创建用户: {new_user.user_id}"
+            )
+            session.add(audit_log)
+
+            session.commit()
+            session.refresh(new_user)  # 确保所有属性都已加载
+            logger.info(f"用户创建成功: {new_user.nickname}, ID: {new_user.user_id}")
+
+            # 返回字典而不是对象，避免 session 关闭后的 DetachedInstanceError
+            return {
+                    'wechat_openid':new_user.wechat_openid,
+                    'phone_number':new_user.phone_number,
+                    'phone_hash':new_user.phone_hash,
+                    'nickname':new_user.nickname,
+                    'name':new_user.nickname,
+                    'password_hash':new_user.password_hash,
+                    'role':new_user.role,  # 社区工作人员角色
+                    'status':new_user.status,
+                    'verification_status':new_user.verification_status,  # 已通过验证
+                    '_is_community_worker':new_user._is_community_worker
+                }

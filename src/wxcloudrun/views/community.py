@@ -1277,7 +1277,7 @@ def add_community_users():
 def remove_community_user():
     """移除社区用户"""
     from database.models import CommunityMember, CommunityStaff
-
+    from const_default import DEFUALT_COMMUNITY_NAME
     app_logger.info('=== 开始移除社区用户 ===')
 
     # 验证token
@@ -1330,7 +1330,7 @@ def remove_community_user():
         blackhouse = Community.query.filter_by(name='黑屋').first()
 
         # 如果从"安卡大家庭"移除,移入"黑屋"
-        if community.name == '安卡大家庭' and blackhouse:
+        if community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
             # 检查是否已在黑屋
             existing_in_blackhouse = CommunityMember.query.filter_by(
                 community_id=blackhouse.community_id,
@@ -1346,13 +1346,13 @@ def remove_community_user():
                 moved_to = '黑屋'
 
         # 如果从普通社区移除
-        elif community.name not in ['安卡大家庭', '黑屋']:
+        elif community.name not in [DEFUALT_COMMUNITY_NAME, '黑屋']:
             # 检查用户是否还属于其他普通社区
             other_memberships = CommunityMember.query.filter(
                 CommunityMember.user_id == target_user_id,
                 CommunityMember.community_id != community_id
             ).join(Community).filter(
-                Community.name.notin_(['安卡大家庭', '黑屋'])
+                Community.name.notin_([DEFUALT_COMMUNITY_NAME, '黑屋'])
             ).count()
 
             # 如果不属于任何其他普通社区,移入"安卡大家庭"
@@ -1369,7 +1369,7 @@ def remove_community_user():
                         user_id=target_user_id
                     )
                     db.session.add(anka_member)
-                    moved_to = '安卡大家庭'
+                    moved_to = DEFUALT_COMMUNITY_NAME
 
         # 删除成员记录
         db.session.delete(member)
@@ -1577,7 +1577,7 @@ def update_community_new():
 def toggle_community_status_new():
     """切换社区状态 (新版API)"""
     app_logger.info('=== 开始切换社区状态 ===')
-
+    from const_default import DEFUALT_COMMUNITY_NAME
     # 验证token
     decoded, error_response = verify_token()
     if error_response:
@@ -1610,7 +1610,7 @@ def toggle_community_status_new():
             return make_err_response({}, '社区不存在')
 
         # 特殊社区不能停用
-        if community.name in ['安卡大家庭', '黑屋']:
+        if community.name in [DEFUALT_COMMUNITY_NAME, '黑屋']:
             return make_err_response({}, '特殊社区不能停用')
 
         # 更新状态
@@ -1633,7 +1633,7 @@ def toggle_community_status_new():
 def delete_community_new():
     """删除社区 (新版API)"""
     from database.models import CommunityMember, CommunityStaff
-
+    from const_default import DEFUALT_COMMUNITY_NAME
     app_logger.info('=== 开始删除社区 ===')
 
     # 验证token
@@ -1664,7 +1664,7 @@ def delete_community_new():
             return make_err_response({}, '社区不存在')
 
         # 特殊社区不能删除
-        if community.name in ['安卡大家庭', '黑屋']:
+        if community.name in [DEFUALT_COMMUNITY_NAME, '黑屋']:
             return make_err_response({}, '特殊社区不能删除')
 
         # 检查社区状态

@@ -135,12 +135,16 @@ def insert_user(user):
     """
     插入一个User实体
     :param user: User实体
+    :return: 用户ID
     """
     try:
         with get_db().get_session() as session:
             session.add(user)
             session.flush()  # 刷新以获取数据库生成的ID
+            session.refresh(user)  # 确保获取数据库生成的值
+            user_id = user.user_id  # 在会话关闭前获取ID
             # session.commit() is handled by the context manager
+            return user_id  # 返回用户ID而不是对象
     except OperationalError as e:
         logger.info("insert_user errorMsg= {} ".format(e))
         raise

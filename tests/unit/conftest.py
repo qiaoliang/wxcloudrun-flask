@@ -11,7 +11,8 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # 导入新的数据库模块
-from database import initialize_for_test, get_database, reset_all
+from database import get_database, reset_all
+from wxcloudrun.dao import get_db  # 使用与生产代码相同的数据库获取方式
 
 
 @pytest.fixture(scope='function')
@@ -19,12 +20,17 @@ def test_db():
     """
     为每个测试函数提供干净的数据库
     使用内存数据库，完全独立于Flask
+    与生产代码使用相同的数据库获取方式
     """
     # 重置数据库确保干净状态
     reset_all()
     
-    # 初始化测试数据库
-    db = initialize_for_test()
+    # 初始化测试数据库 - 使用与生产代码相同的方式
+    # 在非Flask上下文中，dao.get_db() 会回退到 get_database()
+    db = get_db()
+    
+    # 确保表已创建
+    db.create_tables()
     
     yield db
     

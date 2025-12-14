@@ -9,6 +9,7 @@ import os
 from hashlib import sha256
 from database.models import User, Community, CommunityStaff
 from database.core import get_database
+from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID
 
 
 def create_super_admin_and_default_community(db_core):
@@ -42,7 +43,7 @@ def create_super_admin_and_default_community(db_core):
                 # 使用与auth.py相同的手机号哈希方法
                 phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
                 phone_hash = sha256(f"{phone_secret}:13900007997".encode('utf-8')).hexdigest()
-                
+
                 super_admin = User(
                     wechat_openid=f"super_admin_{secrets.token_hex(16)}",  # 生成唯一openid
                     phone_number='13900007997',
