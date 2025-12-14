@@ -18,25 +18,6 @@ logger = logging.getLogger('log')
 class UserService:
 
     @staticmethod
-    def insert_user(user):
-        """
-        插入一个User实体
-        :param user: User实体
-        :return: 用户ID
-        """
-        try:
-            with get_db().get_session() as session:
-                session.add(user)
-                session.flush()  # 刷新以获取数据库生成的ID
-                session.refresh(user)  # 确保获取数据库生成的值
-                user_id = user.user_id  # 在会话关闭前获取ID
-                # session.commit() is handled by the context manager
-                return user_id  # 返回用户ID而不是对象
-        except OperationalError as e:
-            logger.info("insert_user errorMsg= {} ".format(e))
-            raise
-
-    @staticmethod
     def update_user_by_id(user_to_update):
         """
         根据ID更新用户信息
@@ -102,7 +83,15 @@ class UserService:
             new_user.password_hash = ""
             new_user.password_salt=PWD_SALT
         else: # phone 注册用户
-            new_user.phone_hash = phone_hash(new_user.phone_number)
+            # 保存原始号码用于生成哈希
+            original_phone = new_user.phone_number
+
+            # 生成脱敏号码用于显示
+            from .utils.validators import _mask_phone_number
+            masked_phone = _mask_phone_number(original_phone)
+
+            new_user.phone_number = masked_phone  # 存储脱敏号码
+            new_user.phone_hash = phone_hash(original_phone)  # 哈希值使用原始号码
             new_user.password_hash = pwd_hash(new_user.password)
             new_user.password_salt = PWD_SALT
             new_user.wechat_openid =""
@@ -134,6 +123,7 @@ class UserService:
 
             # 返回字典而不是对象，避免 session 关闭后的 DetachedInstanceError
             return {
+                    'user_id':new_user.user_id,
                     'wechat_openid':new_user.wechat_openid,
                     'phone_number':new_user.phone_number,
                     'phone_hash':new_user.phone_hash,

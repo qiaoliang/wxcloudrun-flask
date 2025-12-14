@@ -19,14 +19,14 @@ def normalize_phone_number(phone):
     """
     if not phone:
         return phone
-    
+
     # 移除 +86 前缀
     if phone.startswith('+86'):
         phone = phone[3:]
-    
+
     # 移除所有非数字字符
     phone = ''.join(filter(str.isdigit, phone))
-    
+
     return phone
 
 app_logger = logging.getLogger('log')
@@ -73,7 +73,7 @@ def _verify_sms_code(phone, purpose, code):
             return False
         # 其他验证码视为有效
         return True
-    
+
     vc = VerificationCode.query.filter_by(
         phone_number=phone, purpose=purpose).first()
     if not vc:
@@ -112,3 +112,21 @@ def _audit(user_id, action, detail=None):
             session.commit()
     except Exception:
         pass
+
+
+def _mask_phone_number(phone):
+    """
+    生成脱敏手机号（格式：138****5678）
+    :param phone: 原始手机号
+    :return: 脱敏后的手机号
+    """
+    if not phone or len(phone) < 7:
+        return phone
+    
+    # 标准化手机号（移除+86等前缀）
+    normalized = normalize_phone_number(phone)
+    
+    # 生成脱敏号码
+    if len(normalized) >= 7:
+        return normalized[:3] + '****' + normalized[-4:]
+    return normalized
