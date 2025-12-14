@@ -217,18 +217,5 @@ class UserService:
             session.commit()
             session.refresh(new_user)  # 确保所有属性都已加载
             logger.info(f"用户创建成功: {new_user.nickname}, ID: {new_user.user_id}")
-
-            # 返回字典而不是对象，避免 session 关闭后的 DetachedInstanceError
-            return {
-                    'user_id':new_user.user_id,
-                    'wechat_openid':new_user.wechat_openid,
-                    'phone_number':new_user.phone_number,
-                    'phone_hash':new_user.phone_hash,
-                    'nickname':new_user.nickname,
-                    'name':new_user.nickname,
-                    'password_hash':new_user.password_hash,
-                    'role':new_user.role,  # 社区工作人员角色
-                    'status':new_user.status,
-                    'verification_status':new_user.verification_status,  # 已通过验证
-                    '_is_community_worker':new_user._is_community_worker
-                }
+            session.expunge(new_user)
+            return new_user
