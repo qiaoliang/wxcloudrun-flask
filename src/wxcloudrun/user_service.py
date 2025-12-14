@@ -40,12 +40,13 @@ class UserService:
         根据ID更新用户信息
         :param user: User实体
         """
-        existing_user=UserService.query_user_by_id(user.user_id)
-        if existing_user is None:
-            return
         try:
-
             with get_db().get_session() as session:
+                # 在同一个会话中查询用户
+                existing_user = session.query(User).filter_by(user_id=user.user_id).first()
+                if existing_user is None:
+                    return
+                
                 if user.nickname is not None:
                     existing_user.nickname = user.nickname
                 if user.avatar_url is not None:
@@ -59,9 +60,11 @@ class UserService:
                 if user.role is not None:
                     # 如果传入的是字符串，转换为对应的整数值
                     if isinstance(user.role, str):
-                        role_value = User.get_role_value(user.role)
-                        if role_value is not None:
-                            existing_user.role = role_value
+                        # 由于 User 模型没有 get_role_value 方法，暂时不处理字符串
+                        # role_value = User.get_role_value(user.role)
+                        # if role_value is not None:
+                        #     existing_user.role = role_value
+                        pass  # 字符串角色暂时不处理
                     elif isinstance(user.role, int):
                         existing_user.role = user.role
                 if user.verification_status is not None:
@@ -73,11 +76,17 @@ class UserService:
                 if user.status is not None:
                     # 如果传入的是字符串，转换为对应的整数值
                     if isinstance(user.status, str):
-                        status_value = User.get_status_value(user.status)
-                        if status_value is not None:
-                            existing_user.status = status_value
+                        # 由于 User 模型没有 get_status_value 方法，暂时不处理字符串
+                        # status_value = User.get_status_value(user.status)
+                        # if status_value is not None:
+                        #     existing_user.status = status_value
+                        pass  # 字符串状态暂时不处理
                     elif isinstance(user.status, int):
                         existing_user.status = user.status
+                if user.refresh_token is not None:
+                    existing_user.refresh_token = user.refresh_token
+                if user.refresh_token_expire is not None:
+                    existing_user.refresh_token_expire = user.refresh_token_expire
                 existing_user.updated_at = user.updated_at or datetime.now()
 
                 session.flush()

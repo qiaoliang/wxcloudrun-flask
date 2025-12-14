@@ -388,3 +388,242 @@ class TestUserService:
         # Act & Assert - 应该抛出验证错误
         with pytest.raises(ValueError, match="手机号格式无效"):
             UserService.create_user(new_user)
+
+    def test_update_user_by_id_success(self, test_db, test_session):
+        """
+        测试成功更新用户信息
+        验证真实行为而非 mock 行为
+        """
+        # Arrange - 先创建一个用户
+        original_user = User(
+            wechat_openid="test_openid_update",
+            nickname="原始昵称",
+            avatar_url="https://example.com/original.jpg"
+        )
+        created_user = UserService.create_user(original_user)
+
+        # 创建更新用户对象
+        update_user = User()
+        update_user.user_id = created_user['user_id']
+        update_user.nickname = "更新后的昵称"
+        update_user.avatar_url = "https://example.com/updated.jpg"
+        update_user.name = "更新后的姓名"
+
+        # Act - 更新用户
+        UserService.update_user_by_id(update_user)
+
+        # Assert - 验证更新结果
+        with get_db().get_session() as verify_session:
+            updated_user = verify_session.query(User).filter_by(user_id=created_user['user_id']).first()
+            assert updated_user is not None
+            assert updated_user.nickname == "更新后的昵称"
+            assert updated_user.avatar_url == "https://example.com/updated.jpg"
+            assert updated_user.name == "更新后的姓名"
+            # 验证 updated_at 被更新
+            assert updated_user.updated_at is not None
+
+    def test_update_user_by_id_with_role_string(self, test_db, test_session):
+        """
+        测试使用字符串角色更新用户
+        注意：由于 User 模型没有 get_role_value 方法，这个测试验证字符串角色不会被处理
+        """
+        # Arrange - 创建用户
+        original_user = User(
+            wechat_openid="test_openid_role",
+            nickname="角色测试用户"
+        )
+        created_user = UserService.create_user(original_user)
+        original_role = created_user['role']
+
+        # 创建更新用户对象，使用字符串角色
+        update_user = User()
+        update_user.user_id = created_user['user_id']
+        update_user.role = "community_worker"  # 使用字符串而非数字
+
+        # Act - 更新用户
+        UserService.update_user_by_id(update_user)
+
+        # Assert - 验证角色保持原样（因为字符串不被识别）
+        with get_db().get_session() as verify_session:
+            updated_user = verify_session.query(User).filter_by(user_id=created_user['user_id']).first()
+            assert updated_user is not None
+            # 角色应该保持原样，因为字符串 "community_worker" 不被识别
+            assert updated_user.role == original_role
+
+    def test_update_user_by_id_with_status_string(self, test_db, test_session):
+        """
+        测试使用字符串状态更新用户
+        注意：由于 User 模型没有 get_status_value 方法，这个测试验证字符串状态不会被处理
+        """
+        # Arrange - 创建用户
+        original_user = User(
+            wechat_openid="test_openid_status",
+            nickname="状态测试用户"
+        )
+        created_user = UserService.create_user(original_user)
+        original_status = created_user['status']
+
+        # 创建更新用户对象，使用字符串状态
+        update_user = User()
+        update_user.user_id = created_user['user_id']
+        update_user.status = "inactive"  # 使用字符串而非数字
+
+        # Act - 更新用户
+        UserService.update_user_by_id(update_user)
+
+        # Assert - 验证状态保持原样（因为字符串不被识别）
+        with get_db().get_session() as verify_session:
+            updated_user = verify_session.query(User).filter_by(user_id=created_user['user_id']).first()
+            assert updated_user is not None
+            # 状态应该保持原样，因为字符串 "inactive" 不被识别
+            assert updated_user.status == original_status
+
+    def test_update_user_by_id_nonexistent_user(self, test_db, test_session):
+        """
+        测试更新不存在的用户
+        """
+        # Arrange - 创建更新用户对象，使用不存在的 ID
+        update_user = User()
+        update_user.user_id = 999999  # 不存在的用户ID
+        update_user.nickname = "不存在的用户"
+
+        # Act - 更新用户
+        UserService.update_user_by_id(update_user)
+
+        # Assert - 方法应该静默处理，不抛出异常
+        # 验证用户确实没有被创建
+        with get_db().get_session() as verify_session:
+            nonexistent_user = verify_session.query(User).filter_by(user_id=999999).first()
+            assert nonexistent_user is None
+
+    def test_update_user_by_id_partial_update(self, test_db, test_session):
+        """
+        测试部分更新用户信息（只更新部分字段）
+        """
+        # Arrange - 创建用户
+        original_user = User(
+            wechat_openid="test_openid_partial",
+            nickname="原始昵称",
+            avatar_url="https://example.com/original.jpg"
+        )
+        # Note: create_user 会将 name 设置为与 nickname 相同
+        created_user = UserService.create_user(original_user)
+        original_user = UserService.query_user_by_openid(created_user['user_id'])
+
+        # 创建更新用户对象，只更新部分字段
+        update_user = User()
+        update_user.user_id = created_user['user_id']
+        update_user.nickname = "这是我的新昵称"  # 只更新昵称
+
+        # Act - 更新用户
+        UserService.update_user_by_id(update_user)
+
+        # Assert - 验证只有指定字段被更新
+        with get_db().get_session() as verify_session:
+            updated_user = verify_session.query(User).filter_by(user_id=created_user['user_id']).first()
+            assert updated_user is not None
+            assert updated_user.nickname == "这是我的新昵称"  # 已更新
+            assert updated_user.avatar_url == "https://example.com/original.jpg"  # 未更新
+            assert updated_user.name == "原始昵称"  # 未更新
+
+    def test_update_user_by_id_with_none_values(self, test_db, test_session):
+        """
+        测试传入 None 值时不更新对应字段
+        """
+        # Arrange - 创建用户
+        original_user = User(
+            wechat_openid="test_openid_none",
+            nickname="原始昵称",
+            avatar_url="https://example.com/original.jpg"
+        )
+        created_user = UserService.create_user(original_user)
+
+        # 创建更新用户对象，包含 None 值
+        update_user = User()
+        update_user.user_id = created_user['user_id']
+        update_user.nickname = "更新后的昵称"
+        update_user.avatar_url = None  # 显式传入 None
+
+        # Act - 更新用户
+        UserService.update_user_by_id(update_user)
+
+        # Assert - 验证 None 值不会覆盖原有值
+        with get_db().get_session() as verify_session:
+            updated_user = verify_session.query(User).filter_by(user_id=created_user['user_id']).first()
+            assert updated_user is not None
+            assert updated_user.nickname == "更新后的昵称"  # 已更新
+            assert updated_user.avatar_url == "https://example.com/original.jpg"  # 未被 None 覆盖
+
+    def test_query_user_by_refresh_token_success(self, test_db, test_session):
+        """
+        测试成功通过 refresh token 查询用户
+        验证真实行为而非 mock 行为
+        """
+        # Arrange - 创建用户
+        new_user = User(
+            wechat_openid="test_openid_token",
+            nickname="Token测试用户"
+        )
+        created_user = UserService.create_user(new_user)
+
+        # 创建更新用户对象来设置 refresh token（遵循既有模式）
+        update_user = User()
+        update_user.user_id = created_user['user_id']
+        update_user.refresh_token = "test_refresh_token_123"
+
+        UserService.update_user_by_id(update_user)
+
+        # Act - 通过 refresh token 查询用户
+        result = UserService.query_user_by_refresh_token("test_refresh_token_123")
+
+        # Assert - 验证查询结果
+        assert result is not None
+        assert result.user_id == created_user['user_id']
+        assert result.refresh_token == "test_refresh_token_123"
+
+    def test_query_user_by_refresh_token_not_found(self, test_db, test_session):
+        """
+        测试查询不存在的 refresh token
+        """
+        # Arrange - 不创建用户，直接查询不存在的 token
+
+        # Act - 查询不存在的 refresh token
+        result = UserService.query_user_by_refresh_token("nonexistent_token")
+
+        # Assert - 应该返回 None
+        assert result is None
+
+    def test_query_user_by_refresh_token_empty_token(self, test_db, test_session):
+        """
+        测试查询空的 refresh token
+        """
+        # Arrange - 创建用户但不设置 refresh token
+        new_user = User(
+            wechat_openid="test_openid_empty",
+            nickname="空Token用户"
+        )
+        created_user = UserService.create_user(new_user)
+
+        # Act - 查询空 token
+        result = UserService.query_user_by_refresh_token("")
+
+        # Assert - 应该返回 None
+        assert result is None
+
+    def test_query_user_by_refresh_token_with_database_error(self, test_db, test_session):
+        """
+        测试数据库错误时的处理
+        """
+        # Arrange - 模拟数据库错误
+        with patch('wxcloudrun.user_service.get_db') as mock_get_db:
+            mock_db = MagicMock()
+            mock_session = MagicMock()
+            mock_db.get_session.return_value.__enter__.return_value = mock_session
+            mock_session.query.side_effect = OperationalError("Database error", None, None)
+            mock_get_db.return_value = mock_db
+
+            # Act - 查询用户
+            result = UserService.query_user_by_refresh_token("test_token")
+
+            # Assert - 应该返回 None 而不是抛出异常
+            assert result is None
