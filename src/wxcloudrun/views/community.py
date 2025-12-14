@@ -75,6 +75,75 @@ def _format_community_data(community):
         }
 
 
+@app.route('/api/communities', methods=['GET'])
+def get_communities():
+    """获取社区列表（超级管理员专用）- 为了兼容应用初始化测试"""
+    app.logger.info('=== 开始获取社区列表 ===')
+    from wxcloudrun.dao import get_db
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
+
+    # 检查权限
+    error = _check_super_admin_permission(user)
+    if error:
+        return error
+
+    try:
+        # 使用 get_db().get_session() 方式操作数据库
+        db = get_db()
+        with db.get_session() as session:
+            # 查询所有社区
+            communities = session.query(Community).all()
+            
+            # 格式化响应数据
+            result = []
+            for community in communities:
+                # 获取管理员数量
+                admin_count = session.query(CommunityStaff).filter_by(community_id=community.community_id).count()
+                
+                # 获取创建者信息
+                creator = None
+                if community.creator_user_id:
+                    creator_user = session.query(User).get(community.creator_user_id)
+                    if creator_user:
+                        creator = {
+                            'user_id': creator_user.user_id,
+                            'nickname': creator_user.nickname
+                        }
+                
+                # 获取用户数量
+                user_count = session.query(User).filter_by(community_id=community.community_id).count()
+                
+                community_data = {
+                    'community_id': community.community_id,
+                    'name': community.name,
+                    'description': community.description,
+                    'status': community.status,
+                    'status_name': community.status_name,
+                    'location': community.location,
+                    'is_default': community.is_default,
+                    'created_at': community.created_at.isoformat() if community.created_at else None,
+                    'updated_at': community.updated_at.isoformat() if community.updated_at else None,
+                    'creator': creator,
+                    'admin_count': admin_count,
+                    'user_count': user_count
+                }
+                result.append(community_data)
+
+            app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
+            return make_succ_response(result)
+
+    except Exception as e:
+        app_logger.error(f'获取社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取社区列表失败: {str(e)}')
+
+
 @app.route('/api/community/list', methods=['GET'])
 def get_community_list():
     """获取社区列表 (新版API,支持分页和筛选)"""
