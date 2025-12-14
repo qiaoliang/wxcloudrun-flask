@@ -22,6 +22,7 @@ app_logger = logging.getLogger('log')
 
 def _format_user_login_response(user, token, refresh_token, is_new_user=False):
     """统一格式化登录响应"""
+    role_name = '超级管理员' if user.role ==4 else '普通用户'
     return {
         'token': token,
         'refresh_token': refresh_token,
@@ -30,7 +31,7 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
         'phone_number': user.phone_number,
         'nickname': user.nickname,
         'avatar_url': user.avatar_url,
-        'role': user.role_name,
+        'role': role_name,
         'login_type': 'new_user' if is_new_user else 'existing_user'
     }
 
@@ -127,11 +128,11 @@ def login():
                 role=1,  # 默认为独居者角色
                 status=1  # 默认为正常状态
             )
-            user_id = UserService.create_user(user_data)
-            app.logger.info(f'新用户创建成功，用户ID: {user_id}, openid: {openid}')
+            created_user = UserService.create_user(user_data)
+            app.logger.info(f'新用户创建成功，用户ID: {created_user.user_id}, openid: {openid}')
 
-            # 重新查询用户对象以获取完整的用户信息
-            user = UserService.query_user_by_openid(openid)
+            # 使用返回的用户对象，不需要重新查询
+            user = created_user
 
             # 自动分配到默认社区
             try:
