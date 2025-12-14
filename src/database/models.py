@@ -69,7 +69,7 @@ class Community(Base, QueryMixin):
     community_id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(String(100), nullable=False, unique=True, comment='社区名称')
     description = Column(Text, comment='社区描述')
-    creator_user_id = Column(Integer, ForeignKey('users.user_id', use_alter=True), comment='创建人ID')
+    creator_user_id = Column(Integer, ForeignKey('users.user_id', use_alter=True), nullable=True, comment='创建人ID')
     status = Column(Integer, default=1, nullable=False, comment='社区状态')
     settings = Column(Text, comment='社区设置（JSON）')
     location = Column(String(200), comment='地理位置')
