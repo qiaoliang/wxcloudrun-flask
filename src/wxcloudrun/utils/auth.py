@@ -83,25 +83,6 @@ def verify_token():
         app.logger.error(f'JWT验证时发生错误: {str(e)}', exc_info=True)
         return None, make_err_response({}, f'JWT验证失败: {str(e)}')
 
-
-def query_user_by_refresh_token(refresh_token):
-    """
-    根据refresh token查询用户
-    """
-    try:
-        from database import get_database
-        from database.models import User
-        
-        db = get_database()
-        with db.get_session() as session:
-            user = session.query(User).filter(
-                User.refresh_token == refresh_token).first()
-            return user
-    except Exception as e:
-        app.logger.error(f'查询用户失败: {str(e)}')
-        return None
-
-
 def require_role(required_role):
     """
     装饰器：要求用户具有特定角色
@@ -112,21 +93,21 @@ def require_role(required_role):
     """
     def decorator(f):
         from functools import wraps
-        
+
         @wraps(f)
         def decorated_function(*args, **kwargs):
             # 验证token
             decoded, error_response = verify_token()
             if error_response:
                 return error_response
-            
+
             user_id = decoded.get('user_id')
             from database.models import User
             user = User.query.get(user_id)
-            
+
             if not user:
                 return make_err_response({}, '用户不存在')
-            
+
             # 检查角色
             if isinstance(required_role, int):
                 if user.role != required_role:
@@ -138,11 +119,11 @@ def require_role(required_role):
                 # 检查角色名称
                 if user.role_name != required_role:
                     return make_err_response({}, '权限不足')
-            
+
             # 将用户信息添加到请求上下文
             request.current_user = user
             return f(*args, **kwargs)
-        
+
         return decorated_function
     return decorator
 
@@ -153,29 +134,29 @@ def require_community_admin():
     """
     def decorator(f):
         from functools import wraps
-        
+
         @wraps(f)
         def decorated_function(*args, **kwargs):
             # 验证token
             decoded, error_response = verify_token()
             if error_response:
                 return error_response
-            
+
             user_id = decoded.get('user_id')
             from database.models import User
             user = User.query.get(user_id)
-            
+
             if not user:
                 return make_err_response({}, '用户不存在')
-            
+
             # 检查是否为社区管理员或超级管理员
             if user.role not in [3, 4]:  # 社区管理员或超级管理员
                 return make_err_response({}, '需要社区管理员权限')
-            
+
             # 将用户信息添加到请求上下文
             request.current_user = user
             return f(*args, **kwargs)
-        
+
         return decorated_function
     return decorator
 
@@ -195,18 +176,18 @@ def check_community_permission(community_id):
     decoded, error_response = verify_token()
     if error_response:
         return error_response, None
-    
+
     user_id = decoded.get('user_id')
     from database.models import User
     user = User.query.get(user_id)
-    
+
     if not user:
         return make_err_response({}, '用户不存在'), None
-    
+
     # 检查权限
     if not user.can_manage_community(community_id):
         return make_err_response({}, '权限不足'), None
-    
+
     return None, user
 
 
@@ -217,7 +198,7 @@ def get_current_user():
     decoded, error_response = verify_token()
     if error_response:
         return None
-    
+
     user_id = decoded.get('user_id')
     from database.models import User
     return User.query.get(user_id)

@@ -244,7 +244,8 @@ def refresh_token():
         app.logger.info('开始验证refresh token...')
 
         # 从数据库中查找用户信息
-        user = query_user_by_refresh_token(refresh_token)
+        from wxcloudrun.user_service import UserService
+        user = UserService.query_user_by_refresh_token(refresh_token)
         if not user or not user.refresh_token or user.refresh_token != refresh_token:
             app.logger.warning(f'无效的refresh_token: {refresh_token[:20]}...')
             return make_err_response({}, '无效的refresh_token')
