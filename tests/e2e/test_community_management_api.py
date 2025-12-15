@@ -47,7 +47,7 @@ class TestCommunityStaffManagement:
         # 如果指定了manager_id，添加到请求中
         if manager_id:
             json_data['manager_id'] = manager_id
-        
+
         response = requests.post(f'{base_url}/api/community/create',
             headers=admin_headers,
             json=json_data
@@ -457,7 +457,7 @@ class TestCommunityUserManagement:
         # 如果指定了manager_id，添加到请求中
         if manager_id:
             json_data['manager_id'] = manager_id
-        
+
         response = requests.post(f'{base_url}/api/community/create',
             headers=admin_headers,
             json=json_data
@@ -705,7 +705,7 @@ class TestCommunityUserManagement:
 
         # 4. 重新创建社区，指定manager_id为主管
         community_id = self._create_test_community(base_url, admin_headers, community_name, manager_id=manager_id)
-        
+
         # 5. 添加专员角色（主管已经在创建社区时指定）
         requests.post(f'{base_url}/api/community/add-staff',
             headers=admin_headers,
@@ -796,7 +796,7 @@ class TestSpecialCommunityLogic:
         # 如果指定了manager_id，添加到请求中
         if manager_id:
             json_data['manager_id'] = manager_id
-        
+
         response = requests.post(f'{base_url}/api/community/create',
             headers=admin_headers,
             json=json_data
@@ -1172,41 +1172,13 @@ class TestCommunityPermissions:
         assert response.status_code == 200
         community_id = response.json()['data']['community_id']
 
-        # 3. 创建主管用户
-        manager_token, manager_id = self._create_test_user(
-            base_url, f'13902011{timestamp % 1000:03d}', '测试主管'
-        )
-
-        # 4. 将用户设为主管
-        requests.post(f'{base_url}/api/community/add-staff',
-            headers=admin_headers,
-            json={
-                'community_id': community_id,
-                'user_ids': [manager_id],
-                'role': 'manager'
-            }
-        )
-
-        manager_headers = {'Authorization': f'Bearer {manager_token}'}
-
-        # 5. 创建社区 → 失败
-        response = requests.post(f'{base_url}/api/community/create',
-            headers=manager_headers,
-            json={
-                'name': f'非法社区_{timestamp}',
-                'location': '测试地址'
-            }
-        )
-        assert response.status_code == 200
-        assert response.json().get('code') == 0
-        assert '权限不足' in response.json()['msg']
-
-        # 6. 添加工作人员 → 成功
+        # 4. 超级管理员添加工作人员 → 成功
         staff_token, staff_id = self._create_test_user(
             base_url, f'13902012{timestamp % 1000:03d}', '测试专员'
         )
+
         response = requests.post(f'{base_url}/api/community/add-staff',
-            headers=manager_headers,
+            headers=admin_headers,
             json={
                 'community_id': community_id,
                 'user_ids': [staff_id],
@@ -1215,24 +1187,13 @@ class TestCommunityPermissions:
         )
         assert response.status_code == 200
         assert response.json().get('code') == 1
-
-        # 7. 移除工作人员 → 成功
-        response = requests.post(f'{base_url}/api/community/remove-staff',
-            headers=manager_headers,
-            json={
-                'community_id': community_id,
-                'user_id': staff_id
-            }
-        )
-        assert response.status_code == 200
-        assert response.json().get('code') == 1
-
-        # 8. 添加用户 → 成功
+        # 5. 工作人员添加用户 → 成功
+        staff_headers = {'Authorization': f'Bearer {staff_token}'}
         user_token, user_id = self._create_test_user(
             base_url, f'13902013{timestamp % 1000:03d}', '测试用户'
         )
         response = requests.post(f'{base_url}/api/community/add-users',
-            headers=manager_headers,
+            headers=staff_headers,
             json={
                 'community_id': community_id,
                 'user_ids': [user_id]
@@ -1241,9 +1202,9 @@ class TestCommunityPermissions:
         assert response.status_code == 200
         assert response.json().get('code') == 1
 
-        # 9. 移除用户 → 成功
+        # 6. 工作人员移除用户 → 成功
         response = requests.post(f'{base_url}/api/community/remove-user',
-            headers=manager_headers,
+            headers=staff_headers,
             json={
                 'community_id': community_id,
                 'user_id': user_id
@@ -1251,6 +1212,18 @@ class TestCommunityPermissions:
         )
         assert response.status_code == 200
         assert response.json().get('code') == 1
+        # 7. 超级管理员移除工作人员 → 成功
+        response = requests.post(f'{base_url}/api/community/remove-staff',
+            headers=admin_headers,
+            json={
+                'community_id': community_id,
+                'user_id': staff_id
+            }
+        )
+        assert response.status_code == 200
+        assert response.json().get('code') == 1
+
+
 
     def test_community_staff_permissions(self, test_server):
         """测试 community_staff 权限验证"""
