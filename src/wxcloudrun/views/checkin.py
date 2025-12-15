@@ -41,9 +41,12 @@ def get_today_checkin_items(decoded):
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
 
+    # 提取user_id以避免会话问题
+    user_id = user.user_id
+
     try:
         # 获取用户的打卡规则
-        checkin_rules = query_checkin_rules_by_user_id(user.user_id)
+        checkin_rules = query_checkin_rules_by_user_id(user_id)
 
         # 生成今天的打卡计划
         today = date.today()
@@ -112,7 +115,7 @@ def get_today_checkin_items(decoded):
         }
 
         app.logger.info(
-            f'成功获取今日打卡事项，用户ID: {user.user_id}, 事项数量: {len(checkin_items)}')
+            f'成功获取今日打卡事项，用户ID: {user_id}, 事项数量: {len(checkin_items)}')
         return make_succ_response(response_data)
 
     except Exception as e:

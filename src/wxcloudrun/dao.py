@@ -111,7 +111,10 @@ def query_user_by_openid(openid):
     """
     try:
         with get_db().get_session() as session:
-            return session.query(User).filter(User.wechat_openid == openid).first()
+            user = session.query(User).filter(User.wechat_openid == openid).first()
+            if user:
+                session.expunge(user)
+            return user
     except OperationalError as e:
         logger.info("query_user_by_openid errorMsg= {} ".format(e))
         return None
@@ -209,10 +212,15 @@ def query_checkin_rules_by_user_id(user_id):
     :return: 打卡规则列表
     """
     try:
-        return CheckinRule.query.filter(
-            CheckinRule.solo_user_id == user_id,
-            CheckinRule.status != 2  # 排除已删除的规则
-        ).all()
+        with get_db().get_session() as session:
+            rules = session.query(CheckinRule).filter(
+                CheckinRule.solo_user_id == user_id,
+                CheckinRule.status != 2  # 排除已删除的规则
+            ).all()
+            # 确保对象在会话关闭后仍可访问
+            for rule in rules:
+                session.expunge(rule)
+            return rules
     except OperationalError as e:
         logger.info("query_checkin_rules_by_user_id errorMsg= {} ".format(e))
         return []
@@ -237,8 +245,11 @@ def insert_checkin_rule(rule):
     :param rule: 打卡规则实体
     """
     try:
-        db.session.add(rule)
-        db.session.commit()
+        with get_db().get_session() as session:
+            session.add(rule)
+            session.commit()
+            session.refresh(rule)  # 刷新以获取自动生成的ID
+            session.expunge(rule)  # 从会话中分离
     except OperationalError as e:
         logger.info("insert_checkin_rule errorMsg= {} ".format(e))
 
@@ -329,14 +340,20 @@ def query_checkin_records_by_rule_id_and_date(rule_id, checkin_date=None):
     :return: 打卡记录列表
     """
     try:
+        from sqlalchemy import func
         if checkin_date is None:
             checkin_date = date.today()
         
         # 查询当天该规则的打卡记录
-        return CheckinRecord.query.filter(
-            CheckinRecord.rule_id == rule_id,
-            db.func.date(CheckinRecord.planned_time) == checkin_date
-        ).all()
+        with get_db().get_session() as session:
+            records = session.query(CheckinRecord).filter(
+                CheckinRecord.rule_id == rule_id,
+                func.date(CheckinRecord.planned_time) == checkin_date
+            ).all()
+            # 确保对象在会话关闭后仍可访问
+            for record in records:
+                session.expunge(record)
+            return records
     except OperationalError as e:
         logger.info("query_checkin_records_by_rule_id_and_date errorMsg= {} ".format(e))
         return []
@@ -349,7 +366,11 @@ def query_checkin_record_by_id(record_id):
     :return: 打卡记录实体
     """
     try:
-        return CheckinRecord.query.get(record_id)
+        with get_db().get_session() as session:
+            record = session.query(CheckinRecord).get(record_id)
+            if record:
+                session.expunge(record)
+            return record
     except OperationalError as e:
         logger.info("query_checkin_record_by_id errorMsg= {} ".format(e))
         return None
@@ -361,8 +382,11 @@ def insert_checkin_record(record):
     :param record: 打卡记录实体
     """
     try:
-        db.session.add(record)
-        db.session.commit()
+        with get_db().get_session() as session:
+            session.add(record)
+            session.commit()
+            session.refresh(record)  # 刷新以获取自动生成的ID
+            session.expunge(record)  # 从会话中分离
     except OperationalError as e:
         logger.info("insert_checkin_record errorMsg= {} ".format(e))
 
@@ -373,18 +397,19 @@ def update_checkin_record_by_id(record):
     :param record: 打卡记录实体
     """
     try:
-        existing_record = query_checkin_record_by_id(record.record_id)
-        if existing_record is None:
-            return
-        # 更新记录信息
-        if record.checkin_time is not None:
-            existing_record.checkin_time = record.checkin_time
-        if record.status is not None:
-            existing_record.status = record.status
-        existing_record.updated_at = record.updated_at or datetime.now()
-        
-        db.session.flush()
-        db.session.commit()
+        with get_db().get_session() as session:
+            existing_record = session.query(CheckinRecord).get(record.record_id)
+            if existing_record is None:
+                return
+            # 更新记录信息
+            if record.checkin_time is not None:
+                existing_record.checkin_time = record.checkin_time
+            if record.status is not None:
+                existing_record.status = record.status
+            existing_record.updated_at = record.updated_at or datetime.now()
+            
+            session.flush()
+            session.commit()
     except OperationalError as e:
         logger.info("update_checkin_record_by_id errorMsg= {} ".format(e))
 
