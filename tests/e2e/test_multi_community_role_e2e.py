@@ -36,7 +36,7 @@ class TestMultiCommunityRoleAssignmentE2E:
         })
         assert register_response.status_code == 200
         register_data = register_response.json()
-        assert register_data.get('code') == 1
+        assert register_data.get('code') == 1, f"注册失败: {register_data}"
         return register_data['data']['user_id']
 
     def _create_test_community(self, base_url, admin_headers, name, location='测试地址', manager_id=None):

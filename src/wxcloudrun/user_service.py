@@ -143,12 +143,19 @@ class UserService:
             existing = UserService.query_user_by_id(user.user_id)
             if existing:
                     return existing
-        existing = UserService.query_user_by_openid(user.wechat_openid)
-        if existing:
-                return existing
-        existing = UserService.query_user_by_phone_number(user.phone_number)
-        if existing:
-                return existing
+        
+        # 只有当 wechat_openid 不为 None 且不为空时才查询
+        if hasattr(user, 'wechat_openid') and user.wechat_openid:
+            existing = UserService.query_user_by_openid(user.wechat_openid)
+            if existing:
+                    return existing
+        
+        # 只有当 phone_number 不为 None 且不为空时才查询
+        if hasattr(user, 'phone_number') and user.phone_number:
+            existing = UserService.query_user_by_phone_number(user.phone_number)
+            if existing:
+                    return existing
+        
         return None
     @staticmethod
     def _is_wechat_user(new_user):
