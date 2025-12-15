@@ -29,6 +29,7 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
         'wechat_openid': user.wechat_openid,
         'phone_number': user.phone_number,
         'nickname': user.nickname,
+        'name':user.name,
         'avatar_url': user.avatar_url,
         'role': user.role_name,
         'login_type': 'new_user' if is_new_user else 'existing_user'

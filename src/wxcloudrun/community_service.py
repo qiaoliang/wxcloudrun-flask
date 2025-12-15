@@ -11,7 +11,7 @@ from hashlib import sha256
 from .dao import get_db
 from database.models import User, Community, CommunityApplication, UserAuditLog
 from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID
-logger = logging.getLogger('log')
+logger = logging.getLogger('CommunityService')
 
 
 class CommunityService:
@@ -36,6 +36,26 @@ class CommunityService:
 
             logger.info(f"用户 {user.user_id} 已分配到社区 {community.community_id}")
             return community
+    @staticmethod
+    def query_community_by_id(comm_id):
+        db = get_db()
+        with db.get_session() as session:
+            existing = session.query(Community).filter_by(community_id=comm_id).first()
+            if existing:
+                session.expunge(existing)
+                return existing
+            else:
+                return None
+    @staticmethod
+    def query_community_by_name(comm_name):
+        db = get_db()
+        with db.get_session() as session:
+            existing = session.query(Community).filter_by(name=comm_name).first()
+            if existing:
+                session.expunge(existing)
+                return existing
+            else:
+                return None
 
     @staticmethod
     def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None):
@@ -43,13 +63,14 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 检查社区名称是否已存在
-            existing = session.query(Community).filter_by(name=name).first()
+            existing = CommunityService.query_community_by_name(name)
             if existing:
                 raise ValueError("社区名称已存在")
 
             # 如果指定了主管,检查用户是否存在
+            from wxcloudrun.user_service import UserService
             if manager_id:
-                manager = session.query(User).get(manager_id)
+                manager = UserService.is_user_existed(manager_id)
                 if not manager:
                     raise ValueError("指定的主管不存在")
 
@@ -88,7 +109,7 @@ class CommunityService:
 
             session.commit()
             session.refresh(community)  # 确保所有属性都已加载
-            
+
             # 创建一个字典副本，避免会话问题
             community_dict = {
                 'community_id': community.community_id,
@@ -102,7 +123,7 @@ class CommunityService:
                 'created_at': community.created_at,
                 'updated_at': community.updated_at
             }
-            
+
             logger.info(f"社区创建成功: {name}, ID: {community.community_id}, 主管: {final_manager_id}")
             return community_dict
 

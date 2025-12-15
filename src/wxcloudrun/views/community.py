@@ -35,17 +35,17 @@ def _check_super_admin_permission(user):
 def _format_community_data(community):
     """格式化社区数据"""
     from wxcloudrun.dao import get_db
-    
+
     # 获取community_id，然后重新查询以避免会话问题
     community_id = community.community_id
-    
+
     with get_db().get_session() as session:
         # 重新查询社区
         community = session.query(Community).filter_by(community_id=community_id).first()
-        
+
         # 获取管理员数量
         admin_count = session.query(CommunityStaff).filter_by(community_id=community_id).count()
-        
+
         # 获取创建者信息
         creator = None
         if community.creator_user_id:
@@ -55,10 +55,10 @@ def _format_community_data(community):
                     'user_id': creator_user.user_id,
                     'nickname': creator_user.nickname
                 }
-        
+
         # 获取用户数量
         user_count = session.query(User).filter_by(community_id=community_id).count()
-        
+
         return {
             'community_id': community.community_id,
             'name': community.name,
@@ -100,13 +100,13 @@ def get_communities():
         with db.get_session() as session:
             # 查询所有社区
             communities = session.query(Community).all()
-            
+
             # 格式化响应数据
             result = []
             for community in communities:
                 # 获取管理员数量
                 admin_count = session.query(CommunityStaff).filter_by(community_id=community.community_id).count()
-                
+
                 # 获取创建者信息
                 creator = None
                 if community.creator_user_id:
@@ -116,10 +116,10 @@ def get_communities():
                             'user_id': creator_user.user_id,
                             'nickname': creator_user.nickname
                         }
-                
+
                 # 获取用户数量
                 user_count = session.query(User).filter_by(community_id=community.community_id).count()
-                
+
                 community_data = {
                     'community_id': community.community_id,
                     'name': community.name,
@@ -1206,7 +1206,7 @@ def remove_community_user():
     from database.models import CommunityMember, CommunityStaff
     from const_default import DEFUALT_COMMUNITY_NAME
     from wxcloudrun.dao import get_db
-    
+
     app_logger.info('=== 开始移除社区用户 ===')
 
     # 验证token
@@ -1215,7 +1215,7 @@ def remove_community_user():
         return error_response
 
     user_id = decoded.get('user_id')
-    
+
     # 使用 get_db().get_session() 方式操作数据库
     db = get_db()
     with db.get_session() as session:
@@ -1319,11 +1319,11 @@ def remove_community_user():
 
 # ============================================
 # 社区CRUD相关API (中优先级)
-# 从 request中 读取 open_id
 # ============================================
 
 @app.route('/api/community/create', methods=['POST'])
 def create_community_new():
+    from wxcloudrun.community_service import CommunityService
     """创建社区 (新版API)"""
     app_logger.info('=== 开始创建社区 ===')
 
@@ -1333,8 +1333,10 @@ def create_community_new():
         return error_response
 
     # 使用 user_id 查找用户
+    from wxcloudrun.user_service import UserService
+
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = UserService.is_user_existed(user_id)
 
     if not user:
         return make_err_response({}, '用户不存在')
@@ -1509,7 +1511,7 @@ def toggle_community_status_new():
     app_logger.info('=== 开始切换社区状态 ===')
     from const_default import DEFUALT_COMMUNITY_NAME
     from wxcloudrun.dao import get_db
-    
+
     # 验证token
     decoded, error_response = verify_token()
     if error_response:
