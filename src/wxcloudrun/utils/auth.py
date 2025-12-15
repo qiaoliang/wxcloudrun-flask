@@ -65,10 +65,16 @@ def verify_token():
             algorithms=['HS256']
         )
         openid = decoded.get('openid')
+        user_id = decoded.get('user_id')
 
-        if not openid:
-            app.logger.error('解码后的token中未找到openid')
+        # 对于手机号注册的用户，openid可能为空，但user_id必须存在
+        if not user_id:
+            app.logger.error('解码后的token中未找到user_id')
             return None, make_err_response({}, 'token无效')
+
+        # 如果openid为空，记录日志但不阻止验证（手机号注册用户）
+        if not openid:
+            app.logger.info(f'用户{user_id}使用手机号注册，openid为空')
 
         return decoded, None
     except jwt.ExpiredSignatureError:

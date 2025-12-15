@@ -37,15 +37,20 @@ class TestCommunityStaffManagement:
         assert register_data.get('code') == 1
         return register_data['data']['token'], register_data['data']['user_id']
 
-    def _create_test_community(self, base_url, admin_headers, name, location='测试地址'):
+    def _create_test_community(self, base_url, admin_headers, name, location='测试地址', manager_id=None):
         """创建测试社区"""
+        json_data = {
+            'name': name,
+            'location': location,
+            'description': '测试社区描述'
+        }
+        # 如果指定了manager_id，添加到请求中
+        if manager_id:
+            json_data['manager_id'] = manager_id
+        
         response = requests.post(f'{base_url}/api/community/create',
             headers=admin_headers,
-            json={
-                'name': name,
-                'location': location,
-                'description': '测试社区描述'
-            }
+            json=json_data
         )
         assert response.status_code == 200
         data = response.json()
@@ -442,15 +447,20 @@ class TestCommunityUserManagement:
         assert register_data.get('code') == 1
         return register_data['data']['token'], register_data['data']['user_id']
 
-    def _create_test_community(self, base_url, admin_headers, name, location='测试地址'):
+    def _create_test_community(self, base_url, admin_headers, name, location='测试地址', manager_id=None):
         """创建测试社区"""
+        json_data = {
+            'name': name,
+            'location': location,
+            'description': '测试社区描述'
+        }
+        # 如果指定了manager_id，添加到请求中
+        if manager_id:
+            json_data['manager_id'] = manager_id
+        
         response = requests.post(f'{base_url}/api/community/create',
             headers=admin_headers,
-            json={
-                'name': name,
-                'location': location,
-                'description': '测试社区描述'
-            }
+            json=json_data
         )
         assert response.status_code == 200
         data = response.json()
@@ -693,15 +703,10 @@ class TestCommunityUserManagement:
             base_url, f'13900038{timestamp % 1000:03d}', '待添加用户'
         )
 
-        # 4. 添加主管和专员角色
-        requests.post(f'{base_url}/api/community/add-staff',
-            headers=admin_headers,
-            json={
-                'community_id': community_id,
-                'user_ids': [manager_id],
-                'role': 'manager'
-            }
-        )
+        # 4. 重新创建社区，指定manager_id为主管
+        community_id = self._create_test_community(base_url, admin_headers, community_name, manager_id=manager_id)
+        
+        # 5. 添加专员角色（主管已经在创建社区时指定）
         requests.post(f'{base_url}/api/community/add-staff',
             headers=admin_headers,
             json={
@@ -711,7 +716,7 @@ class TestCommunityUserManagement:
             }
         )
 
-        # 5. super_admin 添加用户 → 成功
+        # 6. super_admin 添加用户 → 成功
         response = self._add_user_to_community(base_url, admin_headers, community_id, [test_user_id])
         assert response.status_code == 200
         assert response.json().get('code') == 1
@@ -722,7 +727,7 @@ class TestCommunityUserManagement:
             json={'community_id': community_id, 'user_id': test_user_id}
         )
 
-        # 6. community_manager 添加用户 → 成功
+        # 7. community_manager 添加用户 → 成功
         manager_headers = {'Authorization': f'Bearer {manager_token}'}
         response = self._add_user_to_community(base_url, manager_headers, community_id, [test_user_id])
         assert response.status_code == 200
@@ -734,7 +739,7 @@ class TestCommunityUserManagement:
             json={'community_id': community_id, 'user_id': test_user_id}
         )
 
-        # 7. community_staff 添加用户 → 成功
+        # 8. community_staff 添加用户 → 成功
         staff_headers = {'Authorization': f'Bearer {staff_token}'}
         response = self._add_user_to_community(base_url, staff_headers, community_id, [test_user_id])
         assert response.status_code == 200
@@ -746,7 +751,7 @@ class TestCommunityUserManagement:
             json={'community_id': community_id, 'user_id': test_user_id}
         )
 
-        # 8. 普通用户添加用户 → 失败
+        # 9. 普通用户添加用户 → 失败
         normal_headers = {'Authorization': f'Bearer {normal_token}'}
         response = self._add_user_to_community(base_url, normal_headers, community_id, [test_user_id])
         assert response.status_code == 200
@@ -781,15 +786,20 @@ class TestSpecialCommunityLogic:
         assert register_data.get('code') == 1
         return register_data['data']['token'], register_data['data']['user_id']
 
-    def _create_test_community(self, base_url, admin_headers, name, location='测试地址'):
+    def _create_test_community(self, base_url, admin_headers, name, location='测试地址', manager_id=None):
         """创建测试社区"""
+        json_data = {
+            'name': name,
+            'location': location,
+            'description': '测试社区描述'
+        }
+        # 如果指定了manager_id，添加到请求中
+        if manager_id:
+            json_data['manager_id'] = manager_id
+        
         response = requests.post(f'{base_url}/api/community/create',
             headers=admin_headers,
-            json={
-                'name': name,
-                'location': location,
-                'description': '测试社区描述'
-            }
+            json=json_data
         )
         assert response.status_code == 200
         data = response.json()

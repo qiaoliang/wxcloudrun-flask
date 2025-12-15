@@ -607,7 +607,9 @@ def get_managed_communities():
         # 检查用户是否为超级管理员或社区工作人员
         # 使用新的统一角色权限模型：不再基于user.role字段，而是检查CommunityStaff表
         is_super_admin = user.role == 4
-        is_community_admin_result = user.is_community_admin()
+        # 检查用户是否在任何一个社区担任工作人员角色
+        staff_count = CommunityStaff.query.filter_by(user_id=user_id).count()
+        is_community_admin_result = staff_count > 0
 
         app.logger.info(f'权限检查: is_super_admin={is_super_admin}, is_community_admin={is_community_admin_result}')
 
@@ -748,11 +750,10 @@ def get_community_staff_list():
 
         # 权限检查: super_admin 或 community_manager
         if user.role != 4:  # 不是super_admin
-            # 检查是否是该社区的manager
+            # 检查是否是该社区的工作人员（主管或专员都可以）
             staff_record = CommunityStaff.query.filter_by(
                 community_id=community_id,
-                user_id=user_id,
-                role='manager'
+                user_id=user_id
             ).first()
             if not staff_record:
                 return make_err_response({}, '权限不足')
