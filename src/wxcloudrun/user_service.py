@@ -134,6 +134,10 @@ class UserService:
 
     @staticmethod
     def is_user_existed(user):
+        # 如果传入的是整数，直接按 user_id 查询
+        if isinstance(user, int):
+            return UserService.query_user_by_id(user)
+        
         # 只有当 user_id 不为 None 时才查询（已存在的用户）
         if hasattr(user, 'user_id') and user.user_id is not None:
             existing = UserService.query_user_by_id(user.user_id)

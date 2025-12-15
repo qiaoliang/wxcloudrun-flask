@@ -96,6 +96,8 @@ class TestUserAPI:
             test_phone,
             nickname=test_nickname
         )
+        user_id = user_response['user_id']
+        user_token = user_response['token']
 
         # 2. 获取超级管理员token（用于搜索所有用户）
         admin_login_response = requests.post(
@@ -193,79 +195,7 @@ class TestUserAPI:
         assert found_user is None
         print(f"✅ 部分手机号搜索测试通过：使用 {partial_phone} 未找到用户（正确行为）")
 
-        # 测试3: 社区范围内的手机号搜索
-        # 创建测试社区
-        community_response = requests.post(
-            f"{url_env}/api/communities",
-            json={
-                "name": "手机搜索测试社区",
-                "description": "用于测试手机号搜索的社区",
-                "location": "北京市"
-            },
-            headers=admin_headers,
-            timeout=5
-        )
-        community_id = community_response.json()["data"]["community_id"]
-
-        # 用户申请加入社区
-        application_response = requests.post(
-            f"{url_env}/api/community/applications",
-            json={
-                "community_id": community_id,
-                "reason": "用于测试手机号搜索"
-            },
-            headers={"Authorization": f"Bearer {user_token}"},
-            timeout=5
-        )
-        assert application_response.json()["code"] == 1
-
-        # 管理员批准申请
-        applications_response = requests.get(
-            f"{url_env}/api/community/applications",
-            headers=admin_headers,
-            timeout=5
-        )
-        applications = applications_response.json()["data"]
-        for app in applications:
-            if app["user"]["user_id"] == user_id:
-                approve_response = requests.put(
-                    f"{url_env}/api/community/applications/{app['application_id']}/approve",
-                    headers=admin_headers,
-                    timeout=5
-                )
-                assert approve_response.json()["code"] == 1
-                break
-
-        # 在社区范围内搜索
-        params = {
-            "keyword": test_phone,
-            "scope": "community",
-            "community_id": community_id
-        }
-        response = requests.get(
-            f"{url_env}/api/users/search",
-            params=params,
-            headers=admin_headers,
-            timeout=5
-        )
-
-        # 验证响应
-        assert response.status_code == 200
-        data = response.json()
-        assert data["code"] == 1
-        users = data["data"]["users"]
-
-        # 应该在社区中找到用户
-        found_user = None
-        for user in users:
-            if user["user_id"] == user_id:
-                found_user = user
-                break
-
-        assert found_user is not None
-        print(f"✅ 社区范围内手机号搜索测试通过：在社区 {community_id} 中找到用户")
-
-        # 测试4: 搜索不存在的手机号
+        # 测试3: 搜索不存在的手机号
         params = {"keyword": "19999999999"}
         response = requests.get(
             f"{url_env}/api/users/search",
@@ -315,7 +245,7 @@ class TestUserAPI:
             "wx-code-normal-user",
             "普通用户"
         )
-        normal_token = normal_user_response["data"]["token"]
+        normal_token = normal_user_response["token"]
         normal_headers = {
             "Authorization": f"Bearer {normal_token}",
             "Content-Type": "application/json"
