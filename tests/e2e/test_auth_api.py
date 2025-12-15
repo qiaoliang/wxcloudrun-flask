@@ -355,7 +355,7 @@ class TestAuthAPI:
         expected_masked_phone = f"{phone_number[:3]}****{phone_number[-4:]}"
         assert response_data["phone_number"] == expected_masked_phone
         # 手机号注册用户的wechat_openid应该为空
-        assert response_data["wechat_openid"] == ""
+        assert response_data["wechat_openid"] == None
         assert response_data["login_type"] == "new_user"  # 已实现
 
         print("✅ 手机号注册当前行为测试通过（需要实现以符合API文档）")
@@ -796,7 +796,7 @@ class TestAuthAPI:
         # 验证具体值
         assert response_data["nickname"] == "张三"
         assert response_data["phone_number"] == "138****5678"
-        assert response_data["wechat_openid"] == ""  # 手机用户的 wechat_openid 为空字符串
+        assert response_data["wechat_openid"] == None  # 手机用户的 wechat_openid 为空字符串
         assert response_data["login_type"] == "existing_user"  # 已实现
 
         print("✅ 手机号验证码+密码登录当前行为测试通过（需要实现以符合API文档）")

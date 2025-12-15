@@ -91,32 +91,11 @@ class TestUserAPI:
         test_nickname = "手机测试用户"
 
         # 创建用户并绑定手机号
-        user_response = self.create_wechat_user(
-            url_env=url_env,
-            wechat_code="wx-code-phone-test",
+        user_response = create_phone_user(
+            url_env,
+            test_phone,
             nickname=test_nickname
         )
-
-        user_token = user_response["data"]["token"]
-        user_id = user_response["data"]["user_id"]
-
-        # 绑定手机号
-        bind_phone_data = {
-            "phone": test_phone,
-            "code": "666888"  # 测试环境使用有效验证码（避免使用123456等无效验证码）
-        }
-
-        bind_response = requests.post(
-            f"{url_env}/api/user/bind_phone",
-            json=bind_phone_data,
-            headers={"Authorization": f"Bearer {user_token}"},
-            timeout=5
-        )
-
-        # 验证手机号绑定成功
-        assert bind_response.status_code == 200
-        bind_result = bind_response.json()
-        assert bind_result["code"] == 1
 
         # 2. 获取超级管理员token（用于搜索所有用户）
         admin_login_response = requests.post(
@@ -331,10 +310,10 @@ class TestUserAPI:
         print("✅ 空关键词搜索测试通过：返回空列表")
 
         # 测试6: 权限控制 - 普通用户不能通过手机号搜索所有用户
-        normal_user_response = self.create_wechat_user(
-            url_env=url_env,
-            wechat_code="wx-code-normal-user",
-            nickname="普通用户"
+        normal_user_response = create_wx_user(
+            url_env,
+            "wx-code-normal-user",
+            "普通用户"
         )
         normal_token = normal_user_response["data"]["token"]
         normal_headers = {
