@@ -1,4 +1,4 @@
-src/data/
+src/data/*.db
 src/alembic/versions/
 debug/
 src/data/
