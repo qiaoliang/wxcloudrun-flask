@@ -1,5 +1,5 @@
 # API 名称：微信登录
-- 路径：POST /api/login
+- 路径：POST /api/auth/login_wechat
 - 认证：无需认证
 - 请求参数：
   - code（必填，string，微信授权码）
@@ -28,7 +28,7 @@
 ```python
 import requests
 
-url = "http://localhost:8080/api/login"
+url = "http://localhost:8080/api/auth/login_wechat"
 data = {
     "code": "wx_auth_code_here",
     "nickname": "张三",

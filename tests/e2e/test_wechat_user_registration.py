@@ -1,5 +1,5 @@
 """
-测试微信用户通过 /api/login 注册的E2E测试
+测试微信用户通过 /api/auth/login_wechat 注册的E2E测试
 遵循TDD原则：先写失败测试，观察失败，再实现最小代码
 """
 
@@ -22,7 +22,7 @@ class TestWechatUserRegistration:
 
     def test_register_wechat_user_via_login_and_find_in_db(self, test_server):
         """
-        测试通过 /api/login 新注册一个wechat_user
+        测试通过 /api/auth/login_wechat 新注册一个wechat_user
         注册成功后，可以使用 DAO.py 从数据库中找到这个用户
 
         这是TDD的RED阶段 - 先写测试，观察其失败
@@ -45,7 +45,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求以注册新用户
         response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -98,7 +98,7 @@ class TestWechatUserRegistration:
 
         # 第一次登录 - 应该注册新用户
         response1 = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -112,7 +112,7 @@ class TestWechatUserRegistration:
 
         # 第二次登录 - 应该返回已存在的用户
         response2 = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -148,7 +148,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -179,7 +179,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -205,7 +205,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
