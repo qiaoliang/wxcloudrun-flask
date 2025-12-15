@@ -40,8 +40,8 @@ def create_phone_user(base_url, phone, nickname, password=TEST_DEFAULT_PWD,sms_c
         })
         assert register_response.status_code == 200
         register_data = register_response.json()
-        assert register_data.get('code') != 1
-        print(f"{register_data.get('msg')}")
+        assert register_data.get('code') == 1, f"注册失败: {register_data.get('msg')}"
+        print(f"注册成功: {register_data.get('msg')}")
         return register_data['data']
 def create_wx_user(base_url, wxchat_code, nickname, avatal_url=TEST_DEFAULT_AVATAR):
         """创建测试用户"""

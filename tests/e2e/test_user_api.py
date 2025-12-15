@@ -13,7 +13,7 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from .testutil import uuid_str,TEST_DEFAULT_PWD,TEST_DEFAULT_WXCAHT_CODE,TEST_DEFAULT_SMS_CODE,create_phone_user,create_wx_user
+from .testutil import uuid_str,TEST_DEFAULT_PWD,TEST_DEFAULT_WXCAHT_CODE,TEST_DEFAULT_SMS_CODE,create_phone_user,create_wx_user,random_str
 # 导入DAO模块和Flask app
 from wxcloudrun import dao, app
 
@@ -31,15 +31,15 @@ class TestUserAPI:
         assert result['avatar_url'] == avatar_url
 
     def test_create_phone_user(self,test_server,auto_headers=None):
-        phone_number = f"139{uuid_str(8)}"
+        phone_number = f"139{random_str(8)}"
         nickname =f"phone_user_nickname_{uuid_str(5)}"
 
         pwd=f"{test_server}/avatar/{uuid_str(20)}"
         result = create_phone_user(test_server, phone_number, nickname, pwd)
         assert result is not None
-        assert result['user']['user_id'] is not None
-        assert result['user']['phone_number'] == f"139****{phone_number[-4:]}"
-        assert result['user']['name'] == nickname
+        assert result['user_id'] is not None
+        assert result['phone_number'] == f"139****{phone_number[-4:]}"
+        assert result['name'] == nickname
 
 
     def test_search_users_success(self, test_server, auth_headers):
