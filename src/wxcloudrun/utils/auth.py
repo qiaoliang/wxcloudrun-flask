@@ -208,3 +208,71 @@ def get_current_user():
     user_id = decoded.get('user_id')
     from database.models import User
     return User.query.get(user_id)
+
+
+def generate_jwt_token(user, expires_hours=2):
+    """
+    生成 JWT access token
+    
+    Args:
+        user: User 对象，需要包含 wechat_openid 和 user_id
+        expires_hours: token 过期时间（小时），默认 2 小时
+        
+    Returns:
+        tuple: (token, error_response)
+            - token: 生成的 JWT token 字符串，如果失败则为 None
+            - error_response: 错误响应对象，如果成功则为 None
+    """
+    import datetime
+    
+    # 构建 token payload
+    token_payload = {
+        'openid': user.wechat_openid,
+        'user_id': user.user_id,
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=expires_hours)
+    }
+    app.logger.info(f'JWT token payload: {token_payload}')
+    
+    # 从配置管理器获取 TOKEN_SECRET
+    try:
+        token_secret = get_token_secret()
+    except ValueError as e:
+        app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+        return None, make_err_response({}, '服务器配置错误')
+    
+    app.logger.info(f'使用配置的TOKEN_SECRET: {token_secret[:20]}...')
+    
+    # 生成 JWT token
+    token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+    return token, None
+
+
+def generate_refresh_token(user, expires_days=7):
+    """
+    生成 refresh token 并更新到用户对象
+    
+    Args:
+        user: User 对象，将更新其 refresh_token 和 refresh_token_expire 字段
+        expires_days: refresh token 过期时间（天），默认 7 天
+        
+    Returns:
+        str: 生成的 refresh token 字符串
+        
+    Note:
+        此函数会修改 user 对象但不会提交到数据库，调用方需要自行调用 update_user_by_id() 保存
+    """
+    import datetime
+    import secrets
+    
+    # 生成 refresh token
+    refresh_token = secrets.token_urlsafe(32)
+    app.logger.info(f'生成的refresh_token: {refresh_token[:20]}...')
+    
+    # 设置过期时间
+    refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=expires_days)
+    
+    # 更新用户对象（但不提交到数据库）
+    user.refresh_token = refresh_token
+    user.refresh_token_expire = refresh_token_expire
+    
+    return refresh_token

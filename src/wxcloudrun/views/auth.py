@@ -18,7 +18,8 @@ from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nic
 from config_manager import get_token_secret
 
 app_logger = logging.getLogger('log')
-
+        # 使用工具函数生成token
+from wxcloudrun.utils.auth import generate_jwt_token, generate_refresh_token
 
 def _format_user_login_response(user, token, refresh_token, is_new_user=False):
     """统一格式化登录响应"""
@@ -164,34 +165,14 @@ def login():
 
         app.logger.info('开始生成JWT token和refresh token...')
 
-        # 生成JWT token (access token)，设置2小时过期时间
-        token_payload = {
-            'openid': openid,
-            'user_id': user.user_id,  # 添加用户ID到token中
-            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)  # 设置2小时过期时间
-        }
-        app.logger.info(f'JWT token payload: {token_payload}')
+        token, error_response = generate_jwt_token(user, expires_hours=2)
+        if error_response:
+            return error_response
 
-        # 从配置管理器获取TOKEN_SECRET确保编码和解码使用相同的密钥
-        try:
-            token_secret = get_token_secret()
-        except ValueError as e:
-            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
-            return make_err_response({}, '服务器配置错误')
-        app.logger.info(f'使用配置的TOKEN_SECRET: {token_secret[:20]}...')
+        # 使用工具函数生成refresh token
+        refresh_token = generate_refresh_token(user, expires_days=7)
 
-        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
-
-        # 生成refresh token
-        refresh_token = secrets.token_urlsafe(32)
-        app.logger.info(f'生成的refresh_token: {refresh_token[:20]}...')
-
-        # 设置refresh token过期时间为7天
-        refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
-
-        # 更新用户信息，保存refresh token
-        user.refresh_token = refresh_token
-        user.refresh_token_expire = refresh_token_expire
+        # 保存refresh token到数据库
         UserService.update_user_by_id(user)
 
         # 打印生成的token用于调试（只打印前50个字符）
@@ -261,27 +242,15 @@ def refresh_token():
 
         app.logger.info(f'找到用户，正在为用户ID: {user.user_id} 生成新token')
 
-        # 生成新的JWT token（access token）
-        token_payload = {
-            'openid': user.wechat_openid,
-            'user_id': user.user_id,
-            'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)  # 设置2小时过期时间
-        }
-        try:
-            token_secret = get_token_secret()
-        except ValueError as e:
-            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
-            return make_err_response({}, '服务器配置错误')
-        new_token = jwt.encode(token_payload, token_secret, algorithm='HS256')
+        # 使用工具函数生成新的JWT token
+        new_token, error_response = generate_jwt_token(user, expires_hours=2)
+        if error_response:
+            return error_response
 
-        # 生成新的refresh token（可选：也可以继续使用现有的refresh token）
-        new_refresh_token = secrets.token_urlsafe(32)
-        # 设置新的refresh token过期时间（7天）
-        new_refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
+        # 使用工具函数生成新的refresh token
+        new_refresh_token = generate_refresh_token(user, expires_days=7)
 
-        # 更新数据库中的refresh token
-        user.refresh_token = new_refresh_token
-        user.refresh_token_expire = new_refresh_token_expire
+        # 保存到数据库
         update_user_by_id(user)
 
         app.logger.info(f'成功为用户ID: {user.user_id} 刷新token')
@@ -392,17 +361,11 @@ def register_phone():
             app.logger.error(f'手机注册用户自动分配社区失败: {str(e)}', exc_info=True)
             # 不影响注册流程，只记录错误
 
-        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
-        try:
-            token_secret = get_token_secret()
-        except ValueError as e:
-            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
-            return make_err_response({}, '服务器配置错误')
-        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
-        refresh_token = secrets.token_urlsafe(32)
-        user.refresh_token = refresh_token
-        user.refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
+
+        token, error_response = generate_jwt_token(user, expires_hours=2)
+        if error_response:
+            return error_response
+        refresh_token = generate_refresh_token(user, expires_days=7)
         UserService.update_user_by_id(user)
 
         # 使用统一的响应格式
@@ -439,17 +402,11 @@ def login_phone_code():
             user.nickname = _gen_phone_nickname()
             update_user_by_id(user)
 
-        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
-        try:
-            token_secret = get_token_secret()
-        except ValueError as e:
-            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
-            return make_err_response({}, '服务器配置错误')
-        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
-        refresh_token = secrets.token_urlsafe(32)
-        user.refresh_token = refresh_token
-        user.refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
+        # 使用工具函数生成token
+        token, error_response = generate_jwt_token(user, expires_hours=2)
+        if error_response:
+            return error_response
+        refresh_token = generate_refresh_token(user, expires_days=7)
         update_user_by_id(user)
         _audit(user.user_id, 'login_phone_code', {'phone': phone})
         return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
@@ -486,17 +443,11 @@ def login_phone_password():
             user.nickname = _gen_phone_nickname()
             update_user_by_id(user)
 
-        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
-        try:
-            token_secret = get_token_secret()
-        except ValueError as e:
-            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
-            return make_err_response({}, '服务器配置错误')
-        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
-        refresh_token = secrets.token_urlsafe(32)
-        user.refresh_token = refresh_token
-        user.refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
+        # 使用工具函数生成token
+        token, error_response = generate_jwt_token(user, expires_hours=2)
+        if error_response:
+            return error_response
+        refresh_token = generate_refresh_token(user, expires_days=7)
         update_user_by_id(user)
         _audit(user.user_id, 'login_phone_password', {'phone': phone})
         return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
@@ -550,19 +501,11 @@ def login_phone():
             user.nickname = _gen_phone_nickname()
             update_user_by_id(user)
 
-        # 生成token
-        token_payload = {'openid': user.wechat_openid, 'user_id': user.user_id,
-                         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=2)}
-        try:
-            token_secret = get_token_secret()
-        except ValueError as e:
-            app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
-            return make_err_response({}, '服务器配置错误')
-
-        token = jwt.encode(token_payload, token_secret, algorithm='HS256')
-        refresh_token = secrets.token_urlsafe(32)
-        user.refresh_token = refresh_token
-        user.refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=7)
+        # 使用工具函数生成token
+        token, error_response = generate_jwt_token(user, expires_hours=2)
+        if error_response:
+            return error_response
+        refresh_token = generate_refresh_token(user, expires_days=7)
         update_user_by_id(user)
 
         _audit(user.user_id, 'login_phone', {'phone': phone})

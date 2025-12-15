@@ -42,7 +42,7 @@ class TestUserAPI:
         assert result['name'] == nickname
 
 
-    def test_search_users_success(self, test_server, auth_headers):
+    def test_search_users_success(self, test_server):
         """
         测试用户搜索成功
         应该返回匹配的用户列表
@@ -56,7 +56,7 @@ class TestUserAPI:
         a_user=create_wx_user(url_env, "wx-code-13812345678", expected_user_nickname)
 
         # 使用创建用户返回的token进行搜索
-        user_token = a_user["data"]["token"]
+        user_token = a_user["token"]
         user_auth_headers = {
             "Authorization": f"Bearer {user_token}",
             "Content-Type": "application/json"
