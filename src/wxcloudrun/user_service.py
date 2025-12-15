@@ -191,7 +191,7 @@ class UserService:
             new_user.phone_hash = phone_hash(original_phone)  # 哈希值使用原始号码
             new_user.password_hash = pwd_hash(new_user.password)
             new_user.password_salt = PWD_SALT
-            new_user.wechat_openid = ""
+            new_user.wechat_openid = None
             # Only set defaults if not provided
             if not new_user.nickname:
                 new_user.nickname="用户_"+random_str(5)

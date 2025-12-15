@@ -80,7 +80,7 @@ class TestUserService:
         assert result is not None
         # 验证存储的是脱敏后的手机号
         assert result.phone_number == expected_masked_phone
-        assert result.wechat_openid == ""  # 手机号用户没有 openid
+        assert result.wechat_openid == None  # 手机号用户没有 openid
         assert result.nickname.startswith("用户_")  # nickname 被重写
         assert result.name == result.nickname  # name 设置为 nickname
         assert result.role == 1  # 默认角色
@@ -100,7 +100,7 @@ class TestUserService:
             # 验证数据库中存储的是脱敏号码
             assert saved_user.user_id > 0
             assert saved_user.phone_number == expected_masked_phone
-            assert saved_user.wechat_openid == ""  # 手机号用户没有 openid
+            assert saved_user.wechat_openid == None  # 手机号用户没有 openid
             assert saved_user.nickname.startswith("用户_")
             assert saved_user.name == saved_user.nickname
             assert saved_user.role == 1
