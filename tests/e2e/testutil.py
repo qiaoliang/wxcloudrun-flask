@@ -50,7 +50,7 @@ def create_wx_user(base_url, wxchat_code, nickname, avatal_url=TEST_DEFAULT_AVAT
         "nickname": nickname,
         "avatar_url": avatal_url
         }
-        response = requests.post(f"{base_url}/api/login", json=data)
+        response = requests.post(f"{base_url}/api/auth/login_wechat", json=data)
         assert response.status_code == 200
         register_data = response.json()
         assert register_data.get('code') == 1

@@ -40,7 +40,7 @@ class TestPhoneSearchDebug:
         }
         
         response = requests.post(
-            f"{url_env}/api/login",
+            f"{url_env}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )

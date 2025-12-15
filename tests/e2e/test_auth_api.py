@@ -95,7 +95,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -146,7 +146,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -172,7 +172,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -817,7 +817,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         login_response = requests.post(
-            f"{test_server}/api/login",
+            f"{test_server}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )

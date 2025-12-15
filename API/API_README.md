@@ -22,7 +22,7 @@
 
 ### 1.1 微信登录
 
--   **路径**: `POST /api/login`
+-   **路径**: `POST /api/auth/login_wechat`
 -   **文件**: `src/wxcloudrun/views/auth.py`
 -   **功能**: 通过微信小程序 code 获取用户信息并返回 token
 -   **权限**: 公开
@@ -35,7 +35,7 @@
     -   `refresh_token`: 刷新令牌
     -   `user_id`: 用户 ID
     -   `login_type`: 登录类型（new_user/existing_user）
--   **自动化测试**: 
+-   **自动化测试**:
     -   `test_wechat_login_success` (tests/e2e/test_auth_api.py)
     -   `test_wechat_login_missing_code` (tests/e2e/test_auth_api.py)
     -   `test_wechat_login_invalid_code` (tests/e2e/test_auth_api.py)
@@ -89,8 +89,6 @@
     -   `test_phone_register_existing_phone` (tests/e2e/test_auth_api.py)
 
 ### 1.5 手机号登录（多种方式）
-
-#### ⚠️ **功能重复说明**
 
 以下三个接口都提供手机号登录功能，但验证方式不同：
 

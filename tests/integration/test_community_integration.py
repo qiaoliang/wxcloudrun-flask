@@ -394,7 +394,7 @@ class TestCommunityWorkflow:
                 'session_key': 'test_session_key'
             }
             
-            response = self.client.post('/api/login', json={
+            response = self.client.post('/api/auth/login_wechat', json={
                 'code': 'test_code',
                 'nickname': '新用户',
                 'avatar_url': 'http://test.com/avatar.jpg'

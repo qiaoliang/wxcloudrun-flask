@@ -37,14 +37,14 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
     }
 
 
-@app.route('/api/login', methods=['POST'])
-def login():
+@app.route('/api/auth/login_wechat', methods=['POST'])
+def login_wechat():
     """
-    登录接口，通过code获取用户信息并返回token
+    微信登录接口，通过code获取用户信息并返回token
     :return: token
     """
     from const_default import DEFUALT_COMMUNITY_NAME
-    app.logger.info('=== 开始执行登录接口 ===')
+    app.logger.info('=== 开始执行微信登录接口 ===')
 
     # 在日志中打印登录请求
     request_params = request.get_json()
@@ -197,7 +197,7 @@ def login():
     app.logger.info(f'是否为新用户: {is_new}')
     app.logger.info(f'返回的token长度: {len(token)}')
     app.logger.info(f'返回的refresh_token长度: {len(refresh_token)}')
-    app.logger.info('=== 登录接口执行完成 ===')
+    app.logger.info('=== 微信登录接口执行完成 ===')
 
     # 返回自定义格式的响应
     return make_succ_response(response_data)
