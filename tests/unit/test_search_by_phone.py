@@ -26,7 +26,7 @@ def _calculate_phone_hash(phone):
     """
     phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
     return sha256(
-        f"{phone_secret}{phone}".encode('utf-8')
+        f"{phone_secret}:{phone}".encode('utf-8')
     ).hexdigest()
 
 

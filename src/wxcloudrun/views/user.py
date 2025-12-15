@@ -409,7 +409,8 @@ def search_users(decoded):
 
         # 当前用户
         openid = decoded.get('openid')
-        current_user = query_user_by_openid(openid)
+        # 使用当前会话查询用户，避免会话问题
+        current_user = User.query.filter(User.wechat_openid == openid).first()
         if not current_user:
             return make_err_response({}, '用户不存在')
 

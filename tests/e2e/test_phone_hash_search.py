@@ -25,7 +25,7 @@ class TestUserSearchByPhoneIntegration:
         
         # 验证计算方式与绑定手机号时一致
         from wxcloudrun.views.user import bind_phone
-        from wxcloudrun.model import User
+        from database.models import User
         
         # 模拟用户绑定手机号时的hash计算
         actual_hash = sha256(
@@ -38,38 +38,26 @@ class TestUserSearchByPhoneIntegration:
         """测试搜索逻辑"""
         url_env = test_server
         
-        # 1. 创建测试用户
-        login_data = {
-            "code": "wx-code-phone-hash",
-            "nickname": "手机号搜索用户",
-            "avatar_url": "https://example.com/avatar.jpg"
+        # 1. 使用手机号注册创建测试用户
+        test_phone = "13999999999"
+        register_data = {
+            "phone": test_phone,
+            "code": "666888",  # 使用有效验证码
+            "password": "Test123456",
+            "nickname": "手机号搜索用户"
         }
         
         response = requests.post(
-            f"{url_env}/api/login",
-            json=login_data,
+            f"{url_env}/api/auth/register_phone",
+            json=register_data,
             timeout=5
         )
         assert response.status_code == 200
-        user_data = response.json()["data"]
-        user_token = user_data["token"]
-        user_id = user_data["user_id"]
-        
-        # 2. 绑定手机号
-        test_phone = "13999999999"
-        bind_response = requests.post(
-            f"{url_env}/api/user/bind_phone",
-            json={
-                "phone": test_phone,
-                "code": "666888"  # 使用有效验证码
-            },
-            headers={"Authorization": f"Bearer {user_token}"},
-            timeout=5
-        )
-        
-        assert bind_response.status_code == 200
-        assert bind_response.json()["code"] == 1
-        print(f"✅ 手机号绑定成功: {test_phone}")
+        register_result = response.json()
+        assert register_result["code"] == 1
+        user_token = register_result["data"]["token"]
+        user_id = register_result["data"]["user_id"]
+        print(f"✅ 用户注册成功: {test_phone}")
         
         # 3. 使用超级管理员搜索
         admin_login = requests.post(
@@ -92,6 +80,8 @@ class TestUserSearchByPhoneIntegration:
         
         assert search_response.status_code == 200
         search_data = search_response.json()
+        if search_data["code"] != 1:
+            print(f"❌ 搜索失败: {search_data.get('msg', '未知错误')}")
         assert search_data["code"] == 1
         
         users = search_data["data"]["users"]
