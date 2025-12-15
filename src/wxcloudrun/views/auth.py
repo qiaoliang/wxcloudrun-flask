@@ -12,7 +12,7 @@ from hashlib import sha256
 from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
-from wxcloudrun.dao import query_user_by_openid, insert_user, update_user_by_id
+from wxcloudrun.user_service import UserService
 from database.models import User
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
 from config_manager import get_token_secret
@@ -158,7 +158,7 @@ def login_wechat():
                 updated = True
             if updated:
                 app.logger.info('保存用户信息更新到数据库...')
-                update_user_by_id(user)
+                UserService.update_user_by_id(user)
                 app.logger.info(f'用户信息更新成功，openid: {openid}')
             else:
                 app.logger.info('用户信息无变化，无需更新')
@@ -237,7 +237,7 @@ def refresh_token():
             # 清除过期的refresh token
             user.refresh_token = None
             user.refresh_token_expire = None
-            update_user_by_id(user)
+            UserService.update_user_by_id(user)
             return make_err_response({}, 'refresh_token已过期')
 
         app.logger.info(f'找到用户，正在为用户ID: {user.user_id} 生成新token')
@@ -251,7 +251,7 @@ def refresh_token():
         new_refresh_token = generate_refresh_token(user, expires_days=7)
 
         # 保存到数据库
-        update_user_by_id(user)
+        UserService.update_user_by_id(user)
 
         app.logger.info(f'成功为用户ID: {user.user_id} 刷新token')
 
@@ -290,11 +290,11 @@ def logout():
             return make_err_response({}, 'token无效')
 
         # 根据openid查找用户并清除refresh token
-        user = query_user_by_openid(openid)
+        user = UserService.query_user_by_openid(openid)
         if user:
             user.refresh_token = None
             user.refresh_token_expire = None
-            update_user_by_id(user)
+            UserService.update_user_by_id(user)
             app.logger.info(f'成功清除用户ID: {user.user_id} 的refresh token')
 
         return make_succ_response({'message': '登出成功'})
@@ -400,14 +400,14 @@ def login_phone_code():
             return make_err_response({}, '用户不存在')
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
-            update_user_by_id(user)
+            UserService.update_user_by_id(user)
 
         # 使用工具函数生成token
         token, error_response = generate_jwt_token(user, expires_hours=2)
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
-        update_user_by_id(user)
+        UserService.update_user_by_id(user)
         _audit(user.user_id, 'login_phone_code', {'phone': phone})
         return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
     except Exception as e:
@@ -441,14 +441,14 @@ def login_phone_password():
             return make_err_response({}, '密码不正确')
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
-            update_user_by_id(user)
+            UserService.update_user_by_id(user)
 
         # 使用工具函数生成token
         token, error_response = generate_jwt_token(user, expires_hours=2)
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
-        update_user_by_id(user)
+        UserService.update_user_by_id(user)
         _audit(user.user_id, 'login_phone_password', {'phone': phone})
         return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
     except Exception as e:
@@ -499,14 +499,14 @@ def login_phone():
         # 更新用户昵称（如果需要）
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
-            update_user_by_id(user)
+            UserService.update_user_by_id(user)
 
         # 使用工具函数生成token
         token, error_response = generate_jwt_token(user, expires_hours=2)
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
-        update_user_by_id(user)
+        UserService.update_user_by_id(user)
 
         _audit(user.user_id, 'login_phone', {'phone': phone})
 

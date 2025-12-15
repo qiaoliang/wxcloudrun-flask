@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
-from wxcloudrun.dao import query_user_by_openid
+from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
 from wxcloudrun.decorators import login_required
@@ -26,7 +26,7 @@ def get_today_checkin_items(decoded):
 
     # 参数验证
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -54,7 +54,7 @@ def perform_checkin(decoded):
 
     # 参数验证 - 用户认证
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -92,7 +92,7 @@ def mark_missed(decoded):
 
     # 参数验证 - 用户认证
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -130,7 +130,7 @@ def cancel_checkin(decoded):
 
     # 参数验证 - 用户认证
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -168,7 +168,7 @@ def get_checkin_history(decoded):
 
     # 参数验证 - 用户认证
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -217,7 +217,7 @@ def manage_checkin_rules(decoded):
 
     # 参数验证 - 用户认证
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')

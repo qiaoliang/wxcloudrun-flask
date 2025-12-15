@@ -10,7 +10,7 @@ import jwt
 from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
-from wxcloudrun.dao import query_user_by_openid, update_user_by_id
+from wxcloudrun.user_service import UserService
 from database import get_database
 from database.models import User, SupervisionRuleRelation
 from wxcloudrun.utils.auth import verify_token
@@ -232,7 +232,7 @@ def user_profile():
         if request.method == 'GET':
             app.logger.info(f'处理GET请求 - 查询用户信息，openid: {openid}')
             # 查询用户信息
-            user = query_user_by_openid(openid)
+            user = UserService.query_user_by_openid(openid)
             app.logger.info(f'查询到的用户: {user}')
             if not user:
                 app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
@@ -259,7 +259,7 @@ def user_profile():
         elif request.method == 'POST':
             app.logger.info(f'POST请求 - 更新用户信息，openid: {openid}')
             # 查询用户
-            user = query_user_by_openid(openid)
+            user = UserService.query_user_by_openid(openid)
             if not user:
                 app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
                 return make_err_response({}, '用户不存在')
@@ -319,7 +319,7 @@ def user_profile():
             user.updated_at = datetime.datetime.now()
 
             # 保存到数据库
-            update_user_by_id(user)
+            UserService.update_user_by_id(user)
 
             app.logger.info(f'用户 {openid} 信息更新成功')
 
@@ -492,7 +492,7 @@ def bind_phone(decoded):
             return make_err_response({}, '缺少phone或code参数')
         if not _verify_sms_code(phone, 'bind_phone', code):
             return make_err_response({}, '验证码无效或已过期')
-        current_user = query_user_by_openid(decoded.get('openid'))
+        current_user = UserService.query_user_by_openid(decoded.get('openid'))
         if not current_user:
             return make_err_response({}, '用户不存在')
         
@@ -544,16 +544,16 @@ def bind_wechat(decoded):
             openid = wx_data.get('openid')
             if not openid:
                 return make_err_response({}, '微信返回数据不完整')
-            current_user = query_user_by_openid(decoded.get('openid'))
+            current_user = UserService.query_user_by_openid(decoded.get('openid'))
             if not current_user:
                 return make_err_response({}, '用户不存在')
-            existing_wechat = query_user_by_openid(openid)
+            existing_wechat = UserService.query_user_by_openid(openid)
             if existing_wechat and existing_wechat.user_id != current_user.user_id:
                 primary = _merge_accounts_by_time(current_user, existing_wechat)
                 _audit(existing_wechat.user_id, 'bind_wechat_merge', {'from_user_id': current_user.user_id})
                 return make_succ_response({'message': '绑定微信成功，账号已合并'})
             current_user.wechat_openid = openid
-            update_user_by_id(current_user)
+            UserService.update_user_by_id(current_user)
             _audit(current_user.user_id, 'bind_wechat', {'openid': openid})
             return make_succ_response({'message': '绑定微信成功'})
     except Exception as e:
@@ -576,7 +576,7 @@ def community_verify():
         return error_response
 
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -603,7 +603,7 @@ def community_verify():
         user.verification_materials = work_proof  # 保存验证材料
         user.updated_at = datetime.datetime.now()
 
-        update_user_by_id(user)
+        UserService.update_user_by_id(user)
 
         response_data = {
             'message': '身份验证申请已提交，请耐心等待审核',

@@ -8,7 +8,8 @@ from datetime import datetime, timedelta
 from flask import request, Response
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
-from wxcloudrun.dao import query_user_by_openid, query_checkin_rule_by_id
+from wxcloudrun.user_service import UserService
+from wxcloudrun.dao import query_checkin_rule_by_id
 from database import get_database
 from database.models import ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
 from wxcloudrun.decorators import login_required
@@ -31,7 +32,7 @@ def create_share_checkin_link(decoded):
     """
     try:
         openid = decoded.get('openid')
-        user = query_user_by_openid(openid)
+        user = UserService.query_user_by_openid(openid)
         if not user:
             return make_err_response({}, '用户不存在')
 
@@ -100,7 +101,7 @@ def resolve_share_checkin_link(decoded):
                     token=token,
                     ip_address=request.remote_addr,
                     user_agent=request.headers.get('User-Agent'),
-                    supervisor_user_id=query_user_by_openid(
+                    supervisor_user_id=UserService.query_user_by_openid(
                         decoded.get('openid')).user_id
                 )
                 session.add(lg)
@@ -111,7 +112,7 @@ def resolve_share_checkin_link(decoded):
         # 建立监督关系，直接设为已同意
         relation = SupervisionRuleRelation.query.filter_by(
             solo_user_id=link.solo_user_id,
-            supervisor_user_id=query_user_by_openid(
+            supervisor_user_id=UserService.query_user_by_openid(
                 decoded.get('openid')).user_id,
             rule_id=link.rule_id
         ).first()
@@ -119,7 +120,7 @@ def resolve_share_checkin_link(decoded):
             if not relation:
                 relation = SupervisionRuleRelation(
                     solo_user_id=link.solo_user_id,
-                    supervisor_user_id=query_user_by_openid(
+                    supervisor_user_id=UserService.query_user_by_openid(
                         decoded.get('openid')).user_id,
                     rule_id=link.rule_id,
                     status=2
@@ -191,7 +192,7 @@ def share_checkin_page():
                 # 复用解析逻辑
                 with app.app_context():
                     # 建立监督关系
-                    supervisor_user = query_user_by_openid(
+                    supervisor_user = UserService.query_user_by_openid(
                         decoded.get('openid'))
                     with db.get_session() as session:
                         relation = session.query(SupervisionRuleRelation).filter_by(

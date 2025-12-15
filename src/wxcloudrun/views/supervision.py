@@ -8,7 +8,8 @@ from datetime import datetime, date, time, timedelta
 from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
-from wxcloudrun.dao import query_user_by_openid, query_user_by_id, query_checkin_rule_by_id, query_checkin_records_by_rule_id_and_date
+from wxcloudrun.user_service import UserService
+from wxcloudrun.dao import query_checkin_rule_by_id, query_checkin_records_by_rule_id_and_date
 from database import get_database
 from database.models import SupervisionRuleRelation, CheckinRecord
 from wxcloudrun.decorators import login_required
@@ -28,7 +29,7 @@ def invite_supervisor(decoded):
     app.logger.info('=== 开始执行邀请监督者接口 ===')
 
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -45,7 +46,7 @@ def invite_supervisor(decoded):
             return make_err_response({}, '缺少target_openid参数')
 
         # 查询被邀请用户
-        target_user = query_user_by_openid(target_openid)
+        target_user = UserService.query_user_by_openid(target_openid)
         if not target_user:
             return make_err_response({}, '被邀请用户不存在')
 
@@ -116,7 +117,7 @@ def invite_supervisor_link(decoded):
     """
     app.logger.info('=== 开始执行生成监督邀请链接接口 ===')
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         return make_err_response({}, '用户不存在')
 
@@ -174,7 +175,7 @@ def resolve_invite_link(decoded):
     """
     app.logger.info('=== 开始执行解析邀请链接接口 ===')
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         return make_err_response({}, '用户不存在')
 
@@ -219,7 +220,7 @@ def get_supervision_invitations(decoded):
     app.logger.info('=== 开始执行获取监督邀请列表接口 ===')
 
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -239,7 +240,7 @@ def get_supervision_invitations(decoded):
 
         invitations_data = []
         for inv in invitations:
-            solo_user = query_user_by_id(inv.solo_user_id)
+            solo_user = UserService.query_user_by_id(inv.solo_user_id)
             rule_info = None
             if inv.rule_id:
                 rule = query_checkin_rule_by_id(inv.rule_id)
@@ -284,7 +285,7 @@ def accept_supervision_invitation(decoded):
     app.logger.info('=== 开始执行接受监督邀请接口 ===')
 
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -332,7 +333,7 @@ def reject_supervision_invitation(decoded):
     app.logger.info('=== 开始执行拒绝监督邀请接口 ===')
 
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -376,7 +377,7 @@ def get_my_supervised_users(decoded):
     app.logger.info('=== 开始执行获取我监督的用户列表接口 ===')
 
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')
@@ -451,7 +452,7 @@ def get_my_supervised_users(decoded):
 def get_my_guardians(decoded):
     app.logger.info('=== 开始执行获取我的监护人列表接口 ===')
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         return make_err_response({}, '用户不存在')
 
@@ -463,7 +464,7 @@ def get_my_guardians(decoded):
 
         guardians = []
         for rel in relations:
-            sup = query_user_by_id(rel.supervisor_user_id)
+            sup = UserService.query_user_by_id(rel.supervisor_user_id)
             guardians.append({
                 'user_id': sup.user_id,
                 'nickname': sup.nickname,
@@ -485,7 +486,7 @@ def get_supervised_checkin_records(decoded):
     app.logger.info('=== 开始执行获取被监督用户打卡记录接口 ===')
 
     openid = decoded.get('openid')
-    user = query_user_by_openid(openid)
+    user = UserService.query_user_by_openid(openid)
     if not user:
         app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
         return make_err_response({}, '用户不存在')

@@ -7,7 +7,7 @@ import logging
 import jwt
 from flask import request
 from wxcloudrun import app
-from wxcloudrun.dao import query_user_by_openid
+from wxcloudrun.user_service import UserService
 from wxcloudrun.response import make_err_response
 from config_manager import get_token_secret
 
