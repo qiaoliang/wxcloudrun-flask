@@ -186,8 +186,8 @@ class UserService:
 
         db = get_db()
         if UserService._is_wechat_user(new_user): # 微信注册用户
-            new_user.phone_number = ""
-            new_user.phone_hash= ""
+            new_user.phone_number = None
+            new_user.phone_hash = None
             new_user.password_hash = ""
             new_user.password_salt=PWD_SALT
         else: # phone 注册用户
