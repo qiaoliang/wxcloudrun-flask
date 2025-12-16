@@ -48,16 +48,35 @@ class User(Base, QueryMixin):
         4: '超级系统管理员'      # 超级系统管理员
     }
 
+    # 状态映射
+    STATUS_MAPPING = {
+        1: 'enabled',
+        2: 'disabled'
+    }
+
     @property
     def role_name(self):
         """获取角色名称"""
         return self.ROLE_MAPPING.get(self.role, 'unknown')
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
 
     @classmethod
     def get_role_value(cls, role_name):
         """根据角色名称获取角色值"""
         for value, name in cls.ROLE_MAPPING.items():
             if name == role_name:
+                return value
+        return None
+
+    @classmethod
+    def get_status_value(cls, status_name):
+        """根据状态名称获取状态值"""
+        for value, name in cls.STATUS_MAPPING.items():
+            if name == status_name:
                 return value
         return None
 
