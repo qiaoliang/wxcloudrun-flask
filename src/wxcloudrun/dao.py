@@ -20,7 +20,7 @@ def get_db():
     except RuntimeError:
         # 不在Flask应用上下文中，回退到全局实例
         pass
-    
+
     # 回退到全局数据库实例
     return get_database()
 
@@ -102,108 +102,6 @@ def update_counterbyid(counter):
     except OperationalError as e:
         logger.error("update_counterbyid errorMsg= {} ".format(e))
 
-
-def query_user_by_openid(openid):
-    """
-    根据微信OpenID查询用户实体
-    :param openid: 微信OpenID
-    :return: User实体
-    """
-    try:
-        with get_db().get_session() as session:
-            user = session.query(User).filter(User.wechat_openid == openid).first()
-            if user:
-                session.expunge(user)
-            return user
-    except OperationalError as e:
-        logger.info("query_user_by_openid errorMsg= {} ".format(e))
-        return None
-
-
-def query_user_by_id(user_id):
-    """
-    根据用户ID查询用户实体
-    :param user_id: 用户ID
-    :return: User实体
-    """
-    try:
-        with get_db().get_session() as session:
-            return session.query(User).filter(User.user_id == user_id).first()
-    except OperationalError as e:
-        logger.info("query_user_by_id errorMsg= {} ".format(e))
-        return None
-
-
-def insert_user(user):
-    """
-    插入一个User实体
-    :param user: User实体
-    :return: 用户ID
-    """
-    try:
-        with get_db().get_session() as session:
-            session.add(user)
-            session.flush()  # 刷新以获取数据库生成的ID
-            session.refresh(user)  # 确保获取数据库生成的值
-            user_id = user.user_id  # 在会话关闭前获取ID
-            # session.commit() is handled by the context manager
-            return user_id  # 返回用户ID而不是对象
-    except OperationalError as e:
-        logger.info("insert_user errorMsg= {} ".format(e))
-        raise
-
-
-def update_user_by_id(user):
-    """
-    根据ID更新用户信息
-    :param user: User实体
-    """
-    try:
-        with get_db().get_session() as session:
-            existing_user = session.query(User).filter(User.user_id == user.user_id).first()
-            if existing_user is None:
-                return
-            # 更新用户信息
-            if user.nickname is not None:
-                existing_user.nickname = user.nickname
-            if user.avatar_url is not None:
-                existing_user.avatar_url = user.avatar_url
-            if user.name is not None:
-                existing_user.name = user.name
-            if user.work_id is not None:
-                existing_user.work_id = user.work_id
-            if user.phone_number is not None:
-                existing_user.phone_number = user.phone_number
-            if user.role is not None:
-                # 如果传入的是字符串，转换为对应的整数值
-                if isinstance(user.role, str):
-                    role_value = User.get_role_value(user.role)
-                    if role_value is not None:
-                        existing_user.role = role_value
-                elif isinstance(user.role, int):
-                    existing_user.role = user.role
-            if user.verification_status is not None:
-                existing_user.verification_status = user.verification_status
-            if user.verification_materials is not None:
-                existing_user.verification_materials = user.verification_materials
-            if user.community_id is not None:
-                existing_user.community_id = user.community_id
-            if user.status is not None:
-                # 如果传入的是字符串，转换为对应的整数值
-                if isinstance(user.status, str):
-                    status_value = User.get_status_value(user.status)
-                    if status_value is not None:
-                        existing_user.status = status_value
-                elif isinstance(user.status, int):
-                    existing_user.status = user.status
-            existing_user.updated_at = user.updated_at or datetime.now()
-            
-            session.flush()
-            # session.commit() is handled by the context manager
-    except OperationalError as e:
-        logger.info("update_user_by_id errorMsg= {} ".format(e))
-
-
 # 打卡规则相关数据访问方法
 def query_checkin_rules_by_user_id(user_id):
     """
@@ -279,7 +177,7 @@ def update_checkin_rule_by_id(rule):
         if rule.status is not None:
             existing_rule.status = rule.status
         existing_rule.updated_at = rule.updated_at or datetime.now()
-        
+
         db.session.flush()
         db.session.commit()
     except OperationalError as e:
@@ -297,7 +195,7 @@ def delete_checkin_rule_by_id(rule_id):
         rule = CheckinRule.query.get(rule_id)
         if rule is None:
             raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
-        
+
         # 软删除：设置状态为已删除，记录删除时间
         rule.status = 2  # 已删除
         rule.deleted_at = datetime.now()
@@ -321,7 +219,7 @@ def query_checkin_records_by_user_id_and_date(user_id, checkin_date=None):
     try:
         if checkin_date is None:
             checkin_date = date.today()
-        
+
         # 查询当天的打卡记录
         return CheckinRecord.query.filter(
             CheckinRecord.solo_user_id == user_id,
@@ -343,7 +241,7 @@ def query_checkin_records_by_rule_id_and_date(rule_id, checkin_date=None):
         from sqlalchemy import func
         if checkin_date is None:
             checkin_date = date.today()
-        
+
         # 查询当天该规则的打卡记录
         with get_db().get_session() as session:
             records = session.query(CheckinRecord).filter(
@@ -407,7 +305,7 @@ def update_checkin_record_by_id(record):
             if record.status is not None:
                 existing_record.status = record.status
             existing_record.updated_at = record.updated_at or datetime.now()
-            
+
             session.flush()
             session.commit()
     except OperationalError as e:
@@ -444,29 +342,29 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
     try:
         from database.models import SupervisionRuleRelation
         from sqlalchemy import and_
-        
+
         # 获取监督者可以监督的所有用户和规则
         relations = SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
             SupervisionRuleRelation.status == 2  # 已同意
         ).all()
-        
+
         if not relations:
             return []
-        
+
         # 分离可以监督所有规则的用户和特定规则的关系
         all_rules_users = set()
         specific_rules = []
-        
+
         for relation in relations:
             if relation.rule_id is None:
                 all_rules_users.add(relation.solo_user_id)
             else:
                 specific_rules.append(relation.rule_id)
-        
+
         # 构建查询条件
         all_records = []
-        
+
         # 查询可以监督所有规则的用户的记录
         if all_rules_users:
             all_records.extend(CheckinRecord.query.join(CheckinRule).filter(
@@ -474,7 +372,7 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
                 CheckinRecord.planned_time >= start_date,
                 CheckinRecord.planned_time <= end_date
             ).all())
-        
+
         # 查询可以监督特定规则的记录
         if specific_rules:
             all_records.extend(CheckinRecord.query.filter(
@@ -482,7 +380,7 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
                 CheckinRecord.planned_time >= start_date,
                 CheckinRecord.planned_time <= end_date
             ).all())
-        
+
         return list(set(all_records))  # 去重
     except OperationalError as e:
         logger.info("query_checkin_records_by_supervisor_and_date_range errorMsg= {} ".format(e))
@@ -498,7 +396,7 @@ def query_unchecked_users_by_date(checkin_date=None):
     try:
         if checkin_date is None:
             checkin_date = date.today()
-        
+
         # 获取所有当天应打卡的规则
         rules_for_date = db.session.query(
             CheckinRule.solo_user_id,
@@ -509,7 +407,7 @@ def query_unchecked_users_by_date(checkin_date=None):
             # 规则启用
             CheckinRule.status == 1
         ).all()
-        
+
         # 对于每个规则，检查是否已打卡
         unchecked_users = []
         for rule in rules_for_date:
@@ -519,14 +417,14 @@ def query_unchecked_users_by_date(checkin_date=None):
                 db.func.date(CheckinRecord.planned_time) == checkin_date,
                 CheckinRecord.status == 1  # 已打卡
             ).count()
-            
+
             # 如果没有打卡记录，则该用户该规则未打卡
             if records == 0:
                 unchecked_users.append({
                     'user_id': rule.solo_user_id,
                     'rule_id': rule.rule_id
                 })
-        
+
         return unchecked_users
     except OperationalError as e:
         logger.info("query_unchecked_users_by_date errorMsg= {} ".format(e))
@@ -580,13 +478,13 @@ def query_supervision_relations_by_user_and_rule(solo_user_id, supervisor_user_i
             SupervisionRuleRelation.solo_user_id == solo_user_id,
             SupervisionRuleRelation.supervisor_user_id == supervisor_user_id
         )
-        
+
         if rule_id is not None:
             query = query.filter(
-                (SupervisionRuleRelation.rule_id == rule_id) | 
+                (SupervisionRuleRelation.rule_id == rule_id) |
                 (SupervisionRuleRelation.rule_id.is_(None))
             )
-        
+
         return query.all()
     except OperationalError as e:
         logger.info("query_supervision_relations_by_user_and_rule errorMsg= {} ".format(e))
@@ -637,7 +535,7 @@ def update_supervision_relation_by_id(relation):
         if relation.status is not None:
             existing_relation.status = relation.status
         existing_relation.updated_at = relation.updated_at or datetime.now()
-        
+
         db.session.flush()
         db.session.commit()
     except OperationalError as e:
@@ -674,7 +572,7 @@ def query_supervised_rules_for_supervisor(supervisor_user_id, solo_user_id):
             SupervisionRuleRelation.solo_user_id == solo_user_id,
             SupervisionRuleRelation.status == 2  # 已同意
         ).all()
-        
+
         rules = []
         for relation in relations:
             if relation.rule_id is None:  # 监督所有规则
@@ -705,29 +603,29 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
     try:
         from database.models import SupervisionRuleRelation
         from sqlalchemy import and_
-        
+
         # 获取监督者可以监督的所有用户和规则
         relations = SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
             SupervisionRuleRelation.status == 2  # 已同意
         ).all()
-        
+
         if not relations:
             return []
-        
+
         # 分离可以监督所有规则的用户和特定规则的关系
         all_rules_users = set()
         specific_rules = []
-        
+
         for relation in relations:
             if relation.rule_id is None:
                 all_rules_users.add(relation.solo_user_id)
             else:
                 specific_rules.append(relation.rule_id)
-        
+
         # 构建查询条件
         all_records = []
-        
+
         # 查询可以监督所有规则的用户的记录
         if all_rules_users:
             all_records.extend(CheckinRecord.query.join(CheckinRule).filter(
@@ -735,7 +633,7 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
                 CheckinRecord.planned_time >= start_date,
                 CheckinRecord.planned_time <= end_date
             ).all())
-        
+
         # 查询可以监督特定规则的记录
         if specific_rules:
             all_records.extend(CheckinRecord.query.filter(
@@ -743,7 +641,7 @@ def query_checkin_records_by_supervisor_and_date_range(supervisor_user_id, start
                 CheckinRecord.planned_time >= start_date,
                 CheckinRecord.planned_time <= end_date
             ).all())
-        
+
         return list(set(all_records))  # 去重
     except OperationalError as e:
         logger.info("query_checkin_records_by_supervisor_and_date_range errorMsg= {} ".format(e))
