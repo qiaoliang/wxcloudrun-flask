@@ -34,7 +34,7 @@ app.config['DEBUG'] = config.DEBUG
 db_config = get_database_config()
 app.config['DATABASE_CONFIG'] = db_config
 
-# 数据库核心将在 main.py 中绑定
+# db_core在 main.py 中的main() 函数中才执行绑定
 db_core = None
 
 # 导入模型（使用新的数据库模块）
@@ -60,9 +60,10 @@ app.config.from_object('config')
 
 # 在 unit 环境下不启动后台服务
 if not config_manager.is_unit_environment():
+    app.logger.info(f"app.debug={app.debug}")
     try:
         if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
-            app.logger.error(f"# 启动后台服务")
+            app.logger.info(f"# 启动后台的打卡扫描检测服务")
             start_missing_check_service()
     except Exception as e:
         app.logger.error(f"启动后台missing服务失败: {str(e)}")

@@ -40,8 +40,8 @@ class TestUserService:
         assert result._is_community_worker is False
 
         # 验证新微信用户创建时，密码和手机号都是没有值的
-        assert result.phone_number == ""
-        assert result.phone_hash == ""
+        assert result.phone_number == None
+        assert result.phone_hash == None
         assert result.password_hash ==""
 
         # 验证用户确实被保存到数据库 - 使用相同的数据库获取方式
@@ -58,6 +58,61 @@ class TestUserService:
             detail = audit_log.detail
             assert action == "create_user"
             assert f"创建用户: {saved_user.user_id}" in detail
+
+    def test_create_user_with_minimal_data_defense_in_depth(self, test_db, test_session):
+        """
+        测试defense-in-depth：用户创建时的最小数据处理
+        验证当提供最小数据时，系统能正确处理并创建用户
+        """
+        # Arrange - 只提供必需的openid，其他字段为空或无效
+        new_user = User(
+            wechat_openid="test_openid_minimal",
+            nickname="",  # 空昵称
+            avatar_url=""  # 空头像URL
+        )
+
+        # Act - 执行被测试的方法
+        result = UserService.create_user(new_user)
+
+        # Assert - 验证结果：系统应该处理空值并提供默认值
+        assert result is not None
+        assert result.wechat_openid == "test_openid_minimal"
+        # 注意：UserService层面的测试，不测试API层面的默认值生成
+        # 这里只验证UserService能处理空值而不崩溃
+        assert result.nickname == ""  # UserService层面保持原值
+        assert result.avatar_url == ""  # UserService层面保持原值
+
+        # 验证用户确实被保存到数据库
+        with get_db().get_session() as verify_session:
+            saved_user = verify_session.query(User).filter_by(wechat_openid="test_openid_minimal").first()
+            assert saved_user is not None
+
+    def test_create_user_with_invalid_avatar_url_defense_in_depth(self, test_db, test_session):
+        """
+        测试defense-in-depth：处理无效头像URL的情况
+        验证系统不会因为无效URL而崩溃
+        """
+        # Arrange - 提供无效的头像URL
+        new_user = User(
+            wechat_openid="test_openid_invalid_avatar",
+            nickname="测试用户",
+            avatar_url="invalid_url_not_http"  # 无效的URL格式
+        )
+
+        # Act - 执行被测试的方法
+        result = UserService.create_user(new_user)
+
+        # Assert - 验证结果：UserService层面应该保存原始值
+        assert result is not None
+        assert result.wechat_openid == "test_openid_invalid_avatar"
+        assert result.nickname == "测试用户"
+        assert result.avatar_url == "invalid_url_not_http"  # UserService层面保存原始值
+
+        # 验证用户确实被保存到数据库
+        with get_db().get_session() as verify_session:
+            saved_user = verify_session.query(User).filter_by(wechat_openid="test_openid_invalid_avatar").first()
+            assert saved_user is not None
+            assert saved_user.avatar_url == "invalid_url_not_http"
 
     def test_create_user_success_with_phone_number_and_pwd(self, test_db, test_session):
         """

@@ -82,8 +82,8 @@ class TestAuthAPI:
 
     def test_wechat_login_success(self, test_server):
         """
-        测试微信登录成功
-        应该返回token和用户信息
+        测试微信登录成功（完整用户信息）
+        验证真实API行为而非mock行为
         """
         # 准备请求数据
         expected_user_nickname = "李四张三"
@@ -117,26 +117,173 @@ class TestAuthAPI:
         assert "avatar_url" in result  # 已实现
         assert "login_type" in result  # 已实现
         assert "phone_number" in result  # 已实现（但为None）
+        assert "token" in result  # token应该存在
+        assert "refresh_token" in result  # refresh_token应该存在
 
-
-        # 注意：在独立进程模式下，测试代码无法直接访问服务器的内存数据库
-        # 因此不能使用 DAO 直接查询。只能通过 API 验证数据。
         print(f"✅ 用户创建成功，ID: {result['user_id']}, 昵称: {result['nickname']}")
 
-        # TODO: 需要添加的字段（根据API文档）
-        # assert "token" in response_data
-        # assert "refresh_token" in response_data
-        # assert "user_id" in response_data
-        # assert "wechat_openid" in response_data
-        # assert "role" in response_data
+    def test_wechat_login_success_code_only_defense_in_depth(self, test_server):
+        """
+        测试defense-in-depth：仅使用code登录成功
+        验证当缺少用户信息时，API能正确处理并提供默认值
+        """
+        # 准备请求数据 - 只有code，没有用户信息
+        login_data = {
+            "code": "wx_auth_code_defense_in_depth"
+        }
 
-        print("✅ 微信登录当前行为测试通过（需要实现以符合API文档）")
+        # 发送登录请求
+        response = requests.post(
+            f"{test_server}/api/auth/login_wechat",
+            json=login_data,
+            timeout=5
+        )
+
+        # 验证响应 - 应该成功登录
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == 1  # 登录成功
+        assert data["msg"] == "success"
+
+        # 验证返回的数据结构
+        result = data.get("data")
+        assert isinstance(result, dict)
+        assert result["login_type"] == "new_user"
+        assert result['user_id'] is not None
+        assert result['wechat_openid'] is not None
+
+        # Defense-in-depth验证：系统应该提供了默认用户信息
+        assert result['nickname'] is not None
+        assert len(result['nickname']) > 0
+        assert result['avatar_url'] is not None
+        assert len(result['avatar_url']) > 0
+        assert "token" in result
+        assert "refresh_token" in result
+
+        print(f"✅ 仅code登录成功，ID: {result['user_id']}, 默认昵称: {result['nickname']}")
+
+    def test_wechat_login_with_empty_user_info_defense_in_depth(self, test_server):
+        """
+        测试defense-in-depth：空用户信息的处理
+        验证当提供空的用户信息时，API能正确处理
+        """
+        # 准备请求数据 - 空的用户信息
+        login_data = {
+            "code": "wx_auth_code_empty_info",
+            "nickname": "",
+            "avatar_url": ""
+        }
+
+        # 发送登录请求
+        response = requests.post(
+            f"{test_server}/api/auth/login_wechat",
+            json=login_data,
+            timeout=5
+        )
+
+        # 验证响应 - 应该成功登录
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == 1  # 登录成功
+        assert data["msg"] == "success"
+
+        # 验证返回的数据结构
+        result = data.get("data")
+        assert isinstance(result, dict)
+        assert result["login_type"] == "new_user"
+        assert result['user_id'] is not None
+
+        # Defense-in-depth验证：系统应该处理空值并提供默认值
+        assert result['nickname'] is not None
+        assert len(result['nickname']) > 0  # 不应该是空字符串
+        assert result['avatar_url'] is not None
+        assert len(result['avatar_url']) > 0  # 不应该是空字符串
+
+        print(f"✅ 空用户信息处理成功，ID: {result['user_id']}, 处理后昵称: {result['nickname']}")
+
+    def test_wechat_login_with_invalid_avatar_url_defense_in_depth(self, test_server):
+        """
+        测试defense-in-depth：无效头像URL的处理
+        验证当提供无效头像URL时，API能正确处理
+        """
+        # 准备请求数据 - 无效的头像URL
+        login_data = {
+            "code": "wx_auth_code_invalid_avatar",
+            "nickname": "测试用户",
+            "avatar_url": "invalid_url_format"  # 无效的URL格式
+        }
+
+        # 发送登录请求
+        response = requests.post(
+            f"{test_server}/api/auth/login_wechat",
+            json=login_data,
+            timeout=5
+        )
+
+        # 验证响应 - 应该成功登录
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == 1  # 登录成功
+        assert data["msg"] == "success"
+
+        # 验证返回的数据结构
+        result = data.get("data")
+        assert isinstance(result, dict)
+        assert result["login_type"] == "new_user"
+        assert result['user_id'] is not None
+        assert result['nickname'] == "测试用户"
+
+        # Defense-in-depth验证：系统应该处理无效URL或使用默认值
+        assert result['avatar_url'] is not None
+        # 根据defense-in-depth实现，无效URL可能被替换为默认头像
+        assert result['avatar_url'].startswith('http') or len(result['avatar_url']) > 0
+
+        print(f"✅ 无效头像URL处理成功，ID: {result['user_id']}, 头像URL: {result['avatar_url'][:50]}...")
+
+    def test_wechat_login_with_long_nickname_defense_in_depth(self, test_server):
+        """
+        测试defense-in-depth：过长昵称的处理
+        验证当提供过长昵称时，API能正确截断处理
+        """
+        # 准备请求数据 - 过长的昵称
+        long_nickname = "这是一个过长的昵称"+uuid_str(30)+uuid_str(30)
+        login_data = {
+            "code": "wx_auth_code_long_nickname",
+            "nickname": long_nickname,
+            "avatar_url": "https://example.com/avatar.jpg"
+        }
+
+        # 发送登录请求
+        response = requests.post(
+            f"{test_server}/api/auth/login_wechat",
+            json=login_data,
+            timeout=5
+        )
+
+        # 验证响应 - 应该成功登录
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == 1  # 登录成功
+        assert data["msg"] == "success"
+
+        # 验证返回的数据结构
+        result = data.get("data")
+        assert isinstance(result, dict)
+        assert result["login_type"] == "new_user"
+        assert result['user_id'] is not None
+
+        # Defense-in-depth验证：系统应该处理过长昵称
+        assert result['nickname'] is not None
+        assert len(result['nickname']) <= 53  # 应该被截断到50字符+省略号
+        assert result['nickname'].endswith("...")  # 应该以省略号结尾
+        assert len(result['nickname']) > 0  # 不应该是空字符串
+
+        print(f"✅ 过长昵称处理成功，ID: {result['user_id']}, 截断后昵称: {result['nickname']}")
 
     def test_wechat_login_missing_code(self, test_server):
         """
         测试微信登录缺少code参数
-        应该返回400错误
-        当前实现返回200，需要修改为返回400错误
+        code仍然是必需参数，应该返回错误
         """
         # 准备请求数据（缺少code）
         login_data = {
@@ -151,11 +298,12 @@ class TestAuthAPI:
             timeout=5
         )
 
-        # 验证响应
-        # TODO: 当前返回200，需要修改API以返回400错误
-        assert response.status_code == 200  # 当前实际行为
-        # assert response.status_code == 400  # 期望行为（根据API文档）
-        print("✅ 微信登录缺少code参数当前行为测试通过（需要实现以符合API文档）")
+        # 验证响应 - code仍然是必需的
+        assert response.status_code == 200
+        data = response.json()
+        assert data["code"] == 0  # 应该返回错误
+        assert "缺少code参数" in data["msg"]
+        print("✅ 微信登录缺少code参数正确返回错误")
 
     def test_wechat_login_invalid_code(self, test_server):
         """

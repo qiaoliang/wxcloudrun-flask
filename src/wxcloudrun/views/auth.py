@@ -66,29 +66,44 @@ def login_wechat():
     # 打印code用于调试
     app.logger.info(f'获取到的code: {code}')
 
-    # 获取必需的用户信息
+    # Layer 1: 入口点验证 - 支持可选的用户信息参数
     nickname = params.get('nickname')
-    if not nickname:
-        app.logger.warning('登录请求缺少nickname参数')
-        app.logger.info(f'请求参数详情: {params}')
-        return make_err_response({
-            'error_code': 'MISSING_NICKNAME',
-            'required_params': ['code', 'nickname', 'avatar_url'],
-            'received_params': list(params.keys()) if params else []
-        }, '登录缺少用户昵称信息，请重新进行微信授权')
-
     avatar_url = params.get('avatar_url')
-    if not avatar_url:
-        app.logger.warning('登录请求缺少avatar_url参数')
+
+    # Defense-in-depth: 记录参数接收情况但不强制要求
+    app.logger.info(f'用户信息参数状态 - nickname存在: {bool(nickname)}, avatar_url存在: {bool(avatar_url)}')
+
+    # Layer 1: 入口点验证 - 支持可选的用户信息参数并进行基础清理
+    nickname = params.get('nickname')
+    avatar_url = params.get('avatar_url')
+
+    # Defense-in-depth: 记录参数接收情况但不强制要求
+    app.logger.info(f'用户信息参数状态 - nickname存在: {bool(nickname)}, avatar_url存在: {bool(avatar_url)}')
+
+    # 如果缺少用户信息，使用默认值但不阻止登录流程
+    if not nickname or not avatar_url:
+        app.logger.warning('登录请求缺少用户信息，将使用默认值继续处理')
         app.logger.info(f'请求参数详情: {params}')
-        return make_err_response({
-            'error_code': 'MISSING_AVATAR_URL',
-            'required_params': ['code', 'nickname', 'avatar_url'],
-            'received_params': list(params.keys()) if params else []
-        }, '登录缺少用户头像信息，请重新进行微信授权')
+
+        # 为缺失的参数提供默认值
+        if not nickname:
+            nickname = f"微信用户_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+        if not avatar_url:
+            avatar_url = "https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0"
+
+        app.logger.info(f'使用默认用户信息 - nickname: {nickname}, avatar_url默认头像')
+
+    # Layer 1: 基础数据清理 - 截断过长的昵称
+    if nickname and len(nickname.strip()) > 0:
+        original_nickname = nickname.strip()
+        if len(original_nickname) > 50:
+            nickname = original_nickname[:50] + "..."
+            app.logger.info(f'Layer 1: 昵称过长，截断处理: {original_nickname[40:50]}... -> {nickname[40:50]}...')
+        else:
+            nickname = original_nickname
 
     app.logger.info(
-        f'获取到的用户信息 - nickname: {nickname}, avatar_url: {avatar_url}')
+        f'最终使用的用户信息 - nickname: {nickname}, avatar_url: {avatar_url[:50]}...')
 
     app.logger.info('开始调用微信API获取用户openid和session_key')
 
@@ -131,19 +146,49 @@ def login_wechat():
 
         if not existing_user:
             app.logger.info('用户不存在，创建新用户...')
-            # 创建新用户
-            user_data = User(
-                wechat_openid=openid,
-                nickname=nickname,
-                avatar_url=avatar_url,
-                role=1,  # 默认为独居者角色
-                status=1  # 默认为正常状态
-            )
-            created_user = UserService.create_user(user_data)
-            app.logger.info(f'新用户创建成功，用户ID: {created_user.user_id}, openid: {openid}')
 
-            # 使用返回的用户对象，不需要重新查询
-            user = created_user
+            # Layer 2: 业务逻辑验证 - 验证和清理用户数据
+            try:
+                # 验证昵称长度和内容
+                if not nickname or len(nickname.strip()) == 0:
+                    nickname = f"微信用户_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+                elif len(nickname) > 50:
+                    nickname = nickname[:50] + "..."
+
+                # 验证头像URL格式
+                if not avatar_url or not avatar_url.startswith(('http://', 'https://')):
+                    avatar_url = "https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0"
+
+                # 创建新用户
+                user_data = User(
+                    wechat_openid=openid,
+                    nickname=nickname.strip(),
+                    avatar_url=avatar_url.strip(),
+                    role=1,  # 默认为独居者角色
+                    status=1  # 默认为正常状态
+                )
+                created_user = UserService.create_user(user_data)
+                app.logger.info(f'新用户创建成功，用户ID: {created_user.user_id}, openid: {openid}')
+
+                # 使用返回的用户对象，不需要重新查询
+                user = created_user
+
+            except Exception as create_error:
+                app.logger.error(f'创建用户时发生错误: {str(create_error)}')
+                # 使用最小可用信息重试创建
+                fallback_nickname = f"用户_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+                fallback_avatar = "https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0"
+
+                user_data = User(
+                    wechat_openid=openid,
+                    nickname=fallback_nickname,
+                    avatar_url=fallback_avatar,
+                    role=1,
+                    status=1
+                )
+                created_user = UserService.create_user(user_data)
+                user = created_user
+                app.logger.warning(f'使用fallback信息创建用户成功，用户ID: {created_user.user_id}')
 
             # 自动分配到默认社区
             try:
@@ -158,20 +203,47 @@ def login_wechat():
             # 更新现有用户信息（如果提供了新的头像或昵称）
             user = existing_user
             updated = False
-            if nickname and user.nickname != nickname:
-                app.logger.info(f'更新用户昵称: {user.nickname} -> {nickname}')
-                user.nickname = nickname
-                updated = True
-            if avatar_url and user.avatar_url != avatar_url:
-                app.logger.info(f'更新用户头像: {user.avatar_url} -> {avatar_url}')
-                user.avatar_url = avatar_url
-                updated = True
-            if updated:
-                app.logger.info('保存用户信息更新到数据库...')
-                UserService.update_user_by_id(user)
-                app.logger.info(f'用户信息更新成功，openid: {openid}')
-            else:
-                app.logger.info('用户信息无变化，无需更新')
+
+            # Layer 3: 环境守卫 - 在更新操作前验证数据安全性
+            try:
+                # 验证昵称更新
+                if nickname and user.nickname != nickname:
+                    # 安全检查：防止恶意昵称，并进行截断处理
+                    if len(nickname.strip()) > 0:
+                        original_nickname = nickname.strip()
+                        # Defense-in-depth: 截断过长的昵称
+                        if len(original_nickname) > 50:
+                            truncated_nickname = original_nickname[:50] + "..."
+                            app.logger.info(f'昵称过长，截断处理: {original_nickname[:30]}... -> {truncated_nickname[:30]}...')
+                            user.nickname = truncated_nickname
+                        else:
+                            user.nickname = original_nickname
+                        updated = True
+                    else:
+                        app.logger.warning(f'昵称验证失败，跳过更新: {nickname}')
+
+                # 验证头像URL更新
+                if avatar_url and user.avatar_url != avatar_url:
+                    # 安全检查：验证URL格式
+                    if avatar_url.startswith(('http://', 'https://')) and len(avatar_url) <= 500:
+                        app.logger.info(f'更新用户头像: {user.avatar_url[:30]}... -> {avatar_url[:30]}...')
+                        user.avatar_url = avatar_url.strip()
+                        updated = True
+                    else:
+                        app.logger.warning(f'头像URL验证失败，跳过更新: {avatar_url[:30]}...')
+
+                # 执行更新操作
+                if updated:
+                    app.logger.info('保存用户信息更新到数据库...')
+                    UserService.update_user_by_id(user)
+                    app.logger.info(f'用户信息更新成功，openid: {openid}')
+                else:
+                    app.logger.info('用户信息无变化或验证未通过，无需更新')
+
+            except Exception as update_error:
+                app.logger.error(f'更新用户信息时发生错误: {str(update_error)}')
+                # 不影响登录流程，只记录错误
+                app.logger.info('继续登录流程，使用现有用户信息')
 
         app.logger.info('开始生成JWT token和refresh token...')
 
@@ -195,22 +267,54 @@ def login_wechat():
         app.logger.error(f'登录过程中发生未预期的错误: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')
 
+    # Layer 4: 调试仪表 - 增强日志记录和错误取证
     app.logger.info('登录流程完成，开始构造响应数据')
 
-    # 构造返回数据，包含用户的 token、refresh token 和基本信息
-    # 使用统一的响应格式
-    response_data = _format_user_login_response(
-        user, token, refresh_token, is_new_user=is_new
-    )
+    # 记录详细的调试信息用于取证
+    try:
+        # 构造返回数据，包含用户的 token、refresh token 和基本信息
+        response_data = _format_user_login_response(
+            user, token, refresh_token, is_new_user=is_new
+        )
 
-    app.logger.info(f'返回的用户ID: {user.user_id}')
-    app.logger.info(f'是否为新用户: {is_new}')
-    app.logger.info(f'返回的token长度: {len(token)}')
-    app.logger.info(f'返回的refresh_token长度: {len(refresh_token)}')
-    app.logger.info('=== 微信登录接口执行完成 ===')
+        # 安全日志记录（不包含敏感信息）
+        app.logger.info('=== 调试仪表 - 登录成功取证 ===')
+        app.logger.info(f'返回的用户ID: {user.user_id}')
+        app.logger.info(f'用户OpenID前8位: {openid[:8]}...')
+        app.logger.info(f'用户昵称: {user.nickname}')
+        app.logger.info(f'是否为新用户: {is_new}')
+        app.logger.info(f'返回的token长度: {len(token)}')
+        app.logger.info(f'返回的refresh_token长度: {len(refresh_token)}')
+        app.logger.info(f'用户角色: {user.role}')
+        app.logger.info(f'登录时间戳: {datetime.datetime.now().isoformat()}')
 
-    # 返回自定义格式的响应
-    return make_succ_response(response_data)
+        # 验证响应数据完整性
+        required_fields = ['token', 'refresh_token', 'user_id']
+        missing_fields = [field for field in required_fields if not response_data.get(field)]
+        if missing_fields:
+            app.logger.error(f'响应数据缺少必需字段: {missing_fields}')
+            raise Exception(f'响应数据不完整，缺少字段: {missing_fields}')
+
+        app.logger.info('=== 微信登录接口执行完成 ===')
+
+        # 返回自定义格式的响应
+        return make_succ_response(response_data)
+
+    except Exception as response_error:
+        app.logger.error(f'构造响应数据时发生错误: {str(response_error)}')
+        # 即使响应构造失败，也尝试返回最小可用响应
+        try:
+            minimal_response = {
+                'token': token,
+                'refresh_token': refresh_token,
+                'user_id': user.user_id,
+                'login_type': 'existing_user'
+            }
+            app.logger.warning('使用最小响应格式返回')
+            return make_succ_response(minimal_response)
+        except Exception as fallback_error:
+            app.logger.error(f'最小响应构造也失败: {str(fallback_error)}')
+            return make_err_response({}, '登录成功但响应构造失败')
 
 
 @app.route('/api/refresh_token', methods=['POST'])
