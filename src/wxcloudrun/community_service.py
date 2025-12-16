@@ -336,6 +336,75 @@ class CommunityService:
             return communities, total
 
     @staticmethod
+    def get_manager_communities(user_id, status_filter='all', page=1, page_size=20):
+        """获取用户作为主管的社区列表"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            # 获取用户作为主管的社区ID
+            staff_records = session.query(CommunityStaff).filter_by(
+                user_id=user_id,
+                role='manager'
+            ).all()
+            
+            community_ids = [record.community_id for record in staff_records]
+            
+            if not community_ids:
+                return [], 0
+            
+            query = session.query(Community).filter(
+                Community.community_id.in_(community_ids)
+            )
+            
+            # 状态筛选
+            if status_filter == 'active':
+                query = query.filter_by(status=1)
+            elif status_filter == 'inactive':
+                query = query.filter_by(status=2)
+            
+            # 分页
+            total = query.count()
+            offset = (page - 1) * page_size
+            communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
+            
+            return communities, total
+
+    @staticmethod
+    def get_staff_communities(user_id, status_filter='all', page=1, page_size=20):
+        """获取用户作为工作人员的社区列表（包括主管和专员）"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            # 获取用户作为工作人员的社区ID
+            staff_records = session.query(CommunityStaff).filter_by(
+                user_id=user_id
+            ).all()
+            
+            community_ids = [record.community_id for record in staff_records]
+            
+            if not community_ids:
+                return [], 0
+            
+            query = session.query(Community).filter(
+                Community.community_id.in_(community_ids)
+            )
+            
+            # 状态筛选
+            if status_filter == 'active':
+                query = query.filter_by(status=1)
+            elif status_filter == 'inactive':
+                query = query.filter_by(status=2)
+            
+            # 分页
+            total = query.count()
+            offset = (page - 1) * page_size
+            communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
+            
+            return communities, total
+
+    @staticmethod
     def update_community_info(community_id, name=None, description=None, location=None, status=None):
         """更新社区信息"""
         db = get_db()
@@ -775,3 +844,162 @@ class CommunityService:
                 result.append(user_data)
 
             return result
+
+    @staticmethod
+    def get_manageable_communities(user, page=1, per_page=7):
+        """获取用户可管理的社区列表"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            if user.role == 4:  # 超级管理员
+                query = session.query(Community).filter_by(status=1)  # 只显示启用状态
+            else:
+                # 获取用户作为工作人员的社区
+                staff_communities = session.query(CommunityStaff).filter_by(
+                    user_id=user.user_id
+                ).all()
+                community_ids = [sc.community_id for sc in staff_communities]
+                
+                if not community_ids:
+                    return [], 0
+                
+                query = session.query(Community).filter(
+                    Community.community_id.in_(community_ids),
+                    Community.status == 1  # 启用状态
+                )
+            
+            # 分页查询
+            total = query.count()
+            offset = (page - 1) * per_page
+            communities = query.order_by(Community.created_at.desc()).offset(offset).limit(per_page).all()
+            
+            return communities, total
+
+    @staticmethod
+    def search_communities_with_permission(user, keyword):
+        """搜索社区（根据权限过滤）"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            if user.role == 4:  # 超级管理员
+                query = session.query(Community).filter(
+                    Community.name.like(f'%{keyword}%'),
+                    Community.status == 1
+                )
+            else:
+                # 获取用户有权限的社区
+                staff_communities = session.query(CommunityStaff).filter_by(
+                    user_id=user.user_id
+                ).all()
+                community_ids = [sc.community_id for sc in staff_communities]
+                
+                if not community_ids:
+                    return []
+                
+                query = session.query(Community).filter(
+                    Community.community_id.in_(community_ids),
+                    Community.name.like(f'%{keyword}%'),
+                    Community.status == 1
+                )
+            
+            return query.limit(20).all()  # 限制搜索结果数量
+
+    @staticmethod
+    def can_access_community(user, community_id):
+        """检查用户是否可以访问社区（查看详情）"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            if user.role == 4:  # 超级管理员
+                return True
+            
+            # 检查是否是社区工作人员
+            staff = session.query(CommunityStaff).filter_by(
+                community_id=community_id,
+                user_id=user.user_id
+            ).first()
+            
+            return staff is not None
+
+    @staticmethod
+    def can_manage_users(user, community_id):
+        """检查用户是否可以管理社区用户（增删普通用户）"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            if user.role == 4:  # 超级管理员
+                return True
+            
+            # 检查是否是社区工作人员（主管或专员都可以管理用户）
+            staff = session.query(CommunityStaff).filter_by(
+                community_id=community_id,
+                user_id=user.user_id
+            ).first()
+            
+            return staff is not None
+
+    @staticmethod
+    def can_manage_staff(user, community_id):
+        """检查用户是否可以管理社区工作人员（增删专员）"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            if user.role == 4:  # 超级管理员
+                return True
+            
+            # 只有社区主管可以管理工作人员
+            staff = session.query(CommunityStaff).filter_by(
+                community_id=community_id,
+                user_id=user.user_id,
+                role='manager'  # 主管角色
+            ).first()
+            
+            return staff is not None
+
+    @staticmethod
+    def is_community_manager(user, community_id):
+        """检查用户是否是社区主管"""
+        from database.models import CommunityStaff
+        
+        db = get_db()
+        with db.get_session() as session:
+            if user.role == 4:  # 超级管理员
+                return True
+            
+            staff = session.query(CommunityStaff).filter_by(
+                community_id=community_id,
+                user_id=user.user_id,
+                role='manager'  # 主管角色
+            ).first()
+            
+            return staff is not None
+
+    @staticmethod
+    def validate_ankafamily_rule(user_id, target_community_id, operator):
+        """验证安卡大家庭规则"""
+        db = get_db()
+        with db.get_session() as session:
+            # 获取安卡大家庭社区
+            ankafamily = session.query(Community).filter_by(is_default=True).first()
+            if not ankafamily:
+                raise ValueError("安卡大家庭社区不存在")
+            
+            # 检查用户当前社区
+            user = session.query(User).get(user_id)
+            if not user:
+                raise ValueError("用户不存在")
+            
+            # 用户必须在安卡大家庭才能被添加到其他社区
+            if user.community_id != ankafamily.community_id:
+                raise ValueError("用户不在安卡大家庭，无法添加到其他社区")
+            
+            # 检查目标社区不是安卡大家庭
+            if target_community_id == ankafamily.community_id:
+                raise ValueError("不能将用户添加到安卡大家庭")
+            
+            return True

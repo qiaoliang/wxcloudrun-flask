@@ -167,6 +167,72 @@ def require_community_admin():
     return decorator
 
 
+def require_community_staff():
+    """
+    装饰器：要求用户是社区工作人员（专员、主管、超级管理员）
+    """
+    def decorator(f):
+        from functools import wraps
+
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 验证token
+            decoded, error_response = verify_token()
+            if error_response:
+                return error_response
+
+            user_id = decoded.get('user_id')
+            from database.models import User
+            user = User.query.get(user_id)
+
+            if not user:
+                return make_err_response({}, '用户不存在')
+
+            # 检查是否为社区工作人员或超级管理员
+            if user.role not in [2, 3, 4]:  # 社区专员、社区主管、超级管理员
+                return make_err_response({}, '需要社区工作人员权限')
+
+            # 将用户信息添加到请求上下文
+            request.current_user = user
+            return f(*args, **kwargs)
+
+        return decorated_function
+    return decorator
+
+
+def require_community_manager():
+    """
+    装饰器：要求用户是社区主管或超级管理员
+    """
+    def decorator(f):
+        from functools import wraps
+
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 验证token
+            decoded, error_response = verify_token()
+            if error_response:
+                return error_response
+
+            user_id = decoded.get('user_id')
+            from database.models import User
+            user = User.query.get(user_id)
+
+            if not user:
+                return make_err_response({}, '用户不存在')
+
+            # 检查是否为社区主管或超级管理员
+            if user.role not in [3, 4]:  # 社区主管、超级管理员
+                return make_err_response({}, '需要社区主管权限')
+
+            # 将用户信息添加到请求上下文
+            request.current_user = user
+            return f(*args, **kwargs)
+
+        return decorated_function
+    return decorator
+
+
 def require_super_admin():
     """
     装饰器：要求用户是超级管理员

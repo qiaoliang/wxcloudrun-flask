@@ -7,7 +7,7 @@ import logging
 from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
-from wxcloudrun.utils.auth import verify_token
+from wxcloudrun.utils.auth import verify_token, require_community_staff, get_current_user
 from database import get_database
 from database.models import User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_service import CommunityService
@@ -162,9 +162,9 @@ def get_community_list():
     if not user:
         return make_err_response({}, '用户不存在')
 
-    # 检查权限: 仅super_admin
-    if user.role != 4:
-        return make_err_response({}, '权限不足，需要超级管理员权限')
+    # 检查权限: 支持多角色
+    if user.role not in [2, 3, 4]:  # 非社区工作人员
+        return make_err_response({}, '权限不足，需要社区工作人员权限')
 
     try:
         # 获取请求参数
@@ -172,12 +172,27 @@ def get_community_list():
         page_size = int(request.args.get('page_size', 20))
         status_filter = request.args.get('status', 'all')  # all/active/inactive
 
-        # 使用CommunityService获取社区列表
-        communities, total = CommunityService.get_communities_with_filters(
-            status_filter=status_filter,
-            page=page,
-            page_size=page_size
-        )
+        # 根据用户角色获取社区列表
+        if user.role == 4:  # 超级管理员 - 所有社区
+            communities, total = CommunityService.get_communities_with_filters(
+                status_filter=status_filter,
+                page=page,
+                page_size=page_size
+            )
+        elif user.role == 3:  # 社区主管 - 主管的社区
+            communities, total = CommunityService.get_manager_communities(
+                user_id=user.user_id,
+                status_filter=status_filter,
+                page=page,
+                page_size=page_size
+            )
+        else:  # user.role == 2, 社区专员 - 专员的社区
+            communities, total = CommunityService.get_staff_communities(
+                user_id=user.user_id,
+                status_filter=status_filter,
+                page=page,
+                page_size=page_size
+            )
 
         # 格式化响应数据
         result = []
@@ -1694,3 +1709,136 @@ def search_users_for_community():
     except Exception as e:
         app_logger.error(f'搜索用户失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'搜索用户失败: {str(e)}')
+
+
+# ============================================
+# 新增社区管理API
+# ============================================
+
+@app.route('/api/communities/manage/list', methods=['GET'])
+@require_community_staff()
+def get_manageable_communities():
+    """获取当前用户可管理的社区列表（默认7个）"""
+    from wxcloudrun.utils.auth import get_current_user
+    
+    app_logger.info('=== 开始获取可管理社区列表 ===')
+
+    # 获取当前用户（装饰器已验证token）
+    user = get_current_user()
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取请求参数
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 7, type=int))  # 默认7个
+
+        # 获取可管理社区列表
+        communities, total = CommunityService.get_manageable_communities(user, page, per_page)
+        
+        # 格式化响应数据
+        result = []
+        for community in communities:
+            community_data = {
+                'id': str(community.community_id),
+                'name': community.name,
+                'location': community.location or '',
+                'status': 'active' if community.status == 1 else 'inactive',
+                'description': community.description or '',
+                'created_at': community.created_at.isoformat() if community.created_at else None,
+                'updated_at': community.updated_at.isoformat() if community.updated_at else None
+            }
+            result.append(community_data)
+
+        has_more = (page * per_page) < total
+
+        app_logger.info(f'成功获取可管理社区列表，共 {len(result)} 个社区')
+        return make_succ_response({
+            'communities': result,
+            'total': total,
+            'has_more': has_more,
+            'current_page': page
+        })
+
+    except Exception as e:
+        app_logger.error(f'获取可管理社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取社区列表失败: {str(e)}')
+
+
+@app.route('/api/communities/manage/search', methods=['GET'])
+@require_community_staff()
+def search_manageable_communities():
+    """搜索社区（根据用户权限过滤结果）"""
+    app_logger.info('=== 开始搜索可管理社区 ===')
+
+    # 获取当前用户（装饰器已验证token）
+    user = get_current_user()
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        keyword = request.args.get('keyword', '').strip()
+        
+        if not keyword:
+            return make_err_response({}, '搜索关键词不能为空')
+
+        # 搜索社区（权限过滤）
+        communities = CommunityService.search_communities_with_permission(user, keyword)
+        
+        # 格式化响应数据
+        result = []
+        for community in communities:
+            community_data = {
+                'id': str(community.community_id),
+                'name': community.name,
+                'location': community.location or '',
+                'status': 'active' if community.status == 1 else 'inactive',
+                'description': community.description or '',
+                'created_at': community.created_at.isoformat() if community.created_at else None,
+                'updated_at': community.updated_at.isoformat() if community.updated_at else None
+            }
+            result.append(community_data)
+
+        app_logger.info(f'搜索社区成功: 关键词"{keyword}", 找到{len(result)}个社区')
+        return make_succ_response({'communities': result})
+
+    except Exception as e:
+        app_logger.error(f'搜索社区失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'搜索社区失败: {str(e)}')
+
+
+@app.route('/api/communities/manage/<int:community_id>/access-check', methods=['GET'])
+@require_community_staff()
+def check_community_access(community_id):
+    """检查用户对社区的访问权限"""
+    app_logger.info(f'=== 开始检查社区访问权限: {community_id} ===')
+
+    # 获取当前用户（装饰器已验证token）
+    user = get_current_user()
+    
+    if not user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 检查社区是否存在
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+
+        # 检查访问权限
+        has_access = CommunityService.can_access_community(user, community_id)
+        
+        app_logger.info(f'社区访问权限检查结果: 用户{user_id} 社区{community_id} 权限{has_access}')
+        return make_succ_response({
+            'has_access': has_access,
+            'community_id': community_id,
+            'community_name': community.name,
+            'user_role': user.role,
+            'user_role_name': user.role_name
+        })
+
+    except Exception as e:
+        app_logger.error(f'检查社区访问权限失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'检查权限失败: {str(e)}')
