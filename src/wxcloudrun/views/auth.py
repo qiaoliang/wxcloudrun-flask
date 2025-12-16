@@ -70,12 +70,22 @@ def login_wechat():
     nickname = params.get('nickname')
     if not nickname:
         app.logger.warning('登录请求缺少nickname参数')
-        return make_err_response({}, '缺少nickname参数')
+        app.logger.info(f'请求参数详情: {params}')
+        return make_err_response({
+            'error_code': 'MISSING_NICKNAME',
+            'required_params': ['code', 'nickname', 'avatar_url'],
+            'received_params': list(params.keys()) if params else []
+        }, '登录缺少用户昵称信息，请重新进行微信授权')
 
     avatar_url = params.get('avatar_url')
     if not avatar_url:
         app.logger.warning('登录请求缺少avatar_url参数')
-        return make_err_response({}, '缺少avatar_url参数')
+        app.logger.info(f'请求参数详情: {params}')
+        return make_err_response({
+            'error_code': 'MISSING_AVATAR_URL',
+            'required_params': ['code', 'nickname', 'avatar_url'],
+            'received_params': list(params.keys()) if params else []
+        }, '登录缺少用户头像信息，请重新进行微信授权')
 
     app.logger.info(
         f'获取到的用户信息 - nickname: {nickname}, avatar_url: {avatar_url}')
