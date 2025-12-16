@@ -874,6 +874,10 @@ class CommunityService:
             offset = (page - 1) * per_page
             communities = query.order_by(Community.created_at.desc()).offset(offset).limit(per_page).all()
             
+            # 将对象从会话中分离，避免DetachedInstanceError
+            for community in communities:
+                session.expunge(community)
+            
             return communities, total
 
     @staticmethod
@@ -904,7 +908,13 @@ class CommunityService:
                     Community.status == 1
                 )
             
-            return query.limit(20).all()  # 限制搜索结果数量
+            communities = query.limit(20).all()  # 限制搜索结果数量
+            
+            # 将对象从会话中分离，避免DetachedInstanceError
+            for community in communities:
+                session.expunge(community)
+            
+            return communities
 
     @staticmethod
     def can_access_community(user, community_id):

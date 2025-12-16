@@ -500,6 +500,9 @@ class TestCommunityManagementPermissions:
         )
         test_session.add(target_community)
         
+        # 先flush获取社区ID
+        test_session.flush()
+        
         # 创建用户（在安卡大家庭）
         user = User(
             wechat_openid="user_openid",
@@ -579,6 +582,9 @@ class TestCommunityManagementPermissions:
             status=1
         )
         test_session.add(ankafamily)
+        
+        # 先flush获取社区ID
+        test_session.flush()
         
         # 创建用户（在安卡大家庭）
         user = User(
