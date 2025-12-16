@@ -196,10 +196,19 @@ def get_community_list():
 
         # 格式化响应数据
         result = []
-        for community in communities:
+        for community_dict in communities:
+            # community_dict是从CommunityService返回的字典
+            community_id = community_dict['community_id']
+            community_name = community_dict['name']
+            community_location = community_dict['location']
+            community_status = community_dict['status']
+            community_description = community_dict['description']
+            community_created_at = community_dict['created_at'].isoformat() if community_dict['created_at'] else None
+            community_updated_at = community_dict['updated_at'].isoformat() if community_dict['updated_at'] else None
+            
             # 获取主管信息
             manager = CommunityStaff.query.filter_by(
-                community_id=community.community_id,
+                community_id=community_id,
                 role='manager'
             ).first()
 
@@ -212,17 +221,17 @@ def get_community_list():
                     manager_id = str(manager.user_id)
 
             community_data = {
-                'id': str(community.community_id),
-                'name': community.name,
-                'location': community.location or '',
+                'id': str(community_id),
+                'name': community_name,
+                'location': community_location,
                 'location_lat': None,  # TODO: 添加到数据库字段
                 'location_lon': None,  # TODO: 添加到数据库字段
-                'status': 'active' if community.status == 1 else 'inactive',
+                'status': 'active' if community_status == 1 else 'inactive',
                 'manager_id': manager_id,
                 'manager_name': manager_name,
-                'description': community.description or '',
-                'created_at': community.created_at.isoformat() if community.created_at else None,
-                'updated_at': community.updated_at.isoformat() if community.updated_at else None
+                'description': community_description,
+                'created_at': community_created_at,
+                'updated_at': community_updated_at
             }
             result.append(community_data)
 

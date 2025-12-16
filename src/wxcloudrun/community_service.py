@@ -316,6 +316,21 @@ class CommunityService:
             return session.query(Community).get(community_id)
 
     @staticmethod
+    def _community_to_dict(community):
+        """将Community对象转换为字典，避免会话分离问题"""
+        return {
+            'community_id': community.community_id,
+            'name': community.name,
+            'description': community.description or '',
+            'status': community.status,
+            'location': community.location or '',
+            'is_default': community.is_default,
+            'creator_user_id': community.creator_user_id,
+            'created_at': community.created_at,
+            'updated_at': community.updated_at
+        }
+
+    @staticmethod
     def get_communities_with_filters(status_filter='all', page=1, page_size=20):
         """获取带过滤条件的社区列表"""
         db = get_db()
@@ -333,7 +348,9 @@ class CommunityService:
             offset = (page - 1) * page_size
             communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
 
-            return communities, total
+            # 转换为字典列表，避免会话分离问题
+            community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
+            return community_dicts, total
 
     @staticmethod
     def get_manager_communities(user_id, status_filter='all', page=1, page_size=20):
@@ -368,7 +385,9 @@ class CommunityService:
             offset = (page - 1) * page_size
             communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
             
-            return communities, total
+            # 转换为字典列表，避免会话分离问题
+            community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
+            return community_dicts, total
 
     @staticmethod
     def get_staff_communities(user_id, status_filter='all', page=1, page_size=20):
@@ -402,7 +421,9 @@ class CommunityService:
             offset = (page - 1) * page_size
             communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
             
-            return communities, total
+            # 转换为字典列表，避免会话分离问题
+            community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
+            return community_dicts, total
 
     @staticmethod
     def update_community_info(community_id, name=None, description=None, location=None, status=None):
