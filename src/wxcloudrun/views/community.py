@@ -148,6 +148,7 @@ def get_communities():
 def get_community_list():
     """获取社区列表 (新版API,支持分页和筛选)"""
     from database.models import CommunityStaff
+    from database import get_session
 
     app_logger.info('=== 开始获取社区列表 ===')
 
@@ -157,93 +158,96 @@ def get_community_list():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
-
-    if not user:
-        return make_err_response({}, '用户不存在')
-
-    # 检查权限: 支持多角色
-    if user.role not in [2, 3, 4]:  # 非社区工作人员
-        return make_err_response({}, '权限不足，需要社区工作人员权限')
-
+    
     try:
-        # 获取请求参数
-        page = int(request.args.get('page', 1))
-        page_size = int(request.args.get('page_size', 20))
-        status_filter = request.args.get('status', 'all')  # all/active/inactive
+        # 使用数据库会话上下文管理器
+        with get_session() as session:
+            user = session.query(User).get(user_id)
 
-        # 根据用户角色获取社区列表
-        if user.role == 4:  # 超级管理员 - 所有社区
-            communities, total = CommunityService.get_communities_with_filters(
-                status_filter=status_filter,
-                page=page,
-                page_size=page_size
-            )
-        elif user.role == 3:  # 社区主管 - 主管的社区
-            communities, total = CommunityService.get_manager_communities(
-                user_id=user.user_id,
-                status_filter=status_filter,
-                page=page,
-                page_size=page_size
-            )
-        else:  # user.role == 2, 社区专员 - 专员的社区
-            communities, total = CommunityService.get_staff_communities(
-                user_id=user.user_id,
-                status_filter=status_filter,
-                page=page,
-                page_size=page_size
-            )
+            if not user:
+                return make_err_response({}, '用户不存在')
 
-        # 格式化响应数据
-        result = []
-        for community_dict in communities:
-            # community_dict是从CommunityService返回的字典
-            community_id = community_dict['community_id']
-            community_name = community_dict['name']
-            community_location = community_dict['location']
-            community_status = community_dict['status']
-            community_description = community_dict['description']
-            community_created_at = community_dict['created_at'].isoformat() if community_dict['created_at'] else None
-            community_updated_at = community_dict['updated_at'].isoformat() if community_dict['updated_at'] else None
-            
-            # 获取主管信息
-            manager = CommunityStaff.query.filter_by(
-                community_id=community_id,
-                role='manager'
-            ).first()
+            # 检查权限: 支持多角色
+            if user.role not in [2, 3, 4]:  # 非社区工作人员
+                return make_err_response({}, '权限不足，需要社区工作人员权限')
 
-            manager_name = None
-            manager_id = None
-            if manager:
-                manager_user = User.query.get(manager.user_id)
-                if manager_user:
-                    manager_name = manager_user.nickname
-                    manager_id = str(manager.user_id)
+            # 获取请求参数
+            page = int(request.args.get('page', 1))
+            page_size = int(request.args.get('page_size', 20))
+            status_filter = request.args.get('status', 'all')  # all/active/inactive
 
-            community_data = {
-                'id': str(community_id),
-                'name': community_name,
-                'location': community_location,
-                'location_lat': None,  # TODO: 添加到数据库字段
-                'location_lon': None,  # TODO: 添加到数据库字段
-                'status': 'active' if community_status == 1 else 'inactive',
-                'manager_id': manager_id,
-                'manager_name': manager_name,
-                'description': community_description,
-                'created_at': community_created_at,
-                'updated_at': community_updated_at
-            }
-            result.append(community_data)
+            # 根据用户角色获取社区列表
+            if user.role == 4:  # 超级管理员 - 所有社区
+                communities, total = CommunityService.get_communities_with_filters(
+                    status_filter=status_filter,
+                    page=page,
+                    page_size=page_size
+                )
+            elif user.role == 3:  # 社区主管 - 主管的社区
+                communities, total = CommunityService.get_manager_communities(
+                    user_id=user.user_id,
+                    status_filter=status_filter,
+                    page=page,
+                    page_size=page_size
+                )
+            else:  # user.role == 2, 社区专员 - 专员的社区
+                communities, total = CommunityService.get_staff_communities(
+                    user_id=user.user_id,
+                    status_filter=status_filter,
+                    page=page,
+                    page_size=page_size
+                )
 
-        has_more = (page * page_size) < total
+            # 格式化响应数据
+            result = []
+            for community_dict in communities:
+                # community_dict是从CommunityService返回的字典
+                community_id = community_dict['community_id']
+                community_name = community_dict['name']
+                community_location = community_dict['location']
+                community_status = community_dict['status']
+                community_description = community_dict['description']
+                community_created_at = community_dict['created_at'].isoformat() if community_dict['created_at'] else None
+                community_updated_at = community_dict['updated_at'].isoformat() if community_dict['updated_at'] else None
+                
+                # 获取主管信息 - 使用当前会话
+                manager = session.query(CommunityStaff).filter_by(
+                    community_id=community_id,
+                    role='manager'
+                ).first()
 
-        app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
-        return make_succ_response({
-            'communities': result,
-            'total': total,
-            'has_more': has_more,
-            'current_page': page
-        })
+                manager_name = None
+                manager_id = None
+                if manager:
+                    manager_user = session.query(User).get(manager.user_id)
+                    if manager_user:
+                        manager_name = manager_user.nickname
+                        manager_id = str(manager.user_id)
+
+                community_data = {
+                    'id': str(community_id),
+                    'name': community_name,
+                    'location': community_location,
+                    'location_lat': None,  # TODO: 添加到数据库字段
+                    'location_lon': None,  # TODO: 添加到数据库字段
+                    'status': 'active' if community_status == 1 else 'inactive',
+                    'manager_id': manager_id,
+                    'manager_name': manager_name,
+                    'description': community_description,
+                    'created_at': community_created_at,
+                    'updated_at': community_updated_at
+                }
+                result.append(community_data)
+
+            has_more = (page * page_size) < total
+
+            app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
+            return make_succ_response({
+                'communities': result,
+                'total': total,
+                'has_more': has_more,
+                'current_page': page
+            })
 
     except Exception as e:
         app_logger.error(f'获取社区列表失败: {str(e)}', exc_info=True)

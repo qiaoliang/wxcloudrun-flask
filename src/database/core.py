@@ -62,6 +62,14 @@ class DatabaseCore:
                 connect_args={'check_same_thread': False},
                 echo=False
             )
+        elif 'sqlite:///' in db_uri:
+            # SQLite文件数据库使用NullPool避免连接池问题
+            from sqlalchemy.pool import NullPool
+            self.engine = create_engine(
+                db_uri,
+                poolclass=NullPool,
+                echo=False
+            )
         else:
             self.engine = create_engine(db_uri, echo=False)
         
