@@ -1931,20 +1931,20 @@ def _get_community_detail_data(community_id):
         
         # 使用子查询优化统计信息获取
         # 获取专员数量
-        admin_count = session.query(func.count(CommunityStaff.staff_id)).filter(
+        admin_count = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'admin'
-        ).scalar()
+        ).count()
         
         # 获取用户数量
-        user_count = session.query(func.count(User.user_id)).filter(
+        user_count = session.query(User).filter(
             User.community_id == community_id
-        ).scalar()
+        ).count()
         
         # 获取工作人员总数
-        staff_count = session.query(func.count(CommunityStaff.staff_id)).filter(
+        staff_count = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id
-        ).scalar()
+        ).count()
         
         # 获取创建者信息（如果存在）
         creator = None
