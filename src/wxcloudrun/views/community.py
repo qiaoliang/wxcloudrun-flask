@@ -10,6 +10,7 @@ from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.utils.auth import verify_token, require_community_staff, get_current_user
 from database import get_database
 from database.models import User, Community, CommunityApplication, UserAuditLog, CommunityStaff
+from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
 
 app_logger = logging.getLogger('log')
@@ -20,9 +21,17 @@ db = get_database()
 
 def _check_community_admin_permission(user, community_id):
     """检查社区管理员权限"""
-    if not user.can_manage_community(community_id):
-        return make_err_response({}, "权限不足")
+    # 调用服务函数检查权限
+    result = CommunityStaffService.is_admin_of_commu(community_id, user.user_id)
+    
+    # 如果返回None，表示没有权限
+    if result is None:
+        return make_err_response({}, "需要社区管理员权限")
+    
+    # 如果返回User对象，表示有权限，返回None表示通过检查
     return None
+
+
 
 
 def _check_super_admin_permission(user):
@@ -158,7 +167,7 @@ def get_community_list():
         return error_response
 
     user_id = decoded.get('user_id')
-    
+
     try:
         # 使用数据库会话上下文管理器
         with get_session() as session:
@@ -209,7 +218,7 @@ def get_community_list():
                 community_description = community_dict['description']
                 community_created_at = community_dict['created_at'].isoformat() if community_dict['created_at'] else None
                 community_updated_at = community_dict['updated_at'].isoformat() if community_dict['updated_at'] else None
-                
+
                 # 获取主管信息 - 使用当前会话
                 manager = session.query(CommunityStaff).filter_by(
                     community_id=community_id,
@@ -292,7 +301,6 @@ def get_community_users(community_id):
     error = _check_community_admin_permission(user, community_id)
     if error:
         return error
-
     try:
         page = request.args.get('page', 1, type=int)
         per_page = request.args.get('per_page', 20, type=int)
@@ -1733,12 +1741,12 @@ def search_users_for_community():
 def get_manageable_communities():
     """获取当前用户可管理的社区列表（默认7个）"""
     from wxcloudrun.utils.auth import get_current_user
-    
+
     app_logger.info('=== 开始获取可管理社区列表 ===')
 
     # 获取当前用户（装饰器已验证token）
     user = get_current_user()
-    
+
     if not user:
         return make_err_response({}, '用户不存在')
 
@@ -1749,7 +1757,7 @@ def get_manageable_communities():
 
         # 获取可管理社区列表
         communities, total = CommunityService.get_manageable_communities(user, page, per_page)
-        
+
         # 格式化响应数据
         result = []
         for community in communities:
@@ -1787,19 +1795,19 @@ def search_manageable_communities():
 
     # 获取当前用户（装饰器已验证token）
     user = get_current_user()
-    
+
     if not user:
         return make_err_response({}, '用户不存在')
 
     try:
         keyword = request.args.get('keyword', '').strip()
-        
+
         if not keyword:
             return make_err_response({}, '搜索关键词不能为空')
 
         # 搜索社区（权限过滤）
         communities = CommunityService.search_communities_with_permission(user, keyword)
-        
+
         # 格式化响应数据
         result = []
         for community in communities:
@@ -1830,7 +1838,7 @@ def check_community_access(community_id):
 
     # 获取当前用户（装饰器已验证token）
     user = get_current_user()
-    
+
     if not user:
         return make_err_response({}, '用户不存在')
 
@@ -1842,7 +1850,7 @@ def check_community_access(community_id):
 
         # 检查访问权限
         has_access = CommunityService.can_access_community(user, community_id)
-        
+
         app_logger.info(f'社区访问权限检查结果: 用户{user_id} 社区{community_id} 权限{has_access}')
         return make_succ_response({
             'has_access': has_access,
@@ -1861,11 +1869,11 @@ def _verify_community_access(user_id, community_id):
     """验证用户是否有权限访问社区"""
     from database.models import CommunityStaff
     from wxcloudrun.dao import get_db
-    
+
     # 防御性检查：确保参数有效
     if not user_id or not community_id:
         return False, "参数错误"
-    
+
     try:
         db = get_db()
         with db.get_session() as session:
@@ -1873,15 +1881,15 @@ def _verify_community_access(user_id, community_id):
             user = session.query(User).get(user_id)
             if not user:
                 return False, "用户不存在"
-            
+
             # 检查用户状态
             if hasattr(user, 'status') and user.status != 1:  # 假设1表示启用状态
                 return False, "用户账户已禁用"
-            
+
             # 超级管理员
             if user.role == 4:
                 return True, None
-            
+
             # 社区工作人员
             if user.role == 3:
                 staff = session.query(CommunityStaff).filter(
@@ -1895,7 +1903,7 @@ def _verify_community_access(user_id, community_id):
                         return True, None
                     else:
                         return False, "社区已禁用或不存在"
-            
+
             return False, "权限不足，需要社区工作人员或超级管理员权限"
     except Exception as e:
         app_logger.error(f"权限验证失败: {str(e)}", exc_info=True)
@@ -1918,45 +1926,45 @@ def _get_community_detail_data(community_id):
     from wxcloudrun.dao import get_db
     from database.models import CommunityStaff
     from sqlalchemy import func
-    
+
     db = get_db()
     with db.get_session() as session:
         # 使用单个查询获取所有需要的数据
         # 查询社区基本信息及关联的创建者信息
         from sqlalchemy.orm import joinedload
-        
+
         community = session.query(Community).get(community_id)
         if not community:
             return None
-        
+
         # 使用子查询优化统计信息获取
         # 获取专员数量
         admin_count = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'admin'
         ).count()
-        
+
         # 获取主管数量
         manager_count = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'manager'
         ).count()
-        
+
         # 获取总用户数量（包括所有用户）
         total_user_count = session.query(User).filter(
             User.community_id == community_id
         ).count()
-        
+
         # 计算社区用户人数（除专员和主管外的总人数）
         community_user_count = total_user_count - (admin_count + manager_count)
         if community_user_count < 0:
             community_user_count = 0
-        
+
         # 获取工作人员总数（包括主管和专员）
         staff_count = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id
         ).count()
-        
+
         # 获取创建者信息（如果存在）
         creator = None
         if community.creator_user_id:
@@ -1968,14 +1976,14 @@ def _get_community_detail_data(community_id):
                     'user_id': creator_user.user_id,
                     'nickname': creator_user.nickname
                 }
-        
+
         # 获取主管信息
         manager = None
         manager_staff = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'manager'
         ).first()
-        
+
         if manager_staff:
             manager_user = session.query(User).filter(
                 User.user_id == manager_staff.user_id
@@ -1986,7 +1994,7 @@ def _get_community_detail_data(community_id):
                     'nickname': manager_user.nickname,
                     'phone': manager_user.phone_number
                 }
-        
+
         # 返回整合后的数据
         return {
             'id': community.community_id,
@@ -2016,35 +2024,35 @@ def _get_community_detail_data(community_id):
 def get_community_detail(community_id):
     """获取社区详情"""
     app_logger.info(f'=== 开始获取社区详情: {community_id} ===')
-    
+
     # 验证token
     decoded, error_response = verify_token()
     if error_response:
         return error_response
-    
+
     user_id = decoded.get('user_id')
-    
+
     try:
         # 验证社区ID格式
         is_valid, result = _validate_community_id(str(community_id))
         if not is_valid:
             return make_err_response({}, result)
-        
+
         # 验证用户权限
         has_access, error_msg = _verify_community_access(user_id, community_id)
         if not has_access:
             return make_err_response({}, error_msg)
-        
+
         # 获取社区详情数据
         community_data = _get_community_detail_data(community_id)
         if not community_data:
             return make_err_response({}, "社区不存在")
-        
+
         app_logger.info(f'成功获取社区详情: {community_id}')
         return make_succ_response({
             'community': community_data
         })
-        
+
     except Exception as e:
         app_logger.error(f'获取社区详情失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取社区详情失败: {str(e)}')

@@ -38,7 +38,7 @@ flowchart TD
     S6 -->|是| S7[返回现有管理员]
     S6 -->|否| S8[创建超级管理员]
 
-    S8 --> S9[设置管理员信息<br/>- 昵称: 系统超级管理员<br/>-角色:4 (super_admin)<br/>- 手机号: 18676790191<br/>- 密码: Firefox0820]
+    S8 --> S9[设置管理员信息<br/>- 昵称: 系统超级管理员<br/>-角色:4 (super_admin)<br/>- 手机号: 13900007997<br/>- 密码: Firefox0820]
     S9 --> S10[记录审计日志]
     S10 --> S11[提交到数据库]
 
@@ -85,7 +85,7 @@ flowchart TD
     K6 -->|是| K7[返回现有管理员]
     K6 -->|否| K8[创建超级管理员]
 
-    K8 --> K9[设置管理员信息<br/>- 昵称: 系统超级管理员<br/>- 角色: 4 (super_admin)<br/>- 手机号: 18676790191<br/>- 密码: Firefox0820]
+    K8 --> K9[设置管理员信息<br/>- 昵称: 系统超级管理员<br/>- 角色: 4 (super_admin)<br/>- 手机号: 13900007997<br/>- 密码: Firefox0820]
     K9 --> K10[记录审计日志]
     K10 --> K11[提交到数据库]
 
@@ -245,7 +245,7 @@ flowchart TD
     D -->|否| F[开始创建流程]
 
     F --> G[调用 _ensure_super_admin_exists]
-    G --> H[标准化管理员手机号: 18676790191]
+    G --> H[标准化管理员手机号: 13900007997]
     H --> I[计算 phone_hash]
     I --> J[查询超级管理员]
 
@@ -255,7 +255,7 @@ flowchart TD
 
     M --> N[生成密码 salt]
     N --> O[计算 password_hash<br/>密码: Firefox0820]
-    O --> P[创建 User 实例<br/>- wechat_openid: admin_18676790191<br/>- nickname: 系统超级管理员<br/>- role: 4 (super_admin)<br/>- status: 1<br/>- verification_status: 2]
+    O --> P[创建 User 实例<br/>- wechat_openid: admin_13900007997<br/>- nickname: 系统超级管理员<br/>- role: 4 (super_admin)<br/>- status: 1<br/>- verification_status: 2]
     P --> Q[添加到数据库会话]
     Q --> R[创建审计日志]
     R --> S[提交到数据库]
@@ -274,11 +274,11 @@ flowchart TD
 
 ### 超级管理员账户信息
 
--   **手机号**: 18676790191
+-   **手机号**: 13900007997
 -   **密码**: Firefox0820
 -   **昵称**: 系统超级管理员
 -   **角色**: 4 (super_admin)
--   **微信 OpenID**: admin_18676790191
+-   **微信 OpenID**: admin_13900007997
 -   **状态**: 启用 (status=1)
 -   **验证状态**: 已通过验证 (verification_status=2)
 
