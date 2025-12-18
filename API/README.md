@@ -1,139 +1,176 @@
-# SafeGuard API 文档
+# SafeGuard 后端 API 文档
 
-本目录包含 SafeGuard 后端系统的所有 API 接口文档，按照功能模块分类。
+## 概述
 
-## 文档列表
+本目录包含 SafeGuard 后端服务的 API 文档，按功能域进行组织。每个功能域对应一个独立的 Markdown 文件，详细描述了该域的所有 API 接口。
 
-1. [API_auth.md](./API_auth.md) - 认证相关API
-   - 微信登录
-   - 刷新Token
-   - 用户登出
-   - 手机号注册
-   - 手机号验证码登录
-   - 手机号密码登录
-   - 手机号验证码+密码登录
+## 文档结构
 
-2. [API_user.md](./API_user.md) - 用户管理API
-   - 获取/更新用户信息
-   - 搜索用户
-   - 绑定手机号
-   - 绑定微信
-   - 社区工作人员身份验证
+### 按功能域划分的 API 文档
 
-3. [API_checkin.md](./API_checkin.md) - 打卡功能API
-   - 获取今日打卡事项
-   - 执行打卡
-   - 标记为missed
-   - 撤销打卡
-   - 获取打卡历史
-   - 打卡规则管理（增删改查）
+| 功能域 | 文档文件 | 描述 |
+|--------|----------|------|
+| **认证域** | [API_auth.md](API_auth.md) | 用户身份验证、登录、注册、token管理 |
+| **用户管理域** | [API_user.md](API_user.md) | 用户信息管理、用户搜索、账号绑定 |
+| **社区管理域** | [API_community.md](API_community.md) | 社区CRUD、工作人员管理、申请处理 |
+| **打卡功能域** | [API_checkin.md](API_checkin.md) | 打卡规则管理、打卡记录、历史查询 |
+| **短信服务域** | [API_sms.md](API_sms.md) | 验证码发送和验证 |
+| **监督功能域** | [API_supervision.md](API_supervision.md) | 监督关系管理、监督邀请、监督记录 |
+| **分享功能域** | [API_share.md](API_share.md) | 分享链接创建、解析和页面渲染 |
+| **其他功能域** | [API_misc.md](API_misc.md) | 计数器、环境配置、首页等辅助功能 |
 
-4. [API_sms.md](./API_sms.md) - 短信服务API
-   - 发送短信验证码
+### 文档格式规范
 
-5. [API_supervision.md](./API_supervision.md) - 监督功能API
-   - 邀请监督者
-   - 生成监督邀请链接
-   - 解析监督邀请链接
-   - 获取监督邀请列表
-   - 接受/拒绝监督邀请
-   - 获取我监督的用户列表
-   - 获取我的监护人列表
-   - 获取被监督用户打卡记录
+每个 API 文档包含以下部分：
 
-6. [API_share.md](./API_share.md) - 分享功能API
-   - 创建打卡分享链接
-   - 解析分享链接
-   - 分享页面入口
+1. **概述** - 功能域的简要描述
+2. **API 列表** - 所有接口的详细说明，包括：
+   - 端点 (Endpoint)
+   - HTTP 方法
+   - 描述
+   - 请求参数（查询参数、请求体）
+   - 响应格式
+   - 错误码（如果有）
+3. **参数说明** - 特殊参数的详细解释
+4. **权限说明** - 接口的访问权限要求
+5. **相关文件** - 对应的源代码文件
 
-7. [API_community.md](./API_community.md) - 社区管理API
-   - **社区CRUD**: 创建、查询、更新、删除社区
-   - **社区状态**: 启用/停用社区
-   - **社区操作**: 合并社区、拆分社区
-   - **工作人员管理**: 添加/移除工作人员(主管/专员)
-   - **用户管理**: 添加/移除社区用户
-   - **用户搜索**: 按昵称或手机号搜索用户
-   - **特殊社区**: 安卡大家庭、黑屋逻辑
-
-8. [API_misc.md](./API_misc.md) - 其他功能API
-   - 计数器操作
-   - 获取计数器值
-   - 获取环境配置信息
-   - 主页
-   - 环境配置查看器
-
-## API 通用说明
-
-### 认证方式
-- **Bearer Token**: 在请求头中添加 `Authorization: Bearer <token>`
-- **无需认证**: 部分API（如登录、注册、发送验证码）不需要认证
+## 通用约定
 
 ### 响应格式
 
-**重要约定**: 
-- HTTP 状态码统一返回 **200** (除非服务器内部错误返回 500 或路由不存在返回 404)
-- 业务状态通过响应体中的 `code` 字段判断: `code=1` 表示成功, `code=0` 表示失败
-- 失败时 `msg` 字段包含具体错误信息, `data` 可为空对象 `{}` 或包含必要的提示数据
+所有 API 接口使用统一的响应格式：
 
-所有API响应都遵循统一格式：
-
-**成功响应** (HTTP 200):
 ```json
 {
-  "code": 1,        // 业务状态码：1-成功
+  "code": 1,        // 1-成功，0-失败
   "msg": "success", // 状态消息
-  "data": {...}     // 响应数据，具体结构见各API文档
+  "data": {...}     // 响应数据
 }
 ```
 
-**失败响应** (HTTP 200):
-```json
-{
-  "code": 0,                    // 业务状态码：0-失败
-  "msg": "权限不足",             // 具体错误信息
-  "data": {}                    // 空对象或包含必要提示数据
-}
+### 认证方式
+
+需要认证的接口使用 Bearer Token 认证：
+
+```
+Authorization: Bearer <token>
 ```
 
-### HTTP 状态码说明
-- **200**: 正常响应 (业务成功或失败都返回200,通过code字段区分)
-- **404**: 路由不存在
-- **500**: 服务器内部错误
+### 错误处理
 
-### 业务错误码 (code字段)
-- **1**: 成功
-- **0**: 失败 (具体原因见 msg 字段)
+- **HTTP 状态码**: 统一返回 200
+- **业务状态**: 通过响应体中的 `code` 字段判断（1-成功，0-失败）
+- **错误消息**: 在 `msg` 字段中返回具体的错误信息
 
-**常见错误消息**:
-- "权限不足"
-- "参数错误"
-- "资源不存在"
-- "操作失败"
-- "Token无效或已过期"
+## 快速导航
 
-### 时间格式
-- 日期格式：`YYYY-MM-DD`
-- 时间格式：`HH:MM:SS` 或 `HH:MM`
-- 日期时间格式：`YYYY-MM-DD HH:MM:SS`
+### 核心功能
 
-### 分页
-当前版本API暂不支持分页，如需获取大量数据请使用时间范围参数限制。
+1. **用户认证**
+   - 微信登录: `POST /api/auth/login_wechat`
+   - 手机号注册: `POST /api/auth/register_phone`
+   - Token刷新: `POST /api/refresh_token`
 
-## 示例代码
+2. **用户管理**
+   - 获取用户信息: `GET /api/user/profile`
+   - 搜索用户: `GET /api/users/search`
+   - 绑定手机号: `POST /api/user/bind_phone`
 
-所有API文档都提供了Python requests库的示例代码，可直接复制使用。
+3. **社区管理**
+   - 获取社区列表: `GET /api/community/list`
+   - 社区用户管理: `GET /api/communities/{id}/users`
+   - 社区申请: `POST /api/community/applications`
+
+4. **打卡功能**
+   - 今日打卡事项: `GET /api/checkin/today`
+   - 执行打卡: `POST /api/checkin`
+   - 打卡规则管理: `GET/POST/PUT/DELETE /api/checkin/rules`
+
+5. **监督功能**
+   - 邀请监督者: `POST /api/rules/supervision/invite`
+   - 获取监督邀请: `GET /api/rules/supervision/invitations`
+   - 获取监督记录: `GET /api/rules/supervision/records`
+
+### 辅助功能
+
+1. **短信服务**
+   - 发送验证码: `POST /api/sms/send_code`
+
+2. **分享功能**
+   - 创建分享链接: `POST /api/share/checkin/create`
+   - 解析分享链接: `GET /api/share/checkin/resolve`
+
+3. **系统功能**
+   - 环境配置: `GET /api/get_envs`
+   - 计数器: `GET/POST /api/count`
+
+## 开发指南
+
+### 环境配置
+
+项目支持多环境配置，通过 `ENV_TYPE` 环境变量控制：
+
+- **function**: 开发环境
+- **unit**: 单元测试环境（内存数据库）
+- **uat**: UAT测试环境
+- **prod**: 生产环境
+
+### 本地开发
+
+1. 设置环境变量：
+   ```bash
+   export ENV_TYPE=function
+   ```
+
+2. 启动开发服务器：
+   ```bash
+   ./localrun.sh
+   ```
+
+3. 访问服务：
+   - API服务: http://localhost:9999
+   - 环境配置查看器: http://localhost:9999/env
+
+### 测试
+
+```bash
+# 运行所有测试
+make test-all
+
+# 运行单元测试
+make ut
+
+# 运行集成测试
+make test-integration
+
+# 运行端到端测试
+make e2e
+```
+
+## 相关资源
+
+- **项目指南**: [../AGENTS.md](../AGENTS.md)
+- **源代码**: [../src/wxcloudrun/views/](../src/wxcloudrun/views/)
+- **测试目录**: [../tests/](../tests/)
+- **部署脚本**: [../scripts/](../scripts/)
 
 ## 更新日志
 
-- **2025-12-12**: 
-  - 全面更新社区管理API文档,新增14个接口
-  - 明确HTTP状态码统一返回200的约定
-  - 新增工作人员管理接口(主管/专员)
-  - 新增社区用户管理接口
-  - 新增社区合并/拆分接口
-  - 添加特殊社区(安卡大家庭/黑屋)逻辑说明
-  - 标记每个API的实现状态(✅已实现/⏳待实现)
-  - 添加权限矩阵和实现优先级说明
-- **2025-12-10**: 新增社区管理API文档，包含社区CRUD、用户管理、申请流程等功能
-- **2025-12-09**: 更新响应状态码说明，成功响应返回 code: 1，错误响应返回 code: 0
-- **2025-12-09**: 初始版本，根据生产代码生成完整API文档
+### 2025-12-19
+- 初始版本，按功能域梳理所有 API 接口
+- 创建 8 个功能域的详细 API 文档
+- 建立统一的文档结构和格式规范
+
+## 贡献指南
+
+如需更新 API 文档，请遵循以下步骤：
+
+1. 修改对应的源代码文件（`backend/src/wxcloudrun/views/*.py`）
+2. 更新对应的 API 文档文件（`backend/API/API_*.md`）
+3. 确保文档格式符合规范
+4. 更新本 README 文件中的相关部分
+
+## 联系方式
+
+如有问题或建议，请查看项目文档或联系开发团队。

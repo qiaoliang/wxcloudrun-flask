@@ -127,15 +127,7 @@ class AlembicBasedTestDB:
             Column('updated_at', DateTime, default=datetime.now, onupdate=datetime.now)
         )
         
-        # 社区成员表
-        metadata.tables['community_members'] = Table(
-            'community_members', metadata,
-            Column('id', Integer, primary_key=True),
-            Column('community_id', Integer, nullable=False),
-            Column('user_id', Integer, nullable=False),
-            Column('joined_at', DateTime, default=datetime.now),
-            Column('updated_at', DateTime, default=datetime.now, onupdate=datetime.now)
-        )
+        # 注意：community_members表已被删除，社区成员关系通过User表的community_id字段管理
         
         return metadata
     
