@@ -722,10 +722,6 @@ class CommunityService:
             if not target_user:
                 raise ValueError("用户不存在")
 
-            # 检查用户是否在该社区
-            if target_user.community_id != community_id:
-                raise ValueError("用户不在该社区")
-
             # 特殊社区逻辑处理
             moved_to = None
 
@@ -739,6 +735,7 @@ class CommunityService:
 
             # 如果从"安卡大家庭"移除,移入"黑屋"
             elif community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
+                # 对于安卡大家庭，不检查用户是否在该社区，直接移入黑屋
                 # 检查是否已在黑屋
                 if target_user.community_id != blackhouse.community_id:
                     target_user.community_id = blackhouse.community_id
@@ -747,6 +744,10 @@ class CommunityService:
 
             # 如果从普通社区移除
             elif community.name not in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
+                # 检查用户是否在该社区（普通社区需要这个检查）
+                if target_user.community_id != community_id:
+                    raise ValueError("用户不在该社区")
+                
                 # 检查用户是否还属于其他普通社区
                 from sqlalchemy import and_
                 other_communities_count = session.query(User).filter(
