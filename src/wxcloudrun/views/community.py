@@ -1879,16 +1879,21 @@ def _get_community_detail_data(community_id):
             return None
 
         # 使用子查询优化统计信息获取
-        # 获取专员数量
-        admin_count = session.query(CommunityStaff).filter(
+        # 获取专员数量（role='staff'）
+        staff_only_count = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'staff'
         ).count()
 
-        # 获取主管数量
+        # 获取主管数量（role='manager'）
         manager_count = session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'manager'
+        ).count()
+
+        # 获取工作人员总数（包括主管和专员）
+        staff_count = session.query(CommunityStaff).filter(
+            CommunityStaff.community_id == community_id
         ).count()
 
         # 获取总用户数量（包括所有用户）
@@ -1897,14 +1902,9 @@ def _get_community_detail_data(community_id):
         ).count()
 
         # 计算社区用户人数（除专员和主管外的总人数）
-        community_user_count = total_user_count - (admin_count + manager_count)
+        community_user_count = total_user_count - (staff_only_count + manager_count)
         if community_user_count < 0:
             community_user_count = 0
-
-        # 获取工作人员总数（包括主管和专员）
-        staff_count = session.query(CommunityStaff).filter(
-            CommunityStaff.community_id == community_id
-        ).count()
 
         # 获取创建者信息（如果存在）
         creator = None
@@ -1950,11 +1950,11 @@ def _get_community_detail_data(community_id):
             'creator': creator,
             'manager': manager,
             'stats': {
-                'admin_count': admin_count or 0,
+                'admin_count': staff_only_count or 0,  # 保持向后兼容，实际是专员数量
                 'manager_count': manager_count or 0,
                 'staff_count': staff_count or 0,  # 工作人员总数（主管+专员）
                 # 仅专员数量
-                'staff_only_count': (staff_count - manager_count) or 0,
+                'staff_only_count': staff_only_count or 0,
                 'user_count': community_user_count or 0,  # 社区用户人数（除专员和主管外）
                 'checkin_rate': 0,  # 需要根据业务逻辑计算
                 'support_count': 0,  # 需要根据业务逻辑计算
