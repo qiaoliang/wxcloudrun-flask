@@ -2001,8 +2001,10 @@ def _get_community_detail_data(community_id):
             'manager': manager,
             'stats': {
                 'admin_count': admin_count or 0,
-                'user_count': community_user_count or 0,  # 改为社区用户人数（除专员和主管外）
-                'staff_count': staff_count or 0,
+                'manager_count': manager_count or 0,
+                'staff_count': staff_count or 0,  # 工作人员总数（主管+专员）
+                'staff_only_count': (staff_count - manager_count) or 0,  # 仅专员数量
+                'user_count': community_user_count or 0,  # 社区用户人数（除专员和主管外）
                 'checkin_rate': 0,  # 需要根据业务逻辑计算
                 'support_count': 0,  # 需要根据业务逻辑计算
                 'active_events': 0   # 需要根据业务逻辑计算
