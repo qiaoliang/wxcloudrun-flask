@@ -606,24 +606,22 @@ class CommunityService:
     @staticmethod
     def get_community_members(community_id, page=1, page_size=20):
         """获取社区成员列表"""
-        from database.models import CommunityMember
         from database.models import CheckinRecord
         from datetime import date
 
         db = get_db()
         with db.get_session() as session:
-            # 分页查询社区成员
+            # 分页查询社区成员 - 使用User表查询
             offset = (page - 1) * page_size
-            query = session.query(CommunityMember).filter_by(community_id=community_id)
+            query = session.query(User).filter_by(community_id=community_id)
             total = query.count()
-            members = query.order_by(CommunityMember.joined_at.desc()).offset(offset).limit(page_size).all()
+            members = query.order_by(User.community_joined_at.desc()).offset(offset).limit(page_size).all()
 
             # 格式化响应数据
             members_data = []
             today = date.today()
 
-            for member in members:
-                member_user = session.query(User).get(member.user_id)
+            for member_user in members:
                 if not member_user:
                     continue
 
@@ -631,7 +629,7 @@ class CommunityService:
                 from sqlalchemy import and_, func
                 unchecked_records = session.query(CheckinRecord).filter(
                     and_(
-                        CheckinRecord.solo_user_id == member.user_id,
+                        CheckinRecord.solo_user_id == member_user.user_id,
                         func.date(CheckinRecord.planned_time) == today,
                         CheckinRecord.status == 0  # 0-missed(未打卡)
                     )
@@ -651,7 +649,7 @@ class CommunityService:
                     'nickname': member_user.nickname,
                     'avatar_url': member_user.avatar_url,
                     'phone_number': member_user.phone_number,
-                    'join_time': member.joined_at.isoformat() if member.joined_at else None,
+                    'join_time': member_user.community_joined_at.isoformat() if member_user.community_joined_at else None,
                     'unchecked_count': len(unchecked_items),
                     'unchecked_items': unchecked_items
                 }
@@ -663,7 +661,7 @@ class CommunityService:
     @staticmethod
     def add_users_to_community(community_id, user_ids):
         """批量添加用户到社区"""
-        from database.models import CommunityMember
+        from datetime import datetime
 
         db = get_db()
         with db.get_session() as session:
@@ -684,21 +682,13 @@ class CommunityService:
                         continue
 
                     # 检查是否已在社区
-                    existing = session.query(CommunityMember).filter_by(
-                        community_id=community_id,
-                        user_id=user_id
-                    ).first()
-
-                    if existing:
+                    if target_user.community_id == community_id:
                         failed.append({'user_id': user_id, 'reason': '用户已在社区'})
                         continue
 
-                    # 添加用户到社区
-                    member = CommunityMember(
-                        community_id=community_id,
-                        user_id=user_id
-                    )
-                    session.add(member)
+                    # 更新用户社区信息
+                    target_user.community_id = community_id
+                    target_user.community_joined_at = datetime.now()
                     added_count += 1
 
                 except Exception as e:
@@ -718,7 +708,7 @@ class CommunityService:
     @staticmethod
     def remove_user_from_community(community_id, user_id):
         """从社区移除用户"""
-        from database.models import CommunityMember, CommunityStaff
+        from database.models import CommunityStaff
         from const_default import DEFUALT_COMMUNITY_NAME
         db = get_db()
         with db.get_session() as session:
@@ -727,13 +717,13 @@ class CommunityService:
             if not community:
                 raise ValueError("社区不存在")
 
-            # 查找成员记录
-            member = session.query(CommunityMember).filter_by(
-                community_id=community_id,
-                user_id=user_id
-            ).first()
+            # 查找用户
+            target_user = session.query(User).get(user_id)
+            if not target_user:
+                raise ValueError("用户不存在")
 
-            if not member:
+            # 检查用户是否在该社区
+            if target_user.community_id != community_id:
                 raise ValueError("用户不在该社区")
 
             # 特殊社区逻辑处理
@@ -750,47 +740,37 @@ class CommunityService:
             # 如果从"安卡大家庭"移除,移入"黑屋"
             elif community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
                 # 检查是否已在黑屋
-                existing_in_blackhouse = session.query(CommunityMember).filter_by(
-                    community_id=blackhouse.community_id,
-                    user_id=user_id
-                ).first()
-
-                if not existing_in_blackhouse:
-                    blackhouse_member = CommunityMember(
-                        community_id=blackhouse.community_id,
-                        user_id=user_id
-                    )
-                    session.add(blackhouse_member)
+                if target_user.community_id != blackhouse.community_id:
+                    target_user.community_id = blackhouse.community_id
+                    target_user.community_joined_at = datetime.now()
                     moved_to = DEFAULT_BLACK_ROOM_NAME
 
             # 如果从普通社区移除
             elif community.name not in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
                 # 检查用户是否还属于其他普通社区
-                other_memberships = session.query(CommunityMember).filter(
-                    CommunityMember.user_id == user_id,
-                    CommunityMember.community_id != community_id
+                from sqlalchemy import and_
+                other_communities_count = session.query(User).filter(
+                    and_(
+                        User.user_id == user_id,
+                        User.community_id != community_id,
+                        User.community_id.isnot(None)
+                    )
                 ).join(Community).filter(
                     Community.name.notin_([DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME])
                 ).count()
 
                 # 如果不属于任何其他普通社区,移入"安卡大家庭"
-                if other_memberships == 0 and anka_family:
+                if other_communities_count == 0 and anka_family:
                     # 检查是否已在安卡大家庭
-                    existing_in_anka = session.query(CommunityMember).filter_by(
-                        community_id=anka_family.community_id,
-                        user_id=user_id
-                    ).first()
-
-                    if not existing_in_anka:
-                        anka_member = CommunityMember(
-                            community_id=anka_family.community_id,
-                            user_id=user_id
-                        )
-                        session.add(anka_member)
+                    if target_user.community_id != anka_family.community_id:
+                        target_user.community_id = anka_family.community_id
+                        target_user.community_joined_at = datetime.now()
                         moved_to = DEFUALT_COMMUNITY_NAME
+                else:
+                    # 如果用户属于其他普通社区，则清空社区信息
+                    target_user.community_id = None
+                    target_user.community_joined_at = None
 
-            # 删除成员记录
-            session.delete(member)
             session.commit()
 
             return {'moved_to': moved_to}
@@ -798,7 +778,7 @@ class CommunityService:
     @staticmethod
     def delete_community(community_id):
         """删除社区"""
-        from database.models import CommunityMember, CommunityStaff
+        from database.models import CommunityStaff
         from const_default import DEFUALT_COMMUNITY_NAME
         db = get_db()
         with db.get_session() as session:
@@ -816,7 +796,7 @@ class CommunityService:
                 raise ValueError("请先停用社区")
 
             # 检查社区内是否还有用户
-            member_count = session.query(CommunityMember).filter_by(community_id=community_id).count()
+            member_count = session.query(User).filter_by(community_id=community_id).count()
             if member_count > 0:
                 raise ValueError({
                     'user_count': member_count
@@ -857,7 +837,7 @@ class CommunityService:
     @staticmethod
     def search_users(keyword, community_id=None):
         """搜索用户"""
-        from database.models import CommunityStaff, CommunityMember
+        from database.models import CommunityStaff
 
         db = get_db()
         with db.get_session() as session:
@@ -885,10 +865,7 @@ class CommunityService:
 
                 # 如果指定了community_id,检查是否已在该社区
                 if community_id:
-                    already_in = session.query(CommunityMember).filter_by(
-                        community_id=community_id,
-                        user_id=u.user_id
-                    ).first() is not None
+                    already_in = u.community_id == community_id
                     user_data['already_in_community'] = already_in
 
                 result.append(user_data)

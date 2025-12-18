@@ -32,6 +32,7 @@ class User(Base, QueryMixin):
     verification_materials = Column(Text, comment='验证材料')
     _is_community_worker = Column('is_community_worker', Boolean, default=False)
     community_id = Column(Integer, ForeignKey('communities.community_id', use_alter=True))
+    community_joined_at = Column(DateTime, comment='加入当前社区的时间')
     refresh_token = Column(String(128), comment='刷新令牌')
     refresh_token_expire = Column(DateTime, comment='刷新令牌过期时间')
     created_at = Column(DateTime, default=datetime.now)
@@ -310,7 +311,7 @@ class Counters(Base, QueryMixin):
 # 导出所有模型
 __all__ = [
     'Base', 'User', 'Community', 'CheckinRule', 'CheckinRecord',
-    'SupervisionRuleRelation', 'CommunityStaff', 'CommunityMember',
+    'SupervisionRuleRelation', 'CommunityStaff',
     'CommunityApplication', 'ShareLink', 'ShareLinkAccessLog',
     'VerificationCode', 'UserAuditLog', 'Counters'
 ]

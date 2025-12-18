@@ -1035,7 +1035,7 @@ def remove_community_staff():
 @app.route('/api/community/users', methods=['GET'])
 def get_community_users_list():
     """获取社区用户列表 (新版API)"""
-    from database.models import CommunityMember, CommunityStaff
+    from database.models import CommunityStaff
     from database.models import CheckinRecord
     from datetime import date
 
@@ -1075,19 +1075,18 @@ def get_community_users_list():
             if not staff_record:
                 return make_err_response({}, '权限不足')
 
-        # 分页查询社区成员
+        # 分页查询社区成员 - 使用User表查询
         offset = (page - 1) * page_size
-        query = CommunityMember.query.filter_by(community_id=community_id)
+        query = User.query.filter_by(community_id=community_id)
         total = query.count()
-        members = query.order_by(CommunityMember.joined_at.desc()).offset(
+        members = query.order_by(User.community_joined_at.desc()).offset(
             offset).limit(page_size).all()
 
         # 格式化响应数据
         users = []
         today = date.today()
 
-        for member in members:
-            member_user = User.query.get(member.user_id)
+        for member_user in members:
             if not member_user:
                 continue
 
@@ -1095,7 +1094,7 @@ def get_community_users_list():
             from sqlalchemy import and_, func
             unchecked_records = CheckinRecord.query.filter(
                 and_(
-                    CheckinRecord.solo_user_id == member.user_id,
+                    CheckinRecord.solo_user_id == member_user.user_id,
                     func.date(CheckinRecord.planned_time) == today,
                     CheckinRecord.status == 0  # 0-missed(未打卡)
                 )
@@ -1115,7 +1114,7 @@ def get_community_users_list():
                 'nickname': member_user.nickname,
                 'avatar_url': member_user.avatar_url,
                 'phone_number': member_user.phone_number,
-                'join_time': member.joined_at.isoformat() if member.joined_at else None,
+                'join_time': member_user.community_joined_at.isoformat() if member_user.community_joined_at else None,
                 'unchecked_count': len(unchecked_items),
                 'unchecked_items': unchecked_items
             }
@@ -1140,8 +1139,9 @@ def get_community_users_list():
 @app.route('/api/community/add-users', methods=['POST'])
 def add_community_users():
     """添加社区用户"""
-    from database.models import CommunityMember, CommunityStaff
+    from database.models import CommunityStaff
     from wxcloudrun.dao import get_db
+    from datetime import datetime
 
     app_logger.info('=== 开始添加社区用户 ===')
 
@@ -1199,26 +1199,20 @@ def add_community_users():
                         continue
 
                     # 检查是否已在社区
-                    existing = session.query(CommunityMember).filter_by(
-                        community_id=community_id,
-                        user_id=uid
-                    ).first()
-
-                    if existing:
+                    if target_user.community_id == community_id:
                         failed.append({'user_id': uid, 'reason': '用户已在社区'})
                         continue
 
-                    # 添加用户到社区
-                    member = CommunityMember(
-                        community_id=community_id,
-                        user_id=uid
-                    )
-                    session.add(member)
+                    # 更新用户社区信息
+                    target_user.community_id = community_id
+                    target_user.community_joined_at = datetime.now()
                     added_count += 1
 
                 except Exception as e:
                     app_logger.error(f'添加用户失败 user_id={uid}: {str(e)}')
                     failed.append({'user_id': uid, 'reason': str(e)})
+
+            session.commit()
 
             if added_count == 0:
                 return make_err_response({'added_count': added_count, 'failed': failed}, '添加失败')
@@ -1539,7 +1533,7 @@ def toggle_community_status_new():
 @app.route('/api/community/delete', methods=['POST'])
 def delete_community_new():
     """删除社区 (新版API)"""
-    from database.models import CommunityMember, CommunityStaff
+    from database.models import CommunityStaff
     from const_default import DEFUALT_COMMUNITY_NAME
     app_logger.info('=== 开始删除社区 ===')
 
@@ -1579,8 +1573,7 @@ def delete_community_new():
             return make_err_response({}, '请先停用社区')
 
         # 检查社区内是否还有用户
-        member_count = CommunityMember.query.filter_by(
-            community_id=community_id).count()
+        member_count = User.query.filter_by(community_id=community_id).count()
         if member_count > 0:
             return make_err_response({
                 'user_count': member_count
@@ -1607,7 +1600,7 @@ def delete_community_new():
 @app.route('/api/user/search', methods=['GET'])
 def search_users_for_community():
     """搜索用户 (社区管理用)"""
-    from database.models import CommunityStaff, CommunityMember
+    from database.models import CommunityStaff
 
     app_logger.info('=== 开始搜索用户 ===')
 
@@ -1654,10 +1647,7 @@ def search_users_for_community():
 
             # 如果指定了community_id,检查是否已在该社区
             if community_id:
-                already_in = CommunityMember.query.filter_by(
-                    community_id=community_id,
-                    user_id=u.user_id
-                ).first() is not None
+                already_in = u.community_id == int(community_id) if community_id else False
                 user_data['already_in_community'] = already_in
 
             result.append(user_data)

@@ -212,6 +212,7 @@ class UserService:
         new_user.name=new_user.nickname  # 用户名都使用 nickname
         new_user.role = 1 # 默认是普通用户
         new_user.community_id = 1 # 默认为‘安卡大家庭’
+        new_user.community_joined_at = datetime.now()  # 设置加入社区时间
         new_user.status=1
         new_user.verification_status=2
         new_user._is_community_worker = False
