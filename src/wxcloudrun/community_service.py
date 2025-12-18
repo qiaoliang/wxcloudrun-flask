@@ -743,8 +743,12 @@ class CommunityService:
             anka_family = session.query(Community).filter_by(name=DEFUALT_COMMUNITY_NAME).first()
             blackhouse = session.query(Community).filter_by(name=DEFAULT_BLACK_ROOM_NAME).first()
 
+            # 如果从"黑屋"社区移除，不能删除用户
+            if community.name == DEFAULT_BLACK_ROOM_NAME:
+                raise ValueError("不能从黑屋社区删除用户")
+
             # 如果从"安卡大家庭"移除,移入"黑屋"
-            if community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
+            elif community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
                 # 检查是否已在黑屋
                 existing_in_blackhouse = session.query(CommunityMember).filter_by(
                     community_id=blackhouse.community_id,

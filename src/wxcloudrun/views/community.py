@@ -1236,9 +1236,8 @@ def add_community_users():
 @app.route('/api/community/remove-user', methods=['POST'])
 def remove_community_user():
     """移除社区用户"""
-    from database.models import CommunityMember, CommunityStaff
-    from const_default import DEFUALT_COMMUNITY_NAME
-    from wxcloudrun.dao import get_db
+    from wxcloudrun.community_service import CommunityService
+    from database.models import CommunityStaff
 
     app_logger.info('=== 开始移除社区用户 ===')
 
@@ -1248,108 +1247,44 @@ def remove_community_user():
         return error_response
 
     user_id = decoded.get('user_id')
+    user = User.query.get(user_id)
 
-    # 使用 get_db().get_session() 方式操作数据库
-    db = get_db()
-    with db.get_session() as session:
-        user = session.query(User).get(user_id)
+    if not user:
+        return make_err_response({}, '用户不存在')
 
-        if not user:
-            return make_err_response({}, '用户不存在')
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        target_user_id = data.get('user_id')
 
-        try:
-            data = request.get_json()
-            community_id = data.get('community_id')
-            target_user_id = data.get('user_id')
+        if not community_id or not target_user_id:
+            return make_err_response({}, '缺少必要参数')
 
-            if not community_id or not target_user_id:
-                return make_err_response({}, '缺少必要参数')
-
-            # 检查社区是否存在
-            community = session.query(Community).get(community_id)
-            if not community:
-                return make_err_response({}, '社区不存在')
-
-            # 权限检查: super_admin, community_manager 或 community_staff
-            if user.role != 4:  # 不是super_admin
-                staff_record = session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    user_id=user_id
-                ).first()
-                if not staff_record:
-                    return make_err_response({}, '权限不足')
-
-            # 查找成员记录
-            member = session.query(CommunityMember).filter_by(
+        # 权限检查: super_admin, community_manager 或 community_staff
+        if user.role != 4:  # 不是super_admin
+            staff_record = CommunityStaff.query.filter_by(
                 community_id=community_id,
-                user_id=target_user_id
+                user_id=user_id
             ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
 
-            if not member:
-                return make_err_response({}, '用户不在该社区')
+        # 调用服务层方法移除用户
+        result = CommunityService.remove_user_from_community(
+            community_id=community_id,
+            user_id=target_user_id
+        )
 
-            # 特殊社区逻辑处理
-            moved_to = None
+        app_logger.info(
+            f'移除社区用户成功: 社区{community_id}, 用户{target_user_id}, 移至{result.get("moved_to")}')
+        return make_succ_response(result)
 
-            # 获取特殊社区ID
-            anka_family = session.query(
-                Community).filter_by(name='安卡大家庭').first()
-            blackhouse = session.query(Community).filter_by(name=DEFAULT_BLACK_ROOM_NAME).first()
-
-            # 如果从"安卡大家庭"移除,移入"黑屋"
-            if community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
-                # 检查是否已在黑屋
-                existing_in_blackhouse = session.query(CommunityMember).filter_by(
-                    community_id=blackhouse.community_id,
-                    user_id=target_user_id
-                ).first()
-
-                if not existing_in_blackhouse:
-                    blackhouse_member = CommunityMember(
-                        community_id=blackhouse.community_id,
-                        user_id=target_user_id
-                    )
-                    session.add(blackhouse_member)
-                    moved_to = DEFAULT_BLACK_ROOM_NAME
-
-            # 如果从普通社区移除
-            elif community.name not in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
-                # 检查用户是否还属于其他普通社区
-                other_memberships = session.query(CommunityMember).filter(
-                    CommunityMember.user_id == target_user_id,
-                    CommunityMember.community_id != community_id
-                ).join(Community).filter(
-                    Community.name.notin_([DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME])
-                ).count()
-
-                # 如果不属于任何其他普通社区,移入"安卡大家庭"
-                if other_memberships == 0 and anka_family:
-                    # 检查是否已在安卡大家庭
-                    existing_in_anka = session.query(CommunityMember).filter_by(
-                        community_id=anka_family.community_id,
-                        user_id=target_user_id
-                    ).first()
-
-                    if not existing_in_anka:
-                        anka_member = CommunityMember(
-                            community_id=anka_family.community_id,
-                            user_id=target_user_id
-                        )
-                        session.add(anka_member)
-                        moved_to = DEFUALT_COMMUNITY_NAME
-
-            # 删除成员记录
-            session.delete(member)
-            session.commit()
-
-            app_logger.info(
-                f'移除社区用户成功: 社区{community_id}, 用户{target_user_id}, 移至{moved_to}')
-            return make_succ_response({'moved_to': moved_to})
-
-        except Exception as e:
-            session.rollback()
-            app_logger.error(f'移除社区用户失败: {str(e)}', exc_info=True)
-            return make_err_response({}, f'移除用户失败: {str(e)}')
+    except ValueError as e:
+        app_logger.error(f'移除社区用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, str(e))
+    except Exception as e:
+        app_logger.error(f'移除社区用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'移除用户失败: {str(e)}')
 
 
 # ============================================
