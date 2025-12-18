@@ -4,6 +4,7 @@
 """
 
 import logging
+import re
 from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
@@ -1989,3 +1990,98 @@ def get_community_detail(community_id):
     except Exception as e:
         app_logger.error(f'获取社区详情失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取社区详情失败: {str(e)}')
+
+
+@app.route('/api/community/create-user', methods=['POST'])
+def create_community_user():
+    """在社区中创建新用户（超级管理员在安卡大家庭中免验证码创建）"""
+    from wxcloudrun.user_service import UserService
+    from const_default import DEFUALT_COMMUNITY_NAME
+    
+    app_logger.info('=== 开始在社区中创建新用户 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_user = User.query.get(user_id)
+
+    if not current_user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        data = request.get_json()
+        community_id = data.get('community_id')
+        nickname = data.get('nickname', '').strip()
+        phone = data.get('phone', '').strip()
+        remark = data.get('remark', '').strip()
+
+        if not community_id:
+            return make_err_response({}, '缺少社区ID')
+        
+        if not nickname or len(nickname) < 2:
+            return make_err_response({}, '用户姓名至少2个字符')
+        
+        if not phone or not re.match(r'^1[3-9]\d{9}$', phone):
+            return make_err_response({}, '请输入正确的手机号码')
+
+        # 检查社区是否存在且是安卡大家庭
+        community = Community.query.get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+        
+        if community.name != DEFUALT_COMMUNITY_NAME:
+            return make_err_response({}, '此功能仅限安卡大家庭使用')
+
+        # 权限检查：必须是超级管理员
+        if current_user.role != 4:
+            return make_err_response({}, '仅超级管理员可以使用此功能')
+
+        # 检查手机号是否已存在
+        from wxcloudrun.utils.validators import normalize_phone_number
+        normalized_phone = normalize_phone_number(phone)
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(
+            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
+        
+        existing_user = User.query.filter_by(phone_hash=phone_hash).first()
+        if existing_user:
+            return make_err_response({'code': 'PHONE_EXISTS'}, '该手机号已注册')
+
+        # 创建新用户
+        app_logger.info(f'创建新用户: 手机号={normalized_phone}, 昵称={nickname}')
+        
+        # 使用UserService创建用户
+        new_user = User(
+            phone_number=normalized_phone,
+            nickname=nickname,
+            avatar_url='',  # 默认空头像
+            role=1,  # 默认角色：独居者
+            status=1,  # 正常状态
+            password='A123456'  # 默认密码
+        )
+        
+        # 调用UserService创建用户
+        created_user = UserService.create_user(new_user)
+        
+        # 将用户添加到安卡大家庭
+        from wxcloudrun.community_service import CommunityService
+        CommunityService.assign_user_to_community(created_user, DEFUALT_COMMUNITY_NAME)
+        
+        app_logger.info(f'用户创建并添加到社区成功: 用户ID={created_user.user_id}, 社区={community.name}')
+        
+        return make_succ_response({
+            'user_id': created_user.user_id,
+            'nickname': created_user.nickname,
+            'phone_number': created_user.phone_number,
+            'message': '用户创建并添加到社区成功'
+        })
+
+    except ValueError as e:
+        app_logger.error(f'创建用户失败（业务逻辑错误）: {str(e)}')
+        return make_err_response({}, f'创建用户失败: {str(e)}')
+    except Exception as e:
+        app_logger.error(f'创建用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'创建用户失败: {str(e)}')

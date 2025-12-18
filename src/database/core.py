@@ -15,7 +15,7 @@ class DatabaseCore:
     数据库核心类
     完全独立于Flask，支持多种使用模式
     """
-    
+
     def __init__(self, mode: str = 'standalone'):
         """
         初始化数据库核心
@@ -29,7 +29,7 @@ class DatabaseCore:
         self.session_factory = None
         self.metadata = MetaData()
         self._is_initialized = False
-        
+
     def initialize(self, db_uri: Optional[str] = None):
         """
         初始化数据库
@@ -37,7 +37,7 @@ class DatabaseCore:
         """
         if self._is_initialized:
             return
-            
+
         # 根据模式确定数据库URI
         if db_uri is None:
             if self.mode == 'test':
@@ -52,7 +52,7 @@ class DatabaseCore:
                 return
             else:
                 raise ValueError(f"未知的数据库模式: {self.mode}")
-        
+
         # 创建引擎
         if 'sqlite:///:memory:' in db_uri:
             # 内存数据库特殊配置
@@ -72,32 +72,31 @@ class DatabaseCore:
             )
         else:
             self.engine = create_engine(db_uri, echo=False)
-        
+
         # 创建会话工厂
         self.session_factory = sessionmaker(bind=self.engine)
         self._is_initialized = True
-        
+
         # 自动创建表（除了Flask模式）
         if self.mode != 'flask':
             self.create_tables()
-        
+
     def bind_to_flask(self, flask_db, app):
         """
-        绑定到Flask-SQLAlchemy实例
         仅在flask模式下使用
         """
         if self.mode != 'flask':
             raise ValueError("只有在flask模式下才能绑定到Flask")
-        
+
         # 直接使用Flask应用的引擎
         with app.app_context():
             self.engine = flask_db.engine
             self.session_factory = flask_db.session
             self._is_initialized = True
-            
+
             # 创建表
             self.create_tables()
-        
+
     @contextmanager
     def get_session(self) -> Session:
         """
@@ -105,7 +104,7 @@ class DatabaseCore:
         """
         if not self._is_initialized:
             raise RuntimeError("数据库未初始化")
-        
+
         if self.mode == 'flask':
             # Flask模式下直接返回session
             yield self.session_factory
@@ -120,14 +119,14 @@ class DatabaseCore:
                 raise
             finally:
                 session.close()
-    
+
     def query(self, *entities, **kwargs):
         """
-        提供类似 Flask-SQLAlchemy 的 query 方法
+        提供 query 方法
         """
         if not self._is_initialized:
             raise RuntimeError("数据库未初始化")
-        
+
         # 直接使用 session_factory 创建查询
         if self.session_factory:
             return self.session_factory().query(*entities, **kwargs)
@@ -139,31 +138,31 @@ class DatabaseCore:
                     return current_app.db_core.session_factory().query(*entities, **kwargs)
             except (RuntimeError, AttributeError):
                 pass
-            
+
             raise RuntimeError("无法获取数据库会话")
-    
+
     def create_tables(self):
         """创建所有表"""
         if not self._is_initialized:
             raise RuntimeError("数据库未初始化")
-        
+
         # 导入模型定义
         from .models import Base
         Base.metadata.create_all(self.engine)
-        
+
     def drop_tables(self):
         """删除所有表"""
         if not self._is_initialized:
             raise RuntimeError("数据库未初始化")
-        
+
         from .models import Base
         Base.metadata.drop_all(self.engine)
-        
+
     def reset_database(self):
         """重置数据库（仅测试模式）"""
         if self.mode != 'test':
             raise ValueError("只有测试模式支持重置数据库")
-        
+
         self.drop_tables()
         self.create_tables()
 
@@ -179,14 +178,14 @@ def get_database(mode: str = 'standalone') -> DatabaseCore:
     :return: 数据库核心实例
     """
     global _db_core
-    
+
     if _db_core is None or _db_core.mode != mode:
         _db_core = DatabaseCore(mode)
-        
+
         # 自动初始化（除了flask模式）
         if mode != 'flask':
             _db_core.initialize()
-    
+
     return _db_core
 
 

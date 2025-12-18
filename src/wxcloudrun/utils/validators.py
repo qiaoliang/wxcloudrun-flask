@@ -67,11 +67,12 @@ def _verify_sms_code(phone, purpose, code):
     if not should_use_real_sms():
         app.logger.info(f"[Mock SMS] 验证验证码，ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
         # 在测试环境下，验证一些明显无效的验证码
-        invalid_codes = ["000000", "999999", "12345", "1234567", "abcdef", "", " ", "null", "@#$%^&"]
+        # 注意：'000000' 现在作为特殊验证码，用于超级管理员免验证码创建用户
+        invalid_codes = ["999999", "12345", "1234567", "abcdef", "", " ", "null", "@#$%^&"]
         if code in invalid_codes:
             app.logger.info(f"[Mock SMS] 验证码 '{code}' 被识别为无效")
             return False
-        # 其他验证码视为有效
+        # 其他验证码视为有效（包括'000000'）
         return True
 
     vc = VerificationCode.query.filter_by(

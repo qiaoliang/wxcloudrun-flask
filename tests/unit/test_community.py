@@ -13,7 +13,7 @@ from unittest.mock import patch, MagicMock
 # 添加项目路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from database.models import User, Community, CommunityApplication, CommunityStaff, CommunityMember
+from database.models import User, Community, CommunityApplication, CommunityStaff
 
 
 def generate_random_openid():
@@ -151,15 +151,14 @@ class TestUserCommunityMethods:
         test_session.add(community)
         test_session.commit()
         
-        # 用户加入社区
-        member = CommunityMember(
-            community_id=community.community_id,
-            user_id=test_user.user_id
-        )
-        test_session.add(member)
+        # 用户加入社区（设置 community_id）
+        test_user.community_id = community.community_id
+        test_user.community_joined_at = datetime.now()
         test_session.commit()
         
-        assert member.id is not None
+        # 验证用户已加入社区
+        assert test_user.community_id == community.community_id
+        assert test_user.community_joined_at is not None
     
     def test_user_leave_community(self, test_session, test_user):
         """测试用户离开社区"""
@@ -169,33 +168,30 @@ class TestUserCommunityMethods:
         test_session.commit()
         
         # 用户加入社区
-        member = CommunityMember(
-            community_id=community.community_id,
-            user_id=test_user.user_id
-        )
-        test_session.add(member)
+        test_user.community_id = community.community_id
+        test_user.community_joined_at = datetime.now()
         test_session.commit()
         
-        # 用户离开社区（删除记录）
-        test_session.delete(member)
+        # 验证用户已加入社区
+        assert test_user.community_id == community.community_id
+        
+        # 用户离开社区（清空 community_id）
+        test_user.community_id = None
+        test_user.community_joined_at = None
         test_session.commit()
         
-        # 验证记录已删除
-        found_member = test_session.query(CommunityMember).filter_by(
-            community_id=community.community_id,
-            user_id=test_user.user_id
-        ).first()
-        assert found_member is None
+        # 验证用户已离开社区
+        assert test_user.community_id is None
+        assert test_user.community_joined_at is None
     
-    def test_community_member_fields(self, test_session):
-        """测试社区成员字段"""
-        member = CommunityMember()
+    def test_user_community_fields(self, test_session):
+        """测试用户社区相关字段"""
+        user = User()
         
-        # CommunityMember 只包含基本字段
-        assert hasattr(member, 'community_id')
-        assert hasattr(member, 'user_id')
-        assert hasattr(member, 'joined_at')
-        assert hasattr(member, 'updated_at')
+        # User 表中与社区相关的字段
+        assert hasattr(user, 'community_id')
+        assert hasattr(user, 'community_joined_at')
+        assert hasattr(user, '_is_community_worker')
 
 
 class TestCommunityConstraints:
@@ -222,67 +218,54 @@ class TestCommunityConstraints:
         # 注意：实际约束行为取决于数据库配置
         test_session.rollback()
     
-    def test_user_cannot_join_same_community_twice(self, test_session, test_user):
-        """测试用户不能重复加入同一社区"""
-        # 创建社区
-        community = Community(name=generate_random_community_name())
-        test_session.add(community)
+    def test_user_can_only_belong_to_one_community(self, test_session, test_user):
+        """测试用户只能属于一个社区"""
+        # 创建两个社区
+        community1 = Community(name='社区1')
+        community2 = Community(name='社区2')
+        test_session.add_all([community1, community2])
         test_session.commit()
         
-        # 用户第一次加入社区
-        member1 = CommunityMember(
-            community_id=community.community_id,
-            user_id=test_user.user_id
-        )
-        test_session.add(member1)
+        # 用户加入第一个社区
+        test_user.community_id = community1.community_id
+        test_user.community_joined_at = datetime.now()
         test_session.commit()
         
-        # 尝试再次加入同一社区
-        member2 = CommunityMember(
-            community_id=community.community_id,
-            user_id=test_user.user_id
-        )
-        test_session.add(member2)
+        # 验证用户属于第一个社区
+        assert test_user.community_id == community1.community_id
         
-        # 应该抛出异常或违反约束
-        # 注意：实际约束行为取决于数据库配置
-        test_session.rollback()
+        # 用户切换到第二个社区
+        test_user.community_id = community2.community_id
+        test_user.community_joined_at = datetime.now()
+        test_session.commit()
+        
+        # 验证用户现在属于第二个社区
+        assert test_user.community_id == community2.community_id
+        assert test_user.community_id != community1.community_id
 
 
 class TestCommunityQueries:
     """社区查询测试"""
     
-    def test_get_communities_by_user(self, test_session, test_user):
+    def test_get_user_community(self, test_session, test_user):
         """测试获取用户所属社区"""
-        # 创建多个社区
-        community1 = Community(name='社区1')
-        community2 = Community(name='社区2')
-        community3 = Community(name='社区3')
-        test_session.add_all([community1, community2, community3])
+        # 创建社区
+        community = Community(name='测试社区')
+        test_session.add(community)
         test_session.commit()
         
-        # 用户加入部分社区
-        member1 = CommunityMember(
-            community_id=community1.community_id,
-            user_id=test_user.user_id
-        )
-        member2 = CommunityMember(
-            community_id=community2.community_id,
-            user_id=test_user.user_id
-        )
-        test_session.add_all([member1, member2])
+        # 用户加入社区
+        test_user.community_id = community.community_id
+        test_user.community_joined_at = datetime.now()
         test_session.commit()
         
         # 查询用户所属社区
-        user_communities = test_session.query(Community).join(CommunityMember).filter(
-            CommunityMember.user_id == test_user.user_id
-        ).all()
+        user_community = test_session.query(Community).filter(
+            Community.community_id == test_user.community_id
+        ).first()
         
-        assert len(user_communities) == 2
-        community_names = [c.name for c in user_communities]
-        assert '社区1' in community_names
-        assert '社区2' in community_names
-        assert '社区3' not in community_names
+        assert user_community is not None
+        assert user_community.name == '测试社区'
     
     def test_get_community_staff(self, test_session, test_user, test_community):
         """测试获取社区工作人员"""

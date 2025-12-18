@@ -145,7 +145,7 @@ flowchart TD
 
     E --> H[创建引擎和会话工厂]
     F --> H
-    G --> I[绑定到 Flask-SQLAlchemy]
+    G --> I[绑定到 SQLAlchemy]
 
     H --> J{是否为 Flask 模式?}
     J -->|否| K[自动创建表]

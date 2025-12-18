@@ -1,6 +1,6 @@
 """
 模型查询混入类
-为纯 SQLAlchemy 模型提供类似 Flask-SQLAlchemy 的查询接口
+为纯 SQLAlchemy 模型提供查询接口
 """
 from typing import TypeVar, TYPE_CHECKING
 from .core import get_database
@@ -12,7 +12,7 @@ T = TypeVar('T', bound='QueryMixin')
 
 
 class QueryProperty:
-    """查询属性描述符，模仿 Flask-SQLAlchemy 的 query 属性"""
+    """查询属性描述符，"""
 
     def __get__(self, instance, owner):
         if instance is not None:
@@ -46,7 +46,7 @@ class QueryMixin:
     @classmethod
     def get(cls: type[T], ident):
         """
-        根据主键获取对象，模仿 Flask-SQLAlchemy 的 get 方法
+        根据主键获取对象 的 get 方法
         """
         return cls.query.get(ident)
 
@@ -60,27 +60,27 @@ class QueryMixin:
     @classmethod
     def filter(cls: type[T], *criterion):
         """
-        过滤查询，模仿 Flask-SQLAlchemy 的 filter 方法
+        过滤查询的 filter 方法
         """
         return cls.query.filter(*criterion)
 
     @classmethod
     def all(cls: type[T]):
         """
-        获取所有记录，模仿 Flask-SQLAlchemy 的 all 方法
+        获取所有记录的 all 方法
         """
         return cls.query.all()
 
     @classmethod
     def first(cls: type[T]):
         """
-        获取第一条记录，模仿 Flask-SQLAlchemy 的 first 方法
+        获取第一条记录的 first 方法
         """
         return cls.query.first()
 
     @classmethod
     def count(cls: type[T]):
         """
-        获取记录数量，模仿 Flask-SQLAlchemy 的 count 方法
+        获取记录数量 的 count 方法
         """
         return cls.query.count()

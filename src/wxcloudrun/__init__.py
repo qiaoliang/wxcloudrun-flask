@@ -40,7 +40,7 @@ db_core = None
 # 导入模型（使用新的数据库模块）
 from database.models import (
     User, Community, CheckinRule, CheckinRecord,
-    SupervisionRuleRelation, CommunityStaff, CommunityMember,
+    SupervisionRuleRelation, CommunityStaff,
     CommunityApplication, ShareLink, ShareLinkAccessLog,
     VerificationCode, UserAuditLog, Counters
 )

@@ -200,22 +200,6 @@ class CommunityStaff(Base, QueryMixin):
     community = relationship('Community', backref='staff_members')
     user = relationship('User', backref='staff_roles')
 
-
-class CommunityMember(Base, QueryMixin):
-    """社区成员表"""
-    __tablename__ = 'community_members'
-
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
-    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
-    joined_at = Column(DateTime, default=datetime.now)
-    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-
-    # 关系
-    community = relationship('Community', backref='members')
-    user = relationship('User', backref='community_memberships')
-
-
 class CommunityApplication(Base, QueryMixin):
     """社区申请表"""
     __tablename__ = 'community_applications'
