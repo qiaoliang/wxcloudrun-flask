@@ -294,6 +294,9 @@ class CommunityService:
             offset = (page - 1) * per_page
             users = query.offset(offset).limit(per_page).all()
             
+            # 在会话关闭前将User对象转换为字典，避免会话分离问题
+            user_dicts = [CommunityService._user_to_dict(user) for user in users]
+            
             # 创建类似paginate对象的数据结构
             class Pagination:
                 def __init__(self, items, page, per_page, total):
@@ -303,7 +306,7 @@ class CommunityService:
                     self.total = total
                     self.pages = (total + per_page - 1) // per_page if per_page > 0 else 0
             
-            return Pagination(users, page, per_page, total)
+            return Pagination(user_dicts, page, per_page, total)
 
     @staticmethod
     def get_available_communities():
@@ -335,6 +338,20 @@ class CommunityService:
             'creator_user_id': community.creator_user_id,
             'created_at': community.created_at,
             'updated_at': community.updated_at
+        }
+
+    @staticmethod
+    def _user_to_dict(user):
+        """将User对象转换为字典，避免会话分离问题"""
+        return {
+            'user_id': user.user_id,
+            'nickname': user.nickname,
+            'avatar_url': user.avatar_url,
+            'phone_number': user.phone_number,
+            'role': user.role,
+            'role_name': user.role_name,
+            'verification_status': user.verification_status,
+            'created_at': user.created_at
         }
 
     @staticmethod

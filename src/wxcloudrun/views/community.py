@@ -300,17 +300,18 @@ def get_community_users(community_id):
             per_page=per_page
         )
 
+        # 现在pagination.items已经是字典列表，直接使用
         users = []
-        for u in pagination.items:
+        for user_dict in pagination.items:
             users.append({
-                'user_id': u.user_id,
-                'nickname': u.nickname,
-                'avatar_url': u.avatar_url,
-                'phone_number': u.phone_number,
-                'role': u.role,
-                'role_name': u.role_name,
-                'verification_status': u.verification_status,
-                'created_at': u.created_at.isoformat() if u.created_at else None
+                'user_id': user_dict['user_id'],
+                'nickname': user_dict['nickname'],
+                'avatar_url': user_dict['avatar_url'],
+                'phone_number': user_dict['phone_number'],
+                'role': user_dict['role'],
+                'role_name': user_dict['role_name'],
+                'verification_status': user_dict['verification_status'],
+                'created_at': user_dict['created_at'].isoformat() if user_dict['created_at'] else None
             })
 
         result = {
