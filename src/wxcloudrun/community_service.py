@@ -289,14 +289,21 @@ class CommunityService:
                     # 昵称模糊搜索
                     query = query.filter(User.nickname.like(f"%{keyword}%"))
 
-            # 分页
-            pagination = query.paginate(
-                page=page,
-                per_page=per_page,
-                error_out=False
-            )
-
-            return pagination
+            # 分页 - 使用offset和limit实现
+            total = query.count()
+            offset = (page - 1) * per_page
+            users = query.offset(offset).limit(per_page).all()
+            
+            # 创建类似paginate对象的数据结构
+            class Pagination:
+                def __init__(self, items, page, per_page, total):
+                    self.items = items
+                    self.page = page
+                    self.per_page = per_page
+                    self.total = total
+                    self.pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+            
+            return Pagination(users, page, per_page, total)
 
     @staticmethod
     def get_available_communities():
