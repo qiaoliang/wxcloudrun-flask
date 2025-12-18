@@ -12,7 +12,7 @@ from database import get_database
 from database.models import User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
-
+from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
 app_logger = logging.getLogger('log')
 
 # 获取数据库实例
@@ -78,6 +78,7 @@ def _format_community_data(community):
             'status_name': community.status_name,
             'location': community.location,
             'is_default': community.is_default,
+            'is_blackhouse': community.is_blackhouse,
             'created_at': community.created_at.isoformat() if community.created_at else None,
             'updated_at': community.updated_at.isoformat() if community.updated_at else None,
             'creator': creator,
@@ -142,6 +143,7 @@ def get_communities():
                     'status_name': community.status_name,
                     'location': community.location,
                     'is_default': community.is_default,
+                    'is_blackhouse': community.is_blackhouse,
                     'created_at': community.created_at.isoformat() if community.created_at else None,
                     'updated_at': community.updated_at.isoformat() if community.updated_at else None,
                     'creator': creator,
@@ -1292,7 +1294,7 @@ def remove_community_user():
             # 获取特殊社区ID
             anka_family = session.query(
                 Community).filter_by(name='安卡大家庭').first()
-            blackhouse = session.query(Community).filter_by(name='黑屋').first()
+            blackhouse = session.query(Community).filter_by(name=DEFAULT_BLACK_ROOM_NAME).first()
 
             # 如果从"安卡大家庭"移除,移入"黑屋"
             if community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
@@ -1308,16 +1310,16 @@ def remove_community_user():
                         user_id=target_user_id
                     )
                     session.add(blackhouse_member)
-                    moved_to = '黑屋'
+                    moved_to = DEFAULT_BLACK_ROOM_NAME
 
             # 如果从普通社区移除
-            elif community.name not in [DEFUALT_COMMUNITY_NAME, '黑屋']:
+            elif community.name not in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
                 # 检查用户是否还属于其他普通社区
                 other_memberships = session.query(CommunityMember).filter(
                     CommunityMember.user_id == target_user_id,
                     CommunityMember.community_id != community_id
                 ).join(Community).filter(
-                    Community.name.notin_([DEFUALT_COMMUNITY_NAME, '黑屋'])
+                    Community.name.notin_([DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME])
                 ).count()
 
                 # 如果不属于任何其他普通社区,移入"安卡大家庭"
@@ -1581,7 +1583,7 @@ def toggle_community_status_new():
                 return make_err_response({}, '社区不存在')
 
             # 特殊社区不能停用
-            if community.name in [DEFUALT_COMMUNITY_NAME, '黑屋']:
+            if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
                 return make_err_response({}, '特殊社区不能停用')
 
             # 更新状态
@@ -1634,7 +1636,7 @@ def delete_community_new():
             return make_err_response({}, '社区不存在')
 
         # 特殊社区不能删除
-        if community.name in [DEFUALT_COMMUNITY_NAME, '黑屋']:
+        if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
             return make_err_response({}, '特殊社区不能删除')
 
         # 检查社区状态
@@ -2007,6 +2009,7 @@ def _get_community_detail_data(community_id):
             'location': community.location,
             'status': 'active' if community.status == 1 else 'inactive',
             'is_default': community.is_default,
+            'is_blackhouse': community.is_blackhouse,
             'created_at': community.created_at.isoformat() if community.created_at else None,
             'updated_at': community.updated_at.isoformat() if community.updated_at else None,
             'creator': creator,

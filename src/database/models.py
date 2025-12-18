@@ -95,6 +95,7 @@ class Community(Base, QueryMixin):
     location_lat = Column(Float, comment='纬度')
     location_lon = Column(Float, comment='经度')
     is_default = Column(Boolean, default=False, nullable=False, comment='是否默认社区')
+    is_blackhouse = Column(Boolean, default=False, nullable=False, comment='是否黑屋社区')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 

@@ -10,7 +10,7 @@ from datetime import datetime
 from hashlib import sha256
 from .dao import get_db
 from database.models import User, Community, CommunityApplication, UserAuditLog
-from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID
+from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
 logger = logging.getLogger('CommunityService')
 
 
@@ -293,10 +293,10 @@ class CommunityService:
             total = query.count()
             offset = (page - 1) * per_page
             users = query.offset(offset).limit(per_page).all()
-            
+
             # 在会话关闭前将User对象转换为字典，避免会话分离问题
             user_dicts = [CommunityService._user_to_dict(user) for user in users]
-            
+
             # 创建类似paginate对象的数据结构
             class Pagination:
                 def __init__(self, items, page, per_page, total):
@@ -305,7 +305,7 @@ class CommunityService:
                     self.per_page = per_page
                     self.total = total
                     self.pages = (total + per_page - 1) // per_page if per_page > 0 else 0
-            
+
             return Pagination(user_dicts, page, per_page, total)
 
     @staticmethod
@@ -335,6 +335,7 @@ class CommunityService:
             'status': community.status,
             'location': community.location or '',
             'is_default': community.is_default,
+            'is_blackhouse': community.is_blackhouse,
             'creator_user_id': community.creator_user_id,
             'created_at': community.created_at,
             'updated_at': community.updated_at
@@ -380,7 +381,7 @@ class CommunityService:
     def get_manager_communities(user_id, status_filter='all', page=1, page_size=20):
         """获取用户作为主管的社区列表"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             # 获取用户作为主管的社区ID
@@ -388,27 +389,27 @@ class CommunityService:
                 user_id=user_id,
                 role='manager'
             ).all()
-            
+
             community_ids = [record.community_id for record in staff_records]
-            
+
             if not community_ids:
                 return [], 0
-            
+
             query = session.query(Community).filter(
                 Community.community_id.in_(community_ids)
             )
-            
+
             # 状态筛选
             if status_filter == 'active':
                 query = query.filter_by(status=1)
             elif status_filter == 'inactive':
                 query = query.filter_by(status=2)
-            
+
             # 分页
             total = query.count()
             offset = (page - 1) * page_size
             communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
-            
+
             # 转换为字典列表，避免会话分离问题
             community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
             return community_dicts, total
@@ -417,34 +418,34 @@ class CommunityService:
     def get_staff_communities(user_id, status_filter='all', page=1, page_size=20):
         """获取用户作为工作人员的社区列表（包括主管和专员）"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             # 获取用户作为工作人员的社区ID
             staff_records = session.query(CommunityStaff).filter_by(
                 user_id=user_id
             ).all()
-            
+
             community_ids = [record.community_id for record in staff_records]
-            
+
             if not community_ids:
                 return [], 0
-            
+
             query = session.query(Community).filter(
                 Community.community_id.in_(community_ids)
             )
-            
+
             # 状态筛选
             if status_filter == 'active':
                 query = query.filter_by(status=1)
             elif status_filter == 'inactive':
                 query = query.filter_by(status=2)
-            
+
             # 分页
             total = query.count()
             offset = (page - 1) * page_size
             communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
-            
+
             # 转换为字典列表，避免会话分离问题
             community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
             return community_dicts, total
@@ -740,7 +741,7 @@ class CommunityService:
 
             # 获取特殊社区ID
             anka_family = session.query(Community).filter_by(name=DEFUALT_COMMUNITY_NAME).first()
-            blackhouse = session.query(Community).filter_by(name='黑屋').first()
+            blackhouse = session.query(Community).filter_by(name=DEFAULT_BLACK_ROOM_NAME).first()
 
             # 如果从"安卡大家庭"移除,移入"黑屋"
             if community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
@@ -756,16 +757,16 @@ class CommunityService:
                         user_id=user_id
                     )
                     session.add(blackhouse_member)
-                    moved_to = '黑屋'
+                    moved_to = DEFAULT_BLACK_ROOM_NAME
 
             # 如果从普通社区移除
-            elif community.name not in [DEFUALT_COMMUNITY_NAME, '黑屋']:
+            elif community.name not in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
                 # 检查用户是否还属于其他普通社区
                 other_memberships = session.query(CommunityMember).filter(
                     CommunityMember.user_id == user_id,
                     CommunityMember.community_id != community_id
                 ).join(Community).filter(
-                    Community.name.notin_([DEFUALT_COMMUNITY_NAME, '黑屋'])
+                    Community.name.notin_([DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME])
                 ).count()
 
                 # 如果不属于任何其他普通社区,移入"安卡大家庭"
@@ -803,7 +804,7 @@ class CommunityService:
                 raise ValueError("社区不存在")
 
             # 特殊社区不能删除
-            if community.name in [DEFUALT_COMMUNITY_NAME, '黑屋']:
+            if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
                 raise ValueError("特殊社区不能删除")
 
             # 检查社区状态
@@ -837,7 +838,7 @@ class CommunityService:
                 raise ValueError("社区不存在")
 
             # 特殊社区不能停用
-            if community.name in [DEFUALT_COMMUNITY_NAME, '黑屋']:
+            if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
                 raise ValueError("特殊社区不能停用")
 
             # 更新状态
@@ -894,7 +895,7 @@ class CommunityService:
     def get_manageable_communities(user, page=1, per_page=7):
         """获取用户可管理的社区列表"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             if user.role == 4:  # 超级管理员
@@ -905,31 +906,31 @@ class CommunityService:
                     user_id=user.user_id
                 ).all()
                 community_ids = [sc.community_id for sc in staff_communities]
-                
+
                 if not community_ids:
                     return [], 0
-                
+
                 query = session.query(Community).filter(
                     Community.community_id.in_(community_ids),
                     Community.status == 1  # 启用状态
                 )
-            
+
             # 分页查询
             total = query.count()
             offset = (page - 1) * per_page
             communities = query.order_by(Community.created_at.desc()).offset(offset).limit(per_page).all()
-            
+
             # 将对象从会话中分离，避免DetachedInstanceError
             for community in communities:
                 session.expunge(community)
-            
+
             return communities, total
 
     @staticmethod
     def search_communities_with_permission(user, keyword):
         """搜索社区（根据权限过滤）"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             if user.role == 4:  # 超级管理员
@@ -943,95 +944,95 @@ class CommunityService:
                     user_id=user.user_id
                 ).all()
                 community_ids = [sc.community_id for sc in staff_communities]
-                
+
                 if not community_ids:
                     return []
-                
+
                 query = session.query(Community).filter(
                     Community.community_id.in_(community_ids),
                     Community.name.like(f'%{keyword}%'),
                     Community.status == 1
                 )
-            
+
             communities = query.limit(20).all()  # 限制搜索结果数量
-            
+
             # 将对象从会话中分离，避免DetachedInstanceError
             for community in communities:
                 session.expunge(community)
-            
+
             return communities
 
     @staticmethod
     def can_access_community(user, community_id):
         """检查用户是否可以访问社区（查看详情）"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             if user.role == 4:  # 超级管理员
                 return True
-            
+
             # 检查是否是社区工作人员
             staff = session.query(CommunityStaff).filter_by(
                 community_id=community_id,
                 user_id=user.user_id
             ).first()
-            
+
             return staff is not None
 
     @staticmethod
     def can_manage_users(user, community_id):
         """检查用户是否可以管理社区用户（增删普通用户）"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             if user.role == 4:  # 超级管理员
                 return True
-            
+
             # 检查是否是社区工作人员（主管或专员都可以管理用户）
             staff = session.query(CommunityStaff).filter_by(
                 community_id=community_id,
                 user_id=user.user_id
             ).first()
-            
+
             return staff is not None
 
     @staticmethod
     def can_manage_staff(user, community_id):
         """检查用户是否可以管理社区工作人员（增删专员）"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             if user.role == 4:  # 超级管理员
                 return True
-            
+
             # 只有社区主管可以管理工作人员
             staff = session.query(CommunityStaff).filter_by(
                 community_id=community_id,
                 user_id=user.user_id,
                 role='manager'  # 主管角色
             ).first()
-            
+
             return staff is not None
 
     @staticmethod
     def is_community_manager(user, community_id):
         """检查用户是否是社区主管"""
         from database.models import CommunityStaff
-        
+
         db = get_db()
         with db.get_session() as session:
             if user.role == 4:  # 超级管理员
                 return True
-            
+
             staff = session.query(CommunityStaff).filter_by(
                 community_id=community_id,
                 user_id=user.user_id,
                 role='manager'  # 主管角色
             ).first()
-            
+
             return staff is not None
 
     @staticmethod
@@ -1043,18 +1044,18 @@ class CommunityService:
             ankafamily = session.query(Community).filter_by(is_default=True).first()
             if not ankafamily:
                 raise ValueError("安卡大家庭社区不存在")
-            
+
             # 检查用户当前社区
             user = session.query(User).get(user_id)
             if not user:
                 raise ValueError("用户不存在")
-            
+
             # 用户必须在安卡大家庭才能被添加到其他社区
             if user.community_id != ankafamily.community_id:
                 raise ValueError("用户不在安卡大家庭，无法添加到其他社区")
-            
+
             # 检查目标社区不是安卡大家庭
             if target_community_id == ankafamily.community_id:
                 raise ValueError("不能将用户添加到安卡大家庭")
-            
+
             return True

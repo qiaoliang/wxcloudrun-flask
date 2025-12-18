@@ -105,4 +105,44 @@ class TestApplicationInitialization:
         assert default_community['admin_count'] == 1  # 超级管理员
         assert default_community['user_count'] == 0   # 暂无普通用户
 
-        print("✅ 应用初始化测试通过：默认社区和超级管理员已正确创建")
+        # 8. 验证黑屋社区存在
+        blackhouse_community = None
+        for community in communities:
+            if community['name'] == '黑屋':
+                blackhouse_community = community
+                break
+
+        # 9. 验证黑屋社区的属性
+        if blackhouse_community is None:
+            pytest.fail("黑屋社区 '黑屋' 不存在 - 应用初始化未完成")
+
+        assert blackhouse_community['description'] == "特殊管理社区，用户在此社区时功能受限"
+        assert blackhouse_community['status'] == 1  # 启用状态
+        assert blackhouse_community['is_blackhouse'] is True
+
+        # 10. 验证超级管理员是黑屋社区的管理员
+        blackhouse_staff_response = requests.get(f'{base_url}/api/community/staff/list?community_id={blackhouse_community["community_id"]}',
+                                                headers=headers, timeout=5)
+        assert blackhouse_staff_response.status_code == 200
+        blackhouse_staff_data = blackhouse_staff_response.json()
+        assert blackhouse_staff_data.get('code') == 1
+
+        blackhouse_staff_members = blackhouse_staff_data['data']['staff_members']
+        blackhouse_super_admin_found = False
+
+        for member in blackhouse_staff_members:
+            if member['user_id'] == login_user_id and member['role'] == 'manager':
+                blackhouse_super_admin_found = True
+                break
+
+        assert blackhouse_super_admin_found, "超级管理员不是黑屋社区的主管"
+
+        # 验证黑屋社区的创建者信息
+        assert blackhouse_community['creator']['user_id'] == login_data['data']['user_id']
+        assert blackhouse_community['creator']['nickname'] == "系统超级管理员"
+
+        # 验证黑屋社区统计信息
+        assert blackhouse_community['admin_count'] == 1  # 超级管理员
+        assert blackhouse_community['user_count'] == 0   # 初始时没有任何用户
+
+        print("✅ 应用初始化测试通过：默认社区、黑屋社区和超级管理员已正确创建")

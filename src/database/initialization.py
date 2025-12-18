@@ -9,7 +9,7 @@ import os
 from hashlib import sha256
 from database.models import User, Community, CommunityStaff
 from database.core import get_database
-from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID
+from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID,BLACKHOUSE_COMMUNITY_NAME
 
 
 def create_super_admin_and_default_community(db_core):
@@ -125,8 +125,71 @@ def create_super_admin_and_default_community(db_core):
                 session.add(staff_relation)
                 logger.info(f"超级管理员设置为社区主管，社区ID: {default_community.community_id}")
 
+            # 检查黑屋社区是否已存在
+            logger.info("检查黑屋社区是否存在...")
+            existing_blackhouse = session.query(Community).filter(
+                Community.name == BLACKHOUSE_COMMUNITY_NAME
+            ).first()
+
+            if existing_blackhouse:
+                logger.info(f"黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'已存在，跳过创建")
+
+                # 确保超级管理员是黑屋社区主管
+                admin_user = session.query(User).filter(
+                    User.phone_number == '13900007997'
+                ).first()
+
+                if admin_user:
+                    existing_staff = session.query(CommunityStaff).filter(
+                        CommunityStaff.community_id == existing_blackhouse.community_id,
+                        CommunityStaff.user_id == admin_user.user_id,
+                        CommunityStaff.role == 'manager'
+                    ).first()
+
+                    if not existing_staff:
+                        # 设置为黑屋社区主管
+                        staff_relation = CommunityStaff(
+                            community_id=existing_blackhouse.community_id,
+                            user_id=admin_user.user_id,
+                            role='manager'
+                        )
+                        session.add(staff_relation)
+                        logger.info(f"超级管理员设置为黑屋社区主管，社区ID: {existing_blackhouse.community_id}")
+            else:
+                logger.info("开始创建黑屋社区...")
+                # 获取超级管理员（应该已存在）
+                admin_user = session.query(User).filter(
+                    User.phone_number == '13900007997'
+                ).first()
+
+                if not admin_user:
+                    logger.error("超级管理员不存在，无法创建黑屋社区")
+                    raise Exception("超级管理员不存在，无法创建黑屋社区")
+
+                # 创建黑屋社区
+                blackhouse_community = Community(
+                    name=BLACKHOUSE_COMMUNITY_NAME,
+                    description='特殊管理社区，用户在此社区时功能受限',
+                    creator_user_id=admin_user.user_id,
+                    status=1,  # 启用状态
+                    is_blackhouse=True
+                )
+
+                session.add(blackhouse_community)
+                session.flush()  # 获取新创建的社区ID
+                logger.info(f"黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'创建成功，ID: {blackhouse_community.community_id}")
+
+                # 设置超级管理员为黑屋社区主管
+                staff_relation = CommunityStaff(
+                    community_id=blackhouse_community.community_id,
+                    user_id=admin_user.user_id,
+                    role='manager'
+                )
+                session.add(staff_relation)
+                logger.info(f"超级管理员设置为黑屋社区主管，社区ID: {blackhouse_community.community_id}")
+
             session.commit()
-            logger.info("超级管理员和默认社区初始化完成")
+            logger.info("超级管理员、默认社区和黑屋社区初始化完成")
 
     except Exception as e:
         logger.error(f"创建超级管理员和默认社区失败: {str(e)}")
