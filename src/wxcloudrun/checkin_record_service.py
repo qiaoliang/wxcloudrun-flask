@@ -65,7 +65,7 @@ class CheckinRecordService:
                 rule_id, user_id, checkin_time, planned_time, status=1)
 
         logger.info(f"用户 {user_id} 打卡成功，规则ID: {rule_id}, 记录ID: {record_id}")
-        
+
         return {
             'rule_id': rule_id,
             'record_id': record_id,
@@ -90,7 +90,7 @@ class CheckinRecordService:
         # 检查今天是否已打卡
         today = date.today()
         records = CheckinRecordService._query_records_by_rule_and_date(rule_id, today)
-        
+
         for record in records:
             if record.status == 1:  # 已打卡
                 raise ValueError('今日该事项已打卡，无需标记miss')
@@ -101,7 +101,7 @@ class CheckinRecordService:
             rule_id, user_id, None, planned_time, status=0)
 
         logger.info(f"用户 {user_id} 标记miss成功，规则ID: {rule_id}, 记录ID: {record_id}")
-        
+
         return {
             'record_id': record_id,
             'message': '已标记为miss'
@@ -120,7 +120,7 @@ class CheckinRecordService:
         record = CheckinRecordService.query_record_by_id(record_id)
         if not record:
             raise ValueError('打卡记录不存在')
-        
+
         # 权限验证
         if record.solo_user_id != user_id:
             raise ValueError('无权限撤销此打卡记录')
@@ -135,7 +135,7 @@ class CheckinRecordService:
         CheckinRecordService._update_record_status(record_id, None, 2)
 
         logger.info(f"用户 {user_id} 撤销打卡成功，记录ID: {record_id}")
-        
+
         return {
             'record_id': record_id,
             'message': '撤销打卡成功'
@@ -170,13 +170,13 @@ class CheckinRecordService:
                 })
 
             logger.info(f"获取打卡历史成功，用户ID: {user_id}, 记录数量: {len(history_data)}")
-            
+
             return {
                 'start_date': start_date.strftime('%Y-%m-%d'),
                 'end_date': end_date.strftime('%Y-%m-%d'),
                 'history': history_data
             }
-            
+
         except Exception as e:
             logger.error(f"获取打卡历史失败: {str(e)}")
             raise
@@ -447,7 +447,7 @@ class CheckinRecordService:
                     session.refresh(new_record)
                     record_id = new_record.record_id
                     session.expunge(new_record)
-                    
+
                 return record_id
             else:
                 # 使用传入的session
@@ -457,7 +457,7 @@ class CheckinRecordService:
                 record_id = new_record.record_id
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return record_id
-            
+
         except Exception as e:
             logger.error(f"创建打卡记录失败: {str(e)}")
             raise
@@ -479,30 +479,30 @@ class CheckinRecordService:
                     record = session.query(CheckinRecord).get(record_id)
                     if not record:
                         raise ValueError('打卡记录不存在')
-                    
+
                     record.checkin_time = checkin_time
                     record.status = status
                     record.updated_at = datetime.now()
-                    
+
                     session.flush()
                     session.commit()
-                    
+
                     return record_id
             else:
                 # 使用传入的session
                 record = session.query(CheckinRecord).get(record_id)
                 if not record:
                     raise ValueError('打卡记录不存在')
-                
+
                 record.checkin_time = checkin_time
                 record.status = status
                 record.updated_at = datetime.now()
-                
+
                 session.flush()
                 # 注意：使用外部传入的session时，由调用者负责commit
-                
+
                 return record_id
-                
+
         except Exception as e:
             logger.error(f"更新打卡记录失败: {str(e)}")
             raise

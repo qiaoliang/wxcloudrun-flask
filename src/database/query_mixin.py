@@ -48,7 +48,11 @@ class QueryMixin:
         """
         根据主键获取对象 的 get 方法
         """
-        return cls.query.get(ident)
+        # 使用 SQLAlchemy 2.0 兼容的方式
+        # cls.query 是一个查询对象，它有 session 属性
+        # 在 SQLAlchemy 2.0 中，session.query(Model).get(id) 已被弃用
+        # 应该使用 session.get(Model, id)
+        return cls.query.session.get(cls, ident)
 
     @classmethod
     def filter_by(cls: type[T], **kwargs):

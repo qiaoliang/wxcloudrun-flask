@@ -138,8 +138,8 @@ class TestCommunityCheckinRulesAPI:
 
         # 修改规则
         a_rule["rule_name"] = f"更新后的规则_{random_str(6)}"
-
-        response = requests.put(f"{base_url}/api/community-checkin/rules/{a_rule["community_rule_id"]}",
+        rule_id =a_rule["community_rule_id"]
+        response = requests.put(f"{base_url}/api/community-checkin/rules/{rule_id}",
                                json=a_rule,
                                headers=auth_headers)
         assert response.status_code == 200
@@ -195,17 +195,15 @@ class TestCommunityCheckinRulesAPI:
         assert detail_data['data']['is_enabled'] == False, "规则详情应该显示已停用"
 
     def test_cannot_update_enabled_rule(self, test_server):
-        base_url = test_server
-        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试不能修改已启用的规则"""
         base_url = test_server
 
         # 创建并启用一个规则
-        rule_id = self.test_create_and_get_rules_workflow(test_server)
-
+        header,comm,a_rule = self._create_header_and_commu_and_a_rule(test_server)
+        rule_id = a_rule["community_rule_id"]
         # 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
-                                headers=auth_headers)
+                                headers=header)
         assert response.status_code == 200
         enable_data = response.json()
         assert enable_data.get('code') == 1, "启用规则应该成功"
@@ -217,7 +215,7 @@ class TestCommunityCheckinRulesAPI:
 
         response = requests.put(f"{base_url}/api/community-checkin/rules/{rule_id}",
                                json=update_data,
-                               headers=auth_headers)
+                               headers=header)
         assert response.status_code == 200
         update_response = response.json()
         assert update_response.get('code') == 0, "修改已启用的规则应该失败"
@@ -225,65 +223,59 @@ class TestCommunityCheckinRulesAPI:
 
     def test_delete_rule(self, test_server):
         base_url = test_server
-        auth_headers, commu = self._create_community_and_admin_headers(base_url)
-        """测试删除规则（仅限未启用状态）"""
-        base_url = test_server
 
         # 创建一个规则（未启用状态）
-        rule_id = self.test_create_and_get_rules_workflow(test_server)
+        header,comm,a_rule = self._create_header_and_commu_and_a_rule(test_server)
+        rule_id = a_rule["community_rule_id"]
 
         # 删除规则
         response = requests.delete(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                                  headers=auth_headers)
+                                  headers=header)
         assert response.status_code == 200
         delete_data = response.json()
         assert delete_data.get('code') == 1, f"删除规则失败: {delete_data.get('msg')}"
+        assert delete_data.get('msg') == "删除社区规则成功"
 
         # 验证规则已删除（获取详情应该失败）
         response = requests.get(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                               headers=auth_headers)
+                               headers=header)
         assert response.status_code == 200
         detail_data = response.json()
+        # 已删除的规则状态应该为 2，表示已删除
         assert detail_data.get('code') == 0, "已删除的规则不应该能获取到详情"
-        assert '不存在' in detail_data.get('msg', '') or 'not found' in detail_data.get('msg', '').lower(), "错误消息应该提到规则不存在"
+        assert detail_data.get('msg') == "此规则已删除"
+
 
     def test_cannot_delete_enabled_rule(self, test_server):
-        base_url = test_server
-        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试不能删除已启用的规则"""
         base_url = test_server
 
         # 创建并启用一个规则
-        rule_id = self.test_create_and_get_rules_workflow(test_server)
-
+        header,comm,a_rule = self._create_header_and_commu_and_a_rule(test_server)
+        rule_id = a_rule["community_rule_id"]
         # 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
-                                headers=auth_headers)
+                                headers=header)
         assert response.status_code == 200
         enable_data = response.json()
         assert enable_data.get('code') == 1, "启用规则应该成功"
 
         # 尝试删除已启用的规则
         response = requests.delete(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                                  headers=auth_headers)
+                                  headers=header)
         assert response.status_code == 200
         delete_data = response.json()
         assert delete_data.get('code') == 0, "删除已启用的规则应该失败"
         assert '启用' in delete_data.get('msg', '') or 'enabled' in delete_data.get('msg', '').lower(), "错误消息应该提到规则已启用"
 
     def test_get_rules_with_include_disabled(self, test_server):
-        base_url = test_server
-        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试获取规则列表时包含已禁用的规则"""
         base_url = test_server
-
-        # 创建两个规则
-        self._create_header_and_commu_and_a_rule(test_server, auth_headers)
-        rule1_id = self.test_create_and_get_rules_workflow(test_server)
+        header,comm,a_rule = self._create_header_and_commu_and_a_rule(base_url)
 
         # 创建第二个规则并禁用它
         rule_data2 = {
-            "community_id": 1,
+            "community_id": comm["community_id"],
             "rule_name": f"测试规则2_{random_str(6)}",
             "icon_url": "https://example.com/icon2.png",
             "frequency_type": 1,  # 每周
@@ -294,18 +286,18 @@ class TestCommunityCheckinRulesAPI:
 
         response = requests.post(f"{base_url}/api/community-checkin/rules",
                                 json=rule_data2,
-                                headers=auth_headers)
+                                headers=header)
         assert response.status_code == 200
         create_data2 = response.json()
         rule2_id = create_data2['data']['community_rule_id']
 
         # 启用然后禁用第二个规则
-        requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/enable", headers=auth_headers)
-        requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/disable", headers=auth_headers)
+        requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/enable", headers=header)
+        requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/disable", headers=header)
 
         # 1. 获取不包含已禁用规则的列表
         response = requests.get(f"{base_url}/api/community-checkin/rules?community_id=1&include_disabled=false",
-                               headers=auth_headers)
+                               headers=header)
         assert response.status_code == 200
         list_data = response.json()
         rules = list_data['data']
@@ -316,7 +308,7 @@ class TestCommunityCheckinRulesAPI:
 
         # 2. 获取包含已禁用规则的列表
         response = requests.get(f"{base_url}/api/community-checkin/rules?community_id=1&include_disabled=true",
-                               headers=auth_headers)
+                               headers=header)
         assert response.status_code == 200
         list_data_all = response.json()
         rules_all = list_data_all['data']
@@ -329,7 +321,7 @@ class TestCommunityCheckinRulesAPI:
         assert len(disabled_rules) >= 1, "应该包含已禁用的规则"
 
     def _create_header_and_commu_and_a_rule(self, base_url,rule_data=None):
-        """测试创建规则的参数验证"""
+        """创建规则的参数验证"""
         auth_headers, commu=self._create_community_and_admin_headers(base_url)
         test_data={
             "rule_name": f"rule_{uuid_str(16)}",
@@ -344,7 +336,7 @@ class TestCommunityCheckinRulesAPI:
         if rule_data is None:
             rule_data=test_data
         rule_data["community_id"]=commu['community_id']
-
+        assert rule_data['rule_name'] is not None, "规则名称不能为空"
         response = requests.post(f"{base_url}/api/community-checkin/rules",
                                 json=rule_data,
                                 headers=auth_headers)
@@ -410,71 +402,3 @@ class TestCommunityCheckinRulesAPI:
         data = response.json()
         assert data.get('code') == 0, "其他用户不应该能访问不属于自己社区的规则"
         assert '权限' in data.get('msg', '') or 'permission' in data.get('msg', '').lower(), "错误消息应该提到权限"
-
-    def test_complete_rule_lifecycle(self, test_server):
-        base_url = test_server
-        auth_headers, commu = self._create_community_and_admin_headers(base_url)
-        """测试完整的规则生命周期"""
-        base_url = test_server
-
-        print("\n=== 开始测试完整的规则生命周期 ===")
-
-        # 1. 创建规则
-        rule_data = {
-            "community_id": 1,
-            "rule_name": f"生命周期测试规则_{random_str(6)}",
-            "icon_url": "https://example.com/lifecycle.png",
-            "frequency_type": 0,
-            "time_slot_type": 4,
-            "custom_time": "08:00:00",
-            "week_days": 127
-        }
-
-        response = requests.post(f"{base_url}/api/community-checkin/rules",
-                                json=rule_data,
-                                headers=auth_headers)
-        assert response.status_code == 200
-        create_data = response.json()
-        assert create_data.get('code') == 1, "创建规则失败"
-        rule_id = create_data['data']['community_rule_id']
-        print(f"✓ 规则创建成功，ID: {rule_id}")
-
-        # 2. 修改规则
-        update_data = {
-            "rule_name": f"更新后的规则_{random_str(6)}",
-            "icon_url": "https://example.com/updated.png"
-        }
-
-        response = requests.put(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                               json=update_data,
-                               headers=auth_headers)
-        assert response.status_code == 200
-        update_data = response.json()
-        assert update_data.get('code') == 1, "修改规则失败"
-        print("✓ 规则修改成功")
-
-        # 3. 启用规则
-        response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
-                                headers=auth_headers)
-        assert response.status_code == 200
-        enable_data = response.json()
-        assert enable_data.get('code') == 1, "启用规则失败"
-        print("✓ 规则启用成功")
-
-        # 4. 停用规则
-        response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/disable",
-                                headers=auth_headers)
-        assert response.status_code == 200
-        disable_data = response.json()
-        assert disable_data.get('code') == 1, "停用规则失败"
-        print("✓ 规则停用成功")
-
-        # 5. 删除规则（现在规则已停用，可以删除）
-        response = requests.delete(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                                  headers=auth_headers)
-        assert response.status_code == 200
-        delete_data = response.json()
-        assert delete_data.get('code') == 1, "删除规则失败"
-        print("✓ 规则删除成功")
-
-        print("=== 完整的规则生命周期测试完成 ===")

@@ -315,7 +315,7 @@ class CommunityService:
         """处理社区申请"""
         db = get_db()
         with db.get_session() as session:
-            application = session.query(CommunityApplication).get(application_id)
+            application = session.query(CommunityApplication,application_id)
             if not application:
                 raise ValueError("申请不存在")
 
@@ -329,7 +329,7 @@ class CommunityService:
                 application.updated_at = datetime.now()
 
                 # 将用户加入社区
-                user = session.query(User).get(application.user_id)
+                user = session.query(User,application.user_id)
                 user.community_id = application.target_community_id
 
                 # 记录审计日志
@@ -423,7 +423,7 @@ class CommunityService:
         """根据ID获取社区"""
         db = get_db()
         with db.get_session() as session:
-            return session.query(Community).get(community_id)
+            return session.query(Community,community_id)
 
     @staticmethod
     def _community_to_dict(community):
@@ -555,7 +555,7 @@ class CommunityService:
         """更新社区信息"""
         db = get_db()
         with db.get_session() as session:
-            community = session.query(Community).get(community_id)
+            community = session.query(Community,community_id)
             if not community:
                 raise ValueError("社区不存在")
 
@@ -617,7 +617,7 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = session.query(Community,community_id)
             if not community:
                 raise ValueError("社区不存在")
 
@@ -640,7 +640,7 @@ class CommunityService:
             for user_id in user_ids:
                 try:
                     # 检查用户是否存在
-                    target_user = session.query(User).get(user_id)
+                    target_user = session.query(User,user_id)
                     if not target_user:
                         failed.append({'user_id': user_id, 'reason': '用户不存在'})
                         continue
@@ -686,7 +686,7 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = session.query(Community,community_id)
             if not community:
                 raise ValueError("社区不存在")
 
@@ -766,7 +766,7 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = session.query(Community,community_id)
             if not community:
                 raise ValueError("社区不存在")
 
@@ -776,7 +776,7 @@ class CommunityService:
             for user_id in user_ids:
                 try:
                     # 检查用户是否存在
-                    target_user = session.query(User).get(user_id)
+                    target_user = session.query(User,user_id)
                     if not target_user:
                         failed.append({'user_id': user_id, 'reason': '用户不存在'})
                         continue
@@ -813,12 +813,12 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = session.query(Community,community_id)
             if not community:
                 raise ValueError("社区不存在")
 
             # 查找用户
-            target_user = session.query(User).get(user_id)
+            target_user = session.query(User,user_id)
             if not target_user:
                 raise ValueError("用户不存在")
 
@@ -884,7 +884,7 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 查找社区
-            community = session.query(Community).get(community_id)
+            community = session.query(Community,community_id)
             if not community:
                 raise ValueError("社区不存在")
 
@@ -918,7 +918,7 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 查找社区
-            community = session.query(Community).get(community_id)
+            community = session.query(Community,community_id)
             if not community:
                 raise ValueError("社区不存在")
 
@@ -1128,7 +1128,7 @@ class CommunityService:
                 raise ValueError("安卡大家庭社区不存在")
 
             # 检查用户当前社区
-            user = session.query(User).get(user_id)
+            user = session.query(User,user_id)
             if not user:
                 raise ValueError("用户不存在")
 
@@ -1160,13 +1160,13 @@ class CommunityService:
         db = get_db()
         with db.get_session() as session:
             # 检查用户是否存在
-            user = session.query(User).get(user_id)
+            user = session.get(User, user_id)
             if not user:
                 logger.warning(f"用户不存在: user_id={user_id}")
                 return False
 
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = session.get(Community, community_id)
             if not community:
                 logger.warning(f"社区不存在: community_id={community_id}")
                 return False

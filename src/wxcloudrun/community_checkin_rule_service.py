@@ -48,7 +48,7 @@ class CommunityCheckinRuleService:
 
             with get_db().get_session() as session:
                 # 验证社区存在性
-                community = session.query(Community).get(community_id)
+                community = session.get(Community, community_id)
                 if not community:
                     raise ValueError(f'社区不存在: {community_id}')
 
@@ -143,9 +143,6 @@ class CommunityCheckinRuleService:
                 rule.updated_at = datetime.now()
 
                 session.commit()
-                # 不需要refresh，因为我们在同一个会话中修改了对象
-                # session.refresh(rule)
-                # session.expunge(rule)
 
             logger.info(f"修改社区规则成功: 规则ID={rule_id}, 更新者={updated_by}")
             return rule
@@ -289,7 +286,7 @@ class CommunityCheckinRuleService:
                     query = query.filter_by(status=1)  # 只返回正常状态的规则
 
                 rules = query.order_by(CommunityCheckinRule.created_at.desc()).all()
-                
+
                 # 从会话中分离所有对象，避免会话绑定问题
                 for rule in rules:
                     session.expunge(rule)
@@ -472,11 +469,11 @@ class CommunityCheckinRuleService:
                        joinedload(CommunityCheckinRule.disabler)
                    )
                    .get(rule_id))
-            
+
             if not rule:
                 raise ValueError(f'社区规则不存在: {rule_id}')
-            
+
             # 从会话中分离对象，避免会话绑定问题
             session.expunge(rule)
-            
+
             return rule

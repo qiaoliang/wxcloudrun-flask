@@ -207,5 +207,5 @@ e2e-single: setup
 	@echo "注意: 测试将启动独立的 Flask 进程，使用内存数据库"
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
 	source venv_py312/bin/activate && \
-	python -m pytest tests/e2e/$(TEST) -v
+	python -m pytest $(TEST) -v
 	@echo "✓ 单个E2E测试完成"

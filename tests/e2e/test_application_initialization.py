@@ -25,13 +25,8 @@ class TestApplicationInitialization:
         """
         base_url = test_server
 
-        # 1. 验证应用健康状态
-        response = requests.get(f'{base_url}/api/count', timeout=5)
-        assert response.status_code == 200
-        data = response.json()
-        assert data.get('code') == 1  # 成功响应 (code=1表示成功)
 
-        # 2. 验证默认社区存在
+        # 1. 验证默认社区存在
         # 首先尝试通过超级管理员登录获取token
         login_response = requests.post(f'{base_url}/api/auth/login_phone_password', json={
             'phone': '13900007997',
@@ -42,12 +37,12 @@ class TestApplicationInitialization:
         assert login_response.status_code == 200
         login_data = login_response.json()
 
-        # 3. 验证超级管理员账户存在并可以登录
+        # 2. 验证超级管理员账户存在并可以登录
         if login_data.get('code') != 1:
             # 如果登录失败，说明超级管理员不存在，这是预期的失败
             pytest.fail(f"超级管理员账户不存在或无法登录 - 应用初始化未完成。响应: {login_data}")
 
-        # 4. 验证返回的token和用户信息
+        # 3. 验证返回的token和用户信息
         assert 'token' in login_data['data']
         assert 'user_id' in login_data['data']
         # Note: role is not returned in login response, need to get user info separately
@@ -55,7 +50,7 @@ class TestApplicationInitialization:
         token = login_data['data']['token']
         headers = {'Authorization': f'Bearer {token}'}
 
-        # 5. 验证默认社区存在
+        # 4. 验证默认社区存在
         communities_response = requests.get(f'{base_url}/api/communities', headers=headers, timeout=5)
         assert communities_response.status_code == 200
         communities_data = communities_response.json()

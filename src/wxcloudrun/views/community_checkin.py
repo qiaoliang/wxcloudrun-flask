@@ -26,10 +26,10 @@ def community_permission_required(f):
             return make_err_response({}, '用户信息无效')
 
         community_id = None
-        
+
         # 1. 首先从查询参数获取community_id
         community_id = request.args.get('community_id')
-        
+
         # 2. 如果没有从查询参数获取到，尝试从JSON请求体获取（优雅处理空请求体）
         if not community_id:
             try:
@@ -39,7 +39,7 @@ def community_permission_required(f):
             except Exception:
                 # 如果JSON解析失败，忽略错误
                 pass
-        
+
         # 3. 如果还没有community_id，尝试从rule_id获取（对于启用/停用等端点）
         if not community_id and 'rule_id' in kwargs:
             try:
@@ -418,7 +418,8 @@ def get_community_rule_detail(decoded, rule_id):
             from wxcloudrun.community_service import CommunityService
             if not CommunityService.has_community_permission(user.user_id, rule.community_id):
                 return make_err_response({}, '无权限查看此规则')
-
+        if rule.status != 1:
+            return make_err_response({}, '此规则已删除')
         rule_dict = rule.to_dict()
 
         logger.info(f"获取社区规则详情成功: 规则ID={rule_id}")
