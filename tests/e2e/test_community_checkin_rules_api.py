@@ -136,11 +136,16 @@ class TestCommunityCheckinRulesAPI:
         # 先创建一个规则
         auth_headers, commu,a_rule=self._create_header_and_commu_and_a_rule(base_url)
 
-        # 修改规则
-        a_rule["rule_name"] = f"更新后的规则_{random_str(6)}"
+        # 修改规则 - 只发送需要更新的字段
+        update_data = {
+            "rule_name": f"更新后的规则_{random_str(6)}",
+            "icon_url": "https://example.com/updated-icon.png",
+            "frequency_type": 1,
+            "time_slot_type": 2
+        }
         rule_id =a_rule["community_rule_id"]
         response = requests.put(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                               json=a_rule,
+                               json=update_data,
                                headers=auth_headers)
         assert response.status_code == 200
         update_response = response.json()
@@ -153,10 +158,10 @@ class TestCommunityCheckinRulesAPI:
         detail_data = response.json()
 
         rule_detail = detail_data['data']
-        assert rule_detail['rule_name'] == a_rule['rule_name'], "规则名称应该已更新"
-        assert rule_detail['icon_url'] == a_rule['icon_url'], "图标URL应该已更新"
-        assert rule_detail['frequency_type'] == a_rule['frequency_type'], "频率类型应该已更新"
-        assert rule_detail['time_slot_type'] == a_rule['time_slot_type'], "时间段类型应该已更新"
+        assert rule_detail['rule_name'] == update_data['rule_name'], "规则名称应该已更新"
+        assert rule_detail['icon_url'] == update_data['icon_url'], "图标URL应该已更新"
+        assert rule_detail['frequency_type'] == update_data['frequency_type'], "频率类型应该已更新"
+        assert rule_detail['time_slot_type'] == update_data['time_slot_type'], "时间段类型应该已更新"
 
     def test_enable_and_disable_rule(self, test_server):
         """测试启用和停用规则"""

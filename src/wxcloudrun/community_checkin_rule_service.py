@@ -310,10 +310,12 @@ class CommunityCheckinRuleService:
                 rule.disabled_by = disabled_by_int
                 rule.updated_at = datetime.now()
                 session.commit()
-                session.refresh(rule)
-                session.expunge(rule)
+                
+                # 在会话上下文中将对象转换为字典，避免离开会话后的延迟加载问题
+                rule_dict = rule.to_dict()
+                
             logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by_int}")
-            return rule
+            return rule_dict
 
         except SQLAlchemyError as e:
             logger.error(f"停用社区规则失败: {str(e)}")
@@ -568,7 +570,6 @@ class CommunityCheckinRuleService:
             if not rule:
                 raise ValueError(f'社区规则不存在: {rule_id}')
 
-            # 从会话中分离对象，避免会话绑定问题
-            session.expunge(rule)
-
-            return rule
+            # 在会话上下文中将对象转换为字典，避免离开会话后的延迟加载问题
+            rule_dict = rule.to_dict()
+            return rule_dict

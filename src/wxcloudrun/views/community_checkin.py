@@ -316,16 +316,13 @@ def disable_community_rule(decoded, rule_id):
     try:
         disabled_by = decoded.get('user_id')
 
-        CommunityCheckinRuleService.disable_community_rule(rule_id, disabled_by)
-
-        # 获取更新后的规则信息
-        rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
+        rule_dict = CommunityCheckinRuleService.disable_community_rule(rule_id, disabled_by)
 
         response_data = {
-            'community_rule_id': rule.community_rule_id,
-            'status': rule.status,
-            'disabled_at': rule.disabled_at.isoformat() if rule.disabled_at else None,
-            'disabled_by': rule.disabled_by
+            'community_rule_id': rule_dict['community_rule_id'],
+            'status': rule_dict['status'],
+            'disabled_at': rule_dict['disabled_at'],
+            'disabled_by': rule_dict['disabled_by']
         }
 
         logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by}")
@@ -402,7 +399,7 @@ def get_community_rule_detail(decoded, rule_id):
     }
     """
     try:
-        rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
+        rule_dict = CommunityCheckinRuleService.get_rule_detail(rule_id)
 
         # 检查用户是否有权限查看（用户需要属于该社区）
         user_id = decoded.get('user_id')
@@ -411,14 +408,13 @@ def get_community_rule_detail(decoded, rule_id):
         user = UserService.query_user_by_id(user_id)
         user_community = user.community_id if user and hasattr(user, 'community_id') else None
 
-        if user_community != rule.community_id:
+        if user_community != rule_dict['community_id']:
             # 如果不是该社区用户，检查是否有社区管理权限
             from wxcloudrun.community_service import CommunityService
-            if not CommunityService.has_community_permission(user.user_id, rule.community_id):
+            if not CommunityService.has_community_permission(user.user_id, rule_dict['community_id']):
                 return make_err_response({}, '无权限查看此规则')
-        if rule.status != 1:
+        if rule_dict['status'] == 2:
             return make_err_response({}, '此规则已删除')
-        rule_dict = rule.to_dict()
 
         logger.info(f"获取社区规则详情成功: 规则ID={rule_id}")
         return make_succ_response(rule_dict)
