@@ -177,7 +177,7 @@ def create_community_rule(decoded):
         response_data = {
             'community_rule_id': rule.community_rule_id,
             'rule_name': rule.rule_name,
-            'is_enabled': rule.is_enabled,
+            'status': rule.status,
             'created_by': rule.created_by,
             'created_at': rule.created_at.isoformat() if rule.created_at else None
         }
@@ -231,9 +231,9 @@ def update_community_rule(decoded, rule_id):
         response_data = {
             'community_rule_id': rule.community_rule_id,
             'rule_name': rule.rule_name,
+            'status': rule.status,
             'updated_by': rule.updated_by,
-            'updated_at': rule.updated_at.isoformat() if rule.updated_at else None,
-            'is_enabled': rule.is_enabled
+            'updated_at': rule.updated_at.isoformat() if rule.updated_at else None
         }
 
         logger.info(f"修改社区规则成功: 规则ID={rule_id}, 更新者={updated_by}")
@@ -277,7 +277,7 @@ def enable_community_rule(decoded, rule_id):
 
         response_data = {
             'community_rule_id': rule.community_rule_id,
-            'is_enabled': rule.is_enabled,
+            'status': rule.status,
             'enabled_at': rule.enabled_at.isoformat() if rule.enabled_at else None,
             'enabled_by': rule.enabled_by
         }
@@ -323,7 +323,7 @@ def disable_community_rule(decoded, rule_id):
 
         response_data = {
             'community_rule_id': rule.community_rule_id,
-            'is_enabled': rule.is_enabled,
+            'status': rule.status,
             'disabled_at': rule.disabled_at.isoformat() if rule.disabled_at else None,
             'disabled_by': rule.disabled_by
         }

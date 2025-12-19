@@ -67,8 +67,7 @@ class CommunityCheckinRuleService:
                     custom_start_date=custom_start_date,
                     custom_end_date=custom_end_date,
                     week_days=rule_data.get('week_days', 127),
-                    status=1,  # 正常状态
-                    is_enabled=False,  # 默认未启用
+                    status=0,  # 默认停用状态
                     created_by=created_by,
                     created_at=datetime.now(),
                     updated_at=datetime.now()
@@ -110,8 +109,8 @@ class CommunityCheckinRuleService:
                 if not rule:
                     raise ValueError(f'社区规则不存在: {rule_id}')
 
-                # 检查规则是否已启用
-                if rule.is_enabled:
+                # 检查规则是否已启用（status=1表示启用状态）
+                if rule.status == 1:
                     raise ValueError('规则已启用，请先停用后再修改')
 
                 # 验证更新者权限
@@ -174,7 +173,7 @@ class CommunityCheckinRuleService:
                 if not rule:
                     raise ValueError(f'社区规则不存在: {rule_id}')
 
-                if rule.is_enabled:
+                if rule.status == 1:
                     raise ValueError('规则已启用')
 
                 # 验证启用人权限
@@ -195,7 +194,7 @@ class CommunityCheckinRuleService:
                     session.add(mapping)
 
                 # 更新规则状态
-                rule.is_enabled = True
+                rule.status = 1  # 设置为启用状态
                 rule.enabled_at = datetime.now()
                 rule.enabled_by = enabled_by
                 rule.updated_at = datetime.now()
@@ -235,7 +234,7 @@ class CommunityCheckinRuleService:
                 if not rule:
                     raise ValueError(f'社区规则不存在: {rule_id}')
 
-                if not rule.is_enabled:
+                if rule.status != 1:
                     raise ValueError('规则未启用')
 
                 # 验证停用人权限
@@ -249,15 +248,12 @@ class CommunityCheckinRuleService:
                 ).update({'is_active': False})
 
                 # 更新规则状态
-                rule.is_enabled = False
+                rule.status = 0  # 设置为停用状态
                 rule.disabled_at = datetime.now()
                 rule.disabled_by = disabled_by
                 rule.updated_at = datetime.now()
 
                 session.commit()
-                # 不需要refresh，因为我们在同一个会话中修改了对象
-                # session.refresh(rule)
-                # session.expunge(rule)
 
             logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by}")
             return True
@@ -322,8 +318,7 @@ class CommunityCheckinRuleService:
                               UserCommunityRule.community_rule_id == CommunityCheckinRule.community_rule_id)
                         .filter(
                             CommunityCheckinRule.community_id == user.community_id,
-                            CommunityCheckinRule.is_enabled == True,
-                            CommunityCheckinRule.status == 1,
+                            CommunityCheckinRule.status == 1,  # 启用状态
                             UserCommunityRule.user_id == user_id,
                             UserCommunityRule.is_active == True
                         )
@@ -355,7 +350,7 @@ class CommunityCheckinRuleService:
                 if old_community_id:
                     old_rules = session.query(CommunityCheckinRule).filter_by(
                         community_id=old_community_id,
-                        is_enabled=True
+                        status=1  # 启用状态
                     ).all()
 
                     for rule in old_rules:
@@ -370,7 +365,7 @@ class CommunityCheckinRuleService:
                 if new_community_id:
                     new_rules = session.query(CommunityCheckinRule).filter_by(
                         community_id=new_community_id,
-                        is_enabled=True
+                        status=1  # 启用状态
                     ).all()
 
                     for rule in new_rules:
@@ -423,7 +418,7 @@ class CommunityCheckinRuleService:
                 if not rule:
                     raise ValueError(f'社区规则不存在: {rule_id}')
 
-                if rule.is_enabled:
+                if rule.status == 1:
                     raise ValueError('规则已启用，请先停用后再删除')
 
                 # 验证删除者权限

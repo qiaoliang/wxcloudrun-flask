@@ -56,12 +56,18 @@ class TestCommunityCheckinRulesService:
         test_session.commit()
         rule1 = self._create_a_community_rule(comm1['community_id'],a_user.user_id,test_session)
         rule2 = self._create_a_community_rule(comm1['community_id'],a_user.user_id,test_session)
-        CommunityCheckinRuleService.disable_community_rule(rule1['community_rule_id'],a_user.user_id)
-        rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],True)
+        # enable 两个规则
+        CommunityCheckinRuleService.enable_community_rule(rule1.community_rule_id,a_user.user_id)
+        CommunityCheckinRuleService.enable_community_rule(rule2.community_rule_id,a_user.user_id)
+        rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],False)
         assert len(rules) == 2
+        # 禁用其中一个规则
+        CommunityCheckinRuleService.disable_community_rule(rule2.community_rule_id,a_user.user_id)
+
         rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],False)
         assert len(rules) == 1
-
+        rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],True)
+        assert len(rules) == 2
     def test_create_community_rule(self, test_session):
         """测试默认社区识别"""
         a_user = self._create_a_user(self)

@@ -224,7 +224,7 @@ class UserCheckinRuleService:
                 'is_editable': False,
                 'source_label': '社区规则',
                 'community_name': rule.community.name if rule.community else None,
-                'is_enabled': rule.is_enabled
+                'status': rule.status
             }
         else:
             return {

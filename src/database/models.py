@@ -165,10 +165,10 @@ class CheckinRecord(Base, QueryMixin):
     rule = relationship('CheckinRule', backref='checkin_records')
     community_rule = relationship('CommunityCheckinRule', backref='checkin_records')
     user = relationship('User', backref='checkin_records')
-    
+
     # 检查约束：rule_id和community_rule_id至少有一个不为空
     __table_args__ = (
-        CheckConstraint('(rule_id IS NOT NULL) OR (community_rule_id IS NOT NULL)', 
+        CheckConstraint('(rule_id IS NOT NULL) OR (community_rule_id IS NOT NULL)',
                        name='ck_checkin_record_rule'),
     )
 
@@ -294,7 +294,7 @@ class UserAuditLog(Base, QueryMixin):
 class CommunityCheckinRule(Base, QueryMixin):
     """社区打卡规则表"""
     __tablename__ = 'community_checkin_rules'
-    
+
     community_rule_id = Column(Integer, primary_key=True, autoincrement=True)
     community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
     rule_name = Column(String(100), nullable=False, comment='规则名称')
@@ -305,8 +305,7 @@ class CommunityCheckinRule(Base, QueryMixin):
     custom_start_date = Column(Date, comment='自定义开始日期')
     custom_end_date = Column(Date, comment='自定义结束日期')
     week_days = Column(Integer, default=127, comment='周天数')
-    status = Column(Integer, default=1, comment='规则状态')
-    is_enabled = Column(Boolean, default=False, comment='是否已启用')
+    status = Column(Integer, default=0, comment='规则状态: 0=停用, 1=启用, 2=删除')
     created_by = Column(Integer, ForeignKey('users.user_id'), nullable=False, comment='创建者')
     updated_by = Column(Integer, ForeignKey('users.user_id'), comment='最后更新者')
     enabled_at = Column(DateTime, comment='启用时间')
@@ -315,14 +314,14 @@ class CommunityCheckinRule(Base, QueryMixin):
     disabled_by = Column(Integer, ForeignKey('users.user_id'), comment='停用人')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
-    
+
     # 关系
     community = relationship('Community', backref='community_checkin_rules')
     creator = relationship('User', foreign_keys=[created_by])
     updater = relationship('User', foreign_keys=[updated_by])
     enabler = relationship('User', foreign_keys=[enabled_by])
     disabler = relationship('User', foreign_keys=[disabled_by])
-    
+
     def to_dict(self):
         """将模型对象转换为字典"""
         result = {
@@ -337,7 +336,6 @@ class CommunityCheckinRule(Base, QueryMixin):
             'custom_end_date': self.custom_end_date.isoformat() if self.custom_end_date else None,
             'week_days': self.week_days,
             'status': self.status,
-            'is_enabled': self.is_enabled,
             'created_by': self.created_by,
             'updated_by': self.updated_by,
             'enabled_at': self.enabled_at.isoformat() if self.enabled_at else None,
@@ -347,56 +345,56 @@ class CommunityCheckinRule(Base, QueryMixin):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
-        
+
         # 安全地添加关系信息（如果已加载）
         try:
             if self.community:
                 result['community_name'] = self.community.name
         except Exception:
             pass  # 关系未加载，忽略
-            
+
         try:
             if self.creator:
                 result['created_by_name'] = self.creator.nickname or self.creator.phone
         except Exception:
             pass
-            
+
         try:
             if self.updater:
                 result['updated_by_name'] = self.updater.nickname or self.updater.phone
         except Exception:
             pass
-            
+
         try:
             if self.enabler:
                 result['enabled_by_name'] = self.enabler.nickname or self.enabler.phone
         except Exception:
             pass
-            
+
         try:
             if self.disabler:
                 result['disabled_by_name'] = self.disabler.nickname or self.disabler.phone
         except Exception:
             pass
-            
+
         return result
 
 
 class UserCommunityRule(Base, QueryMixin):
     """用户社区规则映射表"""
     __tablename__ = 'user_community_rules'
-    
+
     mapping_id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     community_rule_id = Column(Integer, ForeignKey('community_checkin_rules.community_rule_id'), nullable=False)
     is_active = Column(Boolean, default=True, comment='是否对该用户生效')
     created_at = Column(DateTime, default=datetime.now)
-    
+
     # 唯一约束：一个用户不能重复关联同一个社区规则
     __table_args__ = (
         UniqueConstraint('user_id', 'community_rule_id', name='uq_user_community_rule'),
     )
-    
+
     # 关系
     user = relationship('User', backref='user_community_rules')
     community_rule = relationship('CommunityCheckinRule', backref='user_mappings')
