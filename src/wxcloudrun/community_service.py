@@ -315,7 +315,7 @@ class CommunityService:
         """处理社区申请"""
         db = get_db()
         with db.get_session() as session:
-            application = session.query(CommunityApplication,application_id)
+            application = session.query(CommunityApplication).get(application_id)
             if not application:
                 raise ValueError("申请不存在")
 
@@ -640,7 +640,7 @@ class CommunityService:
             for user_id in user_ids:
                 try:
                     # 检查用户是否存在
-                    target_user = session.query(User,user_id)
+                    target_user = session.query(User).get(user_id)
                     if not target_user:
                         failed.append({'user_id': user_id, 'reason': '用户不存在'})
                         continue
@@ -776,7 +776,7 @@ class CommunityService:
             for user_id in user_ids:
                 try:
                     # 检查用户是否存在
-                    target_user = session.query(User,user_id)
+                    target_user = session.query(User).get(user_id)
                     if not target_user:
                         failed.append({'user_id': user_id, 'reason': '用户不存在'})
                         continue
@@ -818,7 +818,7 @@ class CommunityService:
                 raise ValueError("社区不存在")
 
             # 查找用户
-            target_user = session.query(User,user_id)
+            target_user = session.query(User).get(user_id)
             if not target_user:
                 raise ValueError("用户不存在")
 
@@ -1128,7 +1128,7 @@ class CommunityService:
                 raise ValueError("安卡大家庭社区不存在")
 
             # 检查用户当前社区
-            user = session.query(User,user_id)
+            user = session.query(User).get(user_id)
             if not user:
                 raise ValueError("用户不存在")
 
