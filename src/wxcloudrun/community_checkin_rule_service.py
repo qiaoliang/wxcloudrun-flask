@@ -280,7 +280,8 @@ class CommunityCheckinRuleService:
 
                 if not include_disabled:
                     query = query.filter_by(status=1)  # 只返回正常状态的规则
-
+                else:
+                    query = query.filter(CommunityCheckinRule.status.in_([0, 1]))
                 rules = query.order_by(CommunityCheckinRule.created_at.desc()).all()
 
                 # 从会话中分离所有对象，避免会话绑定问题
