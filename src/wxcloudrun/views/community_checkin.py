@@ -16,6 +16,8 @@ def community_permission_required(f):
     """检查用户是否有社区管理权限的装饰器"""
     from functools import wraps
     from wxcloudrun.community_service import CommunityService
+    from wxcloudrun.dao import get_db
+    from database.models import CommunityCheckinRule
 
     @wraps(f)
     def decorated_function(decoded, *args, **kwargs):
@@ -23,7 +25,33 @@ def community_permission_required(f):
         if not user_id:
             return make_err_response({}, '用户信息无效')
 
-        community_id = request.args.get('community_id') or (request.json and request.json.get('community_id'))
+        community_id = None
+        
+        # 1. 首先从查询参数获取community_id
+        community_id = request.args.get('community_id')
+        
+        # 2. 如果没有从查询参数获取到，尝试从JSON请求体获取（优雅处理空请求体）
+        if not community_id:
+            try:
+                json_data = request.get_json(silent=True)
+                if json_data:
+                    community_id = json_data.get('community_id')
+            except Exception:
+                # 如果JSON解析失败，忽略错误
+                pass
+        
+        # 3. 如果还没有community_id，尝试从rule_id获取（对于启用/停用等端点）
+        if not community_id and 'rule_id' in kwargs:
+            try:
+                rule_id = kwargs['rule_id']
+                # 直接查询数据库获取社区ID，避免复杂的对象加载
+                with get_db().get_session() as session:
+                    rule = session.query(CommunityCheckinRule).get(rule_id)
+                    if rule:
+                        community_id = rule.community_id
+            except Exception as e:
+                logger.warning(f"从规则ID获取社区ID失败: {str(e)}")
+                # 继续执行，让下面的错误处理返回"缺少社区ID参数"
 
         if not community_id:
             return make_err_response({}, '缺少社区ID参数')
@@ -392,18 +420,6 @@ def get_community_rule_detail(decoded, rule_id):
                 return make_err_response({}, '无权限查看此规则')
 
         rule_dict = rule.to_dict()
-
-        # 添加额外信息
-        if rule.community:
-            rule_dict['community_name'] = rule.community.name
-        if rule.creator:
-            rule_dict['created_by_name'] = rule.creator.nickname or rule.creator.phone
-        if rule.updater:
-            rule_dict['updated_by_name'] = rule.updater.nickname or rule.updater.phone
-        if rule.enabler:
-            rule_dict['enabled_by_name'] = rule.enabler.nickname or rule.enabler.phone
-        if rule.disabler:
-            rule_dict['disabled_by_name'] = rule.disabler.nickname or rule.disabler.phone
 
         logger.info(f"获取社区规则详情成功: 规则ID={rule_id}")
         return make_succ_response(rule_dict)

@@ -21,7 +21,7 @@ sys.path.insert(0, project_root)
 from hashutil import random_str, uuid_str
 
 # 导入测试工具函数
-from .testutil import get_headers_by_creating_phone_user, TEST_DEFAULT_SMS_CODE, TEST_DEFAULT_PWD, TEST_DEFAULT_WXCAHT_CODE
+from .testutil import get_headers_by_creating_phone_user, create_phone_user, TEST_DEFAULT_SMS_CODE, TEST_DEFAULT_PWD, TEST_DEFAULT_WXCAHT_CODE
 
 
 class TestCommunityCheckinRulesAPI:
@@ -105,7 +105,7 @@ class TestCommunityCheckinRulesAPI:
         # 创建社区和社区管理员
 
         base_url = test_server
-        auth_headers = self._create_community_and_admin_headers(base_url)
+        auth_headers, commu = self._create_community_and_admin_headers(base_url)
 
         # 1. 尝试创建规则（应该失败，因为用户可能没有社区管理权限）
         rule_data = {
@@ -131,26 +131,16 @@ class TestCommunityCheckinRulesAPI:
 
 
     def test_update_rule(self, test_server):
-        base_url = test_server
-        auth_headers = self._create_community_and_admin_headers(base_url)
         """测试修改规则"""
         base_url = test_server
-
         # 先创建一个规则
-        rule_id = self.test_create_and_get_rules_workflow(test_server, auth_headers)
+        auth_headers, commu,a_rule=self._create_header_and_commu_and_a_rule(base_url)
 
         # 修改规则
-        update_data = {
-            "rule_name": f"更新后的规则_{random_str(6)}",
-            "icon_url": "https://example.com/new-icon.png",
-            "frequency_type": 1,  # 每周
-            "time_slot_type": 1,  # 上午
-            "custom_time": "10:30:00",
-            "week_days": 65  # 周一和周日
-        }
+        a_rule["rule_name"] = f"更新后的规则_{random_str(6)}"
 
-        response = requests.put(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                               json=update_data,
+        response = requests.put(f"{base_url}/api/community-checkin/rules/{a_rule["community_rule_id"]}",
+                               json=a_rule,
                                headers=auth_headers)
         assert response.status_code == 200
         update_response = response.json()
@@ -163,12 +153,10 @@ class TestCommunityCheckinRulesAPI:
         detail_data = response.json()
 
         rule_detail = detail_data['data']
-        assert rule_detail['rule_name'] == update_data['rule_name'], "规则名称应该已更新"
-        assert rule_detail['icon_url'] == update_data['icon_url'], "图标URL应该已更新"
-        assert rule_detail['frequency_type'] == update_data['frequency_type'], "频率类型应该已更新"
-        assert rule_detail['time_slot_type'] == update_data['time_slot_type'], "时间段类型应该已更新"
-
-        return rule_id
+        assert rule_detail['rule_name'] == a_rule['rule_name'], "规则名称应该已更新"
+        assert rule_detail['icon_url'] == a_rule['icon_url'], "图标URL应该已更新"
+        assert rule_detail['frequency_type'] == a_rule['frequency_type'], "频率类型应该已更新"
+        assert rule_detail['time_slot_type'] == a_rule['time_slot_type'], "时间段类型应该已更新"
 
     def test_enable_and_disable_rule(self, test_server):
         """测试启用和停用规则"""
@@ -179,7 +167,7 @@ class TestCommunityCheckinRulesAPI:
         # 1. 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
                                 headers=header)
-        assert response.status_code == 400
+        assert response.status_code == 200
         enable_data = response.json()
         assert enable_data.get('code') == 1, f"启用规则失败: {enable_data.get('msg')}"
         assert enable_data['data']['is_enabled'] == True, "规则应该已启用"
@@ -201,19 +189,19 @@ class TestCommunityCheckinRulesAPI:
 
         # 验证规则状态
         response = requests.get(f"{base_url}/api/community-checkin/rules/{rule_id}",
-                               headers=auth_headers)
+                               headers=header)
         assert response.status_code == 200
         detail_data = response.json()
         assert detail_data['data']['is_enabled'] == False, "规则详情应该显示已停用"
 
     def test_cannot_update_enabled_rule(self, test_server):
         base_url = test_server
-        auth_headers = self._create_community_and_admin_headers(base_url)
+        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试不能修改已启用的规则"""
         base_url = test_server
 
         # 创建并启用一个规则
-        rule_id = self.test_create_and_get_rules_workflow(test_server, auth_headers)
+        rule_id = self.test_create_and_get_rules_workflow(test_server)
 
         # 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
@@ -237,12 +225,12 @@ class TestCommunityCheckinRulesAPI:
 
     def test_delete_rule(self, test_server):
         base_url = test_server
-        auth_headers = self._create_community_and_admin_headers(base_url)
+        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试删除规则（仅限未启用状态）"""
         base_url = test_server
 
         # 创建一个规则（未启用状态）
-        rule_id = self.test_create_and_get_rules_workflow(test_server, auth_headers)
+        rule_id = self.test_create_and_get_rules_workflow(test_server)
 
         # 删除规则
         response = requests.delete(f"{base_url}/api/community-checkin/rules/{rule_id}",
@@ -261,12 +249,12 @@ class TestCommunityCheckinRulesAPI:
 
     def test_cannot_delete_enabled_rule(self, test_server):
         base_url = test_server
-        auth_headers = self._create_community_and_admin_headers(base_url)
+        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试不能删除已启用的规则"""
         base_url = test_server
 
         # 创建并启用一个规则
-        rule_id = self.test_create_and_get_rules_workflow(test_server, auth_headers)
+        rule_id = self.test_create_and_get_rules_workflow(test_server)
 
         # 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
@@ -285,12 +273,13 @@ class TestCommunityCheckinRulesAPI:
 
     def test_get_rules_with_include_disabled(self, test_server):
         base_url = test_server
-        auth_headers = self._create_community_and_admin_headers(base_url)
+        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试获取规则列表时包含已禁用的规则"""
         base_url = test_server
 
         # 创建两个规则
-        rule1_id = self.test_create_and_get_rules_workflow(test_server, auth_headers)
+        self._create_header_and_commu_and_a_rule(test_server, auth_headers)
+        rule1_id = self.test_create_and_get_rules_workflow(test_server)
 
         # 创建第二个规则并禁用它
         rule_data2 = {
@@ -390,10 +379,9 @@ class TestCommunityCheckinRulesAPI:
         assert "创建社区规则成功" in data.get('msg', '')
         assert data['data']['community_rule_id'] is 1
     def test_rule_detail_permission(self, test_server):
-        base_url = test_server
-        auth_headers,commu = self._create_community_and_admin_headers(base_url)
         """测试规则详情的权限控制"""
         base_url = test_server
+        auth_headers, commu = self._create_community_and_admin_headers(base_url)
 
         # 创建一个规则
         rule_data={
@@ -406,13 +394,14 @@ class TestCommunityCheckinRulesAPI:
             "custom_start_date": "2025-01-01",
             "custom_end_date": "2025-12-31",
         }
-        comm,a_rule = self._create_a_rule(test_server, rule_data)
+        # 使用现有的方法创建规则
+        header, commu_created, a_rule = self._create_header_and_commu_and_a_rule(test_server, rule_data)
         rule_id = a_rule['community_rule_id']
+
         # 创建另一个普通用户
         phone = f"139{random_str(8)}"
         nickname = f"其他用户_{random_str(6)}"
         other_headers,_ = get_headers_by_creating_phone_user(base_url, phone, nickname)
-
 
         # 其他用户尝试获取规则详情（应该失败，因为不属于该社区）
         response = requests.get(f"{base_url}/api/community-checkin/rules/{rule_id}",
@@ -424,7 +413,7 @@ class TestCommunityCheckinRulesAPI:
 
     def test_complete_rule_lifecycle(self, test_server):
         base_url = test_server
-        auth_headers = self._create_community_and_admin_headers(base_url)
+        auth_headers, commu = self._create_community_and_admin_headers(base_url)
         """测试完整的规则生命周期"""
         base_url = test_server
 

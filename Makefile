@@ -7,6 +7,7 @@ help:
 	@echo "可用的测试命令:"
 	@echo "  make setup        - 设置测试环境"
 	@echo "  make ut    - 运行单元测试"
+	@echo "  make ut-s TEST=<test> - 运行单个单元测试用例"
 	@echo "  make test-integration - 运行集成测试"
 	@echo "  make test-migration - 运行数据库迁移测试"
 	@echo "  make e2e     - 运行E2E测试（需要Docker）"
@@ -23,6 +24,9 @@ help:
 	@echo "示例:"
 	@echo "  make ut            # 运行单元测试"
 	@echo "  make ut VERBOSE=1  # 详细输出"
+	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py  # 运行单个单元测试文件"
+	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService  # 运行单个测试类"
+	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService::test_create_rule  # 运行单个测试函数"
 	@echo "  make test-integration     # 运行集成测试"
 	@echo "  make test-integration VERBOSE=1  # 详细输出"
 	@echo "  make test-migration       # 运行迁移测试"
@@ -107,6 +111,26 @@ ut: setup
 	else \
 		python -m pytest tests/unit/ -v; \
 	fi
+
+# 运行单个单元测试
+ut-s: setup
+	@if [ -z "$(TEST)" ]; then \
+		echo "请指定测试文件、测试类或测试函数，例如:"; \
+		echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py"; \
+		echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService"; \
+		echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService::test_create_rule"; \
+		exit 1; \
+	fi
+	@echo "=== 运行单个单元测试用例 ==="
+	@echo "测试: $(TEST)"
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python -m pytest $(TEST) -v -s; \
+	else \
+		python -m pytest $(TEST) -v; \
+	fi
+	@echo "✓ 单个单元测试完成"
 
 # 运行所有测试
 test-all: setup

@@ -322,6 +322,64 @@ class CommunityCheckinRule(Base, QueryMixin):
     updater = relationship('User', foreign_keys=[updated_by])
     enabler = relationship('User', foreign_keys=[enabled_by])
     disabler = relationship('User', foreign_keys=[disabled_by])
+    
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        result = {
+            'community_rule_id': self.community_rule_id,
+            'community_id': self.community_id,
+            'rule_name': self.rule_name,
+            'icon_url': self.icon_url,
+            'frequency_type': self.frequency_type,
+            'time_slot_type': self.time_slot_type,
+            'custom_time': self.custom_time.isoformat() if self.custom_time else None,
+            'custom_start_date': self.custom_start_date.isoformat() if self.custom_start_date else None,
+            'custom_end_date': self.custom_end_date.isoformat() if self.custom_end_date else None,
+            'week_days': self.week_days,
+            'status': self.status,
+            'is_enabled': self.is_enabled,
+            'created_by': self.created_by,
+            'updated_by': self.updated_by,
+            'enabled_at': self.enabled_at.isoformat() if self.enabled_at else None,
+            'disabled_at': self.disabled_at.isoformat() if self.disabled_at else None,
+            'enabled_by': self.enabled_by,
+            'disabled_by': self.disabled_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+        
+        # 安全地添加关系信息（如果已加载）
+        try:
+            if self.community:
+                result['community_name'] = self.community.name
+        except Exception:
+            pass  # 关系未加载，忽略
+            
+        try:
+            if self.creator:
+                result['created_by_name'] = self.creator.nickname or self.creator.phone
+        except Exception:
+            pass
+            
+        try:
+            if self.updater:
+                result['updated_by_name'] = self.updater.nickname or self.updater.phone
+        except Exception:
+            pass
+            
+        try:
+            if self.enabler:
+                result['enabled_by_name'] = self.enabler.nickname or self.enabler.phone
+        except Exception:
+            pass
+            
+        try:
+            if self.disabler:
+                result['disabled_by_name'] = self.disabler.nickname or self.disabler.phone
+        except Exception:
+            pass
+            
+        return result
 
 
 class UserCommunityRule(Base, QueryMixin):

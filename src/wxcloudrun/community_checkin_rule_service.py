@@ -35,16 +35,7 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
-            # 验证社区存在性
-            community = Community.query.get(community_id)
-            if not community:
-                raise ValueError(f'社区不存在: {community_id}')
-
-            # 验证创建者权限
-            if not CommunityService.has_community_permission(created_by, community_id):
-                raise ValueError('无权限在此社区创建规则')
-
-            # 解析时间字段
+            # 解析时间字段（在数据库会话外部进行，不依赖数据库）
             custom_time_str = rule_data.get('custom_time')
             custom_time = parse_time_only(custom_time_str) if custom_time_str else None
 
@@ -55,25 +46,34 @@ class CommunityCheckinRuleService:
             custom_end_date_str = rule_data.get('custom_end_date')
             custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
 
-            # 创建规则对象
-            new_rule = CommunityCheckinRule(
-                community_id=community_id,
-                rule_name=rule_data.get('rule_name'),
-                icon_url=rule_data.get('icon_url'),
-                frequency_type=rule_data.get('frequency_type', 0),
-                time_slot_type=rule_data.get('time_slot_type', 4),
-                custom_time=custom_time,
-                custom_start_date=custom_start_date,
-                custom_end_date=custom_end_date,
-                week_days=rule_data.get('week_days', 127),
-                status=1,  # 正常状态
-                is_enabled=False,  # 默认未启用
-                created_by=created_by,
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
-
             with get_db().get_session() as session:
+                # 验证社区存在性
+                community = session.query(Community).get(community_id)
+                if not community:
+                    raise ValueError(f'社区不存在: {community_id}')
+
+                # 验证创建者权限
+                if not CommunityService.has_community_permission(created_by, community_id):
+                    raise ValueError('无权限在此社区创建规则')
+
+                # 创建规则对象
+                new_rule = CommunityCheckinRule(
+                    community_id=community_id,
+                    rule_name=rule_data.get('rule_name'),
+                    icon_url=rule_data.get('icon_url'),
+                    frequency_type=rule_data.get('frequency_type', 0),
+                    time_slot_type=rule_data.get('time_slot_type', 4),
+                    custom_time=custom_time,
+                    custom_start_date=custom_start_date,
+                    custom_end_date=custom_end_date,
+                    week_days=rule_data.get('week_days', 127),
+                    status=1,  # 正常状态
+                    is_enabled=False,  # 默认未启用
+                    created_by=created_by,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+
                 session.add(new_rule)
                 session.commit()
                 session.refresh(new_rule)
@@ -104,72 +104,53 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
-            rule = CommunityCheckinRule.query.get(rule_id)
-            if not rule:
-                raise ValueError(f'社区规则不存在: {rule_id}')
+            with get_db().get_session() as session:
+                # 获取规则
+                rule = session.query(CommunityCheckinRule).get(rule_id)
+                if not rule:
+                    raise ValueError(f'社区规则不存在: {rule_id}')
 
-            # 检查规则是否已启用
-            if rule.is_enabled:
-                raise ValueError('规则已启用，请先停用后再修改')
+                # 检查规则是否已启用
+                if rule.is_enabled:
+                    raise ValueError('规则已启用，请先停用后再修改')
 
-            # 验证更新者权限
-            if not CommunityService.has_community_permission(updated_by, rule.community_id):
-                raise ValueError('无权限修改此规则')
+                # 验证更新者权限
+                if not CommunityService.has_community_permission(updated_by, rule.community_id):
+                    raise ValueError('无权限修改此规则')
 
-            # 辅助函数：解析时间字符串为time对象
-            def parse_time_only(time_str):
-                if not time_str:
-                    return None
-                try:
-                    from datetime import datetime
-                    return datetime.strptime(time_str, '%H:%M:%S').time()
-                except ValueError:
-                    try:
-                        return datetime.strptime(time_str, '%H:%M').time()
-                    except ValueError as e:
-                        raise ValueError(f'无效的时间格式: {time_str}') from e
+                # 更新字段
+                update_fields = ['rule_name', 'icon_url', 'frequency_type', 'time_slot_type', 'week_days']
 
-            # 辅助函数：解析日期字符串为date对象
-            def parse_date_only(date_str):
-                if not date_str:
-                    return None
-                try:
-                    from datetime import datetime
-                    return datetime.strptime(date_str, '%Y-%m-%d').date()
-                except ValueError as e:
-                    raise ValueError(f'无效的日期格式: {date_str}') from e
+                for field in update_fields:
+                    if field in rule_data:
+                        setattr(rule, field, rule_data[field])
 
-            # 更新字段
-            update_fields = ['rule_name', 'icon_url', 'frequency_type', 'time_slot_type', 'week_days']
+                # 特殊处理时间字段
+                if 'custom_time' in rule_data:
+                    custom_time_str = rule_data.get('custom_time')
+                    rule.custom_time = parse_time_only(custom_time_str) if custom_time_str else None
 
-            for field in update_fields:
-                if field in rule_data:
-                    setattr(rule, field, rule_data[field])
+                # 特殊处理日期字段
+                if 'custom_start_date' in rule_data:
+                    custom_start_date_str = rule_data.get('custom_start_date')
+                    rule.custom_start_date = parse_date_only(custom_start_date_str) if custom_start_date_str else None
 
-            # 特殊处理时间字段
-            if 'custom_time' in rule_data:
-                custom_time_str = rule_data.get('custom_time')
-                rule.custom_time = parse_time_only(custom_time_str) if custom_time_str else None
+                if 'custom_end_date' in rule_data:
+                    custom_end_date_str = rule_data.get('custom_end_date')
+                    rule.custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
 
-            # 特殊处理日期字段
-            if 'custom_start_date' in rule_data:
-                custom_start_date_str = rule_data.get('custom_start_date')
-                rule.custom_start_date = parse_date_only(custom_start_date_str) if custom_start_date_str else None
+                rule.updated_by = updated_by
+                rule.updated_at = datetime.now()
 
-            if 'custom_end_date' in rule_data:
-                custom_end_date_str = rule_data.get('custom_end_date')
-                rule.custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
-
-            rule.updated_by = updated_by
-            rule.updated_at = datetime.now()
-
-            db.session.commit()
+                session.commit()
+                # 不需要refresh，因为我们在同一个会话中修改了对象
+                # session.refresh(rule)
+                # session.expunge(rule)
 
             logger.info(f"修改社区规则成功: 规则ID={rule_id}, 更新者={updated_by}")
             return rule
 
         except SQLAlchemyError as e:
-            db.session.rollback()
             logger.error(f"修改社区规则失败: {str(e)}")
             raise
 
@@ -190,43 +171,47 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
-            rule = CommunityCheckinRule.query.get(rule_id)
-            if not rule:
-                raise ValueError(f'社区规则不存在: {rule_id}')
+            with get_db().get_session() as session:
+                # 获取规则
+                rule = session.query(CommunityCheckinRule).get(rule_id)
+                if not rule:
+                    raise ValueError(f'社区规则不存在: {rule_id}')
 
-            if rule.is_enabled:
-                raise ValueError('规则已启用')
+                if rule.is_enabled:
+                    raise ValueError('规则已启用')
 
-            # 验证启用人权限
-            if not CommunityService.has_community_permission(enabled_by, rule.community_id):
-                raise ValueError('无权限启用此规则')
+                # 验证启用人权限
+                if not CommunityService.has_community_permission(enabled_by, rule.community_id):
+                    raise ValueError('无权限启用此规则')
 
-            # 获取社区所有用户
-            community_users = User.query.filter_by(community_id=rule.community_id).all()
+                # 获取社区所有用户
+                community_users = session.query(User).filter_by(community_id=rule.community_id).all()
 
-            # 为每个用户创建映射记录
-            for user in community_users:
-                mapping = UserCommunityRule(
-                    user_id=user.user_id,
-                    community_rule_id=rule_id,
-                    is_active=True,
-                    created_at=datetime.now()
-                )
-                db.session.add(mapping)
+                # 为每个用户创建映射记录
+                for user in community_users:
+                    mapping = UserCommunityRule(
+                        user_id=user.user_id,
+                        community_rule_id=rule_id,
+                        is_active=True,
+                        created_at=datetime.now()
+                    )
+                    session.add(mapping)
 
-            # 更新规则状态
-            rule.is_enabled = True
-            rule.enabled_at = datetime.now()
-            rule.enabled_by = enabled_by
-            rule.updated_at = datetime.now()
+                # 更新规则状态
+                rule.is_enabled = True
+                rule.enabled_at = datetime.now()
+                rule.enabled_by = enabled_by
+                rule.updated_at = datetime.now()
 
-            db.session.commit()
+                session.commit()
+                # 不需要refresh，因为我们在同一个会话中修改了对象
+                # session.refresh(rule)
+                # session.expunge(rule)
 
             logger.info(f"启用社区规则成功: 规则ID={rule_id}, 启用人={enabled_by}, 影响用户数={len(community_users)}")
             return True
 
         except SQLAlchemyError as e:
-            db.session.rollback()
             logger.error(f"启用社区规则失败: {str(e)}")
             raise
 
@@ -247,36 +232,40 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
-            rule = CommunityCheckinRule.query.get(rule_id)
-            if not rule:
-                raise ValueError(f'社区规则不存在: {rule_id}')
+            with get_db().get_session() as session:
+                # 获取规则
+                rule = session.query(CommunityCheckinRule).get(rule_id)
+                if not rule:
+                    raise ValueError(f'社区规则不存在: {rule_id}')
 
-            if not rule.is_enabled:
-                raise ValueError('规则未启用')
+                if not rule.is_enabled:
+                    raise ValueError('规则未启用')
 
-            # 验证停用人权限
-            if not CommunityService.has_community_permission(disabled_by, rule.community_id):
-                raise ValueError('无权限停用此规则')
+                # 验证停用人权限
+                if not CommunityService.has_community_permission(disabled_by, rule.community_id):
+                    raise ValueError('无权限停用此规则')
 
-            # 更新所有用户映射为停用状态
-            UserCommunityRule.query.filter_by(
-                community_rule_id=rule_id,
-                is_active=True
-            ).update({'is_active': False})
+                # 更新所有用户映射为停用状态
+                session.query(UserCommunityRule).filter_by(
+                    community_rule_id=rule_id,
+                    is_active=True
+                ).update({'is_active': False})
 
-            # 更新规则状态
-            rule.is_enabled = False
-            rule.disabled_at = datetime.now()
-            rule.disabled_by = disabled_by
-            rule.updated_at = datetime.now()
+                # 更新规则状态
+                rule.is_enabled = False
+                rule.disabled_at = datetime.now()
+                rule.disabled_by = disabled_by
+                rule.updated_at = datetime.now()
 
-            db.session.commit()
+                session.commit()
+                # 不需要refresh，因为我们在同一个会话中修改了对象
+                # session.refresh(rule)
+                # session.expunge(rule)
 
             logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by}")
             return True
 
         except SQLAlchemyError as e:
-            db.session.rollback()
             logger.error(f"停用社区规则失败: {str(e)}")
             raise
 
@@ -293,12 +282,17 @@ class CommunityCheckinRuleService:
             list: 社区规则列表
         """
         try:
-            query = CommunityCheckinRule.query.filter_by(community_id=community_id)
+            with get_db().get_session() as session:
+                query = session.query(CommunityCheckinRule).filter_by(community_id=community_id)
 
-            if not include_disabled:
-                query = query.filter_by(status=1)  # 只返回正常状态的规则
+                if not include_disabled:
+                    query = query.filter_by(status=1)  # 只返回正常状态的规则
 
-            rules = query.order_by(CommunityCheckinRule.created_at.desc()).all()
+                rules = query.order_by(CommunityCheckinRule.created_at.desc()).all()
+                
+                # 从会话中分离所有对象，避免会话绑定问题
+                for rule in rules:
+                    session.expunge(rule)
 
             logger.info(f"获取社区规则列表成功: 社区ID={community_id}, 规则数量={len(rules)}")
             return rules
@@ -319,26 +313,27 @@ class CommunityCheckinRuleService:
             list: 用户社区规则列表
         """
         try:
-            # 获取用户所在社区
-            user = User.query.get(user_id)
-            if not user or not user.community_id:
-                return []
+            with get_db().get_session() as session:
+                # 获取用户所在社区
+                user = session.query(User).get(user_id)
+                if not user or not user.community_id:
+                    return []
 
-            # 查询用户社区中已启用且对用户生效的规则
-            rules = (db.session.query(CommunityCheckinRule)
-                    .join(UserCommunityRule,
-                          UserCommunityRule.community_rule_id == CommunityCheckinRule.community_rule_id)
-                    .filter(
-                        CommunityCheckinRule.community_id == user.community_id,
-                        CommunityCheckinRule.is_enabled == True,
-                        CommunityCheckinRule.status == 1,
-                        UserCommunityRule.user_id == user_id,
-                        UserCommunityRule.is_active == True
-                    )
-                    .order_by(CommunityCheckinRule.created_at.asc())
-                    .all())
+                # 查询用户社区中已启用且对用户生效的规则
+                rules = (session.query(CommunityCheckinRule)
+                        .join(UserCommunityRule,
+                              UserCommunityRule.community_rule_id == CommunityCheckinRule.community_rule_id)
+                        .filter(
+                            CommunityCheckinRule.community_id == user.community_id,
+                            CommunityCheckinRule.is_enabled == True,
+                            CommunityCheckinRule.status == 1,
+                            UserCommunityRule.user_id == user_id,
+                            UserCommunityRule.is_active == True
+                        )
+                        .order_by(CommunityCheckinRule.created_at.asc())
+                        .all())
 
-            return rules
+                return rules
 
         except SQLAlchemyError as e:
             logger.error(f"获取用户社区规则失败: {str(e)}")
@@ -358,53 +353,53 @@ class CommunityCheckinRuleService:
             bool: 是否同步成功
         """
         try:
-            # 停用旧社区规则关联
-            if old_community_id:
-                old_rules = CommunityCheckinRule.query.filter_by(
-                    community_id=old_community_id,
-                    is_enabled=True
-                ).all()
+            with get_db().get_session() as session:
+                # 停用旧社区规则关联
+                if old_community_id:
+                    old_rules = session.query(CommunityCheckinRule).filter_by(
+                        community_id=old_community_id,
+                        is_enabled=True
+                    ).all()
 
-                for rule in old_rules:
-                    mapping = UserCommunityRule.query.filter_by(
-                        user_id=user_id,
-                        community_rule_id=rule.community_rule_id
-                    ).first()
-                    if mapping:
-                        mapping.is_active = False
-
-            # 启用新社区规则关联
-            if new_community_id:
-                new_rules = CommunityCheckinRule.query.filter_by(
-                    community_id=new_community_id,
-                    is_enabled=True
-                ).all()
-
-                for rule in new_rules:
-                    # 检查是否已存在映射
-                    existing = UserCommunityRule.query.filter_by(
-                        user_id=user_id,
-                        community_rule_id=rule.community_rule_id
-                    ).first()
-
-                    if existing:
-                        existing.is_active = True
-                    else:
-                        mapping = UserCommunityRule(
+                    for rule in old_rules:
+                        mapping = session.query(UserCommunityRule).filter_by(
                             user_id=user_id,
-                            community_rule_id=rule.community_rule_id,
-                            is_active=True,
-                            created_at=datetime.now()
-                        )
-                        db.session.add(mapping)
+                            community_rule_id=rule.community_rule_id
+                        ).first()
+                        if mapping:
+                            mapping.is_active = False
 
-            db.session.commit()
+                # 启用新社区规则关联
+                if new_community_id:
+                    new_rules = session.query(CommunityCheckinRule).filter_by(
+                        community_id=new_community_id,
+                        is_enabled=True
+                    ).all()
+
+                    for rule in new_rules:
+                        # 检查是否已存在映射
+                        existing = session.query(UserCommunityRule).filter_by(
+                            user_id=user_id,
+                            community_rule_id=rule.community_rule_id
+                        ).first()
+
+                        if existing:
+                            existing.is_active = True
+                        else:
+                            mapping = UserCommunityRule(
+                                user_id=user_id,
+                                community_rule_id=rule.community_rule_id,
+                                is_active=True,
+                                created_at=datetime.now()
+                            )
+                            session.add(mapping)
+
+                session.commit()
 
             logger.info(f"用户社区变更规则同步成功: 用户ID={user_id}, 旧社区={old_community_id}, 新社区={new_community_id}")
             return True
 
         except SQLAlchemyError as e:
-            db.session.rollback()
             logger.error(f"用户社区变更规则同步失败: {str(e)}")
             raise
 
@@ -425,28 +420,29 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
-            rule = CommunityCheckinRule.query.get(rule_id)
-            if not rule:
-                raise ValueError(f'社区规则不存在: {rule_id}')
+            with get_db().get_session() as session:
+                # 获取规则
+                rule = session.query(CommunityCheckinRule).get(rule_id)
+                if not rule:
+                    raise ValueError(f'社区规则不存在: {rule_id}')
 
-            if rule.is_enabled:
-                raise ValueError('规则已启用，请先停用后再删除')
+                if rule.is_enabled:
+                    raise ValueError('规则已启用，请先停用后再删除')
 
-            # 验证删除者权限
-            if not CommunityService.has_community_permission(deleted_by, rule.community_id):
-                raise ValueError('无权限删除此规则')
+                # 验证删除者权限
+                if not CommunityService.has_community_permission(deleted_by, rule.community_id):
+                    raise ValueError('无权限删除此规则')
 
-            # 软删除：更新状态为2（已删除）
-            rule.status = 2
-            rule.updated_at = datetime.now()
+                # 软删除：更新状态为2（已删除）
+                rule.status = 2
+                rule.updated_at = datetime.now()
 
-            db.session.commit()
+                session.commit()
 
             logger.info(f"删除社区规则成功: 规则ID={rule_id}, 删除者={deleted_by}")
             return True
 
         except SQLAlchemyError as e:
-            db.session.rollback()
             logger.error(f"删除社区规则失败: {str(e)}")
             raise
 
@@ -464,8 +460,23 @@ class CommunityCheckinRuleService:
         Raises:
             ValueError: 规则不存在
         """
-        rule = CommunityCheckinRule.query.get(rule_id)
-        if not rule:
-            raise ValueError(f'社区规则不存在: {rule_id}')
-
-        return rule
+        with get_db().get_session() as session:
+            # 使用options预先加载关系，避免延迟加载错误
+            from sqlalchemy.orm import joinedload
+            rule = (session.query(CommunityCheckinRule)
+                   .options(
+                       joinedload(CommunityCheckinRule.community),
+                       joinedload(CommunityCheckinRule.creator),
+                       joinedload(CommunityCheckinRule.updater),
+                       joinedload(CommunityCheckinRule.enabler),
+                       joinedload(CommunityCheckinRule.disabler)
+                   )
+                   .get(rule_id))
+            
+            if not rule:
+                raise ValueError(f'社区规则不存在: {rule_id}')
+            
+            # 从会话中分离对象，避免会话绑定问题
+            session.expunge(rule)
+            
+            return rule
