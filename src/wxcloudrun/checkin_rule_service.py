@@ -346,51 +346,91 @@ class CheckinRuleService:
             raise
 
     @staticmethod
+    def _get_rule_attr(rule, attr_name):
+        """
+        通用方法：获取规则属性，支持CheckinRule和CommunityCheckinRule
+        
+        Args:
+            rule: 规则对象（CheckinRule或CommunityCheckinRule）
+            attr_name: 属性名
+            
+        Returns:
+            属性值
+        """
+        # 处理CommunityCheckinRule对象
+        from database.models import CommunityCheckinRule
+        if isinstance(rule, CommunityCheckinRule):
+            # CommunityCheckinRule使用community_rule_id而不是rule_id
+            if attr_name == 'rule_id':
+                return rule.community_rule_id
+        return getattr(rule, attr_name, None)
+    
+    @staticmethod
     def _should_checkin_today(rule, today):
         """
         判断今天是否需要打卡
-        :param rule: 打卡规则
+        :param rule: 打卡规则（CheckinRule或CommunityCheckinRule）
         :param today: 今天的日期
         :return: Boolean
         """
-        if rule.frequency_type == 1:  # 每周
+        frequency_type = CheckinRuleService._get_rule_attr(rule, 'frequency_type')
+        week_days = CheckinRuleService._get_rule_attr(rule, 'week_days')
+        custom_start_date = CheckinRuleService._get_rule_attr(rule, 'custom_start_date')
+        custom_end_date = CheckinRuleService._get_rule_attr(rule, 'custom_end_date')
+        
+        if frequency_type == 1:  # 每周
             today_weekday = today.weekday()  # 0是周一，6是周日
-            return bool(rule.week_days & (1 << today_weekday))
-        elif rule.frequency_type == 2:  # 工作日
+            return bool(week_days & (1 << today_weekday))
+        elif frequency_type == 2:  # 工作日
             return today.weekday() < 5  # 周一到周五
-        elif rule.frequency_type == 3:  # 自定义日期范围
-            if rule.custom_start_date and rule.custom_end_date:
-                return rule.custom_start_date <= today <= rule.custom_end_date
+        elif frequency_type == 3:  # 自定义日期范围
+            if custom_start_date and custom_end_date:
+                return custom_start_date <= today <= custom_end_date
             return False
         else:  # 每天 (frequency_type == 0)
             return True
 
     @staticmethod
-    def _query_today_records(rule_id, today, session=None):
+    def _query_today_records(rule_id, today, session=None, rule_source='personal'):
         """
         查询今天该规则的打卡记录
         :param rule_id: 规则ID
         :param today: 今天的日期
         :param session: 可选的数据库会话，如果为None则创建新会话
+        :param rule_source: 规则来源（personal/community）
         :return: 打卡记录列表
         """
         try:
             from sqlalchemy import func
             if session is None:
                 with get_db().get_session() as session:
-                    records = session.query(CheckinRecord).filter(
-                        CheckinRecord.rule_id == rule_id,
+                    query = session.query(CheckinRecord).filter(
                         func.date(CheckinRecord.planned_time) == today
-                    ).all()
+                    )
+                    
+                    # 根据规则来源过滤
+                    if rule_source == 'community':
+                        # 社区规则的打卡记录使用community_rule_id字段
+                        query = query.filter(CheckinRecord.community_rule_id == rule_id)
+                    else:
+                        # 个人规则的打卡记录使用rule_id字段
+                        query = query.filter(CheckinRecord.rule_id == rule_id)
+                    
+                    records = query.all()
                     for record in records:
                         session.expunge(record)
                     return records
             else:
-                records = session.query(CheckinRecord).filter(
-                    CheckinRecord.rule_id == rule_id,
+                query = session.query(CheckinRecord).filter(
                     func.date(CheckinRecord.planned_time) == today
-                ).all()
-                return records
+                )
+                
+                if rule_source == 'community':
+                    query = query.filter(CheckinRecord.community_rule_id == rule_id)
+                else:
+                    query = query.filter(CheckinRecord.rule_id == rule_id)
+                
+                return query.all()
         except Exception as e:
             logger.error(f"查询今日打卡记录失败: {str(e)}")
             return []
@@ -399,15 +439,18 @@ class CheckinRuleService:
     def _calculate_planned_time(rule, today):
         """
         计算计划打卡时间
-        :param rule: 打卡规则
+        :param rule: 打卡规则（CheckinRule或CommunityCheckinRule）
         :param today: 今天的日期
         :return: datetime 对象
         """
-        if rule.time_slot_type == 4 and rule.custom_time:  # 自定义时间
-            return datetime.combine(today, rule.custom_time)
-        elif rule.time_slot_type == 1:  # 上午
+        time_slot_type = CheckinRuleService._get_rule_attr(rule, 'time_slot_type')
+        custom_time = CheckinRuleService._get_rule_attr(rule, 'custom_time')
+        
+        if time_slot_type == 4 and custom_time:  # 自定义时间
+            return datetime.combine(today, custom_time)
+        elif time_slot_type == 1:  # 上午
             return datetime.combine(today, time(9, 0))
-        elif rule.time_slot_type == 2:  # 下午
+        elif time_slot_type == 2:  # 下午
             return datetime.combine(today, time(14, 0))
         else:  # 晚上
             return datetime.combine(today, time(20, 0))

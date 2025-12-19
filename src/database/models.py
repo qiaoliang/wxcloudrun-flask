@@ -3,7 +3,7 @@
 完全独立于Flask，使用标准的SQLAlchemy ORM
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float, CheckConstraint, UniqueConstraint
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from .query_mixin import QueryMixin
@@ -138,6 +138,7 @@ class CheckinRule(Base, QueryMixin):
     custom_end_date = Column(Date, comment='自定义结束日期')
     week_days = Column(Integer, default=127, comment='周天数')
     status = Column(Integer, default=1, comment='规则状态')
+    rule_source = Column(String(20), default='personal', comment='规则来源: personal/community')
     deleted_at = Column(DateTime, comment='删除时间')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -151,7 +152,8 @@ class CheckinRecord(Base, QueryMixin):
     __tablename__ = 'checkin_records'
 
     record_id = Column(Integer, primary_key=True, autoincrement=True)
-    rule_id = Column(Integer, ForeignKey('checkin_rules.rule_id'), nullable=False)
+    rule_id = Column(Integer, ForeignKey('checkin_rules.rule_id'), comment='个人规则ID')
+    community_rule_id = Column(Integer, ForeignKey('community_checkin_rules.community_rule_id'), comment='社区规则ID')
     solo_user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
     checkin_time = Column(DateTime, comment='打卡时间')
     status = Column(Integer, default=0, comment='状态')
@@ -161,7 +163,14 @@ class CheckinRecord(Base, QueryMixin):
 
     # 关系
     rule = relationship('CheckinRule', backref='checkin_records')
+    community_rule = relationship('CommunityCheckinRule', backref='checkin_records')
     user = relationship('User', backref='checkin_records')
+    
+    # 检查约束：rule_id和community_rule_id至少有一个不为空
+    __table_args__ = (
+        CheckConstraint('(rule_id IS NOT NULL) OR (community_rule_id IS NOT NULL)', 
+                       name='ck_checkin_record_rule'),
+    )
 
 
 class SupervisionRuleRelation(Base, QueryMixin):
@@ -282,6 +291,59 @@ class UserAuditLog(Base, QueryMixin):
     # user = relationship('User', backref='audit_logs')
 
 
+class CommunityCheckinRule(Base, QueryMixin):
+    """社区打卡规则表"""
+    __tablename__ = 'community_checkin_rules'
+    
+    community_rule_id = Column(Integer, primary_key=True, autoincrement=True)
+    community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
+    rule_name = Column(String(100), nullable=False, comment='规则名称')
+    icon_url = Column(String(500), comment='图标URL')
+    frequency_type = Column(Integer, nullable=False, default=0, comment='频率类型')
+    time_slot_type = Column(Integer, nullable=False, default=4, comment='时间段类型')
+    custom_time = Column(Time, comment='自定义时间')
+    custom_start_date = Column(Date, comment='自定义开始日期')
+    custom_end_date = Column(Date, comment='自定义结束日期')
+    week_days = Column(Integer, default=127, comment='周天数')
+    status = Column(Integer, default=1, comment='规则状态')
+    is_enabled = Column(Boolean, default=False, comment='是否已启用')
+    created_by = Column(Integer, ForeignKey('users.user_id'), nullable=False, comment='创建者')
+    updated_by = Column(Integer, ForeignKey('users.user_id'), comment='最后更新者')
+    enabled_at = Column(DateTime, comment='启用时间')
+    disabled_at = Column(DateTime, comment='停用时间')
+    enabled_by = Column(Integer, ForeignKey('users.user_id'), comment='启用人')
+    disabled_by = Column(Integer, ForeignKey('users.user_id'), comment='停用人')
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    
+    # 关系
+    community = relationship('Community', backref='community_checkin_rules')
+    creator = relationship('User', foreign_keys=[created_by])
+    updater = relationship('User', foreign_keys=[updated_by])
+    enabler = relationship('User', foreign_keys=[enabled_by])
+    disabler = relationship('User', foreign_keys=[disabled_by])
+
+
+class UserCommunityRule(Base, QueryMixin):
+    """用户社区规则映射表"""
+    __tablename__ = 'user_community_rules'
+    
+    mapping_id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(Integer, ForeignKey('users.user_id'), nullable=False)
+    community_rule_id = Column(Integer, ForeignKey('community_checkin_rules.community_rule_id'), nullable=False)
+    is_active = Column(Boolean, default=True, comment='是否对该用户生效')
+    created_at = Column(DateTime, default=datetime.now)
+    
+    # 唯一约束：一个用户不能重复关联同一个社区规则
+    __table_args__ = (
+        UniqueConstraint('user_id', 'community_rule_id', name='uq_user_community_rule'),
+    )
+    
+    # 关系
+    user = relationship('User', backref='user_community_rules')
+    community_rule = relationship('CommunityCheckinRule', backref='user_mappings')
+
+
 class Counters(Base, QueryMixin):
     """计数器表"""
     __tablename__ = 'Counters'
@@ -297,5 +359,6 @@ __all__ = [
     'Base', 'User', 'Community', 'CheckinRule', 'CheckinRecord',
     'SupervisionRuleRelation', 'CommunityStaff',
     'CommunityApplication', 'ShareLink', 'ShareLinkAccessLog',
-    'VerificationCode', 'UserAuditLog', 'Counters'
+    'VerificationCode', 'UserAuditLog', 'CommunityCheckinRule',
+    'UserCommunityRule', 'Counters'
 ]

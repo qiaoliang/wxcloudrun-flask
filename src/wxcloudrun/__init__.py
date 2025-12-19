@@ -42,11 +42,12 @@ from database.models import (
     User, Community, CheckinRule, CheckinRecord,
     SupervisionRuleRelation, CommunityStaff,
     CommunityApplication, ShareLink, ShareLinkAccessLog,
-    VerificationCode, UserAuditLog, Counters
+    VerificationCode, UserAuditLog, CommunityCheckinRule,
+    UserCommunityRule, Counters
 )
 
 # 导入视图模块以注册路由
-from .views import misc, sms, auth, user, checkin, supervision, share, community
+from .views import misc, sms, auth, user, checkin, supervision, share, community, community_checkin, user_checkin
 from .background_tasks import start_missing_check_service
 
 # 在 unit 环境下初始化默认数据
