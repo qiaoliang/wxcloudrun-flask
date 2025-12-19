@@ -226,29 +226,29 @@ class UserService:
             return user
 
     @staticmethod
-    def is_user_existed(user):
+    def is_user_existed(user,session=None):
         # 如果传入的是整数，直接按 user_id 查询
         if isinstance(user, int):
-            return UserService.query_user_by_id(user)
-        
+            return UserService.query_user_by_id(user,session)
+
         # 只有当 user_id 不为 None 时才查询（已存在的用户）
         if hasattr(user, 'user_id') and user.user_id is not None:
-            existing = UserService.query_user_by_id(user.user_id)
+            existing = UserService.query_user_by_id(user.user_id,session)
             if existing:
                     return existing
-        
+
         # 只有当 wechat_openid 不为 None 且不为空时才查询
         if hasattr(user, 'wechat_openid') and user.wechat_openid:
-            existing = UserService.query_user_by_openid(user.wechat_openid)
+            existing = UserService.query_user_by_openid(user.wechat_openid,session)
             if existing:
                     return existing
-        
+
         # 只有当 phone_number 不为 None 且不为空时才查询
         if hasattr(user, 'phone_number') and user.phone_number:
-            existing = UserService.query_user_by_phone_number(user.phone_number)
+            existing = UserService.query_user_by_phone_number(user.phone_number,session)
             if existing:
                     return existing
-        
+
         return None
     @staticmethod
     def _is_wechat_user(new_user):
@@ -309,7 +309,7 @@ class UserService:
         new_user.status=1
         new_user.verification_status=2
         new_user._is_community_worker = False
-        
+
         # 如果session为None，创建新的会话
         if session is None:
             with db.get_session() as session:

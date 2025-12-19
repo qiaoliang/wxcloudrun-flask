@@ -38,27 +38,49 @@ class TestMultiCommunityRoleAssignmentE2E:
         register_data = register_response.json()
         assert register_data.get('code') == 1, f"注册失败: {register_data}"
         return register_data['data']['user_id']
+    def test_super_admin_create_community(self, test_server):
+        """超级管理员创建测试社区"""
+        base_url = test_server
+        admin_token, super_admin_id = self._get_super_admin_token(base_url)
+        admin_headers = {'Authorization': f'Bearer {admin_token}'}
+        commu_data = {
+            'name': '我的q 测试社区',
+            'location': 'q 测试社区 的测试地址 ',
+            'description': '测试社区描述',
+            'manager_id':super_admin_id
+        }
+        response = requests.post(f'{base_url}/api/community/create',
+            headers=admin_headers,
+            json=commu_data
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert data.get('code') == 1
+        assert data['data']['community_id'] is not None
 
-    def _create_test_community(self, base_url, admin_headers, name, location='测试地址', manager_id=None):
+    def _create_test_community(self, base_url, admin_headers, commu_name, location='测试地址', manager_id=None):
         """创建测试社区"""
-        json_data = {
-            'name': name,
-            'location': location,
+        """超级管理员创建测试社区"""
+        admin_token, super_admin_id = self._get_super_admin_token(base_url)
+        admin_headers = {'Authorization': f'Bearer {admin_token}'}
+        commu_data = {
+            'name': commu_name,
+            'location': 'q 测试社区 的测试地址 ',
             'description': '测试社区描述'
         }
         # 如果指定了manager_id，添加到请求中
         if manager_id:
-            json_data['manager_id'] = manager_id
-        
+            commu_data['manager_id'] = manager_id
+
         response = requests.post(f'{base_url}/api/community/create',
             headers=admin_headers,
-            json=json_data
+            json=commu_data
         )
         assert response.status_code == 200
         data = response.json()
         assert data.get('code') == 1
         return data['data']['community_id']
-    
+
     def _get_user_token(self, base_url, user_id):
         """通过用户ID获取token（需要先有手机号）"""
         # 这里简化处理，实际可能需要更复杂的逻辑
@@ -78,7 +100,7 @@ class TestMultiCommunityRoleAssignmentE2E:
 
         # 1. 创建测试用户
         test_user_id = self._create_test_user(base_url, '13800000001', '多角色测试用户')
-        
+
         # 2. 创建另一个用户作为社区B的主管
         manager_user_id = self._create_test_user(base_url, '13800000002', '社区主管用户')
 
@@ -115,7 +137,7 @@ class TestMultiCommunityRoleAssignmentE2E:
         data2 = response2.json()
         assert data2.get('code') == 1, f"添加到社区B失败: {data2}"
         assert data2['data']['added_count'] >= 1, "应该成功添加至少1个用户到社区B"
-        
+
         # 6. 验证用户在两个社区都有角色
         # 通过社区工作人员列表验证
         for community_id, community_name in [(community_a_id, '社区A'), (community_b_id, '社区B')]:
@@ -126,7 +148,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             assert staff_response.status_code == 200
             staff_data = staff_response.json()
             assert staff_data.get('code') == 1
-            
+
             staff_list = staff_data['data']['staff_members']
             user_in_community = next((s for s in staff_list if s['user_id'] == str(test_user_id)), None)
             assert user_in_community is not None, f"用户应该在{community_name}中"
@@ -158,7 +180,7 @@ class TestMultiCommunityRoleAssignmentE2E:
         user_in_community_b = next((s for s in staff_list_b if s['user_id'] == str(test_user_id)), None)
         assert user_in_community_b is not None, f"用户应该在社区B中，但未找到: {staff_list_b}"
         assert user_in_community_b['role'] == 'staff', f"用户在社区B的角色应该是staff，实际是: {user_in_community_b['role']}"
-        
+
         # 验证社区B的主管是manager_user_id
         manager_in_community_b = next((s for s in staff_list_b if s['user_id'] == str(manager_user_id)), None)
         assert manager_in_community_b is not None, "主管应该在社区B中"
@@ -178,7 +200,7 @@ class TestMultiCommunityRoleAssignmentE2E:
 
         # 创建测试用户
         test_user_id = self._create_test_user(base_url, '13800000002', '权限测试用户')
-        
+
         # 创建另一个用户作为社区B的主管
         manager_user_id = self._create_test_user(base_url, '13800000003', '社区主管用户2')
 
@@ -219,7 +241,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             assert staff_response.status_code == 200
             staff_data = staff_response.json()
             assert staff_data.get('code') == 1
-            
+
             staff_list = staff_data['data']['staff_members']
             user_in_community = next((s for s in staff_list if s['user_id'] == str(test_user_id)), None)
             assert user_in_community is not None, f"用户应该在{community_name}中"
@@ -239,7 +261,7 @@ class TestMultiCommunityRoleAssignmentE2E:
 
         # 创建测试用户
         test_user_id = self._create_test_user(base_url, '13800000004', '移除测试用户')
-        
+
         # 创建另一个用户作为社区B的主管
         manager_user_id = self._create_test_user(base_url, '13800000005', '社区主管用户3')
 
@@ -316,7 +338,6 @@ class TestMultiCommunityRoleAssignmentE2E:
 
     def test_get_managed_communities_api_returns_correct_roles(self, test_server):
         """
-        E2E测试：验证获取用户管理的社区API返回正确的角色信息
         业务规则：API应准确返回用户在每个社区的角色
         """
         base_url = test_server
@@ -365,7 +386,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             assert staff_response.status_code == 200
             staff_data = staff_response.json()
             assert staff_data.get('code') == 1
-            
+
             staff_list = staff_data['data']['staff_members']
             user_in_community = next((s for s in staff_list if s['user_id'] == str(user_a_id)), None)
             assert user_in_community is not None, f"用户A应该在{community_name}中"
@@ -380,7 +401,7 @@ class TestMultiCommunityRoleAssignmentE2E:
             assert staff_response.status_code == 200
             staff_data = staff_response.json()
             assert staff_data.get('code') == 1
-            
+
             staff_list = staff_data['data']['staff_members']
             user_in_community = next((s for s in staff_list if s['user_id'] == str(user_b_id)), None)
             assert user_in_community is not None, f"用户B应该在{community_name}中"
