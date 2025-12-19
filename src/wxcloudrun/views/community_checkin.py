@@ -108,8 +108,6 @@ def get_community_rules(decoded):
         rules_data = []
         for rule in rules:
             rule_dict = rule.to_dict()
-
-            # 添加创建者和更新者信息
             if rule.creator:
                 rule_dict['created_by_name'] = rule.creator.nickname or rule.creator.phone
             if rule.updater:

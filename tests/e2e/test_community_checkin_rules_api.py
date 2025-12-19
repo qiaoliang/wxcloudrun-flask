@@ -292,11 +292,17 @@ class TestCommunityCheckinRulesAPI:
         rule2_id = create_data2['data']['community_rule_id']
 
         # 启用然后禁用第二个规则
-        requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/enable", headers=header)
-        requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/disable", headers=header)
+        response = requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/enable", headers=header)
+        res_data = response.json()
+        assert res_data.get('code') == 1, "启用规则应该成功"
+
+        response = requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/disable", headers=header)
+        res_data = response.json()
+        assert res_data.get('code') == 1, "禁用规则应该成功"
+
 
         # 1. 获取不包含已禁用规则的列表
-        response = requests.get(f"{base_url}/api/community-checkin/rules?community_id=1&include_disabled=false",
+        response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={ comm["community_id"]}&include_disabled=false",
                                headers=header)
         assert response.status_code == 200
         list_data = response.json()

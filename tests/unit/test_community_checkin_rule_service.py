@@ -16,27 +16,27 @@ from wxcloudrun.utils.strutil import random_str,uuid_str
 
 class TestCommunityCheckinRulesService:
 
-    def test_create_community_rule(self, test_session):
-        """测试默认社区识别"""
+    def _create_community_with_manager(self, test_session,manager_id):
+        comm_name, description = f"comm_name_{uuid_str(8)}",f"comm_desc_{uuid_str(12)}"
+        comm = CommunityService.create_community(comm_name, description,manager_id, None, None, manager_id, None, None, test_session)
+        test_session.commit()
+        return comm
 
+    def _create_a_user(self, test_session):
         # Arrange - 创建一个用户
         new_user = User(
-            wechat_openid="test_openid_new",
-            nickname="微信新用户",
-            avatar_url="https://example.com/1.jpg"
+            wechat_openid=f"test_openid{uuid_str(8)}",
+            nickname=f"微信新用户_{uuid_str(8)}",
+            avatar_url=f"https://{uuid_str(8)}.example.com/1.jpg"
         )
         a_user = UserService.create_user(new_user)
+        return a_user
 
-        # Arrange - 创建一个社区
-        cumm_name, description = random_str(8), random_str(16)
-        cumm = CommunityService.create_community(cumm_name, description,a_user.user_id, None, None, a_user.user_id, None, None, test_session)
-        test_session.commit()
-
-        # Act - 创建一个社区签到规则
+    def _create_a_community_rule(self, comm_id,user_id,test_session):
         result = CommunityCheckinRuleService.create_community_rule(
             rule_data={
-                'rule_name': '默认社区签到规则',
-                'community_id': cumm['community_id'],
+                'rule_name': f'默认签到规则_{uuid_str(8)}',
+                'community_id': comm_id,
                 'start_time': '08:00:00',
                 'end_time': '18:00:00',
                 'checkin_days': [1, 2, 3, 4, 5],
@@ -44,7 +44,44 @@ class TestCommunityCheckinRulesService:
                     {'start_time': '08:00:00',}
                 ]
             },
-            community_id=cumm['community_id'],
+            community_id=comm_id,
+            created_by=user_id
+        )
+        return result
+    def test_get_community_rules_with_disabled(self, test_session):
+        """测试获取社区签到规则"""
+        a_user = self._create_a_user(self)
+        # Arrange - 创建一个社区
+        comm1 = self._create_community_with_manager(test_session,a_user.user_id)
+        test_session.commit()
+        rule1 = self._create_a_community_rule(comm1['community_id'],a_user.user_id,test_session)
+        rule2 = self._create_a_community_rule(comm1['community_id'],a_user.user_id,test_session)
+        CommunityCheckinRuleService.disable_community_rule(rule1['community_rule_id'],a_user.user_id)
+        rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],True)
+        assert len(rules) == 2
+        rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],False)
+        assert len(rules) == 1
+
+    def test_create_community_rule(self, test_session):
+        """测试默认社区识别"""
+        a_user = self._create_a_user(self)
+        # Arrange - 创建一个社区
+        comm1 = self._create_community_with_manager(test_session,a_user.user_id)
+        test_session.commit()
+
+        # Act - 创建一个社区签到规则
+        result = CommunityCheckinRuleService.create_community_rule(
+            rule_data={
+                'rule_name': '默认社区签到规则',
+                'community_id': comm1['community_id'],
+                'start_time': '08:00:00',
+                'end_time': '18:00:00',
+                'checkin_days': [1, 2, 3, 4, 5],
+                'checkin_times': [
+                    {'start_time': '08:00:00',}
+                ]
+            },
+            community_id=comm1['community_id'],
             created_by=a_user.user_id
         )
         assert result.community_rule_id == 1
