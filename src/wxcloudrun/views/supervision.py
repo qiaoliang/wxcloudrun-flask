@@ -9,7 +9,8 @@ from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
-from wxcloudrun.dao import query_checkin_rule_by_id, query_checkin_records_by_rule_id_and_date
+from wxcloudrun.checkin_rule_service import CheckinRuleService
+from wxcloudrun.checkin_record_service import CheckinRecordService
 from database import get_database
 from database.models import SupervisionRuleRelation, CheckinRecord
 from wxcloudrun.decorators import login_required
@@ -53,7 +54,7 @@ def invite_supervisor(decoded):
         # 检查规则是否都属于当前用户
         if rule_ids:
             for rule_id in rule_ids:
-                rule = query_checkin_rule_by_id(rule_id)
+                rule = CheckinRuleService.query_rule_by_id(rule_id)
                 if not rule or rule.solo_user_id != user.user_id:
                     return make_err_response({}, f'规则ID {rule_id} 不存在或不属于当前用户')
 
@@ -243,7 +244,7 @@ def get_supervision_invitations(decoded):
             solo_user = UserService.query_user_by_id(inv.solo_user_id)
             rule_info = None
             if inv.rule_id:
-                rule = query_checkin_rule_by_id(inv.rule_id)
+                rule = CheckinRuleService.query_rule_by_id(inv.rule_id)
                 if rule:
                     rule_info = {
                         'rule_id': rule.rule_id,
@@ -401,7 +402,7 @@ def get_my_supervised_users(decoded):
             checkin_items = []
             for rule in rules:
                 # 查询今天该规则的打卡记录
-                today_records = query_checkin_records_by_rule_id_and_date(
+                today_records = CheckinRecordService._query_records_by_rule_and_date(
                     rule.rule_id, today)
 
                 # 确定打卡状态

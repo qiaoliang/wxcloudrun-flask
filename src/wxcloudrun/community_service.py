@@ -18,13 +18,28 @@ class CommunityService:
     """社区服务类"""
 
     @staticmethod
-    def assign_user_to_community(user, community_name):
+    def assign_user_to_community(user, community_name, session=None):
         """将用户分配到社区"""
         if not community_name:
             raise ValueError("社区名称不能为空")
 
-        db = get_db()
-        with db.get_session() as session:
+        # 如果session为None，创建新的会话
+        if session is None:
+            db = get_db()
+            with db.get_session() as session:
+                community = session.query(Community).filter_by(name=community_name).first()
+                if not community:
+                    raise ValueError(f"社区不存在: {community_name}")
+
+                # 更新用户的社区ID
+                user.community_id = community.community_id
+                session.merge(user)
+                session.commit()
+
+                logger.info(f"用户 {user.user_id} 已分配到社区 {community.community_id}")
+                return community
+        else:
+            # 使用传入的session
             community = session.query(Community).filter_by(name=community_name).first()
             if not community:
                 raise ValueError(f"社区不存在: {community_name}")
@@ -32,45 +47,132 @@ class CommunityService:
             # 更新用户的社区ID
             user.community_id = community.community_id
             session.merge(user)
-            session.commit()
-
+            # 注意：使用外部传入的session时，由调用者负责commit
             logger.info(f"用户 {user.user_id} 已分配到社区 {community.community_id}")
             return community
     @staticmethod
-    def query_community_by_id(comm_id):
-        db = get_db()
-        with db.get_session() as session:
+    def query_community_by_id(comm_id, session=None):
+        # 如果session为None，创建新的会话
+        if session is None:
+            db = get_db()
+            with db.get_session() as session:
+                existing = session.query(Community).filter_by(community_id=comm_id).first()
+                if existing:
+                    session.expunge(existing)
+                    return existing
+                else:
+                    return None
+        else:
+            # 使用传入的session
             existing = session.query(Community).filter_by(community_id=comm_id).first()
             if existing:
-                session.expunge(existing)
+                # 注意：使用外部传入的session时，不进行expunge操作
                 return existing
             else:
                 return None
     @staticmethod
-    def query_community_by_name(comm_name):
-        db = get_db()
-        with db.get_session() as session:
+    def query_community_by_name(comm_name, session=None):
+        # 如果session为None，创建新的会话
+        if session is None:
+            db = get_db()
+            with db.get_session() as session:
+                existing = session.query(Community).filter_by(name=comm_name).first()
+                if existing:
+                    session.expunge(existing)
+                    return existing
+                else:
+                    return None
+        else:
+            # 使用传入的session
             existing = session.query(Community).filter_by(name=comm_name).first()
             if existing:
-                session.expunge(existing)
+                # 注意：使用外部传入的session时，不进行expunge操作
                 return existing
             else:
                 return None
 
     @staticmethod
-    def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None):
+    def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None, session=None):
         """创建新社区"""
-        db = get_db()
-        with db.get_session() as session:
+        # 如果session为None，创建新的会话
+        if session is None:
+            db = get_db()
+            with db.get_session() as session:
+                # 检查社区名称是否已存在
+                existing = CommunityService.query_community_by_name(name, session=session)
+                if existing:
+                    raise ValueError("社区名称已存在")
+
+                # 如果指定了主管,检查用户是否存在
+                from wxcloudrun.user_service import UserService
+                if manager_id:
+                    manager = UserService.is_user_existed(manager_id, session=session)
+                    if not manager:
+                        raise ValueError("指定的主管不存在")
+
+                # 创建社区
+                community = Community(
+                    name=name,
+                    description=description,
+                    creator_user_id=creator_id,
+                    location=location,
+                    location_lat=location_lat,
+                    location_lon=location_lon,
+                    settings=json.dumps(settings or {}, ensure_ascii=False)
+                )
+
+                session.add(community)
+                session.flush()  # 获取community_id
+
+                # 设置主管：优先使用指定的manager_id，否则创建者自动成为主管
+                from database.models import CommunityStaff
+                final_manager_id = manager_id if manager_id else creator_id
+
+                staff_role = CommunityStaff(
+                    community_id=community.community_id,
+                    user_id=final_manager_id,
+                    role='manager'  # 主管
+                )
+                session.add(staff_role)
+
+                # 记录审计日志
+                audit_log = UserAuditLog(
+                    user_id=creator_id,
+                    action="create_community",
+                    detail=f"创建社区: {name}, 主管: {final_manager_id}"
+                )
+                session.add(audit_log)
+
+                session.commit()
+                session.refresh(community)  # 确保所有属性都已加载
+
+                # 创建一个字典副本，避免会话问题
+                community_dict = {
+                    'community_id': community.community_id,
+                    'name': community.name,
+                    'description': community.description,
+                    'location': community.location,
+                    'location_lat': community.location_lat,
+                    'location_lon': community.location_lon,
+                    'creator_user_id': community.creator_user_id,
+                    'status': community.status,
+                    'created_at': community.created_at,
+                    'updated_at': community.updated_at
+                }
+
+                logger.info(f"社区创建成功: {name}, ID: {community.community_id}, 主管: {final_manager_id}")
+                return community_dict
+        else:
+            # 使用传入的session
             # 检查社区名称是否已存在
-            existing = CommunityService.query_community_by_name(name)
+            existing = CommunityService.query_community_by_name(name, session=session)
             if existing:
                 raise ValueError("社区名称已存在")
 
             # 如果指定了主管,检查用户是否存在
             from wxcloudrun.user_service import UserService
             if manager_id:
-                manager = UserService.is_user_existed(manager_id)
+                manager = UserService.is_user_existed(manager_id, session=session)
                 if not manager:
                     raise ValueError("指定的主管不存在")
 
@@ -107,9 +209,7 @@ class CommunityService:
             )
             session.add(audit_log)
 
-            session.commit()
-            session.refresh(community)  # 确保所有属性都已加载
-
+            # 注意：使用外部传入的session时，由调用者负责commit和refresh
             # 创建一个字典副本，避免会话问题
             community_dict = {
                 'community_id': community.community_id,

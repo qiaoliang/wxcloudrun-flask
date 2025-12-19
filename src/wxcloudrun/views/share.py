@@ -9,7 +9,7 @@ from flask import request, Response
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
-from wxcloudrun.dao import query_checkin_rule_by_id
+from wxcloudrun.checkin_rule_service import CheckinRuleService
 from database import get_database
 from database.models import ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
 from wxcloudrun.decorators import login_required
@@ -42,7 +42,7 @@ def create_share_checkin_link(decoded):
         if not rule_id:
             return make_err_response({}, '缺少rule_id参数')
 
-        rule = query_checkin_rule_by_id(rule_id)
+        rule = CheckinRuleService.query_rule_by_id(rule_id)
         if not rule or rule.solo_user_id != user.user_id:
             return make_err_response({}, '打卡规则不存在或无权限')
 
@@ -131,7 +131,7 @@ def resolve_share_checkin_link(decoded):
                 relation.updated_at = datetime.now()
             session.commit()
 
-        rule = query_checkin_rule_by_id(link.rule_id)
+        rule = CheckinRuleService.query_rule_by_id(link.rule_id)
         rule_data = {
             'rule_id': rule.rule_id,
             'rule_name': rule.rule_name,
@@ -212,7 +212,7 @@ def share_checkin_page():
                             relation.status = 2
                             relation.updated_at = datetime.now()
                         session.commit()
-                rule = query_checkin_rule_by_id(link.rule_id)
+                rule = CheckinRuleService.query_rule_by_id(link.rule_id)
                 return make_succ_response({
                     'message': '解析成功',
                     'rule': {

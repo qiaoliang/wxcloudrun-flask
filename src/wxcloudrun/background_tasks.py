@@ -5,10 +5,7 @@ from datetime import datetime, date, time, timedelta
 
 from wxcloudrun import app
 from database.models import CheckinRule, CheckinRecord, User
-from wxcloudrun.dao import (
-    query_checkin_records_by_rule_id_and_date,
-    insert_checkin_record,
-)
+from wxcloudrun.checkin_record_service import CheckinRecordService
 
 
 def _should_check_today(rule, today):
@@ -63,21 +60,21 @@ def _process_missed_for_today(now):
             if now < planned_dt + grace_delta:
                 continue
 
-            today_records = query_checkin_records_by_rule_id_and_date(rule.rule_id, today)
+            today_records = CheckinRecordService._query_records_by_rule_and_date(rule.rule_id, today)
 
             has_checked = any(r.status == 1 for r in today_records)
             has_missed = any(r.status == 0 for r in today_records)
             if has_checked or has_missed:
                 continue
 
-            new_record = CheckinRecord(
+            # 使用 service 方法创建记录
+            CheckinRecordService._create_record(
                 rule_id=rule.rule_id,
-                solo_user_id=rule.solo_user_id,
+                user_id=rule.solo_user_id,
                 checkin_time=None,
-                status=0,
                 planned_time=planned_dt,
+                status=0
             )
-            insert_checkin_record(new_record)
             app.logger.info(
                 f"[missing-mark] 用户 {rule.solo_user_id} 规则 {rule.rule_id} 标记为miss，计划时间 {planned_dt}"
             )

@@ -182,16 +182,75 @@ class CheckinRecordService:
             raise
 
     @staticmethod
-    def get_supervised_records(supervisor_user_id, start_date, end_date):
+    def get_supervised_records(supervisor_user_id, start_date, end_date, session=None):
         """
         获取监护人可查看的被监护人打卡记录
         :param supervisor_user_id: 监护人用户ID
         :param start_date: 开始日期
         :param end_date: 结束日期
+        :param session: 数据库会话，如果为None则创建新会话
         :return: 打卡记录列表
         """
         try:
-            with get_db().get_session() as session:
+            # 如果session为None，创建新的会话
+            if session is None:
+                with get_db().get_session() as session:
+                    # 获取监督关系
+                    relations = session.query(SupervisionRuleRelation).filter(
+                        SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
+                        SupervisionRuleRelation.status == 2  # 已同意
+                    ).all()
+
+                    if not relations:
+                        return []
+
+                    # 分离可以监督所有规则的用户和特定规则的关系
+                    all_rules_users = set()
+                    specific_rules = []
+
+                    for relation in relations:
+                        if relation.rule_id is None:
+                            all_rules_users.add(relation.solo_user_id)
+                        else:
+                            specific_rules.append({
+                                'user_id': relation.solo_user_id,
+                                'rule_id': relation.rule_id
+                            })
+
+                # 查询打卡记录
+                records = []
+
+                # 查询可以监督所有规则的用户的记录
+                if all_rules_users:
+                    all_rules_records = session.query(CheckinRecord).filter(
+                        CheckinRecord.solo_user_id.in_(all_rules_users),
+                        CheckinRecord.planned_time >= start_date,
+                        CheckinRecord.planned_time <= end_date
+                    ).all()
+                    records.extend(all_rules_records)
+
+                # 查询特定规则的记录
+                for spec in specific_rules:
+                    spec_records = session.query(CheckinRecord).filter(
+                        CheckinRecord.solo_user_id == spec['user_id'],
+                        CheckinRecord.rule_id == spec['rule_id'],
+                        CheckinRecord.planned_time >= start_date,
+                        CheckinRecord.planned_time <= end_date
+                    ).all()
+                    records.extend(spec_records)
+
+                # 去重并排序
+                unique_records = list({r.record_id: r for r in records}.values())
+                unique_records.sort(key=lambda x: x.planned_time, reverse=True)
+
+                # 确保对象在会话关闭后可访问
+                for record in unique_records:
+                    session.expunge(record)
+
+                logger.info(f"获取监督记录成功，监护人ID: {supervisor_user_id}, 记录数量: {len(unique_records)}")
+                return unique_records
+            else:
+                # 使用传入的session
                 # 获取监督关系
                 relations = session.query(SupervisionRuleRelation).filter(
                     SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
@@ -240,10 +299,7 @@ class CheckinRecordService:
                 unique_records = list({r.record_id: r for r in records}.values())
                 unique_records.sort(key=lambda x: x.planned_time, reverse=True)
 
-                # 确保对象在会话关闭后可访问
-                for record in unique_records:
-                    session.expunge(record)
-
+                # 注意：使用外部传入的session时，不进行expunge操作
                 logger.info(f"获取监督记录成功，监护人ID: {supervisor_user_id}, 记录数量: {len(unique_records)}")
                 return unique_records
 
@@ -254,61 +310,92 @@ class CheckinRecordService:
     # ========== 私有辅助方法 ==========
 
     @staticmethod
-    def query_record_by_id(record_id):
+    def query_record_by_id(record_id, session=None):
         """
         根据记录ID查询打卡记录
         :param record_id: 记录ID
+        :param session: 数据库会话，如果为None则创建新会话
         :return: 打卡记录实体
         """
         try:
-            with get_db().get_session() as session:
+            # 如果session为None，创建新的会话
+            if session is None:
+                with get_db().get_session() as session:
+                    record = session.query(CheckinRecord).get(record_id)
+                    if record:
+                        session.expunge(record)
+                    return record
+            else:
+                # 使用传入的session
                 record = session.query(CheckinRecord).get(record_id)
-                if record:
-                    session.expunge(record)
+                # 注意：使用外部传入的session时，不进行expunge操作
                 return record
         except OperationalError as e:
             logger.error(f"查询打卡记录失败: {str(e)}")
             return None
 
     @staticmethod
-    def _query_records_by_rule_and_date(rule_id, checkin_date):
+    def _query_records_by_rule_and_date(rule_id, checkin_date, session=None):
         """
         根据规则ID和日期查询打卡记录
         :param rule_id: 规则ID
         :param checkin_date: 打卡日期
+        :param session: 数据库会话，如果为None则创建新会话
         :return: 打卡记录列表
         """
         try:
-            with get_db().get_session() as session:
+            # 如果session为None，创建新的会话
+            if session is None:
+                with get_db().get_session() as session:
+                    records = session.query(CheckinRecord).filter(
+                        CheckinRecord.rule_id == rule_id,
+                        func.date(CheckinRecord.planned_time) == checkin_date
+                    ).all()
+                    for record in records:
+                        session.expunge(record)
+                    return records
+            else:
+                # 使用传入的session
                 records = session.query(CheckinRecord).filter(
                     CheckinRecord.rule_id == rule_id,
                     func.date(CheckinRecord.planned_time) == checkin_date
                 ).all()
-                for record in records:
-                    session.expunge(record)
+                # 注意：使用外部传入的session时，不进行expunge操作
                 return records
         except OperationalError as e:
             logger.error(f"查询打卡记录失败: {str(e)}")
             return []
 
     @staticmethod
-    def _query_records_by_user_and_date_range(user_id, start_date, end_date):
+    def _query_records_by_user_and_date_range(user_id, start_date, end_date, session=None):
         """
         根据用户ID和日期范围查询打卡记录
         :param user_id: 用户ID
         :param start_date: 开始日期
         :param end_date: 结束日期
+        :param session: 数据库会话，如果为None则创建新会话
         :return: 打卡记录列表
         """
         try:
-            with get_db().get_session() as session:
+            # 如果session为None，创建新的会话
+            if session is None:
+                with get_db().get_session() as session:
+                    records = session.query(CheckinRecord).filter(
+                        CheckinRecord.solo_user_id == user_id,
+                        CheckinRecord.planned_time >= start_date,
+                        CheckinRecord.planned_time <= end_date
+                    ).order_by(CheckinRecord.planned_time.desc()).all()
+                    for record in records:
+                        session.expunge(record)
+                    return records
+            else:
+                # 使用传入的session
                 records = session.query(CheckinRecord).filter(
                     CheckinRecord.solo_user_id == user_id,
                     CheckinRecord.planned_time >= start_date,
                     CheckinRecord.planned_time <= end_date
                 ).order_by(CheckinRecord.planned_time.desc()).all()
-                for record in records:
-                    session.expunge(record)
+                # 注意：使用外部传入的session时，不进行expunge操作
                 return records
         except OperationalError as e:
             logger.error(f"查询打卡记录失败: {str(e)}")
@@ -332,7 +419,7 @@ class CheckinRecordService:
             return datetime.combine(target_date, time(20, 0))
 
     @staticmethod
-    def _create_record(rule_id, user_id, checkin_time, planned_time, status):
+    def _create_record(rule_id, user_id, checkin_time, planned_time, status, session=None):
         """
         创建打卡记录
         :param rule_id: 规则ID
@@ -340,6 +427,7 @@ class CheckinRecordService:
         :param checkin_time: 打卡时间（可为None）
         :param planned_time: 计划时间
         :param status: 状态（0-未打卡，1-已打卡）
+        :param session: 数据库会话，如果为None则创建新会话
         :return: 记录ID
         """
         try:
@@ -351,30 +439,57 @@ class CheckinRecordService:
                 planned_time=planned_time
             )
 
-            with get_db().get_session() as session:
+            # 如果session为None，创建新的会话
+            if session is None:
+                with get_db().get_session() as session:
+                    session.add(new_record)
+                    session.commit()
+                    session.refresh(new_record)
+                    record_id = new_record.record_id
+                    session.expunge(new_record)
+                    
+                return record_id
+            else:
+                # 使用传入的session
                 session.add(new_record)
-                session.commit()
+                # 注意：使用外部传入的session时，由调用者负责commit
                 session.refresh(new_record)
                 record_id = new_record.record_id
-                session.expunge(new_record)
-                
-            return record_id
+                # 注意：使用外部传入的session时，不进行expunge操作
+                return record_id
             
         except Exception as e:
             logger.error(f"创建打卡记录失败: {str(e)}")
             raise
 
     @staticmethod
-    def _update_record_status(record_id, checkin_time, status):
+    def _update_record_status(record_id, checkin_time, status, session=None):
         """
         更新打卡记录状态
         :param record_id: 记录ID
         :param checkin_time: 打卡时间（可为None）
         :param status: 状态
+        :param session: 数据库会话，如果为None则创建新会话
         :return: 记录ID
         """
         try:
-            with get_db().get_session() as session:
+            # 如果session为None，创建新的会话
+            if session is None:
+                with get_db().get_session() as session:
+                    record = session.query(CheckinRecord).get(record_id)
+                    if not record:
+                        raise ValueError('打卡记录不存在')
+                    
+                    record.checkin_time = checkin_time
+                    record.status = status
+                    record.updated_at = datetime.now()
+                    
+                    session.flush()
+                    session.commit()
+                    
+                    return record_id
+            else:
+                # 使用传入的session
                 record = session.query(CheckinRecord).get(record_id)
                 if not record:
                     raise ValueError('打卡记录不存在')
@@ -384,7 +499,7 @@ class CheckinRecordService:
                 record.updated_at = datetime.now()
                 
                 session.flush()
-                session.commit()
+                # 注意：使用外部传入的session时，由调用者负责commit
                 
                 return record_id
                 
