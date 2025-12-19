@@ -269,17 +269,14 @@ def enable_community_rule(decoded, rule_id):
     try:
         enabled_by = decoded.get('user_id')
 
-        rule = CommunityCheckinRuleService.enable_community_rule(rule_id, enabled_by)
-
-        # 获取更新后的规则信息
-        #rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
+        rule_dict = CommunityCheckinRuleService.enable_community_rule(rule_id, enabled_by)
 
         response_data = {
-            'community_rule_id': rule.community_rule_id,
-            'community_id':rule.community_id,
-            'status': rule.status,
-            'enabled_at': rule.enabled_at.isoformat() if rule.enabled_at else None,
-            'enabled_by': rule.enabled_by
+            'community_rule_id': rule_dict['community_rule_id'],
+            'community_id': rule_dict['community_id'],
+            'status': rule_dict['status'],
+            'enabled_at': rule_dict['enabled_at'],
+            'enabled_by': rule_dict['enabled_by']
         }
 
         logger.info(f"启用社区规则成功: 规则ID={rule_id}, 启用人={enabled_by}")

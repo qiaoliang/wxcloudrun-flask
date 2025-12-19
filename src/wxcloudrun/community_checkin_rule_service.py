@@ -247,12 +247,12 @@ class CommunityCheckinRuleService:
                 rule.updated_at = datetime.now()
 
                 session.commit()
-                # 不需要refresh，因为我们在同一个会话中修改了对象
-                session.refresh(rule)
-                session.expunge(rule)
+                
+                # 在会话上下文中将对象转换为字典，避免离开会话后的延迟加载问题
+                rule_dict = rule.to_dict()
 
             logger.info(f"启用社区规则成功: 规则ID={rule_id}, 启用人={enabled_by_int}, 影响用户数={len(community_users)}")
-            return rule
+            return rule_dict
 
         except SQLAlchemyError as e:
             logger.error(f"启用社区规则失败: {str(e)}")
