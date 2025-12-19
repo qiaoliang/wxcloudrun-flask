@@ -102,26 +102,24 @@ def get_community_rules(decoded):
         community_id = request.args.get('community_id')
         include_disabled = request.args.get('include_disabled', 'false').lower() == 'true'
 
-        rules = CommunityCheckinRuleService.get_community_rules(community_id, include_disabled)
+        # Layer 1: API入口点验证 - 确保必要参数存在且有效
+        if not community_id:
+            return make_err_response({}, '缺少社区ID参数')
 
-        # 转换为字典列表
-        rules_data = []
-        for rule in rules:
-            rule_dict = rule.to_dict()
-            if rule.creator:
-                rule_dict['created_by_name'] = rule.creator.nickname or rule.creator.phone
-            if rule.updater:
-                rule_dict['updated_by_name'] = rule.updater.nickname or rule.updater.phone
-            if rule.enabler:
-                rule_dict['enabled_by_name'] = rule.enabler.nickname or rule.enabler.phone
-            if rule.disabler:
-                rule_dict['disabled_by_name'] = rule.disabler.nickname or rule.disabler.phone
+        try:
+            community_id_int = int(community_id)
+            if community_id_int <= 0:
+                return make_err_response({}, '社区ID必须为正整数')
+        except ValueError:
+            return make_err_response({}, '社区ID必须为有效整数')
 
-            rules_data.append(rule_dict)
-
+        rules_data = CommunityCheckinRuleService.get_community_rules(community_id_int, include_disabled)
         logger.info(f"获取社区规则列表成功: 社区ID={community_id}, 规则数量={len(rules_data)}")
         return make_succ_response(rules_data)
 
+    except ValueError as e:
+        logger.warning(f"获取社区规则列表参数错误: {str(e)}")
+        return make_err_response({}, str(e))
     except Exception as e:
         logger.error(f"获取社区规则列表失败: {str(e)}")
         return make_err_response({}, f'获取社区规则列表失败: {str(e)}')
@@ -176,6 +174,7 @@ def create_community_rule(decoded):
 
         response_data = {
             'community_rule_id': rule.community_rule_id,
+            'community_id': rule.community_id,
             'rule_name': rule.rule_name,
             'status': rule.status,
             'created_by': rule.created_by,
@@ -270,13 +269,14 @@ def enable_community_rule(decoded, rule_id):
     try:
         enabled_by = decoded.get('user_id')
 
-        CommunityCheckinRuleService.enable_community_rule(rule_id, enabled_by)
+        rule = CommunityCheckinRuleService.enable_community_rule(rule_id, enabled_by)
 
         # 获取更新后的规则信息
-        rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
+        #rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
 
         response_data = {
             'community_rule_id': rule.community_rule_id,
+            'community_id':rule.community_id,
             'status': rule.status,
             'enabled_at': rule.enabled_at.isoformat() if rule.enabled_at else None,
             'enabled_by': rule.enabled_by

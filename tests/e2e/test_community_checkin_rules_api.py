@@ -19,7 +19,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.insert(0, project_root)
 
 from hashutil import random_str, uuid_str
-
+from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 # 导入测试工具函数
 from .testutil import get_headers_by_creating_phone_user, create_phone_user, TEST_DEFAULT_SMS_CODE, TEST_DEFAULT_PWD, TEST_DEFAULT_WXCAHT_CODE
 
@@ -272,10 +272,11 @@ class TestCommunityCheckinRulesAPI:
         """测试获取规则列表时包含已禁用的规则"""
         base_url = test_server
         header,comm,a_rule = self._create_header_and_commu_and_a_rule(base_url)
-
+        comm_id = comm['community_id']
+        rule1_id= a_rule["community_rule_id"]
         # 创建第二个规则
         rule_data2 = {
-            "community_id": comm["community_id"],
+            "community_id": comm_id,
             "rule_name": f"测试规则2_{random_str(6)}",
             "icon_url": "https://example.com/icon2.png",
             "frequency_type": 1,  # 每周
@@ -290,20 +291,35 @@ class TestCommunityCheckinRulesAPI:
         assert response.status_code == 200
         create_data2 = response.json()
         rule2_id = create_data2['data']['community_rule_id']
-
-        # 启用第一个规则
-        response = requests.post(f"{base_url}/api/community-checkin/rules/{a_rule["community_rule_id"]}/enable", headers=header)
-        res_data = response.json()
-        assert res_data.get('code') == 1, "启用规则1应该成功"
-        # 得到启用的规则列表
-        response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={ comm["community_id"]}&include_disabled=true",
+        rule2_comm_id = create_data2['data']['community_id']
+        assert rule2_comm_id == int(comm_id), "创建规则2应该成功"
+        assert create_data2['data']['status'] == 0, "创建的规则2应该未启用"
+        
+        # 使用API验证规则数量，而不是直接调用服务层
+        response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={comm_id}&include_disabled=true",
                                headers=header)
         assert response.status_code == 200
         list_data = response.json()
+        assert list_data.get('code') == 1, f"获取规则列表失败: {list_data.get('msg')}"
         rules = list_data['data']
-        # 应该只包含启用的规则 (status=1)
+        assert len(rules) == 2, f"应该有2个规则，实际有{len(rules)}个"
+        
+        # 启用第一个规则
+        response = requests.post(f"{base_url}/api/community-checkin/rules/{rule1_id}/enable", headers=header)
+        res_data = response.json()
+        assert res_data.get('code') == 1, "启用规则1应该成功"
+        assert res_data.get('msg') == "规则已启用"
+        assert res_data.get('data')['status'] == 1
+        assert res_data.get('data')['community_id'] == int(comm_id)
+        # 得到启用的规则列表
+        response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={comm_id}&include_disabled=False",
+                               headers=header)
+        assert response.status_code == 200
+        list_data = response.json()
+        assert list_data.get('code') == 1, f"获取规则列表失败: {list_data.get('msg')}"
+        rules = list_data['data']
         enabled_rules = [r for r in rules if r['status'] == 1]
-        assert len(rules) == 1, f"应该有1个启用的规则，实际有{len(rules)}个"
+        assert len(enabled_rules) == 1, f"应该有1个启用的规则，实际有{len(enabled_rules)}个"
 
         # 启用然后禁用第二个规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/enable", headers=header)

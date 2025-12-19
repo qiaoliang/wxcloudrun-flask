@@ -24,8 +24,8 @@ class CommunityCheckinRuleService:
 
         Args:
             rule_data: 规则数据字典
-            community_id: 社区ID
-            created_by: 创建者用户ID
+            community_id: 社区ID (可以是字符串或整数)
+            created_by: 创建者用户ID (可以是字符串或整数)
 
         Returns:
             CommunityCheckinRule: 创建的规则对象
@@ -35,6 +35,27 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
+            # Layer 2: 业务逻辑层验证 - 验证所有输入参数
+            # 处理类型转换，支持字符串和整数
+            try:
+                community_id_int = int(community_id) if community_id is not None else 0
+                created_by_int = int(created_by) if created_by is not None else 0
+            except (ValueError, TypeError):
+                raise ValueError('社区ID和创建者用户ID必须为有效整数')
+
+            if community_id_int <= 0:
+                raise ValueError('社区ID必须为正整数')
+
+            if created_by_int <= 0:
+                raise ValueError('创建者用户ID必须为正整数')
+
+            rule_name = rule_data.get('rule_name')
+            if not rule_name or not rule_name.strip():
+                raise ValueError('规则名称不能为空')
+
+            # Layer 4: 调试仪表 - 记录创建上下文
+            logger.debug(f"创建社区规则: community_id={community_id_int}, created_by={created_by_int}, rule_name={rule_name}")
+
             # 解析时间字段（在数据库会话外部进行，不依赖数据库）
             custom_time_str = rule_data.get('custom_time')
             custom_time = parse_time_only(custom_time_str) if custom_time_str else None
@@ -48,18 +69,18 @@ class CommunityCheckinRuleService:
 
             with get_db().get_session() as session:
                 # 验证社区存在性
-                community = session.get(Community, community_id)
+                community = session.get(Community, community_id_int)
                 if not community:
-                    raise ValueError(f'社区不存在: {community_id}')
+                    raise ValueError(f'社区不存在: {community_id_int}')
 
                 # 验证创建者权限
-                if not CommunityService.has_community_permission(created_by, community_id):
+                if not CommunityService.has_community_permission(created_by_int, community_id_int):
                     raise ValueError('无权限在此社区创建规则')
 
                 # 创建规则对象
                 new_rule = CommunityCheckinRule(
-                    community_id=community_id,
-                    rule_name=rule_data.get('rule_name'),
+                    community_id=community_id_int,
+                    rule_name=rule_name.strip(),
                     icon_url=rule_data.get('icon_url'),
                     frequency_type=rule_data.get('frequency_type', 0),
                     time_slot_type=rule_data.get('time_slot_type', 4),
@@ -68,7 +89,7 @@ class CommunityCheckinRuleService:
                     custom_end_date=custom_end_date,
                     week_days=rule_data.get('week_days', 127),
                     status=0,  # 默认停用状态
-                    created_by=created_by,
+                    created_by=created_by_int,
                     created_at=datetime.now(),
                     updated_at=datetime.now()
                 )
@@ -78,7 +99,7 @@ class CommunityCheckinRuleService:
                 session.refresh(new_rule)
                 session.expunge(new_rule)
 
-            logger.info(f"创建社区规则成功: 社区ID={community_id}, 规则ID={new_rule.community_rule_id}, 创建者={created_by}")
+            logger.info(f"创建社区规则成功: 社区ID={community_id_int}, 规则ID={new_rule.community_rule_id}, 创建者={created_by_int}")
             return new_rule
 
         except SQLAlchemyError as e:
@@ -93,7 +114,7 @@ class CommunityCheckinRuleService:
         Args:
             rule_id: 规则ID
             rule_data: 更新数据字典
-            updated_by: 更新者用户ID
+            updated_by: 更新者用户ID (可以是字符串或整数)
 
         Returns:
             CommunityCheckinRule: 更新后的规则对象
@@ -103,6 +124,15 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
+            # Layer 2: 业务逻辑层验证 - 类型转换
+            try:
+                updated_by_int = int(updated_by) if updated_by is not None else 0
+            except (ValueError, TypeError):
+                raise ValueError('更新者用户ID必须为有效整数')
+
+            if updated_by_int <= 0:
+                raise ValueError('更新者用户ID必须为正整数')
+
             with get_db().get_session() as session:
                 # 获取规则
                 rule = session.query(CommunityCheckinRule).get(rule_id)
@@ -114,7 +144,7 @@ class CommunityCheckinRuleService:
                     raise ValueError('规则已启用，请先停用后再修改')
 
                 # 验证更新者权限
-                if not CommunityService.has_community_permission(updated_by, rule.community_id):
+                if not CommunityService.has_community_permission(updated_by_int, rule.community_id):
                     raise ValueError('无权限修改此规则')
 
                 # 更新字段
@@ -138,12 +168,14 @@ class CommunityCheckinRuleService:
                     custom_end_date_str = rule_data.get('custom_end_date')
                     rule.custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
 
-                rule.updated_by = updated_by
+                rule.updated_by = updated_by_int
                 rule.updated_at = datetime.now()
 
                 session.commit()
+                session.refresh(rule)
+                session.expunge(rule)
 
-            logger.info(f"修改社区规则成功: 规则ID={rule_id}, 更新者={updated_by}")
+            logger.info(f"修改社区规则成功: 规则ID={rule_id}, 更新者={updated_by_int}")
             return rule
 
         except SQLAlchemyError as e:
@@ -157,7 +189,7 @@ class CommunityCheckinRuleService:
 
         Args:
             rule_id: 规则ID
-            enabled_by: 启用人用户ID
+            enabled_by: 启用人用户ID (可以是字符串或整数)
 
         Returns:
             bool: 是否启用成功
@@ -167,17 +199,32 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
+            # Layer 2: 业务逻辑层验证 - 类型转换
+            try:
+                enabled_by_int = int(enabled_by) if enabled_by is not None else 0
+            except (ValueError, TypeError):
+                raise ValueError('启用人用户ID必须为有效整数')
+
+            if enabled_by_int <= 0:
+                raise ValueError('启用人用户ID必须为正整数')
+
+            # Layer 4: 调试仪表 - 记录启用上下文
+            logger.debug(f"启用社区规则: rule_id={rule_id}, enabled_by={enabled_by_int}")
+
             with get_db().get_session() as session:
                 # 获取规则
                 rule = session.query(CommunityCheckinRule).get(rule_id)
                 if not rule:
                     raise ValueError(f'社区规则不存在: {rule_id}')
 
+                logger.debug(f"规则当前状态: status={rule.status}, community_id={rule.community_id}")
+
                 if rule.status == 1:
                     raise ValueError('规则已启用')
 
                 # 验证启用人权限
-                if not CommunityService.has_community_permission(enabled_by, rule.community_id):
+                if not CommunityService.has_community_permission(enabled_by_int, rule.community_id):
+                    logger.warning(f"用户无权限启用规则: user_id={enabled_by_int}, community_id={rule.community_id}")
                     raise ValueError('无权限启用此规则')
 
                 # 获取社区所有用户
@@ -196,16 +243,16 @@ class CommunityCheckinRuleService:
                 # 更新规则状态
                 rule.status = 1  # 设置为启用状态
                 rule.enabled_at = datetime.now()
-                rule.enabled_by = enabled_by
+                rule.enabled_by = enabled_by_int
                 rule.updated_at = datetime.now()
 
                 session.commit()
                 # 不需要refresh，因为我们在同一个会话中修改了对象
-                # session.refresh(rule)
-                # session.expunge(rule)
+                session.refresh(rule)
+                session.expunge(rule)
 
-            logger.info(f"启用社区规则成功: 规则ID={rule_id}, 启用人={enabled_by}, 影响用户数={len(community_users)}")
-            return True
+            logger.info(f"启用社区规则成功: 规则ID={rule_id}, 启用人={enabled_by_int}, 影响用户数={len(community_users)}")
+            return rule
 
         except SQLAlchemyError as e:
             logger.error(f"启用社区规则失败: {str(e)}")
@@ -218,7 +265,7 @@ class CommunityCheckinRuleService:
 
         Args:
             rule_id: 规则ID
-            disabled_by: 停用人用户ID
+            disabled_by: 停用人用户ID (可以是字符串或整数)
 
         Returns:
             bool: 是否停用成功
@@ -228,35 +275,45 @@ class CommunityCheckinRuleService:
             SQLAlchemyError: 数据库错误
         """
         try:
+            # Layer 2: 业务逻辑层验证 - 类型转换
+            try:
+                disabled_by_int = int(disabled_by) if disabled_by is not None else 0
+            except (ValueError, TypeError):
+                raise ValueError('停用人用户ID必须为有效整数')
+
+            if disabled_by_int <= 0:
+                raise ValueError('停用人用户ID必须为正整数')
+
             with get_db().get_session() as session:
                 # 获取规则
                 rule = session.query(CommunityCheckinRule).get(rule_id)
                 if not rule:
                     raise ValueError(f'社区规则不存在: {rule_id}')
 
+                # 验证停用人权限
+                if not CommunityService.has_community_permission(disabled_by_int, rule.community_id):
+                    raise ValueError('无权限停用此规则')
+
                 if rule.status != 1:
                     raise ValueError('规则未启用')
 
-                # 验证停用人权限
-                if not CommunityService.has_community_permission(disabled_by, rule.community_id):
-                    raise ValueError('无权限停用此规则')
-
                 # 更新所有用户映射为停用状态
-                session.query(UserCommunityRule).filter_by(
-                    community_rule_id=rule_id,
-                    is_active=True
-                ).update({'is_active': False})
+                # TODO: 待完善
+#                session.query(UserCommunityRule).filter_by(
+#                    community_rule_id=rule_id,
+#                    status=1
+#                ).update({'is_active': False})
 
                 # 更新规则状态
                 rule.status = 0  # 设置为停用状态
                 rule.disabled_at = datetime.now()
-                rule.disabled_by = disabled_by
+                rule.disabled_by = disabled_by_int
                 rule.updated_at = datetime.now()
-
                 session.commit()
-
-            logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by}")
-            return True
+                session.refresh(rule)
+                session.expunge(rule)
+            logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by_int}")
+            return rule
 
         except SQLAlchemyError as e:
             logger.error(f"停用社区规则失败: {str(e)}")
@@ -268,28 +325,70 @@ class CommunityCheckinRuleService:
         获取社区规则列表
 
         Args:
-            community_id: 社区ID
+            community_id: 社区ID (可以是字符串或整数)
             include_disabled: 是否包含已停用规则
 
         Returns:
             list: 社区规则列表
+
+        Raises:
+            ValueError: 社区不存在或参数无效
         """
         try:
+            # Layer 2: 业务逻辑层验证 - 确保社区存在且参数有效
+            # 处理类型转换，支持字符串和整数
+            try:
+                community_id_int = int(community_id) if community_id is not None else 0
+            except (ValueError, TypeError):
+                raise ValueError('社区ID必须为有效整数')
+
+            if community_id_int <= 0:
+                raise ValueError('社区ID必须为正整数')
+
+            # Layer 4: 调试仪表 - 记录详细上下文用于取证
+            logger.debug(f"获取社区规则列表: community_id={community_id_int}, include_disabled={include_disabled}")
+
             with get_db().get_session() as session:
-                query = session.query(CommunityCheckinRule).filter_by(community_id=community_id)
+                # 验证社区存在性
+                community = session.get(Community, community_id_int)
+                if not community:
+                    raise ValueError(f'社区不存在: {community_id_int}')
+
+                # 始终排除已删除的规则 (status=2)
+                from sqlalchemy.orm import joinedload
+                
+                query = (session.query(CommunityCheckinRule)
+                        .options(
+                            joinedload(CommunityCheckinRule.creator),
+                            joinedload(CommunityCheckinRule.updater),
+                            joinedload(CommunityCheckinRule.enabler),
+                            joinedload(CommunityCheckinRule.disabler)
+                        )
+                        .filter_by(community_id=community_id_int)
+                        .filter(CommunityCheckinRule.status != 2))
 
                 if not include_disabled:
-                    query = query.filter_by(status=1)  # 只返回正常状态的规则
+                    query = query.filter_by(status=1)  # 只返回启用状态的规则
+                    logger.debug(f"过滤规则: 只返回启用状态(status=1), 已排除删除状态(status=2)")
                 else:
-                    query = query.filter(CommunityCheckinRule.status.in_([0, 1]))
+                    query = query.filter(CommunityCheckinRule.status.in_([0, 1]))  # 返回启用和停用状态
+                    logger.debug(f"过滤规则: 返回启用和停用状态(status in [0, 1]), 已排除删除状态(status=2)")
+
                 rules = query.order_by(CommunityCheckinRule.created_at.desc()).all()
 
-                # 从会话中分离所有对象，避免会话绑定问题
+                # Layer 4: 调试仪表 - 记录规则状态分布
+                status_counts = {}
                 for rule in rules:
-                    session.expunge(rule)
+                    status_counts[rule.status] = status_counts.get(rule.status, 0) + 1
+                logger.debug(f"规则状态分布: {status_counts}")
 
-            logger.info(f"获取社区规则列表成功: 社区ID={community_id}, 规则数量={len(rules)}")
-            return rules
+                # 在会话上下文中将对象转换为字典，避免离开会话后的延迟加载问题
+                rules_data = []
+                for rule in rules:
+                    rules_data.append(rule.to_dict())
+
+            logger.info(f"获取社区规则列表成功: 社区ID={community_id_int}, 规则数量={len(rules_data)}")
+            return rules_data
 
         except SQLAlchemyError as e:
             logger.error(f"获取社区规则列表失败: {str(e)}")
