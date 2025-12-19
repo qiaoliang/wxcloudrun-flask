@@ -847,7 +847,7 @@ class CommunityService:
                 # 检查用户是否在该社区（普通社区需要这个检查）
                 if target_user.community_id != community_id:
                     raise ValueError("用户不在该社区")
-                
+
                 # 检查用户是否还属于其他普通社区
                 from sqlalchemy import and_
                 other_communities_count = session.query(User).filter(
@@ -1141,3 +1141,56 @@ class CommunityService:
                 raise ValueError("不能将用户添加到安卡大家庭")
 
             return True
+
+    @staticmethod
+    def has_community_permission(user_id, community_id):
+        """
+        检查用户是否有社区管理权限
+
+        Args:
+            user_id: 用户ID
+            community_id: 社区ID
+
+        Returns:
+            bool: 是否有权限
+        """
+        from .dao import get_db
+        from database.models import User, Community, CommunityStaff
+
+        db = get_db()
+        with db.get_session() as session:
+            # 检查用户是否存在
+            user = session.query(User).get(user_id)
+            if not user:
+                logger.warning(f"用户不存在: user_id={user_id}")
+                return False
+
+            # 检查社区是否存在
+            community = session.query(Community).get(community_id)
+            if not community:
+                logger.warning(f"社区不存在: community_id={community_id}")
+                return False
+
+            # 超级管理员有所有社区权限
+            if user.role == 4:  # 超级管理员
+                logger.info(f"超级管理员 {user_id} 有所有社区权限")
+                return True
+
+            # 检查用户是否是该社区的工作人员
+            staff = session.query(CommunityStaff).filter_by(
+                user_id=user_id,
+                community_id=community_id
+            ).first()
+
+            if staff:
+                logger.info(f"用户 {user_id} 是社区 {community_id} 的工作人员，角色: {staff.role}")
+                return True
+
+            # 检查用户是否属于该社区（普通社区成员）
+            if user.community_id == community_id:
+                logger.info(f"用户 {user_id} 属于社区 {community_id}，但无工作人员权限")
+                # 普通社区成员没有管理权限
+                return False
+
+            logger.warning(f"用户 {user_id} 无社区 {community_id} 的管理权限")
+            return False

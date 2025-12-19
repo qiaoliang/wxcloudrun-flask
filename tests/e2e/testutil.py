@@ -29,6 +29,14 @@ def random_str(length:int) -> str:
     timestamp = str(int(time.time() * 1000000))
     result = f"{timestamp}"
     return result[:length]
+def get_headers_by_creating_phone_user(base_url, phone, nickname, password=TEST_DEFAULT_PWD,sms_code =TEST_DEFAULT_SMS_CODE):
+        user_data = create_phone_user(base_url, phone, nickname, password=TEST_DEFAULT_PWD,sms_code =TEST_DEFAULT_SMS_CODE)
+        user_token = user_data['token']
+        headers = {
+            "Authorization": f"Bearer {user_token}",
+            "Content-Type": "application/json"
+        }
+        return headers,user_data
 
 def create_phone_user(base_url, phone, nickname, password=TEST_DEFAULT_PWD,sms_code =TEST_DEFAULT_SMS_CODE):
         """创建测试用户"""

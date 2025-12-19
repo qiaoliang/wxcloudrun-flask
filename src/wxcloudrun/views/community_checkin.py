@@ -16,31 +16,34 @@ def community_permission_required(f):
     """检查用户是否有社区管理权限的装饰器"""
     from functools import wraps
     from wxcloudrun.community_service import CommunityService
-    
+
     @wraps(f)
-    def decorated_function(*args, **kwargs):
-        user = g.user
+    def decorated_function(decoded, *args, **kwargs):
+        user_id = decoded.get('user_id')
+        if not user_id:
+            return make_err_response({}, '用户信息无效')
+
         community_id = request.args.get('community_id') or (request.json and request.json.get('community_id'))
-        
+
         if not community_id:
             return make_err_response({}, '缺少社区ID参数')
-        
+
         # 检查用户是否是该社区的主管或专员
-        if not CommunityService.has_community_permission(user.user_id, community_id):
+        if not CommunityService.has_community_permission(user_id, community_id):
             return make_err_response({}, '无社区管理权限')
-        
-        return f(*args, **kwargs)
+
+        return f(decoded, *args, **kwargs)
     return decorated_function
 
 
 @app.route('/api/community-checkin/rules', methods=['GET'])
 @login_required
 @community_permission_required
-def get_community_rules():
+def get_community_rules(decoded):
     """
     获取社区规则列表
     GET /api/community-checkin/rules?community_id=<community_id>&include_disabled=<true/false>
-    
+
     Response:
     {
         "code": 1,
@@ -70,14 +73,14 @@ def get_community_rules():
     try:
         community_id = request.args.get('community_id')
         include_disabled = request.args.get('include_disabled', 'false').lower() == 'true'
-        
+
         rules = CommunityCheckinRuleService.get_community_rules(community_id, include_disabled)
-        
+
         # 转换为字典列表
         rules_data = []
         for rule in rules:
             rule_dict = rule.to_dict()
-            
+
             # 添加创建者和更新者信息
             if rule.creator:
                 rule_dict['created_by_name'] = rule.creator.nickname or rule.creator.phone
@@ -87,12 +90,12 @@ def get_community_rules():
                 rule_dict['enabled_by_name'] = rule.enabler.nickname or rule.enabler.phone
             if rule.disabler:
                 rule_dict['disabled_by_name'] = rule.disabler.nickname or rule.disabler.phone
-            
+
             rules_data.append(rule_dict)
-        
+
         logger.info(f"获取社区规则列表成功: 社区ID={community_id}, 规则数量={len(rules_data)}")
         return make_succ_response(rules_data)
-        
+
     except Exception as e:
         logger.error(f"获取社区规则列表失败: {str(e)}")
         return make_err_response({}, f'获取社区规则列表失败: {str(e)}')
@@ -101,11 +104,11 @@ def get_community_rules():
 @app.route('/api/community-checkin/rules', methods=['POST'])
 @login_required
 @community_permission_required
-def create_community_rule():
+def create_community_rule(decoded):
     """
     创建社区规则（默认未启用状态）
     POST /api/community-checkin/rules
-    
+
     Request Body:
     {
         "community_id": 1,
@@ -118,7 +121,7 @@ def create_community_rule():
         "custom_end_date": "2025-12-31",
         "week_days": 127
     }
-    
+
     Response:
     {
         "code": 1,
@@ -135,16 +138,16 @@ def create_community_rule():
     try:
         data = request.get_json()
         community_id = data.get('community_id')
-        created_by = g.user.user_id
-        
+        created_by = decoded.get('user_id')
+
         # 验证必要字段
         required_fields = ['community_id', 'rule_name']
         for field in required_fields:
             if not data.get(field):
                 return make_err_response({}, f'缺少必要字段: {field}')
-        
+
         rule = CommunityCheckinRuleService.create_community_rule(data, community_id, created_by)
-        
+
         response_data = {
             'community_rule_id': rule.community_rule_id,
             'rule_name': rule.rule_name,
@@ -152,10 +155,10 @@ def create_community_rule():
             'created_by': rule.created_by,
             'created_at': rule.created_at.isoformat() if rule.created_at else None
         }
-        
+
         logger.info(f"创建社区规则成功: 规则ID={rule.community_rule_id}, 创建者={created_by}")
-        return make_success_response(response_data, '创建社区规则成功')
-        
+        return make_succ_response(response_data, '创建社区规则成功')
+
     except ValueError as e:
         logger.warning(f"创建社区规则参数错误: {str(e)}")
         return make_err_response({}, str(e))
@@ -167,11 +170,11 @@ def create_community_rule():
 @app.route('/api/community-checkin/rules/<int:rule_id>', methods=['PUT'])
 @login_required
 @community_permission_required
-def update_community_rule(rule_id):
+def update_community_rule(decoded, rule_id):
     """
     修改社区规则（仅限未启用状态）
     PUT /api/community-checkin/rules/<rule_id>
-    
+
     Request Body:
     {
         "rule_name": "更新后的规则名称",
@@ -180,7 +183,7 @@ def update_community_rule(rule_id):
         "time_slot_type": 1,
         "custom_time": "10:00:00"
     }
-    
+
     Response:
     {
         "code": 1,
@@ -195,10 +198,10 @@ def update_community_rule(rule_id):
     """
     try:
         data = request.get_json()
-        updated_by = g.user.user_id
-        
+        updated_by = decoded.get('user_id')
+
         rule = CommunityCheckinRuleService.update_community_rule(rule_id, data, updated_by)
-        
+
         response_data = {
             'community_rule_id': rule.community_rule_id,
             'rule_name': rule.rule_name,
@@ -206,10 +209,10 @@ def update_community_rule(rule_id):
             'updated_at': rule.updated_at.isoformat() if rule.updated_at else None,
             'is_enabled': rule.is_enabled
         }
-        
+
         logger.info(f"修改社区规则成功: 规则ID={rule_id}, 更新者={updated_by}")
-        return make_success_response(response_data, '修改社区规则成功')
-        
+        return make_succ_response(response_data, '修改社区规则成功')
+
     except ValueError as e:
         logger.warning(f"修改社区规则失败: {str(e)}")
         return make_err_response({}, str(e))
@@ -221,11 +224,11 @@ def update_community_rule(rule_id):
 @app.route('/api/community-checkin/rules/<int:rule_id>/enable', methods=['POST'])
 @login_required
 @community_permission_required
-def enable_community_rule(rule_id):
+def enable_community_rule(decoded, rule_id):
     """
     启用社区规则
     POST /api/community-checkin/rules/<rule_id>/enable
-    
+
     Response:
     {
         "code": 1,
@@ -239,23 +242,23 @@ def enable_community_rule(rule_id):
     }
     """
     try:
-        enabled_by = g.user.user_id
-        
+        enabled_by = decoded.get('user_id')
+
         CommunityCheckinRuleService.enable_community_rule(rule_id, enabled_by)
-        
+
         # 获取更新后的规则信息
         rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
-        
+
         response_data = {
             'community_rule_id': rule.community_rule_id,
             'is_enabled': rule.is_enabled,
             'enabled_at': rule.enabled_at.isoformat() if rule.enabled_at else None,
             'enabled_by': rule.enabled_by
         }
-        
+
         logger.info(f"启用社区规则成功: 规则ID={rule_id}, 启用人={enabled_by}")
-        return make_success_response(response_data, '规则已启用')
-        
+        return make_succ_response(response_data, '规则已启用')
+
     except ValueError as e:
         logger.warning(f"启用社区规则失败: {str(e)}")
         return make_err_response({}, str(e))
@@ -267,11 +270,11 @@ def enable_community_rule(rule_id):
 @app.route('/api/community-checkin/rules/<int:rule_id>/disable', methods=['POST'])
 @login_required
 @community_permission_required
-def disable_community_rule(rule_id):
+def disable_community_rule(decoded, rule_id):
     """
     停用社区规则
     POST /api/community-checkin/rules/<rule_id>/disable
-    
+
     Response:
     {
         "code": 1,
@@ -285,23 +288,23 @@ def disable_community_rule(rule_id):
     }
     """
     try:
-        disabled_by = g.user.user_id
-        
+        disabled_by = decoded.get('user_id')
+
         CommunityCheckinRuleService.disable_community_rule(rule_id, disabled_by)
-        
+
         # 获取更新后的规则信息
         rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
-        
+
         response_data = {
             'community_rule_id': rule.community_rule_id,
             'is_enabled': rule.is_enabled,
             'disabled_at': rule.disabled_at.isoformat() if rule.disabled_at else None,
             'disabled_by': rule.disabled_by
         }
-        
+
         logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by}")
-        return make_success_response(response_data, '规则已停用')
-        
+        return make_succ_response(response_data, '规则已停用')
+
     except ValueError as e:
         logger.warning(f"停用社区规则失败: {str(e)}")
         return make_err_response({}, str(e))
@@ -313,11 +316,11 @@ def disable_community_rule(rule_id):
 @app.route('/api/community-checkin/rules/<int:rule_id>', methods=['DELETE'])
 @login_required
 @community_permission_required
-def delete_community_rule(rule_id):
+def delete_community_rule(decoded, rule_id):
     """
     删除社区规则（仅限未启用状态）
     DELETE /api/community-checkin/rules/<rule_id>
-    
+
     Response:
     {
         "code": 1,
@@ -326,13 +329,13 @@ def delete_community_rule(rule_id):
     }
     """
     try:
-        deleted_by = g.user.user_id
-        
+        deleted_by = decoded.get('user_id')
+
         CommunityCheckinRuleService.delete_community_rule(rule_id, deleted_by)
-        
+
         logger.info(f"删除社区规则成功: 规则ID={rule_id}, 删除者={deleted_by}")
-        return make_success_response({}, '删除社区规则成功')
-        
+        return make_succ_response({}, '删除社区规则成功')
+
     except ValueError as e:
         logger.warning(f"删除社区规则失败: {str(e)}")
         return make_err_response({}, str(e))
@@ -343,11 +346,11 @@ def delete_community_rule(rule_id):
 
 @app.route('/api/community-checkin/rules/<int:rule_id>', methods=['GET'])
 @login_required
-def get_community_rule_detail(rule_id):
+def get_community_rule_detail(decoded, rule_id):
     """
     获取社区规则详情
     GET /api/community-checkin/rules/<rule_id>
-    
+
     Response:
     {
         "code": 1,
@@ -374,19 +377,22 @@ def get_community_rule_detail(rule_id):
     """
     try:
         rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
-        
+
         # 检查用户是否有权限查看（用户需要属于该社区）
-        user = g.user
-        user_community = user.community_id if hasattr(user, 'community_id') else None
-        
+        user_id = decoded.get('user_id')
+        # 需要从数据库获取用户信息来检查社区
+        from wxcloudrun.user_service import UserService
+        user = UserService.query_user_by_id(user_id)
+        user_community = user.community_id if user and hasattr(user, 'community_id') else None
+
         if user_community != rule.community_id:
             # 如果不是该社区用户，检查是否有社区管理权限
             from wxcloudrun.community_service import CommunityService
             if not CommunityService.has_community_permission(user.user_id, rule.community_id):
                 return make_err_response({}, '无权限查看此规则')
-        
+
         rule_dict = rule.to_dict()
-        
+
         # 添加额外信息
         if rule.community:
             rule_dict['community_name'] = rule.community.name
@@ -398,10 +404,10 @@ def get_community_rule_detail(rule_id):
             rule_dict['enabled_by_name'] = rule.enabler.nickname or rule.enabler.phone
         if rule.disabler:
             rule_dict['disabled_by_name'] = rule.disabler.nickname or rule.disabler.phone
-        
+
         logger.info(f"获取社区规则详情成功: 规则ID={rule_id}")
-        return make_success_response(rule_dict)
-        
+        return make_succ_response(rule_dict)
+
     except ValueError as e:
         logger.warning(f"获取社区规则详情失败: {str(e)}")
         return make_err_response({}, str(e))

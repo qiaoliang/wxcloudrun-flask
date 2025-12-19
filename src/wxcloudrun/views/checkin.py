@@ -12,7 +12,7 @@ from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
 from wxcloudrun.decorators import login_required
-
+from wxcloudrun.utils.timeutil import parse_date_only,parse_time_only,format_time
 app_logger = logging.getLogger('log')
 
 
@@ -34,7 +34,7 @@ def get_today_checkin_items(decoded):
     try:
         # 调用 Service 层获取今日打卡计划
         response_data = CheckinRuleService.get_today_checkin_plan(user.user_id)
-        
+
         app.logger.info(
             f'成功获取今日打卡事项，用户ID: {user.user_id}, 事项数量: {len(response_data["checkin_items"])}')
         return make_succ_response(response_data)
@@ -68,7 +68,7 @@ def perform_checkin(decoded):
 
         # 调用 Service 层执行打卡
         response_data = CheckinRecordService.perform_checkin(rule_id, user.user_id)
-        
+
         app.logger.info(f'用户 {user.user_id} 打卡成功，规则ID: {rule_id}')
         return make_succ_response(response_data)
 
@@ -106,10 +106,10 @@ def mark_missed(decoded):
 
         # 调用 Service 层标记 missed
         response_data = CheckinRecordService.mark_missed(rule_id, user.user_id)
-        
+
         app.logger.info(f'用户 {user.user_id} 标记miss成功，规则ID: {rule_id}')
         return make_succ_response(response_data)
-        
+
     except ValueError as e:
         # 业务逻辑错误
         app.logger.warning(f'标记miss失败: {str(e)}, 用户ID: {user.user_id}')
@@ -223,23 +223,6 @@ def manage_checkin_rules(decoded):
         return make_err_response({}, '用户不存在')
 
     try:
-        # 辅助函数：解析时间
-        def parse_time(v):
-            if not v:
-                return None
-            try:
-                return datetime.strptime(v, '%H:%M:%S').time()
-            except Exception:
-                return datetime.strptime(v, '%H:%M').time()
-
-        def format_time(t):
-            return t.strftime('%H:%M') if t else None
-
-        def parse_date(v):
-            if not v:
-                return None
-            return datetime.strptime(v, '%Y-%m-%d').date()
-            
         if request.method == 'GET':
             # 获取用户的所有打卡规则
             rules = CheckinRuleService.query_rules_by_user_id(user.user_id)
@@ -279,10 +262,10 @@ def manage_checkin_rules(decoded):
                 'icon_url': params.get('icon_url', ''),
                 'frequency_type': params.get('frequency_type', 0),
                 'time_slot_type': params.get('time_slot_type', 4),
-                'custom_time': parse_time(params.get('custom_time')),
+                'custom_time': parse_time_only(params.get('custom_time')),
                 'week_days': params.get('week_days', 127),
-                'custom_start_date': parse_date(params.get('custom_start_date')),
-                'custom_end_date': parse_date(params.get('custom_end_date')),
+                'custom_start_date': parse_date_only(params.get('custom_start_date')),
+                'custom_end_date': parse_date_only(params.get('custom_end_date')),
                 'status': params.get('status', 1)
             }
 
@@ -315,13 +298,13 @@ def manage_checkin_rules(decoded):
             if 'time_slot_type' in params:
                 rule_data['time_slot_type'] = params['time_slot_type']
             if 'custom_time' in params:
-                rule_data['custom_time'] = parse_time(params['custom_time'])
+                rule_data['custom_time'] = parse_time_only(params['custom_time'])
             if 'week_days' in params:
                 rule_data['week_days'] = params['week_days']
             if 'custom_start_date' in params:
-                rule_data['custom_start_date'] = parse_date(params['custom_start_date'])
+                rule_data['custom_start_date'] = parse_date_only(params['custom_start_date'])
             if 'custom_end_date' in params:
-                rule_data['custom_end_date'] = parse_date(params['custom_end_date'])
+                rule_data['custom_end_date'] = parse_date_only(params['custom_end_date'])
             if 'status' in params:
                 rule_data['status'] = params['status']
 
