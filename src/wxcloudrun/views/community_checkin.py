@@ -76,26 +76,28 @@ def get_community_rules(decoded):
     {
         "code": 1,
         "msg": "success",
-        "data": [
-            {
-                "community_rule_id": 1,
-                "rule_name": "每日健康打卡",
-                "icon_url": "...",
-                "frequency_type": 0,
-                "time_slot_type": 4,
-                "custom_time": "09:00:00",
-                "is_enabled": false,
-                "status": 1,
-                "created_by": 123,
-                "updated_by": 123,
-                "created_at": "2025-12-19T10:00:00",
-                "updated_at": "2025-12-19T10:00:00",
-                "enabled_at": null,
-                "disabled_at": null,
-                "enabled_by": null,
-                "disabled_by": null
-            }
-        ]
+        "data": {
+            "rules": [
+                {
+                    "community_rule_id": 1,
+                    "rule_name": "每日健康打卡",
+                    "icon_url": "...",
+                    "frequency_type": 0,
+                    "time_slot_type": 4,
+                    "custom_time": "09:00:00",
+                    "is_enabled": false,
+                    "status": 1,
+                    "created_by": 123,
+                    "updated_by": 123,
+                    "created_at": "2025-12-19T10:00:00",
+                    "updated_at": "2025-12-19T10:00:00",
+                    "enabled_at": null,
+                    "disabled_at": null,
+                    "enabled_by": null,
+                    "disabled_by": null
+                }
+            ]
+        }
     }
     """
     try:
@@ -115,7 +117,7 @@ def get_community_rules(decoded):
 
         rules_data = CommunityCheckinRuleService.get_community_rules(community_id_int, include_disabled)
         logger.info(f"获取社区规则列表成功: 社区ID={community_id}, 规则数量={len(rules_data)}")
-        return make_succ_response(rules_data)
+        return make_succ_response({'rules': rules_data})
 
     except ValueError as e:
         logger.warning(f"获取社区规则列表参数错误: {str(e)}")
