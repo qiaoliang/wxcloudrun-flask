@@ -2013,8 +2013,8 @@ def search_users_excluding_blackroom():
 @login_required
 def search_ankafamily_users(decoded):
     """从安卡大家庭搜索用户（用于添加用户到其他社区）"""
-    from const_default import DEFUALT_COMMUNITY_ID
-    from database.models import CommunityStaff
+    from wxcloudrun.user_service import UserService
+    from wxcloudrun.community_staff_service import CommunityStaffService
 
     app_logger.info('=== 开始从安卡大家庭搜索用户 ===')
 
@@ -2029,76 +2029,17 @@ def search_ankafamily_users(decoded):
         keyword = request.args.get('keyword', '').strip()
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 20))
+
+        # 调用服务层方法搜索用户
+        result = UserService.search_ankafamily_users(keyword, page, limit)
         
-        if page < 1:
-            page = 1
-        if limit < 1 or limit > 100:
-            limit = 20
-
-        # 如果关键词为空，返回空列表（与其他搜索API保持一致）
-        if not keyword or len(keyword) < 1:
-            return make_succ_response({
-                'users': [],
-                'pagination': {
-                    'page': page,
-                    'limit': limit,
-                    'total': 0,
-                    'has_more': False
-                }
-            })
-
-        # 构建查询 - 只从安卡大家庭搜索
-        from sqlalchemy import or_
-        query = User.query.filter(User.community_id == DEFUALT_COMMUNITY_ID)
-
-        # 关键词搜索（昵称或手机号）
-        query = query.filter(
-            or_(
-                User.nickname.ilike(f'%{keyword}%'),
-                User.phone_number.ilike(f'%{keyword}%')
+        # 为每个用户添加工作人员状态
+        for user_data in result['users']:
+            user_data['is_staff'] = CommunityStaffService.check_user_is_staff(
+                int(user_data['user_id'])
             )
-        )
-
-        # 计算总数
-        total_count = query.count()
-
-        # 分页查询
-        offset = (page - 1) * limit
-        users = (query.order_by(User.created_at.desc())
-                .offset(offset)
-                .limit(limit)
-                .all())
-
-        # 格式化响应数据
-        result = []
-        for u in users:
-            # 检查是否已是任何社区的工作人员
-            is_staff = CommunityStaff.query.filter_by(
-                user_id=u.user_id).first() is not None
-
-            user_data = {
-                'user_id': str(u.user_id),
-                'nickname': u.nickname or '未设置昵称',
-                'avatar_url': u.avatar_url,
-                'phone_number': u.phone_number or '未设置手机号',
-                'community_id': str(u.community_id) if u.community_id else None,
-                'is_staff': is_staff,
-                'created_at': u.created_at.isoformat() if u.created_at else None
-            }
-
-            result.append(user_data)
-
-        app_logger.info(f'从安卡大家庭搜索用户成功: 关键词"{keyword}", 第{page}页，共{total_count}人，本次返回{len(result)}人')
-
-        return make_succ_response({
-            'users': result,
-            'pagination': {
-                'page': page,
-                'limit': limit,
-                'total': total_count,
-                'has_more': (page * limit) < total_count
-            }
-        })
+        
+        return make_succ_response(result)
 
     except Exception as e:
         app_logger.error(f'从安卡大家庭搜索用户失败: {str(e)}', exc_info=True)

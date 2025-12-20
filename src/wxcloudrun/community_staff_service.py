@@ -30,3 +30,21 @@ class CommunityStaffService:
                 return user_data
             else:
                 return None
+
+    @staticmethod
+    def check_user_is_staff(user_id):
+        """
+        检查用户是否是任何社区的工作人员
+        
+        Args:
+            user_id (int): 用户ID
+            
+        Returns:
+            bool: 如果是工作人员返回True，否则返回False
+        """
+        db = get_db()
+        with db.get_session() as session:
+            staff_record = session.query(CommunityStaff).filter_by(
+                user_id=user_id
+            ).first()
+            return staff_record is not None

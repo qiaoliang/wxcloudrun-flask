@@ -349,3 +349,91 @@ class UserService:
             logger.info(f"用户创建成功: {new_user.nickname}, ID: {new_user.user_id}")
             # 注意：使用外部传入的session时，不进行expunge操作
             return new_user
+
+    @staticmethod
+    def search_ankafamily_users(keyword, page=1, limit=20):
+        """
+        从安卡大家庭搜索用户
+
+        Args:
+            keyword (str): 搜索关键词（昵称或手机号）
+            page (int): 页码，默认1
+            limit (int): 每页数量，默认20，最大100
+
+        Returns:
+            dict: 包含用户列表和分页信息的字典
+        """
+        try:
+            # 参数验证
+            if page < 1:
+                page = 1
+            if limit < 1 or limit > 100:
+                limit = 20
+
+            # 如果关键词为空，返回空结果
+            if not keyword or len(keyword) < 1:
+                return {
+                    'users': [],
+                    'pagination': {
+                        'page': page,
+                        'limit': limit,
+                        'total': 0,
+                        'has_more': False
+                    }
+                }
+
+            db = get_db()
+            with db.get_session() as session:
+                # 构建查询 - 只从安卡大家庭搜索
+                from const_default import DEFUALT_COMMUNITY_ID
+                from sqlalchemy import or_
+
+                query = session.query(User).filter(User.community_id == DEFUALT_COMMUNITY_ID)
+
+                # 关键词搜索（昵称或手机号）
+                query = query.filter(
+                    or_(
+                        User.nickname.ilike(f'%{keyword}%'),
+                        User.phone_number.ilike(f'%{keyword}%')
+                    )
+                )
+
+                # 计算总数
+                total_count = query.count()
+
+                # 分页查询
+                offset = (page - 1) * limit
+                users = (query.order_by(User.created_at.desc())
+                        .offset(offset)
+                        .limit(limit)
+                        .all())
+
+                # 格式化响应数据
+                result = []
+                for u in users:
+                    user_data = {
+                        'user_id': str(u.user_id),
+                        'nickname': u.nickname or '未设置昵称',
+                        'avatar_url': u.avatar_url,
+                        'phone_number': u.phone_number or '未设置手机号',
+                        'community_id': str(u.community_id) if u.community_id else None,
+                        'created_at': u.created_at.isoformat() if u.created_at else None
+                    }
+
+                    result.append(user_data)
+
+                logger.info(f'从安卡大家庭搜索用户成功: 关键词-{keyword}, 第{page}页, 共{total_count}人, 本次返回{len(result)}人')
+
+                return {
+                    'users': result,
+                    'pagination': {
+                        'page': page,
+                        'limit': limit,
+                        'total': total_count,
+                        'has_more': (page * limit) < total_count
+                    }
+                }
+
+        except Exception as e:
+            logger.error(f'从安卡大家庭搜索用户失败: {str(e)}', exc_info=True)
+            raise
