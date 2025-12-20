@@ -97,14 +97,21 @@ def community_permission_required(f):
 def get_community_rules(decoded):
     """
     获取社区规则列表
+    
+    参数行为：
+    1. 不传include_disabled参数或参数为空值：返回所有状态规则并按status分组
+    2. include_disabled=false：只返回启用状态规则(status=1)
+    3. include_disabled=true：返回启用和停用状态规则(status=0,1)
+    
+    GET /api/community-checkin/rules?community_id=<community_id>
     GET /api/community-checkin/rules?community_id=<community_id>&include_disabled=<true/false>
 
-    Response:
+    响应格式（不传include_disabled参数）：
     {
         "code": 1,
         "msg": "success",
         "data": {
-            "rules": [
+            "disabled": [  // status=0
                 {
                     "community_rule_id": 1,
                     "rule_name": "每日健康打卡",
@@ -112,8 +119,7 @@ def get_community_rules(decoded):
                     "frequency_type": 0,
                     "time_slot_type": 4,
                     "custom_time": "09:00:00",
-                    "is_enabled": false,
-                    "status": 1,
+                    "status": 0,
                     "created_by": 123,
                     "updated_by": 123,
                     "created_at": "2025-12-19T10:00:00",
@@ -123,6 +129,37 @@ def get_community_rules(decoded):
                     "enabled_by": null,
                     "disabled_by": null
                 }
+            ],
+            "enabled": [   // status=1
+                {
+                    "community_rule_id": 2,
+                    "rule_name": "每周运动打卡",
+                    "icon_url": "...",
+                    "frequency_type": 1,
+                    "time_slot_type": 4,
+                    "custom_time": "18:00:00",
+                    "status": 1,
+                    "created_by": 123,
+                    "updated_by": 123,
+                    "created_at": "2025-12-19T11:00:00",
+                    "updated_at": "2025-12-19T11:00:00",
+                    "enabled_at": "2025-12-19T12:00:00",
+                    "disabled_at": null,
+                    "enabled_by": 123,
+                    "disabled_by": null
+                }
+            ],
+            "deleted": []  // status=2
+        }
+    }
+    
+    响应格式（传include_disabled参数）：
+    {
+        "code": 1,
+        "msg": "success",
+        "data": {
+            "rules": [
+                // 规则列表（保持原有格式）
             ]
         }
     }
@@ -166,8 +203,8 @@ def get_community_rules(decoded):
             logger.debug(f"从表单数据获取community_id: {community_id}")
         
         # 获取include_disabled参数
-        include_disabled = request.args.get('include_disabled', 'false').lower() == 'true'
-        logger.debug(f"include_disabled参数: {include_disabled}")
+        include_disabled_param = request.args.get('include_disabled')
+        logger.debug(f"include_disabled参数原始值: {include_disabled_param}")
         
         # 验证必要参数
         if not community_id:
@@ -183,17 +220,36 @@ def get_community_rules(decoded):
             logger.warning(f"社区ID必须为有效整数: {community_id}")
             return make_err_response({}, '社区ID必须为有效整数')
         
-        logger.debug(f"验证通过: community_id={community_id_int}, include_disabled={include_disabled}")
+        # 处理include_disabled参数
+        # 情况1: 参数不存在或为空值 -> 返回所有状态并按status分组
+        # 情况2: include_disabled=false -> 只返回启用状态
+        # 情况3: include_disabled=true -> 返回启用和停用状态
+        if include_disabled_param is None or include_disabled_param == '':
+            logger.debug(f"include_disabled参数不存在或为空，返回所有状态并按status分组")
+            rules_data = CommunityCheckinRuleService.get_all_community_rules_grouped(community_id_int)
+            logger.info(f"获取社区规则列表成功(所有状态): 社区ID={community_id_int}, 规则总数={sum(len(rules) for rules in rules_data.values())}")
+            
+            # Layer 4: 调试仪表 - 记录响应数据
+            for status_group, rules in rules_data.items():
+                logger.debug(f"状态分组 {status_group}: {len(rules)}条规则")
+                for i, rule in enumerate(rules[:2]):  # 只记录前2条规则
+                    logger.debug(f"  规则{i+1}: id={rule.get('community_rule_id')}, name={rule.get('rule_name')}")
+            
+            return make_succ_response(rules_data)
+        else:
+            include_disabled = include_disabled_param.lower() == 'true'
+            logger.debug(f"include_disabled参数解析为: {include_disabled}")
+            logger.debug(f"验证通过: community_id={community_id_int}, include_disabled={include_disabled}")
 
-        rules_data = CommunityCheckinRuleService.get_community_rules(community_id_int, include_disabled)
-        logger.info(f"获取社区规则列表成功: 社区ID={community_id_int}, 规则数量={len(rules_data)}")
-        
-        # Layer 4: 调试仪表 - 记录响应数据
-        logger.debug(f"返回规则数据: {len(rules_data)}条规则")
-        for i, rule in enumerate(rules_data[:3]):  # 只记录前3条规则
-            logger.debug(f"规则{i+1}: id={rule.get('community_rule_id')}, name={rule.get('rule_name')}, status={rule.get('status')}")
-        
-        return make_succ_response({'rules': rules_data})
+            rules_data = CommunityCheckinRuleService.get_community_rules(community_id_int, include_disabled)
+            logger.info(f"获取社区规则列表成功: 社区ID={community_id_int}, 规则数量={len(rules_data)}")
+            
+            # Layer 4: 调试仪表 - 记录响应数据
+            logger.debug(f"返回规则数据: {len(rules_data)}条规则")
+            for i, rule in enumerate(rules_data[:3]):  # 只记录前3条规则
+                logger.debug(f"规则{i+1}: id={rule.get('community_rule_id')}, name={rule.get('rule_name')}, status={rule.get('status')}")
+            
+            return make_succ_response({'rules': rules_data})
 
     except ValueError as e:
         logger.warning(f"获取社区规则列表参数错误: {str(e)}")

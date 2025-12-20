@@ -58,16 +58,16 @@ class TestCommunityCheckinRulesService:
         rule2 = self._create_a_community_rule(comm1['community_id'],a_user.user_id,test_session)
         # enable 两个规则
         result = CommunityCheckinRuleService.enable_community_rule(rule1.community_rule_id,a_user.user_id)
-        assert result.status == 1
+        assert result['status'] == 1
 
         result = CommunityCheckinRuleService.enable_community_rule(rule2.community_rule_id,a_user.user_id)
-        assert result.status == 1
+        assert result['status'] == 1
 
         rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],False)
         assert len(rules) == 2
         # 禁用其中一个规则
         result = CommunityCheckinRuleService.disable_community_rule(rule2.community_rule_id,a_user.user_id)
-        assert result.status == 0
+        assert result['status'] == 0
         rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],False)
         assert len(rules) == 1
         rules = CommunityCheckinRuleService.get_community_rules(comm1['community_id'],True)

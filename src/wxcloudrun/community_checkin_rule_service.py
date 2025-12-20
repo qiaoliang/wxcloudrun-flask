@@ -397,6 +397,78 @@ class CommunityCheckinRuleService:
             raise
 
     @staticmethod
+    def get_all_community_rules_grouped(community_id):
+        """
+        获取社区所有规则并按状态分组
+
+        Args:
+            community_id: 社区ID (可以是字符串或整数)
+
+        Returns:
+            dict: 按状态分组的规则字典，包含disabled(0), enabled(1), deleted(2)三个分组
+
+        Raises:
+            ValueError: 社区不存在或参数无效
+        """
+        try:
+            # Layer 2: 业务逻辑层验证 - 确保社区存在且参数有效
+            try:
+                community_id_int = int(community_id) if community_id is not None else 0
+            except (ValueError, TypeError):
+                raise ValueError('社区ID必须为有效整数')
+
+            if community_id_int <= 0:
+                raise ValueError('社区ID必须为正整数')
+
+            # Layer 4: 调试仪表 - 记录详细上下文
+            logger.debug(f"获取社区所有规则并按状态分组: community_id={community_id_int}")
+
+            with get_db().get_session() as session:
+                # 验证社区存在性
+                community = session.get(Community, community_id_int)
+                if not community:
+                    raise ValueError(f'社区不存在: {community_id_int}')
+
+                # 查询所有规则（包括已删除的）
+                from sqlalchemy.orm import joinedload
+                rules = (session.query(CommunityCheckinRule)
+                        .options(
+                            joinedload(CommunityCheckinRule.creator),
+                            joinedload(CommunityCheckinRule.updater),
+                            joinedload(CommunityCheckinRule.enabler),
+                            joinedload(CommunityCheckinRule.disabler)
+                        )
+                        .filter_by(community_id=community_id_int)
+                        .order_by(CommunityCheckinRule.created_at.desc())
+                        .all())
+
+                # 按状态分组
+                grouped_rules = {
+                    'disabled': [],  # status=0
+                    'enabled': [],   # status=1
+                    'deleted': []    # status=2
+                }
+
+                for rule in rules:
+                    rule_dict = rule.to_dict()
+                    if rule.status == 0:
+                        grouped_rules['disabled'].append(rule_dict)
+                    elif rule.status == 1:
+                        grouped_rules['enabled'].append(rule_dict)
+                    elif rule.status == 2:
+                        grouped_rules['deleted'].append(rule_dict)
+
+                # Layer 4: 调试仪表 - 记录分组统计
+                logger.debug(f"规则分组统计: 停用={len(grouped_rules['disabled'])}, 启用={len(grouped_rules['enabled'])}, 删除={len(grouped_rules['deleted'])}")
+
+            logger.info(f"获取社区所有规则分组成功: 社区ID={community_id_int}, 总规则数={len(rules)}")
+            return grouped_rules
+
+        except SQLAlchemyError as e:
+            logger.error(f"获取社区所有规则分组失败: {str(e)}")
+            raise
+
+    @staticmethod
     def get_user_community_rules(user_id):
         """
         获取用户的所有社区规则（已启用且对用户生效的）
