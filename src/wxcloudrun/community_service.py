@@ -423,7 +423,7 @@ class CommunityService:
         """根据ID获取社区"""
         db = get_db()
         with db.get_session() as session:
-            return session.query(Community,community_id)
+            return session.query(Community).get(community_id)
 
     @staticmethod
     def _community_to_dict(community):
