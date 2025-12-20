@@ -876,7 +876,7 @@ def get_community_staff_list_enhanced():
         role_filter = request.args.get('role', 'all')  # all/manager/staff
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 20))
-        
+
         if page < 1:
             page = 1
         if limit < 1 or limit > 100:
@@ -949,7 +949,7 @@ def get_community_staff_list_enhanced():
             staff_members.append(member_data)
 
         app_logger.info(f'成功获取社区工作人员列表（增强版），第{page}页，共{total_count}人，本次返回{len(staff_members)}人')
-        
+
         return make_succ_response({
             'staff_members': staff_members,
             'pagination': {
@@ -969,11 +969,11 @@ def format_date_for_display(date_obj):
     """格式化日期显示"""
     if not date_obj:
         return '未知时间'
-    
+
     from datetime import datetime
     now = datetime.now()
     diff = now - date_obj
-    
+
     if diff.days == 0:
         return '今天'
     elif diff.days == 1:
@@ -1041,7 +1041,7 @@ def add_community_staff():
                 ).first()
                 if not staff_record:
                     return make_err_response({}, '权限不足，需要社区工作人员权限')
-                
+
                 # 如果是专员（非主管）尝试添加主管，则拒绝
                 if staff_record.role == 'staff' and role == 'manager':
                     return make_err_response({}, '专员不能添加主管，需要主管权限')
@@ -1075,22 +1075,22 @@ def add_community_staff():
                     else:
                         failed.append({'user_id': uid, 'reason': f'无效的用户ID类型: {type(uid).__name__}'})
                         continue
-                    
+
                     # 验证整数是否有效（正数）
                     if uid_int <= 0:
                         failed.append({'user_id': uid, 'reason': '用户ID必须为正整数'})
                         continue
-                    
+
                     processed_user_ids.append(uid_int)
                 except (ValueError, TypeError) as e:
                     failed.append({'user_id': uid, 'reason': f'无效的用户ID格式: {str(e)}'})
                     continue
-            
+
             # 如果没有有效的用户ID，直接返回错误
             if not processed_user_ids:
                 app_logger.error(f'所有用户ID都无效: {user_ids}')
                 return make_err_response({'failed': failed}, '所有用户ID都无效')
-            
+
             app_logger.info(f'用户ID验证通过: 原始{len(user_ids)}个，有效{len(processed_user_ids)}个，失败{len(failed)}个')
             app_logger.info(f'处理后的用户ID: {processed_user_ids}')
 
@@ -1119,17 +1119,15 @@ def add_community_staff():
                         role=role
                     )
                     session.add(staff)
-                    
+
                     # 记录审计日志
                     audit_log = UserAuditLog(
                         user_id=user_id,
                         action="add_community_staff",
-                        detail=f"添加用户{uid}为社区{community_id}的{role}",
-                        target_user_id=uid,
-                        community_id=community_id
+                        detail=f"添加用户{uid}为社区{community_id}的{role}"
                     )
                     session.add(audit_log)
-                    
+
                     added_count += 1
                     app_logger.info(f'成功添加工作人员: 社区{community_id}, 用户{uid}, 角色{role}')
 
@@ -1142,7 +1140,7 @@ def add_community_staff():
 
             # 提交事务
             session.commit()
-            
+
             # 获取添加成功的用户详细信息
             added_users_info = []
             for uid in user_ids:
@@ -1212,21 +1210,21 @@ def remove_community_staff():
                 ).first()
                 if not staff_record:
                     return make_err_response({}, '权限不足，需要社区工作人员权限')
-                
+
                 # 检查要移除的工作人员记录
                 target_staff = session.query(CommunityStaff).filter_by(
                     community_id=community_id,
                     user_id=target_user_id
                 ).first()
-                
+
                 if not target_staff:
                     return make_err_response({}, '工作人员不存在')
-                
+
                 # 权限细化检查：
                 # 1. 专员不能移除主管
                 if staff_record.role == 'staff' and target_staff.role == 'manager':
                     return make_err_response({}, '专员不能移除主管，需要主管权限')
-                
+
                 # 2. 不能移除自己（除非是超级管理员）
                 if target_user_id == user_id:
                     return make_err_response({}, '不能移除自己，请联系其他管理员操作')
@@ -1244,12 +1242,10 @@ def remove_community_staff():
             audit_log = UserAuditLog(
                 user_id=user_id,
                 action="remove_community_staff",
-                detail=f"从社区{community_id}移除工作人员{target_user_id}（角色：{staff.role}）",
-                target_user_id=target_user_id,
-                community_id=community_id
+                detail=f"从社区{community_id}移除工作人员{target_user_id}（角色：{staff.role}）"
             )
             session.add(audit_log)
-            
+
             # 删除记录
             session.delete(staff)
             session.commit()
@@ -1923,11 +1919,23 @@ def search_users_excluding_blackroom():
         page = int(request.args.get('page', 1))
         limit = int(request.args.get('limit', 20))
         exclude_community_id = request.args.get('exclude_community_id')  # 可选：排除指定社区的用户
-        
+
         if page < 1:
             page = 1
         if limit < 1 or limit > 100:
             limit = 20
+
+        # 如果关键词为空，返回空列表（与其他搜索API保持一致）
+        if not keyword or len(keyword) < 1:
+            return make_succ_response({
+                'users': [],
+                'pagination': {
+                    'page': page,
+                    'limit': limit,
+                    'total': 0,
+                    'has_more': False
+                }
+            })
 
         # 构建查询 - 排除黑屋社区的用户
         from sqlalchemy import or_
@@ -1980,7 +1988,7 @@ def search_users_excluding_blackroom():
             result.append(user_data)
 
         app_logger.info(f'搜索所有用户（排除黑屋社区）成功: 关键词"{keyword}", 第{page}页，共{total_count}人，本次返回{len(result)}人')
-        
+
         return make_succ_response({
             'users': result,
             'pagination': {
