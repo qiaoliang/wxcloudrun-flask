@@ -1062,7 +1062,39 @@ def add_community_staff():
             added_count = 0
             failed = []
 
+            # Layer 3: 环境守卫 - 验证user_ids的数据类型并转换为整数
+            # 数据库中的user_id是整数，但前端可能传递字符串
+            processed_user_ids = []
             for uid in user_ids:
+                try:
+                    # 尝试转换为整数
+                    if isinstance(uid, str):
+                        uid_int = int(uid)
+                    elif isinstance(uid, int):
+                        uid_int = uid
+                    else:
+                        failed.append({'user_id': uid, 'reason': f'无效的用户ID类型: {type(uid).__name__}'})
+                        continue
+                    
+                    # 验证整数是否有效（正数）
+                    if uid_int <= 0:
+                        failed.append({'user_id': uid, 'reason': '用户ID必须为正整数'})
+                        continue
+                    
+                    processed_user_ids.append(uid_int)
+                except (ValueError, TypeError) as e:
+                    failed.append({'user_id': uid, 'reason': f'无效的用户ID格式: {str(e)}'})
+                    continue
+            
+            # 如果没有有效的用户ID，直接返回错误
+            if not processed_user_ids:
+                app_logger.error(f'所有用户ID都无效: {user_ids}')
+                return make_err_response({'failed': failed}, '所有用户ID都无效')
+            
+            app_logger.info(f'用户ID验证通过: 原始{len(user_ids)}个，有效{len(processed_user_ids)}个，失败{len(failed)}个')
+            app_logger.info(f'处理后的用户ID: {processed_user_ids}')
+
+            for uid in processed_user_ids:
                 try:
                     # 检查用户是否存在
                     target_user = session.query(User).get(uid)
