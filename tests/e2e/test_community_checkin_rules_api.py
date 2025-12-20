@@ -306,7 +306,7 @@ class TestCommunityCheckinRulesAPI:
         assert response.status_code == 200
         list_data = response.json()
         assert list_data.get('code') == 1, f"获取规则列表失败: {list_data.get('msg')}"
-        rules = list_data['data']
+        rules = list_data['data']['rules']
         assert len(rules) == 2, f"应该有2个规则，实际有{len(rules)}个"
         
         # 启用第一个规则
@@ -322,7 +322,7 @@ class TestCommunityCheckinRulesAPI:
         assert response.status_code == 200
         list_data = response.json()
         assert list_data.get('code') == 1, f"获取规则列表失败: {list_data.get('msg')}"
-        rules = list_data['data']
+        rules = list_data['data']['rules']
         enabled_rules = [r for r in rules if r['status'] == 1]
         assert len(enabled_rules) == 1, f"应该有1个启用的规则，实际有{len(enabled_rules)}个"
 
@@ -337,11 +337,11 @@ class TestCommunityCheckinRulesAPI:
 
 
         # 1. 获取不包含已禁用规则的列表
-        response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={ comm["community_id"]}&include_disabled=false",
+        response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={comm['community_id']}&include_disabled=false",
                                headers=header)
         assert response.status_code == 200
         list_data = response.json()
-        rules = list_data['data']
+        rules = list_data['data']['rules']
 
         # 应该只包含启用的规则 (status=1)
         #enabled_rules = [r for r in rules if r['status'] == 1]
@@ -352,7 +352,7 @@ class TestCommunityCheckinRulesAPI:
                                headers=header)
         assert response.status_code == 200
         list_data_all = response.json()
-        rules_all = list_data_all['data']
+        rules_all = list_data_all['data']['rules']
 
         # 应该包含所有规则（包括停用的）
         assert len(rules_all) == 2, f"应该包含2个规则，实际有{len(rules_all)}个"
