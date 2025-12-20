@@ -21,45 +21,72 @@ def community_permission_required(f):
 
     @wraps(f)
     def decorated_function(decoded, *args, **kwargs):
+        # Layer 4: 调试仪表 - 记录权限检查开始
+        logger.debug(f"=== Layer 4: 调试仪表 - 开始社区权限检查 ===")
+        logger.debug(f"请求路径: {request.path}")
+        logger.debug(f"请求方法: {request.method}")
+        logger.debug(f"解码的用户信息: {decoded}")
+        
         user_id = decoded.get('user_id')
         if not user_id:
+            logger.warning("用户信息无效: decoded中没有user_id")
             return make_err_response({}, '用户信息无效')
 
         community_id = None
 
         # 1. 首先从查询参数获取community_id
         community_id = request.args.get('community_id')
+        logger.debug(f"从查询参数获取community_id: {community_id}")
 
         # 2. 如果没有从查询参数获取到，尝试从JSON请求体获取（优雅处理空请求体）
         if not community_id:
             try:
                 json_data = request.get_json(silent=True)
+                logger.debug(f"请求体JSON数据: {json_data}")
                 if json_data:
                     community_id = json_data.get('community_id')
-            except Exception:
+                    logger.debug(f"从请求体JSON获取community_id: {community_id}")
+            except Exception as e:
+                logger.debug(f"JSON解析失败: {str(e)}")
                 # 如果JSON解析失败，忽略错误
-                pass
 
-        # 3. 如果还没有community_id，尝试从rule_id获取（对于启用/停用等端点）
+        # 3. 如果还没有community_id，尝试从表单数据获取
+        if not community_id:
+            community_id = request.form.get('community_id')
+            logger.debug(f"从表单数据获取community_id: {community_id}")
+
+        # 4. 如果还没有community_id，尝试从rule_id获取（对于启用/停用等端点）
         if not community_id and 'rule_id' in kwargs:
             try:
                 rule_id = kwargs['rule_id']
+                logger.debug(f"从kwargs获取rule_id: {rule_id}")
                 # 直接查询数据库获取社区ID，避免复杂的对象加载
                 with get_db().get_session() as session:
                     rule = session.query(CommunityCheckinRule).get(rule_id)
                     if rule:
                         community_id = rule.community_id
+                        logger.debug(f"从数据库规则获取community_id: {community_id}")
+                    else:
+                        logger.warning(f"规则不存在: rule_id={rule_id}")
             except Exception as e:
                 logger.warning(f"从规则ID获取社区ID失败: {str(e)}")
                 # 继续执行，让下面的错误处理返回"缺少社区ID参数"
 
         if not community_id:
+            logger.warning(f"缺少社区ID参数: user_id={user_id}, 所有来源都未找到")
             return make_err_response({}, '缺少社区ID参数')
 
+        logger.debug(f"最终确定的community_id: {community_id}")
+
         # 检查用户是否是该社区的主管或专员
-        if not CommunityService.has_community_permission(user_id, community_id):
+        has_permission = CommunityService.has_community_permission(user_id, community_id)
+        logger.debug(f"权限检查结果: user_id={user_id}, community_id={community_id}, has_permission={has_permission}")
+        
+        if not has_permission:
+            logger.warning(f"无社区管理权限: user_id={user_id}, community_id={community_id}")
             return make_err_response({}, '无社区管理权限')
 
+        logger.debug(f"权限检查通过: user_id={user_id}, community_id={community_id}")
         return f(decoded, *args, **kwargs)
     return decorated_function
 
@@ -101,22 +128,71 @@ def get_community_rules(decoded):
     }
     """
     try:
+        # Layer 4: 调试仪表 - 记录请求详细信息
+        logger.debug(f"=== Layer 4: 调试仪表 - 开始处理规则列表请求 ===")
+        logger.debug(f"请求方法: {request.method}")
+        logger.debug(f"请求URL: {request.url}")
+        logger.debug(f"请求头: {dict(request.headers)}")
+        logger.debug(f"查询参数: {dict(request.args)}")
+        
+        # 尝试从请求体获取数据（兼容前端错误实现）
+        try:
+            json_data = request.get_json(silent=True)
+            if json_data:
+                logger.debug(f"请求体JSON数据: {json_data}")
+        except Exception as e:
+            logger.debug(f"请求体解析失败: {str(e)}")
+        
+        # Layer 1: API入口点验证 - 支持多种参数来源
+        community_id = None
+        
+        # 1. 优先从查询参数获取
         community_id = request.args.get('community_id')
-        include_disabled = request.args.get('include_disabled', 'false').lower() == 'true'
-
-        # Layer 1: API入口点验证 - 确保必要参数存在且有效
+        logger.debug(f"从查询参数获取community_id: {community_id}")
+        
+        # 2. 如果没有从查询参数获取到，尝试从JSON请求体获取（兼容前端错误）
         if not community_id:
+            try:
+                json_data = request.get_json(silent=True)
+                if json_data:
+                    community_id = json_data.get('community_id')
+                    logger.debug(f"从请求体JSON获取community_id: {community_id}")
+            except Exception as e:
+                logger.debug(f"从请求体获取community_id失败: {str(e)}")
+        
+        # 3. 如果还没有，尝试从表单数据获取
+        if not community_id:
+            community_id = request.form.get('community_id')
+            logger.debug(f"从表单数据获取community_id: {community_id}")
+        
+        # 获取include_disabled参数
+        include_disabled = request.args.get('include_disabled', 'false').lower() == 'true'
+        logger.debug(f"include_disabled参数: {include_disabled}")
+        
+        # 验证必要参数
+        if not community_id:
+            logger.warning("缺少社区ID参数，所有来源都未找到")
             return make_err_response({}, '缺少社区ID参数')
 
         try:
             community_id_int = int(community_id)
             if community_id_int <= 0:
+                logger.warning(f"社区ID必须为正整数: {community_id_int}")
                 return make_err_response({}, '社区ID必须为正整数')
         except ValueError:
+            logger.warning(f"社区ID必须为有效整数: {community_id}")
             return make_err_response({}, '社区ID必须为有效整数')
+        
+        logger.debug(f"验证通过: community_id={community_id_int}, include_disabled={include_disabled}")
 
         rules_data = CommunityCheckinRuleService.get_community_rules(community_id_int, include_disabled)
-        logger.info(f"获取社区规则列表成功: 社区ID={community_id}, 规则数量={len(rules_data)}")
+        logger.info(f"获取社区规则列表成功: 社区ID={community_id_int}, 规则数量={len(rules_data)}")
+        
+        # Layer 4: 调试仪表 - 记录响应数据
+        logger.debug(f"返回规则数据: {len(rules_data)}条规则")
+        for i, rule in enumerate(rules_data[:3]):  # 只记录前3条规则
+            logger.debug(f"规则{i+1}: id={rule.get('community_rule_id')}, name={rule.get('rule_name')}, status={rule.get('status')}")
+        
         return make_succ_response({'rules': rules_data})
 
     except ValueError as e:
