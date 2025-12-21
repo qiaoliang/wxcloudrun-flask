@@ -250,6 +250,7 @@ class CommunityCheckinRuleService:
                             created_at=datetime.now()
                         )
                         session.add(mapping)
+                        session.flush()  # 确保新记录立即生效
 
                 # 更新规则状态
                 rule.status = 1  # 设置为启用状态

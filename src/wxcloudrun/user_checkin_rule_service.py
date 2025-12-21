@@ -191,10 +191,32 @@ class UserCheckinRuleService:
                 ).all()
                 
                 # 获取该用户的规则映射记录
-                user_mappings = {mapping.community_rule_id: mapping.is_active 
-                               for mapping in session.query(UserCommunityRule).filter(
-                                   UserCommunityRule.user_id == user_id
-                               ).all()}
+                user_mappings = {}
+                mappings = session.query(UserCommunityRule).filter(
+                    UserCommunityRule.user_id == user_id
+                ).all()
+                
+                for mapping in mappings:
+                    user_mappings[mapping.community_rule_id] = mapping.is_active
+                
+                # 确保当前社区的所有已启用规则都有映射记录
+                enabled_rules = [rule for rule in all_rules if rule.status == 1]
+                for rule in enabled_rules:
+                    if rule.community_rule_id not in user_mappings:
+                        # 如果已启用规则没有映射记录，说明是数据不一致，自动创建映射
+                        new_mapping = UserCommunityRule(
+                            user_id=user_id,
+                            community_rule_id=rule.community_rule_id,
+                            is_active=True,
+                            created_at=datetime.now()
+                        )
+                        session.add(new_mapping)
+                        user_mappings[rule.community_rule_id] = True
+                        
+                # 提交新创建的映射记录
+                if any(rule.community_rule_id not in [m.community_rule_id for m in mappings] 
+                      for rule in enabled_rules):
+                    session.commit()
                 
                 # 预加载关联数据并添加状态信息
                 result = []
