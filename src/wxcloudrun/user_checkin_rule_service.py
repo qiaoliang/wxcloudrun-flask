@@ -9,6 +9,7 @@ from wxcloudrun.dao import get_db
 from database.models import CheckinRule, CommunityCheckinRule, UserCommunityRule, User
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
+from wxcloudrun.checkin_record_service import CheckinRecordService
 
 logger = logging.getLogger('UserCheckinRuleService')
 
@@ -313,7 +314,7 @@ class UserCheckinRuleService:
                                 .all())
 
                 # 计算计划时间
-                planned_time = CheckinRuleService._calculate_planned_time(rule, today)
+                planned_time = CheckinRecordService._calculate_planned_time(rule, today)
 
                 # 确定打卡状态
                 status_info = CheckinRuleService._determine_checkin_status(today_records)
@@ -375,7 +376,7 @@ class UserCheckinRuleService:
 
                 # 检查用户是否有权限查看此规则
                 user = User.query.get(user_id)
-                if not user or user.community_id != rule.community_id:
+                if not user or user.community_id != rule['community_id']:
                     raise ValueError('社区规则不存在或无权限')
 
                 # 检查规则是否对用户生效
@@ -388,17 +389,17 @@ class UserCheckinRuleService:
                 if not mapping:
                     raise ValueError('此规则未对您生效')
 
-                rule_dict = rule.to_dict()
+                rule_dict = rule.copy()  # rule已经是字典，直接复制
                 rule_dict['rule_source'] = 'community'
                 rule_dict['is_editable'] = False
 
-                # 添加额外信息
-                if rule.community:
-                    rule_dict['community_name'] = rule.community.name
-                if rule.creator:
-                    rule_dict['created_by_name'] = rule.creator.nickname or rule.creator.phone
-                if rule.updater:
-                    rule_dict['updated_by_name'] = rule.updater.nickname or rule.updater.phone
+                # 添加额外信息（rule字典中已经包含了这些信息）
+                if rule.get('community'):
+                    rule_dict['community_name'] = rule['community']['name']
+                if rule.get('creator'):
+                    rule_dict['created_by_name'] = rule['creator']['nickname'] or rule['creator']['phone']
+                if rule.get('updater'):
+                    rule_dict['updated_by_name'] = rule['updater']['nickname'] or rule['updater']['phone']
 
             else:
                 raise ValueError(f'不支持的规则来源: {rule_source}')
