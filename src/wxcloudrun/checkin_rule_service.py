@@ -447,6 +447,21 @@ class CheckinRuleService:
         custom_time = CheckinRuleService._get_rule_attr(rule, 'custom_time')
 
         if time_slot_type == 4 and custom_time:  # 自定义时间
+            # 确保custom_time是time对象，而不是字符串
+            if isinstance(custom_time, str):
+                from wxcloudrun.utils.timeutil import parse_time_only
+                try:
+                    custom_time = parse_time_only(custom_time)
+                except ValueError as e:
+                    logger.warning(f"解析自定义时间失败: {custom_time}, 错误: {e}")
+                    # 如果解析失败，使用默认时间
+                    return datetime.combine(today, time(20, 0))
+            
+            # 再次检查类型，确保是time对象
+            if not hasattr(custom_time, 'hour'):  # 不是time对象
+                logger.warning(f"custom_time不是有效的时间对象: {custom_time}, 类型: {type(custom_time)}")
+                return datetime.combine(today, time(20, 0))
+            
             return datetime.combine(today, custom_time)
         elif time_slot_type == 1:  # 上午
             return datetime.combine(today, time(9, 0))
