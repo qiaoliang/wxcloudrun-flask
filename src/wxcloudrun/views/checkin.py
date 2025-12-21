@@ -49,6 +49,7 @@ def get_today_checkin_items(decoded):
 def perform_checkin(decoded):
     """
     执行打卡操作（Controller）
+    支持个人规则和社区规则打卡
     """
     app.logger.info('=== 开始执行打卡接口 ===')
 
@@ -63,11 +64,13 @@ def perform_checkin(decoded):
         # 参数验证 - 请求参数
         params = request.get_json()
         rule_id = params.get('rule_id')
+        rule_source = params.get('rule_source', 'personal')  # 默认为个人规则
+        
         if not rule_id:
             return make_err_response({}, '缺少rule_id参数')
 
         # 调用 Service 层执行打卡
-        response_data = CheckinRecordService.perform_checkin(rule_id, user.user_id)
+        response_data = CheckinRecordService.perform_checkin(rule_id, user.user_id, rule_source)
 
         app.logger.info(f'用户 {user.user_id} 打卡成功，规则ID: {rule_id}')
         return make_succ_response(response_data)

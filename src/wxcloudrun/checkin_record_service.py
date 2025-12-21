@@ -21,23 +21,40 @@ class CheckinRecordService:
     CANCEL_TIME_LIMIT_MINUTES = 30
 
     @staticmethod
-    def perform_checkin(rule_id, user_id):
+    def perform_checkin(rule_id, user_id, rule_source='personal'):
         """
         执行打卡操作
         :param rule_id: 规则ID
         :param user_id: 用户ID
+        :param rule_source: 规则来源（personal/community）
         :return: 打卡记录信息字典
         :raises ValueError: 当规则不存在、无权限或今日已打卡时
         """
-        # 验证规则是否存在且属于当前用户
-        rule = CheckinRuleService.query_rule_by_id(rule_id)
-        if not rule or rule.solo_user_id != user_id:
-            raise ValueError('打卡规则不存在或无权限')
+        if rule_source == 'community':
+            # 验证社区规则是否存在且用户有权限
+            from .community_checkin_rule_service import CommunityCheckinRuleService
+            from .user_checkin_rule_service import UserCheckinRuleService
+            
+            rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
+            if not rule:
+                raise ValueError('社区打卡规则不存在')
+            
+            # 检查用户是否有权限打卡此社区规则
+            try:
+                user_rule = UserCheckinRuleService.get_rule_by_id(rule_id, user_id, 'community')
+            except ValueError:
+                raise ValueError('无权限打卡此社区规则')
+                
+        else:
+            # 验证个人规则是否存在且属于当前用户
+            rule = CheckinRuleService.query_rule_by_id(rule_id)
+            if not rule or rule.solo_user_id != user_id:
+                raise ValueError('打卡规则不存在或无权限')
 
         # 检查今天是否已有打卡记录
         today = date.today()
         existing_records = CheckinRecordService._query_records_by_rule_and_date(
-            rule_id, today)
+            rule_id, today, rule_source)
 
         # 查找当天已有的打卡记录
         for record in existing_records:
@@ -62,7 +79,7 @@ class CheckinRecordService:
             # 创建新的打卡记录
             planned_time = CheckinRecordService._calculate_planned_time(rule, today)
             record_id = CheckinRecordService._create_record(
-                rule_id, user_id, checkin_time, planned_time, status=1)
+                rule_id, user_id, checkin_time, planned_time, status=1, rule_source=rule_source)
 
         logger.info(f"用户 {user_id} 打卡成功，规则ID: {rule_id}, 记录ID: {record_id}")
 
@@ -335,11 +352,12 @@ class CheckinRecordService:
             return None
 
     @staticmethod
-    def _query_records_by_rule_and_date(rule_id, checkin_date, session=None):
+    def _query_records_by_rule_and_date(rule_id, checkin_date, rule_source='personal', session=None):
         """
         根据规则ID和日期查询打卡记录
         :param rule_id: 规则ID
         :param checkin_date: 打卡日期
+        :param rule_source: 规则来源（personal/community）
         :param session: 数据库会话，如果为None则创建新会话
         :return: 打卡记录列表
         """
@@ -347,19 +365,35 @@ class CheckinRecordService:
             # 如果session为None，创建新的会话
             if session is None:
                 with get_db().get_session() as session:
-                    records = session.query(CheckinRecord).filter(
-                        CheckinRecord.rule_id == rule_id,
-                        func.date(CheckinRecord.planned_time) == checkin_date
-                    ).all()
+                    if rule_source == 'community':
+                        # 查询社区规则打卡记录
+                        records = session.query(CheckinRecord).filter(
+                            CheckinRecord.community_rule_id == rule_id,
+                            func.date(CheckinRecord.planned_time) == checkin_date
+                        ).all()
+                    else:
+                        # 查询个人规则打卡记录
+                        records = session.query(CheckinRecord).filter(
+                            CheckinRecord.rule_id == rule_id,
+                            func.date(CheckinRecord.planned_time) == checkin_date
+                        ).all()
                     for record in records:
                         session.expunge(record)
                     return records
             else:
                 # 使用传入的session
-                records = session.query(CheckinRecord).filter(
-                    CheckinRecord.rule_id == rule_id,
-                    func.date(CheckinRecord.planned_time) == checkin_date
-                ).all()
+                if rule_source == 'community':
+                    # 查询社区规则打卡记录
+                    records = session.query(CheckinRecord).filter(
+                        CheckinRecord.community_rule_id == rule_id,
+                        func.date(CheckinRecord.planned_time) == checkin_date
+                    ).all()
+                else:
+                    # 查询个人规则打卡记录
+                    records = session.query(CheckinRecord).filter(
+                        CheckinRecord.rule_id == rule_id,
+                        func.date(CheckinRecord.planned_time) == checkin_date
+                    ).all()
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return records
         except OperationalError as e:
@@ -419,7 +453,7 @@ class CheckinRecordService:
             return datetime.combine(target_date, time(20, 0))
 
     @staticmethod
-    def _create_record(rule_id, user_id, checkin_time, planned_time, status, session=None):
+    def _create_record(rule_id, user_id, checkin_time, planned_time, status, rule_source='personal', session=None):
         """
         创建打卡记录
         :param rule_id: 规则ID
@@ -427,17 +461,29 @@ class CheckinRecordService:
         :param checkin_time: 打卡时间（可为None）
         :param planned_time: 计划时间
         :param status: 状态（0-未打卡，1-已打卡）
+        :param rule_source: 规则来源（personal/community）
         :param session: 数据库会话，如果为None则创建新会话
         :return: 记录ID
         """
         try:
-            new_record = CheckinRecord(
-                rule_id=rule_id,
-                solo_user_id=user_id,
-                checkin_time=checkin_time,
-                status=status,
-                planned_time=planned_time
-            )
+            if rule_source == 'community':
+                # 社区规则打卡记录
+                new_record = CheckinRecord(
+                    community_rule_id=rule_id,
+                    solo_user_id=user_id,
+                    checkin_time=checkin_time,
+                    status=status,
+                    planned_time=planned_time
+                )
+            else:
+                # 个人规则打卡记录
+                new_record = CheckinRecord(
+                    rule_id=rule_id,
+                    solo_user_id=user_id,
+                    checkin_time=checkin_time,
+                    status=status,
+                    planned_time=planned_time
+                )
 
             # 如果session为None，创建新的会话
             if session is None:
