@@ -28,6 +28,15 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
     if user.community_id and hasattr(user, 'community') and user.community:
         community_name = user.community.name
     
+    # 调试：记录社区信息获取情况
+    if user.community_id:
+        if community_name:
+            app.logger.info(f'用户社区信息获取成功: ID={user.community_id}, 名称={community_name}')
+        else:
+            app.logger.warning(f'用户有社区ID但无法获取社区名称: community_id={user.community_id}')
+    else:
+        app.logger.info(f'用户无社区信息: community_id={user.community_id}')
+    
     return {
         'token': token,
         'refresh_token': refresh_token,
@@ -239,6 +248,20 @@ def login_wechat():
                     else:
                         app.logger.warning(f'头像URL验证失败，跳过更新: {avatar_url[:30]}...')
 
+                # 检查并补充社区信息（修复历史遗留问题）
+                if not user.community_id:
+                    app.logger.info(f'用户无社区信息，自动分配到默认社区，用户ID: {user.user_id}')
+                    try:
+                        from wxcloudrun.community_service import CommunityService
+                        CommunityService.assign_user_to_community(user, DEFUALT_COMMUNITY_NAME)
+                        updated = True
+                        app.logger.info(f'用户已成功分配到默认社区: {DEFUALT_COMMUNITY_NAME}')
+                    except Exception as community_error:
+                        app.logger.error(f'分配用户到默认社区失败: {str(community_error)}', exc_info=True)
+                        # 不影响登录流程，只记录错误
+                else:
+                    app.logger.debug(f'用户已有社区信息，社区ID: {user.community_id}')
+
                 # 执行更新操作
                 if updated:
                     app.logger.info('保存用户信息更新到数据库...')
@@ -285,15 +308,7 @@ def login_wechat():
         )
 
         # 安全日志记录（不包含敏感信息）
-        app.logger.info('=== 调试仪表 - 登录成功取证 ===')
-        app.logger.info(f'返回的用户ID: {user.user_id}')
-        app.logger.info(f'用户OpenID前8位: {openid[:8]}...')
-        app.logger.info(f'用户昵称: {user.nickname}')
-        app.logger.info(f'是否为新用户: {is_new}')
-        app.logger.info(f'返回的token长度: {len(token)}')
-        app.logger.info(f'返回的refresh_token长度: {len(refresh_token)}')
-        app.logger.info(f'用户角色: {user.role}')
-        app.logger.info(f'登录时间戳: {datetime.datetime.now().isoformat()}')
+        app.logger.info(f'微信登录成功 - 用户ID: {user.user_id}, 昵称: {user.nickname}, 新用户: {is_new}, 社区ID: {user.community_id}')
 
         # 验证响应数据完整性
         required_fields = ['token', 'refresh_token', 'user_id']
@@ -450,7 +465,7 @@ def register_phone():
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
-        existing = User.query.filter_by(phone_hash=phone_hash).first()
+        existing = UserService.query_user_by_phone_hash(phone_hash)
 
         # 严格按策略1：不验证密码，直接提示账号已存在
         if existing:
@@ -516,7 +531,7 @@ def login_phone_code():
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
-        user = User.query.filter_by(phone_hash=phone_hash).first()
+        user = UserService.query_user_by_phone_hash(phone_hash)
         if not user:
             return make_err_response({}, '用户不存在')
         if not user.nickname:
@@ -551,7 +566,7 @@ def login_phone_password():
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
-        user = User.query.filter_by(phone_hash=phone_hash).first()
+        user = UserService.query_user_by_phone_hash(phone_hash)
         if not user:
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
         if not user.password_hash or not user.password_salt:
@@ -604,7 +619,7 @@ def login_phone():
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
-        user = User.query.filter_by(phone_hash=phone_hash).first()
+        user = UserService.query_user_by_phone_hash(phone_hash)
 
         if not user:
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
@@ -621,6 +636,20 @@ def login_phone():
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
             UserService.update_user_by_id(user)
+
+        # 检查并补充社区信息（修复历史遗留问题）
+        if not user.community_id:
+            app.logger.info(f'手机用户无社区信息，自动分配到默认社区，用户ID: {user.user_id}')
+            try:
+                from const_default import DEFUALT_COMMUNITY_NAME
+                from wxcloudrun.community_service import CommunityService
+                CommunityService.assign_user_to_community(user, DEFUALT_COMMUNITY_NAME)
+                app.logger.info(f'手机用户已成功分配到默认社区: {DEFUALT_COMMUNITY_NAME}')
+            except Exception as community_error:
+                app.logger.error(f'分配手机用户到默认社区失败: {str(community_error)}', exc_info=True)
+                # 不影响登录流程，只记录错误
+        else:
+            app.logger.debug(f'手机用户已有社区信息，社区ID: {user.community_id}')
 
         # 使用工具函数生成token
         token, error_response = generate_jwt_token(user, expires_hours=2)

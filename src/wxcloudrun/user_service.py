@@ -166,21 +166,50 @@ class UserService:
         :return: User实体
         """
         try:
+            from sqlalchemy.orm import joinedload
+            
             # 如果session为None，创建新的会话
             if session is None:
                 with get_db().get_session() as session:
-                    user = session.query(User).filter(User.wechat_openid == openid).first()
+                    user = session.query(User).options(joinedload(User.community)).filter(User.wechat_openid == openid).first()
                     if user:
                          session.expunge(user)
                     return user
             else:
                 # 使用传入的session
-                user = session.query(User).filter(User.wechat_openid == openid).first()
+                user = session.query(User).options(joinedload(User.community)).filter(User.wechat_openid == openid).first()
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return user
         except OperationalError as e:
             logger.info("query_user_by_openid errorMsg= {} ".format(e))
             return None
+    @staticmethod
+    def query_user_by_phone_hash(phone_hash, session=None):
+        """
+        根据手机号哈希查询用户实体（包含社区关联）
+        :param phone_hash: 手机号哈希值
+        :param session: 数据库会话，如果为None则创建新会话
+        :return: User实体
+        """
+        try:
+            from sqlalchemy.orm import joinedload
+            
+            # 如果session为None，创建新的会话
+            if session is None:
+                with get_db().get_session() as session:
+                    user = session.query(User).options(joinedload(User.community)).filter(User.phone_hash == phone_hash).first()
+                    if user:
+                         session.expunge(user)
+                    return user
+            else:
+                # 使用传入的session
+                user = session.query(User).options(joinedload(User.community)).filter(User.phone_hash == phone_hash).first()
+                # 注意：使用外部传入的session时，不进行expunge操作
+                return user
+        except OperationalError as e:
+            logger.info("query_user_by_phone_hash errorMsg= {} ".format(e))
+            return None
+
     @staticmethod
     def query_user_by_id(user_id, session=None):
         """根据ID获取社区
