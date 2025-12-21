@@ -348,15 +348,23 @@ class CheckinRuleService:
     @staticmethod
     def _get_rule_attr(rule, attr_name):
         """
-        通用方法：获取规则属性，支持CheckinRule和CommunityCheckinRule
+        通用方法：获取规则属性，支持CheckinRule、CommunityCheckinRule和字典格式
 
         Args:
-            rule: 规则对象（CheckinRule或CommunityCheckinRule）
+            rule: 规则对象（CheckinRule、CommunityCheckinRule或字典）
             attr_name: 属性名
 
         Returns:
             属性值
         """
+        # 处理字典格式的规则数据
+        if isinstance(rule, dict):
+            # 字典格式直接返回键值
+            if attr_name == 'rule_id':
+                # 社区规则字典中使用community_rule_id作为rule_id
+                return rule.get('community_rule_id')
+            return rule.get(attr_name)
+        
         # 处理CommunityCheckinRule对象
         from database.models import CommunityCheckinRule
         if isinstance(rule, CommunityCheckinRule):
