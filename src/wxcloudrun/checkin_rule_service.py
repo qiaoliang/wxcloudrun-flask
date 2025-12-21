@@ -466,8 +466,8 @@ class CheckinRuleService:
                     return datetime.combine(today, time(20, 0))
             
             # 再次检查类型，确保是time对象
-            if not hasattr(custom_time, 'hour'):  # 不是time对象
-                logger.warning(f"custom_time不是有效的时间对象: {custom_time}, 类型: {type(custom_time)}")
+            if not isinstance(custom_time, time):  # 不是datetime.time对象
+                logger.warning(f"custom_time不是有效的datetime.time对象: {custom_time}, 类型: {type(custom_time)}")
                 return datetime.combine(today, time(20, 0))
             
             return datetime.combine(today, custom_time)
