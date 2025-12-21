@@ -2032,13 +2032,13 @@ def search_ankafamily_users(decoded):
 
         # 调用服务层方法搜索用户
         result = UserService.search_ankafamily_users(keyword, page, limit)
-        
+
         # 为每个用户添加工作人员状态
         for user_data in result['users']:
             user_data['is_staff'] = CommunityStaffService.check_user_is_staff(
                 int(user_data['user_id'])
             )
-        
+
         return make_succ_response(result)
 
     except Exception as e:
@@ -2391,7 +2391,8 @@ def create_community_user():
         return error_response
 
     user_id = decoded.get('user_id')
-    current_user = User.query.get(user_id)
+
+    current_user = UserService.query_user_by_id(user_id)
 
     if not current_user:
         return make_err_response({}, '用户不存在')
