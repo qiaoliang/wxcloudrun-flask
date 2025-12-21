@@ -19,31 +19,24 @@ class UserCheckinRuleService:
     @staticmethod
     def get_user_all_rules(user_id,session = None):
         """
-        获取用户所有打卡规则（个人规则 + 社区规则）
+        获取用户所有打卡规则（社区规则优先，个人规则在后）
 
         Args:
             user_id: 用户ID
 
         Returns:
-            list: 规则列表，每个规则包含来源信息
+            list: 规则列表，每个规则包含来源信息，社区规则在前，个人规则在后
         """
         try:
             all_rules = []
 
-            # 获取个人规则
-            personal_rules = CheckinRuleService.query_rules_by_user_id(user_id)
-            for rule in personal_rules:
-                rule_dict = rule.to_dict()
-                rule_dict['rule_source'] = 'personal'
-                rule_dict['is_editable'] = True
-                all_rules.append(rule_dict)
-
-            # 获取社区规则
+            # 获取社区规则（优先显示）
             community_rules = CommunityCheckinRuleService.get_user_community_rules(user_id)
             for rule in community_rules:
                 rule_dict = rule.to_dict()
                 rule_dict['rule_source'] = 'community'
                 rule_dict['is_editable'] = False
+                rule_dict['source_label'] = '社区规则'
 
                 # 添加社区信息
                 if rule.community:
@@ -53,6 +46,15 @@ class UserCheckinRuleService:
                 if rule.creator:
                     rule_dict['created_by_name'] = rule.creator.nickname or rule.creator.phone
 
+                all_rules.append(rule_dict)
+
+            # 获取个人规则（在社区规则后显示）
+            personal_rules = CheckinRuleService.query_rules_by_user_id(user_id)
+            for rule in personal_rules:
+                rule_dict = rule.to_dict()
+                rule_dict['rule_source'] = 'personal'
+                rule_dict['is_editable'] = True
+                rule_dict['source_label'] = '个人规则'
                 all_rules.append(rule_dict)
 
             logger.info(f"获取用户所有规则成功: 用户ID={user_id}, 规则总数={len(all_rules)}")

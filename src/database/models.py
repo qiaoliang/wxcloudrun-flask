@@ -146,6 +146,37 @@ class CheckinRule(Base, QueryMixin):
     # 关系
     user = relationship('User', backref='checkin_rules')
 
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        result = {
+            'rule_id': self.rule_id,
+            'solo_user_id': self.solo_user_id,
+            'rule_name': self.rule_name,
+            'icon_url': self.icon_url,
+            'frequency_type': self.frequency_type,
+            'time_slot_type': self.time_slot_type,
+            'custom_time': self.custom_time.isoformat() if self.custom_time and hasattr(self.custom_time, 'isoformat') else self.custom_time,
+            'custom_start_date': self.custom_start_date.isoformat() if self.custom_start_date and hasattr(self.custom_start_date, 'isoformat') else self.custom_start_date,
+            'custom_end_date': self.custom_end_date.isoformat() if self.custom_end_date and hasattr(self.custom_end_date, 'isoformat') else self.custom_end_date,
+            'week_days': self.week_days,
+            'status': self.status,
+            'rule_source': self.rule_source,
+            'deleted_at': self.deleted_at.isoformat() if self.deleted_at and hasattr(self.deleted_at, 'isoformat') else self.deleted_at,
+            'created_at': self.created_at.isoformat() if self.created_at and hasattr(self.created_at, 'isoformat') else self.created_at,
+            'updated_at': self.updated_at.isoformat() if self.updated_at and hasattr(self.updated_at, 'isoformat') else self.updated_at
+        }
+
+        # 安全地添加关系信息（如果已加载）
+        try:
+            if hasattr(self, 'user') and self.user:
+                result['user_nickname'] = self.user.nickname
+                result['user_phone'] = self.user.phone_number
+        except Exception:
+            # 忽略关系加载错误，避免循环依赖
+            pass
+
+        return result
+
 
 class CheckinRecord(Base, QueryMixin):
     """打卡记录表"""

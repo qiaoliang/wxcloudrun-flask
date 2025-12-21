@@ -3,7 +3,7 @@
 处理用户规则查询和聚合的HTTP请求（个人规则 + 社区规则）
 """
 import logging
-from flask import request, g
+from flask import request
 from wxcloudrun import app
 from wxcloudrun.decorators import login_required
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
@@ -14,7 +14,7 @@ logger = logging.getLogger('UserCheckinView')
 
 @app.route('/api/user-checkin/rules', methods=['GET'])
 @login_required
-def get_user_all_rules():
+def get_user_all_rules(decoded):
     """
     获取用户所有打卡规则（个人规则 + 社区规则）
     GET /api/user-checkin/rules
@@ -25,19 +25,7 @@ def get_user_all_rules():
         "msg": "success",
         "data": [
             {
-                // 个人规则
-                "rule_id": 1,
-                "rule_name": "个人每日阅读",
-                "icon_url": "...",
-                "frequency_type": 0,
-                "time_slot_type": 4,
-                "custom_time": "20:00:00",
-                "rule_source": "personal",
-                "is_editable": true,
-                "source_label": "个人规则"
-            },
-            {
-                // 社区规则
+                // 社区规则（优先显示）
                 "community_rule_id": 1,
                 "rule_name": "社区健康打卡",
                 "icon_url": "...",
@@ -50,17 +38,29 @@ def get_user_all_rules():
                 "community_name": "安卡大家庭",
                 "created_by_name": "张主管",
                 "is_enabled": true
+            },
+            {
+                // 个人规则（在社区规则后显示）
+                "rule_id": 1,
+                "rule_name": "个人每日阅读",
+                "icon_url": "...",
+                "frequency_type": 0,
+                "time_slot_type": 4,
+                "custom_time": "20:00:00",
+                "rule_source": "personal",
+                "is_editable": true,
+                "source_label": "个人规则"
             }
         ]
     }
     """
     try:
-        user_id = g.user.user_id
+        user_id = decoded.get('user_id')
 
         rules = UserCheckinRuleService.get_user_all_rules(user_id)
 
         logger.info(f"获取用户所有规则成功: 用户ID={user_id}, 规则数量={len(rules)}")
-        return make_succ_response(rules)
+        return make_succ_response({'rules': rules})
 
     except Exception as e:
         logger.error(f"获取用户所有规则失败: {str(e)}")
@@ -69,7 +69,7 @@ def get_user_all_rules():
 
 @app.route('/api/user-checkin/today-plan', methods=['GET'])
 @login_required
-def get_user_today_plan():
+def get_user_today_plan(decoded):
     """
     获取用户今日打卡计划（混合个人规则和社区规则）
     GET /api/user-checkin/today-plan
@@ -104,7 +104,7 @@ def get_user_today_plan():
     }
     """
     try:
-        user_id = g.user.user_id
+        user_id = decoded.get('user_id')
 
         today_plan = UserCheckinRuleService.get_today_checkin_plan(user_id)
 
@@ -118,7 +118,7 @@ def get_user_today_plan():
 
 @app.route('/api/user-checkin/rules/<int:rule_id>', methods=['GET'])
 @login_required
-def get_user_rule_detail(rule_id):
+def get_user_rule_detail(decoded, rule_id):
     """
     获取用户规则详情（根据规则来源）
     GET /api/user-checkin/rules/<rule_id>?rule_source=<personal/community>
@@ -139,7 +139,7 @@ def get_user_rule_detail(rule_id):
     }
     """
     try:
-        user_id = g.user.user_id
+        user_id = decoded.get('user_id')
         rule_source = request.args.get('rule_source', 'personal')
 
         rule_detail = UserCheckinRuleService.get_rule_by_id(rule_id, user_id, rule_source)
@@ -157,7 +157,7 @@ def get_user_rule_detail(rule_id):
 
 @app.route('/api/user-checkin/statistics', methods=['GET'])
 @login_required
-def get_user_rules_statistics():
+def get_user_rules_statistics(decoded):
     """
     获取用户规则统计信息
     GET /api/user-checkin/statistics
@@ -177,7 +177,7 @@ def get_user_rules_statistics():
     }
     """
     try:
-        user_id = g.user.user_id
+        user_id = decoded.get('user_id')
 
         statistics = UserCheckinRuleService.get_user_rules_statistics(user_id)
 
@@ -191,7 +191,7 @@ def get_user_rules_statistics():
 
 @app.route('/api/user-checkin/rules/source-info', methods=['POST'])
 @login_required
-def get_rules_source_info():
+def get_rules_source_info(decoded):
     """
     批量获取规则来源信息
     POST /api/user-checkin/rules/source-info
@@ -233,7 +233,7 @@ def get_rules_source_info():
     }
     """
     try:
-        user_id = g.user.user_id
+        user_id = decoded.get('user_id')
         data = request.get_json()
         rules_data = data.get('rules', [])
 
