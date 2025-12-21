@@ -230,15 +230,26 @@ class CommunityCheckinRuleService:
                 # 获取社区所有用户
                 community_users = session.query(User).filter_by(community_id=rule.community_id).all()
 
-                # 为每个用户创建映射记录
+                # 为每个用户创建或更新映射记录
                 for user in community_users:
-                    mapping = UserCommunityRule(
+                    # 查找是否已有映射记录
+                    existing_mapping = session.query(UserCommunityRule).filter_by(
                         user_id=user.user_id,
-                        community_rule_id=rule_id,
-                        is_active=True,
-                        created_at=datetime.now()
-                    )
-                    session.add(mapping)
+                        community_rule_id=rule_id
+                    ).first()
+                    
+                    if existing_mapping:
+                        # 如果已有记录，更新为激活状态
+                        existing_mapping.is_active = True
+                    else:
+                        # 如果没有记录，创建新记录
+                        mapping = UserCommunityRule(
+                            user_id=user.user_id,
+                            community_rule_id=rule_id,
+                            is_active=True,
+                            created_at=datetime.now()
+                        )
+                        session.add(mapping)
 
                 # 更新规则状态
                 rule.status = 1  # 设置为启用状态
@@ -298,11 +309,9 @@ class CommunityCheckinRuleService:
                     raise ValueError('规则未启用')
 
                 # 更新所有用户映射为停用状态
-                # TODO: 待完善
-#                session.query(UserCommunityRule).filter_by(
-#                    community_rule_id=rule_id,
-#                    status=1
-#                ).update({'is_active': False})
+                session.query(UserCommunityRule).filter_by(
+                    community_rule_id=rule_id
+                ).update({'is_active': False})
 
                 # 更新规则状态
                 rule.status = 0  # 设置为停用状态

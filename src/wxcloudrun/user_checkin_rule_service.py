@@ -30,12 +30,12 @@ class UserCheckinRuleService:
         try:
             all_rules = []
 
-            # 获取激活的社区规则（优先显示）
-            community_rules = UserCheckinRuleService._get_user_active_community_rules(user_id)
+            # 获取用户所属社区的所有规则（包括启用和停用的）
+            community_rules = UserCheckinRuleService._get_user_all_community_rules(user_id)
             for rule in community_rules:
                 rule_dict = rule.to_dict()
                 rule_dict['rule_source'] = 'community'
-                rule_dict['is_editable'] = False
+                rule_dict['is_editable'] = False  # 社区规则用户不可编辑
                 rule_dict['source_label'] = '社区规则'
 
                 # 添加社区信息
@@ -47,8 +47,18 @@ class UserCheckinRuleService:
                 if rule.creator:
                     rule_dict['created_by_name'] = rule.creator.nickname or rule.creator.phone
 
-                # 标记为对用户激活状态
-                rule_dict['is_active_for_user'] = True
+                # 根据规则状态和用户映射状态判断是否对用户激活
+                is_rule_enabled = rule_dict.get('status') == 1
+                is_user_mapping_active = rule_dict.get('is_user_mapping_active', False)
+                rule_dict['is_active_for_user'] = is_rule_enabled and is_user_mapping_active
+                
+                # 添加规则状态描述
+                if is_rule_enabled and is_user_mapping_active:
+                    rule_dict['status_label'] = '启用'
+                elif not is_rule_enabled:
+                    rule_dict['status_label'] = '停用'
+                else:
+                    rule_dict['status_label'] = '未激活'
 
                 all_rules.append(rule_dict)
 
@@ -59,6 +69,8 @@ class UserCheckinRuleService:
                 rule_dict['rule_source'] = 'personal'
                 rule_dict['is_editable'] = True
                 rule_dict['source_label'] = '个人规则'
+                rule_dict['is_active_for_user'] = True  # 个人规则默认对用户激活
+                rule_dict['status_label'] = '启用'
                 all_rules.append(rule_dict)
 
             logger.info(f"获取用户所有规则成功: 用户ID={user_id}, 规则总数={len(all_rules)}")
@@ -112,6 +124,16 @@ class UserCheckinRuleService:
                     class RuleWrapper:
                         def __init__(self, data):
                             self._data = data
+                            # 添加必要的属性
+                            self.community_rule_id = data.get('community_rule_id')
+                            self.rule_name = data.get('rule_name')
+                            self.icon_url = data.get('icon_url')
+                            self.frequency_type = data.get('frequency_type')
+                            self.time_slot_type = data.get('time_slot_type')
+                            self.custom_time = data.get('custom_time')
+                            self.custom_start_date = data.get('custom_start_date')
+                            self.custom_end_date = data.get('custom_end_date')
+                            self.week_days = data.get('week_days')
                         
                         def to_dict(self):
                             return self._data.copy()
@@ -140,6 +162,85 @@ class UserCheckinRuleService:
                 
         except SQLAlchemyError as e:
             logger.error(f"获取用户激活社区规则失败: {str(e)}")
+            raise
+
+    @staticmethod
+    def _get_user_all_community_rules(user_id):
+        """
+        获取用户所属社区的所有规则（包括启用和停用的）
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            list: 所有社区规则列表（包含激活状态信息）
+        """
+        try:
+            from wxcloudrun.dao import get_db
+            
+            with get_db().get_session() as session:
+                # 获取用户信息
+                user = session.query(User).get(user_id)
+                if not user or not user.community_id:
+                    return []
+                
+                # 查询用户所属社区的所有规则（包括启用和停用的）
+                all_rules = session.query(CommunityCheckinRule).filter(
+                    CommunityCheckinRule.community_id == user.community_id,
+                    CommunityCheckinRule.status != 2  # 排除已删除的规则
+                ).all()
+                
+                # 获取该用户的规则映射记录
+                user_mappings = {mapping.community_rule_id: mapping.is_active 
+                               for mapping in session.query(UserCommunityRule).filter(
+                                   UserCommunityRule.user_id == user_id
+                               ).all()}
+                
+                # 预加载关联数据并添加状态信息
+                result = []
+                for rule in all_rules:
+                    # 预加载社区和创建者信息
+                    if hasattr(rule, 'community'):
+                        _ = rule.community.name if rule.community else None
+                    if hasattr(rule, 'creator'):
+                        _ = rule.creator.nickname if rule.creator else None
+                    
+                    # 创建规则字典并添加用户映射状态
+                    rule_dict = rule.to_dict()
+                    rule_dict['is_user_mapping_active'] = user_mappings.get(rule.community_rule_id, False)
+                    
+                    # 创建一个简单的对象来保持兼容性
+                    class RuleWrapper:
+                        def __init__(self, data):
+                            self._data = data
+                        
+                        def to_dict(self):
+                            return self._data.copy()
+                        
+                        @property
+                        def community(self):
+                            class CommunityWrapper:
+                                def __init__(self, name):
+                                    self.name = name
+                            return CommunityWrapper(self._data.get('community_name'))
+                        
+                        @property
+                        def creator(self):
+                            class CreatorWrapper:
+                                def __init__(self, nickname, phone):
+                                    self.nickname = nickname
+                                    self.phone = phone
+                            return CreatorWrapper(
+                                self._data.get('created_by_name'),
+                                self._data.get('creator_phone')
+                            )
+                    
+                    result.append(RuleWrapper(rule_dict))
+                
+                return result
+                
+        except SQLAlchemyError as e:
+            logger.error(f"获取用户所有社区规则失败: {str(e)}")
             raise
 
     @staticmethod
