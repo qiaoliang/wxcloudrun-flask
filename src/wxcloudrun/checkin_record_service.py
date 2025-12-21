@@ -439,15 +439,47 @@ class CheckinRecordService:
     def _calculate_planned_time(rule, target_date):
         """
         计算计划打卡时间
-        :param rule: 打卡规则
+        :param rule: 打卡规则（对象或字典）
         :param target_date: 目标日期
         :return: datetime 对象
         """
-        if rule.time_slot_type == 4 and rule.custom_time:  # 自定义时间
-            return datetime.combine(target_date, rule.custom_time)
-        elif rule.time_slot_type == 1:  # 上午
+        # 处理字典格式的规则（社区规则）
+        if isinstance(rule, dict):
+            time_slot_type = rule.get('time_slot_type')
+            custom_time = rule.get('custom_time')
+            # 社区规则的custom_time是ISO格式字符串，需要转换为time对象
+            if custom_time and isinstance(custom_time, str):
+                from wxcloudrun.utils.timeutil import parse_time_only
+                try:
+                    custom_time = parse_time_only(custom_time)
+                except ValueError as e:
+                    logger.warning(f"解析自定义时间失败: {custom_time}, 错误: {e}")
+                    # 如果解析失败，使用默认时间
+                    return datetime.combine(target_date, time(20, 0))
+        else:
+            # 处理对象格式的规则（个人规则）
+            time_slot_type = rule.time_slot_type
+            custom_time = rule.custom_time
+            # 确保custom_time是time对象，而不是字符串
+            if custom_time and isinstance(custom_time, str):
+                from wxcloudrun.utils.timeutil import parse_time_only
+                try:
+                    custom_time = parse_time_only(custom_time)
+                except ValueError as e:
+                    logger.warning(f"解析自定义时间失败: {custom_time}, 错误: {e}")
+                    # 如果解析失败，使用默认时间
+                    return datetime.combine(target_date, time(20, 0))
+        
+        if time_slot_type == 4 and custom_time:  # 自定义时间
+            # 再次检查类型，确保是time对象
+            if not hasattr(custom_time, 'hour'):  # 不是time对象
+                logger.warning(f"custom_time不是有效的时间对象: {custom_time}, 类型: {type(custom_time)}")
+                return datetime.combine(target_date, time(20, 0))
+            
+            return datetime.combine(target_date, custom_time)
+        elif time_slot_type == 1:  # 上午
             return datetime.combine(target_date, time(9, 0))
-        elif rule.time_slot_type == 2:  # 下午
+        elif time_slot_type == 2:  # 下午
             return datetime.combine(target_date, time(14, 0))
         else:  # 晚上
             return datetime.combine(target_date, time(20, 0))
