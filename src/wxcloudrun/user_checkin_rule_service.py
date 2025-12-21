@@ -79,7 +79,12 @@ class UserCheckinRuleService:
             today_plan = []
 
             # 获取个人规则的今日计划
-            personal_plan = CheckinRuleService.get_today_checkin_plan(user_id)
+            personal_plan_result = CheckinRuleService.get_today_checkin_plan(user_id)
+            if isinstance(personal_plan_result, dict) and 'checkin_items' in personal_plan_result:
+                personal_plan = personal_plan_result['checkin_items']
+            else:
+                personal_plan = []
+            
             for item in personal_plan:
                 item['rule_source'] = 'personal'
                 item['is_editable'] = True
