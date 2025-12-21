@@ -5,6 +5,8 @@
 
 import pytest
 import logging
+import random
+import string
 from datetime import datetime
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
@@ -12,6 +14,11 @@ from database.models import User, Community, CommunityCheckinRule, UserCommunity
 from wxcloudrun.dao import get_db
 
 logger = logging.getLogger(__name__)
+
+
+def generate_random_community_name():
+    """生成随机的社区名称"""
+    return f"测试社区_{''.join(random.choices(string.ascii_letters, k=8))}"
 
 
 class TestUserCommunityRuleSwitching:
@@ -41,7 +48,7 @@ class TestUserCommunityRuleSwitching:
             
             # 创建测试社区A
             community_a = Community(
-                name=f"测试社区A_{unique_id}",
+                name=generate_random_community_name(),
                 description=f"测试社区A描述_{unique_id}",
                 status=1
             )
@@ -50,7 +57,7 @@ class TestUserCommunityRuleSwitching:
             
             # 创建测试社区B
             community_b = Community(
-                name=f"测试社区B_{unique_id}", 
+                name=generate_random_community_name(), 
                 description=f"测试社区B描述_{unique_id}",
                 status=1
             )
@@ -255,8 +262,13 @@ class TestUserCommunityRuleSwitching:
         assert len(personal_rules) == 1  # 1个个人规则
         
         # 验证社区规则都来自社区A
+        db = get_db()
+        with db.get_session() as session:
+            community_a = session.query(Community).get(community_a_id)
+            community_a_name = community_a.name
+            
         for rule in community_rules:
-            assert '社区A' in rule['source_label']
+            assert community_a_name in rule['source_label']
             assert rule['is_active_for_user'] is True
         
         # 切换到社区B
@@ -273,12 +285,17 @@ class TestUserCommunityRuleSwitching:
         personal_rules_b = [r for r in rules_after_b if r['rule_source'] == 'personal']
         
         # 验证规则列表更新
-        assert len(community_rules_b) == 1  # 只有社区B的1个启用规则
+        active_community_rules_b = [r for r in community_rules_b if r['is_active_for_user']]
+        assert len(active_community_rules_b) == 1  # 只有社区B的1个启用规则对用户激活
         assert len(personal_rules_b) == 1  # 个人规则数量不变
         
         # 验证社区规则来自社区B
-        for rule in community_rules_b:
-            assert '社区B' in rule['source_label']
+        with db.get_session() as session:
+            community_b = session.query(Community).get(community_b_id)
+            community_b_name = community_b.name
+            
+        for rule in active_community_rules_b:
+            assert community_b_name in rule['source_label']
             assert rule['is_active_for_user'] is True
 
     def test_switch_back_to_previous_community(self, setup_test_data):

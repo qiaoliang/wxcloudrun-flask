@@ -231,8 +231,21 @@ class CommunityStaffService:
         from database.models import UserCommunityRule, CommunityCheckinRule
         
         try:
+            from database.models import User
+            from datetime import datetime
+            
             db = get_db()
             with db.get_session() as session:
+                # 0. 更新用户的社区归属
+                user = session.query(User).get(user_id)
+                if not user:
+                    raise ValueError(f'用户不存在: {user_id}')
+                
+                old_user_community_id = user.community_id
+                user.community_id = new_community_id
+                if new_community_id != old_user_community_id:
+                    user.community_joined_at = datetime.now()
+                
                 # 1. 停用旧社区的社区规则
                 deactivated_count = 0
                 if old_community_id:
