@@ -993,23 +993,45 @@ def format_date_for_display(date_obj):
 
 
 @app.route('/api/community/add-staff', methods=['POST'])
-def add_community_staff():
+@login_required
+def add_community_staff(decoded):
     """添加社区工作人员"""
-    from database.models import CommunityStaff
-    from wxcloudrun.dao import get_db
-
     app_logger.info('=== 开始添加社区工作人员 ===')
 
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    
+    try:
+        # 获取请求数据
+        data = request.get_json()
+        community_id = data.get('community_id')
+        user_ids = data.get('user_ids', [])
+        role = data.get('role', 'staff')  # manager 或 staff
 
-    if not user:
-        return make_err_response({}, '用户不存在')
+        app_logger.info(f'添加工作人员请求: 操作者={user_id}, 社区={community_id}, 用户={user_ids}, 角色={role}')
+
+        # 委托给服务层处理业务逻辑
+        result = CommunityStaffService.add_staff(
+            operator_user_id=user_id,
+            community_id=community_id,
+            user_ids=user_ids,
+            role=role
+        )
+
+        app_logger.info(f'添加工作人员成功: 成功{result["success_count"]}人, 失败{len(result["failed"])}人')
+        
+        return make_succ_response({
+            'added_count': result['success_count'],
+            'failed': result['failed'],
+            'added_users': result['added_users'],
+            'message': f'成功添加{result["success_count"]}名{role}'
+        })
+
+    except ValueError as e:
+        app_logger.warning(f'添加工作人员参数错误: {str(e)}')
+        return make_err_response({}, str(e))
+    except Exception as e:
+        app_logger.error(f'添加社区工作人员失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'添加工作人员失败: {str(e)}')
 
     try:
         data = request.get_json()
