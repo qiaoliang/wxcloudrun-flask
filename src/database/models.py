@@ -3,7 +3,7 @@
 完全独立于Flask，使用标准的SQLAlchemy ORM
 """
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float, CheckConstraint, UniqueConstraint
+from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float, CheckConstraint, UniqueConstraint, Index
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import relationship
 from .query_mixin import QueryMixin
@@ -421,9 +421,13 @@ class UserCommunityRule(Base, QueryMixin):
     is_active = Column(Boolean, default=True, comment='是否对该用户生效')
     created_at = Column(DateTime, default=datetime.now)
 
-    # 唯一约束：一个用户不能重复关联同一个社区规则
+    # 唯一约束和索引优化
     __table_args__ = (
         UniqueConstraint('user_id', 'community_rule_id', name='uq_user_community_rule'),
+        # 为常用查询添加索引
+        Index('idx_user_community_rules_user_id', 'user_id'),
+        Index('idx_user_community_rules_community_rule_id', 'community_rule_id'),
+        Index('idx_user_community_rules_user_active', 'user_id', 'is_active'),
     )
 
     # 关系

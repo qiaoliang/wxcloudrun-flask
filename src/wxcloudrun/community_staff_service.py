@@ -214,3 +214,128 @@ class CommunityStaffService:
                 'failed': failed,
                 'added_users': added_users_info
             }
+
+    @staticmethod
+    def handle_user_community_change(user_id, old_community_id, new_community_id):
+        """
+        处理用户社区变更时的规则管理
+        
+        Args:
+            user_id (int): 用户ID
+            old_community_id (int): 原社区ID（可能为None）
+            new_community_id (int): 新社区ID
+            
+        Returns:
+            dict: 处理结果
+        """
+        from database.models import UserCommunityRule, CommunityCheckinRule
+        
+        try:
+            db = get_db()
+            with db.get_session() as session:
+                # 1. 停用旧社区的社区规则
+                deactivated_count = 0
+                if old_community_id:
+                    deactivated_count = CommunityStaffService._deactivate_old_community_rules(
+                        session, user_id, old_community_id
+                    )
+                
+                # 2. 激活新社区的社区规则
+                activated_count = CommunityStaffService._activate_new_community_rules(
+                    session, user_id, new_community_id
+                )
+                
+                session.commit()
+                
+                logger.info(f"用户{user_id}社区切换完成: 停用{deactivated_count}个旧规则，激活{activated_count}个新规则")
+                
+                return {
+                    'success': True,
+                    'deactivated_count': deactivated_count,
+                    'activated_count': activated_count,
+                    'message': f'成功停用{deactivated_count}个旧规则，激活{activated_count}个新规则'
+                }
+                
+        except Exception as e:
+            logger.error(f"处理用户社区切换失败: {str(e)}")
+            raise ValueError(f"处理社区切换失败: {str(e)}")
+
+    @staticmethod
+    def _deactivate_old_community_rules(session, user_id, old_community_id):
+        """
+        停用旧社区的规则
+        
+        Args:
+            session: 数据库会话
+            user_id (int): 用户ID
+            old_community_id (int): 原社区ID
+            
+        Returns:
+            int: 停用的规则数量
+        """
+        from database.models import UserCommunityRule, CommunityCheckinRule
+        
+        # 查找用户与旧社区规则的激活映射记录
+        old_mappings = session.query(UserCommunityRule).join(CommunityCheckinRule).filter(
+            UserCommunityRule.user_id == user_id,
+            CommunityCheckinRule.community_id == old_community_id,
+            UserCommunityRule.is_active == True
+        ).all()
+        
+        # 将这些规则标记为停用
+        deactivated_count = 0
+        for mapping in old_mappings:
+            mapping.is_active = False
+            deactivated_count += 1
+        
+        logger.info(f"用户{user_id}的{deactivated_count}个旧社区规则已停用")
+        return deactivated_count
+
+    @staticmethod
+    def _activate_new_community_rules(session, user_id, new_community_id):
+        """
+        激活新社区的规则
+        
+        Args:
+            session: 数据库会话
+            user_id (int): 用户ID
+            new_community_id (int): 新社区ID
+            
+        Returns:
+            int: 激活的规则数量
+        """
+        from database.models import UserCommunityRule, CommunityCheckinRule
+        
+        # 获取新社区的所有启用规则
+        new_community_rules = session.query(CommunityCheckinRule).filter(
+            CommunityCheckinRule.community_id == new_community_id,
+            CommunityCheckinRule.status == 1  # 启用状态
+        ).all()
+        
+        activated_count = 0
+        
+        # 为用户创建或激活规则映射
+        for rule in new_community_rules:
+            # 查找是否已存在映射记录
+            existing_mapping = session.query(UserCommunityRule).filter_by(
+                user_id=user_id,
+                community_rule_id=rule.community_rule_id
+            ).first()
+            
+            if existing_mapping:
+                # 如果存在且当前是停用状态，重新激活
+                if not existing_mapping.is_active:
+                    existing_mapping.is_active = True
+                    activated_count += 1
+            else:
+                # 如果不存在，创建新映射
+                new_mapping = UserCommunityRule(
+                    user_id=user_id,
+                    community_rule_id=rule.community_rule_id,
+                    is_active=True
+                )
+                session.add(new_mapping)
+                activated_count += 1
+        
+        logger.info(f"用户{user_id}已激活{activated_count}个新社区规则")
+        return activated_count

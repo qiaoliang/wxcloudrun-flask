@@ -2493,3 +2493,71 @@ def create_community_user():
     except Exception as e:
         app_logger.error(f'创建用户失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'创建用户失败: {str(e)}')
+
+
+@app.route('/api/user/switch-community', methods=['POST'])
+@login_required
+def switch_user_community():
+    """用户切换社区并自动管理规则"""
+    app_logger.info('=== 开始处理用户社区切换 ===')
+    
+    try:
+        decoded, error_response = verify_token()
+        if error_response:
+            return error_response
+            
+        user_id = decoded.get('user_id')
+        params = request.get_json()
+        
+        if not params:
+            return make_err_response({}, '缺少请求参数')
+            
+        new_community_id = params.get('community_id')
+        if not new_community_id:
+            return make_err_response({}, '缺少新社区ID')
+            
+        # 获取当前用户信息
+        user = User.query.get(user_id)
+        if not user:
+            return make_err_response({}, '用户不存在')
+            
+        old_community_id = user.community_id
+        
+        # 检查新社区是否存在
+        new_community = Community.query.get(new_community_id)
+        if not new_community:
+            return make_err_response({}, '目标社区不存在')
+            
+        # 检查用户是否已经是目标社区成员
+        if old_community_id == new_community_id:
+            return make_err_response({}, '用户已经在该社区中')
+            
+        # 处理社区切换和规则管理
+        result = CommunityStaffService.handle_user_community_change(
+            user_id=user_id,
+            old_community_id=old_community_id,
+            new_community_id=new_community_id
+        )
+        
+        # 更新用户的社区归属
+        user.community_id = new_community_id
+        user.community_joined_at = datetime.now()
+        db.session.commit()
+        
+        app_logger.info(f"用户{user_id}社区切换成功: {old_community_id} -> {new_community_id}")
+        
+        return make_succ_response({
+            'message': result['message'],
+            'old_community_id': old_community_id,
+            'new_community_id': new_community_id,
+            'deactivated_rules_count': result['deactivated_count'],
+            'activated_rules_count': result['activated_count']
+        })
+        
+    except ValueError as e:
+        app_logger.error(f'用户社区切换失败（业务逻辑错误）: {str(e)}')
+        return make_err_response({}, str(e))
+    except Exception as e:
+        db.session.rollback()
+        app_logger.error(f'用户社区切换失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'社区切换失败: {str(e)}')
