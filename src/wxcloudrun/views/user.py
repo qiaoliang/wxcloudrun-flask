@@ -240,6 +240,12 @@ def user_profile():
 
             # 返回用户信息
             app.logger.info(f'用户数据库信息 - user_id: {user.user_id}, nickname: {user.nickname}, avatar_url: {user.avatar_url}')
+            
+            # 获取社区名称
+            community_name = None
+            if user.community_id and hasattr(user, 'community') and user.community:
+                community_name = user.community.name
+            
             user_data = {
                 'user_id': user.user_id,
                 'wechat_openid': user.wechat_openid,
@@ -248,6 +254,7 @@ def user_profile():
                 'avatar_url': user.avatar_url,
                 'role': user.role_name,  # 返回字符串形式的角色名
                 'community_id': user.community_id,
+                'community_name': community_name,  # 添加社区名称
                 'status': user.status_name,  # 返回字符串形式的状态名
                 'is_community_worker': getattr(user, 'is_community_worker', False)
             }
