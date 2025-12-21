@@ -1194,3 +1194,32 @@ class CommunityService:
 
             logger.warning(f"用户 {user_id} 无社区 {community_id} 的管理权限")
             return False
+
+    @staticmethod
+    def verify_user_community_access(user_id, community_id):
+        """
+        验证用户是否属于指定社区
+        
+        Args:
+            user_id: 用户ID
+            community_id: 社区ID
+            
+        Returns:
+            bool: 是否属于该社区
+        """
+        try:
+            from .dao import get_db
+            from database.models import User
+            
+            db = get_db()
+            with db.get_session() as session:
+                user = session.query(User).get(user_id)
+                if not user:
+                    logger.warning(f"用户不存在: user_id={user_id}")
+                    return False
+                
+                return user.community_id == community_id
+                
+        except Exception as e:
+            logger.error(f"验证用户社区访问失败: {str(e)}")
+            return False

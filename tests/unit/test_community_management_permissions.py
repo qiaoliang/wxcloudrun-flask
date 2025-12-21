@@ -50,6 +50,9 @@ class TestCommunityManagementPermissions:
         
         test_session.commit()
         
+        # 重新查询用户以避免DetachedInstanceError
+        super_admin = test_session.query(User).filter_by(wechat_openid="super_admin_openid").first()
+        
         # 测试超级管理员可以获取所有社区
         result_communities, total = CommunityService.get_manageable_communities(super_admin, page=1, per_page=7)
         
@@ -92,6 +95,9 @@ class TestCommunityManagementPermissions:
         
         test_session.commit()
         
+        # 重新查询用户以避免DetachedInstanceError
+        manager = test_session.query(User).filter_by(wechat_openid="manager_openid").first()
+        
         # 测试主管只能获取自己管理的社区
         result_communities, total = CommunityService.get_manageable_communities(manager, page=1, per_page=7)
         
@@ -133,6 +139,9 @@ class TestCommunityManagementPermissions:
             test_session.add(staff)
         
         test_session.commit()
+        
+        # 重新查询用户以避免DetachedInstanceError
+        staff_user = test_session.query(User).filter_by(wechat_openid="staff_openid").first()
         
         # 测试专员只能获取自己工作的社区
         result_communities, total = CommunityService.get_manageable_communities(staff_user, page=1, per_page=7)

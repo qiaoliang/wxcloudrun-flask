@@ -21,6 +21,11 @@ def get_db():
         # 不在Flask应用上下文中，回退到全局实例
         pass
 
+    # 检查是否在测试环境中
+    import os
+    if os.getenv('ENV_TYPE') == 'unit':
+        return get_database('test')
+    
     # 回退到全局数据库实例
     return get_database()
 

@@ -47,7 +47,11 @@ from database.models import (
 )
 
 # 导入视图模块以注册路由
-from .views import misc, sms, auth, user, checkin, supervision, share, community, community_checkin, user_checkin
+from .views import misc, sms, auth, user, checkin, supervision, share, community, community_checkin, user_checkin, events
+
+# 注册事件蓝图
+from .views.events import register_events_blueprint
+register_events_blueprint(app)
 from .background_tasks import start_missing_check_service
 
 # 在 unit 环境下初始化默认数据

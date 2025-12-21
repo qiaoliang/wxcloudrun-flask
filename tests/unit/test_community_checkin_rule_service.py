@@ -27,9 +27,11 @@ class TestCommunityCheckinRulesService:
         new_user = User(
             wechat_openid=f"test_openid{uuid_str(8)}",
             nickname=f"微信新用户_{uuid_str(8)}",
-            avatar_url=f"https://{uuid_str(8)}.example.com/1.jpg"
+            avatar_url=f"https://{uuid_str(8)}.example.com/1.jpg",
+            role=1,
+            status=1
         )
-        a_user = UserService.create_user(new_user)
+        a_user = UserService.create_user(new_user, session=test_session)
         return a_user
 
     def _create_a_community_rule(self, comm_id,user_id,test_session):
@@ -50,7 +52,7 @@ class TestCommunityCheckinRulesService:
         return result
     def test_get_community_rules_with_disabled(self, test_session):
         """测试获取社区签到规则"""
-        a_user = self._create_a_user(self)
+        a_user = self._create_a_user(test_session)
         # Arrange - 创建一个社区
         comm1 = self._create_community_with_manager(test_session,a_user.user_id)
         test_session.commit()
@@ -74,7 +76,7 @@ class TestCommunityCheckinRulesService:
         assert len(rules) == 2
     def test_create_community_rule(self, test_session):
         """测试默认社区识别"""
-        a_user = self._create_a_user(self)
+        a_user = self._create_a_user(test_session)
         # Arrange - 创建一个社区
         comm1 = self._create_community_with_manager(test_session,a_user.user_id)
         test_session.commit()
