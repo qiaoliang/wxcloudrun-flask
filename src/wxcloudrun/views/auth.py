@@ -23,6 +23,11 @@ from wxcloudrun.utils.auth import generate_jwt_token, generate_refresh_token
 
 def _format_user_login_response(user, token, refresh_token, is_new_user=False):
     """统一格式化登录响应"""
+    # 获取社区名称
+    community_name = None
+    if user.community_id and hasattr(user, 'community') and user.community:
+        community_name = user.community.name
+    
     return {
         'token': token,
         'refresh_token': refresh_token,
@@ -33,6 +38,8 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
         'name':user.name,
         'avatar_url': user.avatar_url,
         'role': user.role_name,
+        'community_id': user.community_id,
+        'community_name': community_name,
         'login_type': 'new_user' if is_new_user else 'existing_user'
     }
 
