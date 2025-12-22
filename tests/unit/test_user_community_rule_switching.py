@@ -153,7 +153,7 @@ class TestUserCommunityRuleSwitching:
         assert len(active_mappings) == 2
         # 确认是社区A的规则
         for mapping in active_mappings:
-            rule = db.session.query(CommunityCheckinRule).get(mapping.community_rule_id)
+            rule = db.session.get(CommunityCheckinRule, mapping.community_rule_id)
             assert rule.community_id == community_a_id
 
     def test_community_switching(self, setup_test_data, test_app):
@@ -193,7 +193,7 @@ class TestUserCommunityRuleSwitching:
         assert len(active_mappings) == 1
         # 确认是社区B的规则
         mapping = active_mappings[0]
-        rule = db.session.query(CommunityCheckinRule).get(mapping.community_rule_id)
+        rule = db.session.get(CommunityCheckinRule, mapping.community_rule_id)
         assert rule.community_id == community_b_id
         assert rule.rule_name == "社区B规则1"
 
@@ -208,7 +208,7 @@ class TestUserCommunityRuleSwitching:
         assert len(active_b_rules) == 1
 
         # 验证是社区B规则1
-        active_rule = db.session.query(CommunityCheckinRule).get(active_b_rules[0].community_rule_id)
+        active_rule = db.session.get(CommunityCheckinRule, active_b_rules[0].community_rule_id)
         assert active_rule.community_id == community_b_id
         assert active_rule.rule_name == "社区B规则1"
 
@@ -237,7 +237,7 @@ class TestUserCommunityRuleSwitching:
 
         # 验证个人规则状态
         from database.flask_models import db
-        personal_rule = db.session.query(CheckinRule).get(personal_rule_id)
+        personal_rule = db.session.get(CheckinRule, personal_rule_id)
         assert personal_rule is not None
         assert personal_rule.status == 1  # 个人规则状态未改变
         assert personal_rule.user_id == user_id
@@ -288,7 +288,7 @@ class TestUserCommunityRuleSwitching:
 
             # 验证社区规则来自社区B
             from database.flask_models import db
-            community_b = db.session.query(Community).get(community_b_id)
+            community_b = db.session.get(Community, community_b_id)
             community_b_name = community_b.name
 
             for rule in active_community_rules_b:
@@ -339,5 +339,5 @@ class TestUserCommunityRuleSwitching:
         assert len(active_mappings) == 2
         # 确认都是社区A的规则
         for mapping in active_mappings:
-            rule = db.session.query(CommunityCheckinRule).get(mapping.community_rule_id)
+            rule = db.session.get(CommunityCheckinRule, mapping.community_rule_id)
             assert rule.community_id == community_a_id
