@@ -490,3 +490,40 @@ class EventSupport(db.Model):
             pass
 
         return result
+
+
+class UserCommunityRule(db.Model):
+    """用户社区规则映射表 - Flask-SQLAlchemy版本"""
+    __tablename__ = 'user_community_rules'
+
+    mapping_id = Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    community_rule_id = Column(db.Integer, db.ForeignKey('community_checkin_rules.community_rule_id'), nullable=False)
+    is_active = Column(db.Boolean, default=True, comment='是否对该用户生效')
+    created_at = Column(db.DateTime, default=datetime.now)
+
+    # 唯一约束和索引优化
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'community_rule_id', name='uq_user_community_rule'),
+        # 为常用查询添加索引
+        db.Index('idx_user_community_rules_user_id', 'user_id'),
+        db.Index('idx_user_community_rules_community_rule_id', 'community_rule_id'),
+        db.Index('idx_user_community_rules_user_active', 'user_id', 'is_active'),
+    )
+
+    # 关系
+    user = db.relationship('User', backref='user_community_rules')
+    community_rule = db.relationship('CommunityCheckinRule', backref='user_mappings')
+
+    def __repr__(self):
+        return f'<UserCommunityRule {self.mapping_id}: User{self.user_id}-Rule{self.community_rule_id}>'
+
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        return {
+            'mapping_id': self.mapping_id,
+            'user_id': self.user_id,
+            'community_rule_id': self.community_rule_id,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
