@@ -36,11 +36,11 @@ class CommunityEventService:
         """
         try:
             # 验证用户和社区
-            user = db.session.query(User).get(user_id)
+            user = db.session.get(User, user_id)
             if not user:
                 return {'success': False, 'message': '用户不存在'}
             
-            community = db.session.query(Community).get(community_id)
+            community = db.session.get(Community, community_id)
             if not community:
                 return {'success': False, 'message': '社区不存在'}
             
@@ -161,7 +161,7 @@ class CommunityEventService:
         """
         try:
             # 验证事件存在
-            event = db.session.query(CommunityEvent).get(event_id)
+            event = db.session.get(CommunityEvent, event_id)
             if not event:
                 return {'success': False, 'message': '事件不存在'}
             
@@ -224,7 +224,7 @@ class CommunityEventService:
         """
         try:
             # 验证社区是否存在
-            community = db.session.query(Community).get(community_id)
+            community = db.session.get(Community, community_id)
             if not community:
                 return {'success': False, 'message': '社区不存在'}
             

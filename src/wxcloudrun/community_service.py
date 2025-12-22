@@ -930,7 +930,7 @@ class CommunityService:
             raise ValueError("安卡大家庭社区不存在")
 
         # 检查用户当前社区
-        user = db.session.query(User).get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             raise ValueError("用户不存在")
 
@@ -959,13 +959,13 @@ class CommunityService:
         from database.flask_models import CommunityStaff
 
         # 检查用户是否存在
-        user = db.session.query(User).get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             logger.warning(f"用户不存在: user_id={user_id}")
             return False
 
         # 检查社区是否存在
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             logger.warning(f"社区不存在: community_id={community_id}")
             return False
