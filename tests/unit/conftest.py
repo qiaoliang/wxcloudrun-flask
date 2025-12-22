@@ -1,6 +1,6 @@
 """
-pytest配置文件 - 使用新的数据库架构
-完全独立于Flask，支持快速测试
+pytest配置文件 - 支持Flask-SQLAlchemy架构
+提供Flask应用上下文和数据库支持
 """
 import sys
 import os
@@ -13,46 +13,24 @@ os.environ['ENV_TYPE'] = 'unit'
 # 添加src路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-# 导入新的数据库模块
-from database import get_database, reset_all
+# 导入Flask-SQLAlchemy相关模块
+from flask import Flask
+from database.flask_models import db, User, Community, CheckinRule, CheckinRecord, UserAuditLog
 
 
 @pytest.fixture(scope='function')
-def test_db():
+def test_session(test_app):
     """
-    为每个测试函数提供干净的数据库
-    使用内存数据库，完全独立于Flask
+    提供Flask-SQLAlchemy数据库会话
+    在Flask应用上下文中工作
     """
-    # 重置数据库确保干净状态
-    reset_all()
-    
-    # 初始化测试数据库
-    db = get_database('test')
-    db.initialize()
-    
-    # 确保表已创建
-    db.create_tables()
-    
-    yield db
-    
-    # 清理（内存数据库会自动清理）
-
-
-@pytest.fixture(scope='function')
-def test_session(test_db):
-    """
-    提供数据库会话
-    自动管理事务和清理
-    """
-    with test_db.get_session() as session:
-        yield session
+    with test_app.app_context():
+        yield db.session
 
 
 @pytest.fixture(scope='function')
 def test_user(test_session):
     """创建测试用户"""
-    from database.models import User
-    
     user = User(
         wechat_openid="test_openid_123",
         nickname="测试用户",
@@ -67,12 +45,10 @@ def test_user(test_session):
 @pytest.fixture(scope='function')
 def test_rule(test_session, test_user):
     """创建测试打卡规则"""
-    from database.models import CheckinRule
-    
     rule = CheckinRule(
-        solo_user_id=test_user.user_id,
-        rule_name="测试规则",
-        status=1
+        user_id=test_user.user_id,
+        rule_type="测试规则",
+        is_active=True
     )
     test_session.add(rule)
     test_session.commit()
@@ -82,11 +58,8 @@ def test_rule(test_session, test_user):
 @pytest.fixture(scope='function')
 def test_community(test_session):
     """创建测试社区"""
-    from database.models import Community
-    
     community = Community(
         name="测试社区",
-        location="测试地址",
         status=1
     )
     test_session.add(community)
@@ -97,8 +70,6 @@ def test_community(test_session):
 @pytest.fixture(scope='function')
 def test_superuser(test_session):
     """创建超级管理员用户"""
-    from database.models import User
-    
     user = User(
         wechat_openid="super_admin_test",
         nickname="超级管理员",
@@ -112,57 +83,24 @@ def test_superuser(test_session):
 
 # 为了向后兼容，保留原有的test_app fixture
 # 但它现在只提供最小的Flask应用，不包含数据库
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def test_app():
     """
-    兼容性fixture：最小化的Flask应用
-    注意：不包含数据库功能，使用test_db或test_session进行数据库测试
+    提供Flask应用上下文和数据库
+    支持Flask-SQLAlchemy架构
     """
-    from flask import Flask
-    
     app = Flask(__name__)
     app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
-    class MinimalFlaskApp:
-        def __init__(self, app):
-            self.app = app
-            self.app_context = self.AppContext(app)
-        
-        class AppContext:
-            def __init__(self, app):
-                self.app = app
-            def __enter__(self):
-                return self.app.app_context().__enter__()
-            def __exit__(self, *args):
-                return self.app.app_context().__exit__(*args)
-        
-        def test_client(self):
-            raise NotImplementedError(
-                "完整Flask功能不可用。请使用test_db或test_session进行数据库测试。"
-            )
+    # 初始化Flask-SQLAlchemy
+    db.init_app(app)
     
-    return MinimalFlaskApp(app)
+    with app.app_context():
+        # 创建所有表
+        db.create_all()
+        yield app
+        # 清理
+        db.drop_all()
 
-
-@pytest.fixture(scope='function')
-def test_db_legacy(test_db):
-    """
-    兼容性fixture：提供与原有接口相同的数据库对象
-    内部使用新的数据库架构
-    """
-    class DatabaseWrapper:
-        def __init__(self, db_core):
-            self._db = db_core
-        
-        @property
-        def session(self):
-            # 返回一个会话上下文管理器
-            return self._db.get_session().__enter__()
-        
-        def create_all(self):
-            self._db.create_tables()
-        
-        def drop_all(self):
-            self._db.drop_tables()
-    
-    return DatabaseWrapper(test_db)
