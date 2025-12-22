@@ -107,7 +107,7 @@ def create_super_admin_and_default_community(db_core):
                 default_community = Community(
                     name='安卡大家庭',
                     description='系统默认社区，新注册用户自动加入',
-                    creator_user_id=admin_user.user_id,
+                    creator_id=admin_user.user_id,
                     status=1,  # 启用状态
                     is_default=True
                 )
@@ -170,7 +170,7 @@ def create_super_admin_and_default_community(db_core):
                 blackhouse_community = Community(
                     name=BLACKHOUSE_COMMUNITY_NAME,
                     description='特殊管理社区，用户在此社区时功能受限',
-                    creator_user_id=admin_user.user_id,
+                    creator_id=admin_user.user_id,
                     status=1,  # 启用状态
                     is_blackhouse=True
                 )

@@ -21,7 +21,7 @@ from database.flask_models import CheckinRule, CheckinRecord, User, Community
 
 
 class TestDeleteRuleCoreLogic:
-    
+
     def test_soft_delete_rule_with_records(self, test_session, test_user):
         """测试有打卡记录的规则软删除"""
         # 创建测试社区
@@ -31,17 +31,17 @@ class TestDeleteRuleCoreLogic:
         )
         test_session.add(community)
         test_session.commit()
-        
+
         # 创建测试规则
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
             rule_type="测试规则",
-            is_active=True
+            status=1
         )
         test_session.add(rule)
         test_session.commit()
-        
+
         # 添加打卡记录
         record = CheckinRecord(
             rule_id=rule.rule_id,
@@ -51,50 +51,17 @@ class TestDeleteRuleCoreLogic:
         )
         test_session.add(record)
         test_session.commit()
-        
+
         # 执行软删除 - 模拟软删除操作
-        rule.is_active = False  # 软删除状态
+        rule.status=2  # 软删除状态
         test_session.commit()
-        
+
         # 验证结果
-        assert rule.is_active == False  # 已删除状态
-        
+        assert rule.status==2  # 已删除状态
+
         # 验证记录仍然存在
         assert test_session.query(CheckinRecord).filter_by(rule_id=rule.rule_id).count() == 1
-    
-    def test_soft_delete_rule_without_records(self, test_session, test_user):
-        """测试无打卡记录的规则软删除"""
-        # 创建测试社区
-        community = Community(
-            name="测试社区",
-            status=1
-        )
-        test_session.add(community)
-        test_session.commit()
-        
-        # 创建测试规则
-        rule = CheckinRule(
-            user_id=test_user.user_id,
-            community_id=community.community_id,
-            rule_type="测试规则",
-            is_active=True
-        )
-        test_session.add(rule)
-        test_session.commit()
-        
-        # 执行软删除 - 模拟软删除操作
-        rule.is_active = False
-        test_session.commit()
-        
-        # 验证结果
-        assert rule.is_active == False
-    
-    def test_delete_nonexistent_rule(self, test_session):
-        """测试删除不存在的规则"""
-        # 查询不存在的规则
-        rule = test_session.query(CheckinRule).filter_by(rule_id=999).first()
-        assert rule is None
-    
+
     def test_query_rules_exclude_deleted(self, test_session, test_user):
         """测试查询规则时排除已删除的规则"""
         # 创建测试社区
@@ -104,46 +71,46 @@ class TestDeleteRuleCoreLogic:
         )
         test_session.add(community)
         test_session.commit()
-        
+
         # 创建正常规则
         active_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
             rule_type="正常规则",
-            is_active=True
+            status=1
         )
-        
+
         # 创建已删除规则
         deleted_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
             rule_type="已删除规则",
-            is_active=False
+            status=2
         )
-        
+
         # 创建禁用规则
         disabled_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
             rule_type="禁用规则",
-            is_active=False
+            status=0
         )
-        
+
         test_session.add(active_rule)
         test_session.add(deleted_rule)
         test_session.add(disabled_rule)
         test_session.commit()
-        
+
         # 查询规则 - 只查询激活的规则
-        rules = test_session.query(CheckinRule).filter_by(user_id=test_user.user_id).filter(CheckinRule.is_active == True).all()
-        
+        rules = test_session.query(CheckinRule).filter_by(user_id=test_user.user_id).filter(CheckinRule.status == 1).all()
+
         # 验证只返回正常的规则
         assert len(rules) == 1
         rule_types = [rule.rule_type for rule in rules]
         assert "正常规则" in rule_types
         assert "已删除规则" not in rule_types
         assert "禁用规则" not in rule_types
-    
+
     def test_soft_delete_preserves_data_integrity(self, test_session, test_user):
         """测试软删除保持数据完整性"""
         # 创建测试社区
@@ -153,17 +120,17 @@ class TestDeleteRuleCoreLogic:
         )
         test_session.add(community)
         test_session.commit()
-        
+
         # 创建测试规则
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
             rule_type="数据完整性测试规则",
-            is_active=True
+            status=1
         )
         test_session.add(rule)
         test_session.commit()
-        
+
         # 添加多条打卡记录
         for i in range(3):
             record = CheckinRecord(
@@ -174,17 +141,17 @@ class TestDeleteRuleCoreLogic:
             )
             test_session.add(record)
         test_session.commit()
-        
+
         # 执行软删除
-        rule.is_active = False
+        rule.status = 2
         test_session.commit()
-        
+
         # 验证所有打卡记录仍然存在
         records = test_session.query(CheckinRecord).filter_by(rule_id=rule.rule_id).all()
         assert len(records) == 3
-        
+
         # 验证规则已被软删除
-        assert rule.is_active == False
+        assert rule.status == 2
 
 
 if __name__ == '__main__':

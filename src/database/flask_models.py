@@ -66,13 +66,12 @@ class User(db.Model):
 
 
 class Community(db.Model):
-    """社区表"""
     __tablename__ = 'communities'
 
     community_id = Column(db.Integer, primary_key=True)
     name = Column(db.String(100), nullable=False, unique=True, comment='社区名称')
     description = Column(db.Text, comment='社区描述')
-    creator_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='创建人ID')
+    creator_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='创建人ID')
     status = Column(db.Integer, default=1, nullable=False, comment='社区状态')
     settings = Column(db.Text, comment='社区设置（JSON）')
     location = Column(db.String(200), comment='地理位置')
@@ -84,7 +83,7 @@ class Community(db.Model):
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     # 关系
-    creator = db.relationship('User', foreign_keys=[creator_user_id], backref='created_communities')
+    creator = db.relationship('User', foreign_keys=[creator_id], backref='created_communities')
     # 注意：users backref 与 User 模型中的 community 关系冲突，所以不在这里定义
 
     # 状态映射
@@ -103,7 +102,6 @@ class Community(db.Model):
 
 
 class CheckinRule(db.Model):
-    """打卡规则表"""
     __tablename__ = 'checkin_rules'
 
     rule_id = Column(db.Integer, primary_key=True)
@@ -111,7 +109,7 @@ class CheckinRule(db.Model):
     community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
     rule_type = Column(db.String(50), nullable=False, comment='规则类型')
     rule_content = Column(db.Text, comment='规则内容')
-    is_active = Column(db.Boolean, default=True, comment='是否激活')
+    status = Column(db.Integer, default=1, comment='规则状态: 0=停用, 1=启用, 2=删除')
     created_at = Column(db.DateTime, default=datetime.now)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -127,7 +125,7 @@ class CheckinRule(db.Model):
             'community_id': self.community_id,
             'rule_type': self.rule_type,
             'rule_content': self.rule_content,
-            'is_active': self.is_active,
+            'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
@@ -538,3 +536,7 @@ class UserCommunityRule(db.Model):
             'is_active': self.is_active,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+
+# 导出 Base 供 Alembic 使用
+Base = db.Model

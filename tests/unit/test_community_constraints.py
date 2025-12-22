@@ -26,7 +26,7 @@ class TestCommunityUserConstraints:
         community = Community(
             name="测试社区",
             description="用于测试的社区",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add(community)
         test_session.flush()

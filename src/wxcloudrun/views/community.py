@@ -57,8 +57,8 @@ def _format_community_data(community):
         community_id=community_id).count()
     # 获取创建者信息
     creator = None
-    if community.creator_user_id:
-        creator_user = db.session.query(User).get(community.creator_user_id)
+    if community.creator_id:
+        creator_user = db.session.query(User).get(community.creator_id)
         if creator_user:
             creator = {
                 'user_id': creator_user.user_id,
@@ -121,9 +121,9 @@ def get_communities():
 
             # 获取创建者信息
             creator = None
-            if community.creator_user_id:
+            if community.creator_id:
                 creator_user = db.session.query(User).get(
-                    community.creator_user_id)
+                    community.creator_id)
                 if creator_user:
                     creator = {
                         'user_id': creator_user.user_id,
@@ -2147,9 +2147,9 @@ def _get_community_detail_data(community_id):
 
     # 获取创建者信息（如果存在）
     creator = None
-    if community.creator_user_id:
+    if community.creator_id:
         creator_user = db.session.query(User).filter(
-            User.user_id == community.creator_user_id
+            User.user_id == community.creator_id
         ).first()
         if creator_user:
             creator = {

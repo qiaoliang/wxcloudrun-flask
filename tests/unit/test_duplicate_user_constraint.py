@@ -96,12 +96,12 @@ class TestDuplicateUserConstraints:
         community1 = Community(
             name="社区1",
             description="第一个社区",
-            creator_user_id=1
+            creator_id=1
         )
         community2 = Community(
             name="社区2",
             description="第二个社区",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add_all([community1, community2])
         test_session.flush()
@@ -138,7 +138,7 @@ class TestDuplicateUserConstraints:
         community = Community(
             name="共享社区",
             description="多个用户共享的社区",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add(community)
         test_session.flush()
@@ -175,7 +175,7 @@ class TestDuplicateUserConstraints:
         community1 = Community(
             name="唯一社区名称",
             description="第一个社区",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add(community1)
         test_session.commit()
@@ -184,7 +184,7 @@ class TestDuplicateUserConstraints:
         community2 = Community(
             name="唯一社区名称",  # 相同名称
             description="第二个社区",
-            creator_user_id=2
+            creator_id=2
         )
         test_session.add(community2)
 

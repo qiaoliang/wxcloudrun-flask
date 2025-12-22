@@ -53,7 +53,7 @@ class CommunityService:
         existing = db.session.query(Community).filter_by(name=name).first()
         if existing:
             raise ValueError(f"社区名称已存在: {name}")
-        
+
         # 创建社区
         community = Community(
             name=name,
@@ -67,11 +67,11 @@ class CommunityService:
             status=1,
             created_at=datetime.now()
         )
-        
+
         db.session.add(community)
         db.session.commit()
         db.session.refresh(community)
-        
+
         logger.info(f"创建社区成功: {community.community_id}")
         return community
 
@@ -148,18 +148,18 @@ class CommunityService:
     def get_communities_with_filters(filters=None, page=1, limit=20):
         """根据筛选条件获取社区列表"""
         query = db.session.query(Community)
-        
+
         if filters:
             if 'name' in filters:
                 query = query.filter(Community.name.like(f"%{filters['name']}%"))
             if 'status' in filters:
                 query = query.filter(Community.status == filters['status'])
-        
+
         # 分页
         offset = (page - 1) * limit
         communities = query.offset(offset).limit(limit).all()
         total = query.count()
-        
+
         return communities, total
 
     @staticmethod
@@ -280,7 +280,7 @@ class CommunityService:
             'location': community.location or '',
             'is_default': community.is_default,
             'is_blackhouse': community.is_blackhouse,
-            'creator_user_id': community.creator_user_id,
+            'creator_id': community.creator_id,
             'created_at': community.created_at,
             'updated_at': community.updated_at
         }
@@ -635,7 +635,7 @@ class CommunityService:
     def remove_user_from_community(community_id, user_id):
         """从社区移除用户"""
         from database.flask_models import CommunityStaff
-        
+
         # 检查社区是否存在
         community = db.session.query(Community).get(community_id)
         if not community:
@@ -704,7 +704,7 @@ class CommunityService:
     def delete_community(community_id):
         """删除社区"""
         from database.flask_models import CommunityStaff
-        
+
         # 查找社区
         community = db.session.query(Community).get(community_id)
         if not community:
@@ -990,11 +990,11 @@ class CommunityService:
     def verify_user_community_access(user_id, community_id):
         """
         验证用户是否属于指定社区
-        
+
         Args:
             user_id: 用户ID
             community_id: 社区ID
-            
+
         Returns:
             bool: 是否属于该社区
         """
@@ -1003,9 +1003,9 @@ class CommunityService:
             if not user:
                 logger.warning(f"用户不存在: user_id={user_id}")
                 return False
-            
+
             return user.community_id == community_id
-                
+
         except Exception as e:
             logger.error(f"验证用户社区访问失败: {str(e)}")
             return False

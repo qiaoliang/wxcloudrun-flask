@@ -19,10 +19,10 @@ from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code
 def _calculate_phone_hash(phone):
     """
     计算手机号的hash值
-    
+
     Args:
         phone (str): 手机号
-        
+
     Returns:
         str: 手机号的hash值
     """
@@ -40,45 +40,43 @@ def _merge_accounts_by_time(account1, account2):
     """按注册时间合并账号，保留较早的账号"""
     import time
     app.logger.info(f'开始合并账号: {account1.user_id} 和 {account2.user_id}')
-    
+
     if account1.created_at < account2.created_at:
         primary, secondary = account1, account2
         app.logger.info(f'保留主账号: {primary.user_id} (创建时间: {primary.created_at})')
     else:
         primary, secondary = account2, account1
         app.logger.info(f'保留主账号: {primary.user_id} (创建时间: {primary.created_at})')
-    
+
     # 先保存需要迁移的信息
     migrate_wechat_openid = secondary.wechat_openid if not primary.wechat_openid else None
     migrate_phone_hash = secondary.phone_hash if not primary.phone_hash else None
     migrate_phone_number = secondary.phone_number if not primary.phone_hash else None
-    
+
     app.logger.info(f'准备迁移信息 - wechat_openid: {migrate_wechat_openid}, phone_hash: {migrate_phone_hash}')
-    
-    # Flask-SQLAlchemy 自动管理会话
-    # 清空次要账号的唯一字段
+
     secondary.wechat_openid = f"disabled_{secondary.user_id}_{int(time.time())}"
     secondary.phone_hash = f"disabled_{secondary.user_id}_{int(time.time())}"
     secondary.phone_number = None
     db.session.flush()  # 刷新到数据库但不提交
-        
+
         # 更新主账号信息
     if migrate_wechat_openid:
-            primary.wechat_openid = migrate_wechat_openid
-            app.logger.info(f'主账号已更新wechat_openid')
-        if migrate_phone_hash:
+        primary.wechat_openid = migrate_wechat_openid
+        app.logger.info(f'主账号已更新wechat_openid')
+    if migrate_phone_hash:
         primary.phone_hash = migrate_phone_hash
         primary.phone_number = migrate_phone_number
         app.logger.info(f'主账号已更新phone_hash和phone_number')
-    
+
     # 迁移数据
     _migrate_user_data(secondary.user_id, primary.user_id)
     app.logger.info(f'数据迁移完成')
-        
+
         # 禁用次要账号
-        secondary.status = 2
-        db.session.commit()
-    
+    secondary.status = 2
+    db.session.commit()
+
     app.logger.info(f'账号合并完成: 主账号 {primary.user_id}, 次账号 {secondary.user_id} 已禁用')
     return primary
 
@@ -87,7 +85,7 @@ def _migrate_user_data(src_user_id, dst_user_id):
     """改进的数据迁移函数，增加事务处理和冲突解决"""
     try:
         from database.flask_models import CheckinRule, CheckinRecord
-        
+
         # 迁移打卡规则（排除已删除的）
         rules = CheckinRule.query.filter(
             CheckinRule.user_id == src_user_id,
@@ -102,14 +100,14 @@ def _migrate_user_data(src_user_id, dst_user_id):
             ).first()
             if not existing_rule:
                 r.user_id = dst_user_id
-        
+
         # 迁移打卡记录
         records = CheckinRecord.query.filter(
             CheckinRecord.user_id == src_user_id
         ).all()
         for rec in records:
             rec.user_id = dst_user_id
-        
+
         # 迁移监护关系（作为被监护人）
         rels = SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.solo_user_id == src_user_id
@@ -123,7 +121,7 @@ def _migrate_user_data(src_user_id, dst_user_id):
             ).first()
             if not existing_rel:
                 rel.solo_user_id = dst_user_id
-        
+
         # 迁移监护关系（作为监护人）
         rels2 = SupervisionRuleRelation.query.filter(
             SupervisionRuleRelation.supervisor_user_id == src_user_id
@@ -137,7 +135,7 @@ def _migrate_user_data(src_user_id, dst_user_id):
             ).first()
             if not existing_rel:
                 rel.supervisor_user_id = dst_user_id
-        
+
         # 移除commit调用，由调用方控制事务
     except Exception as e:
         app.logger.error(f'数据迁移失败: {str(e)}', exc_info=True)
@@ -236,12 +234,12 @@ def user_profile():
 
             # 返回用户信息
             app.logger.info(f'用户数据库信息 - user_id: {user.user_id}, nickname: {user.nickname}, avatar_url: {user.avatar_url}')
-            
+
             # 获取社区名称
             community_name = None
             if user.community_id and hasattr(user, 'community') and user.community:
                 community_name = user.community.name
-            
+
             user_data = {
                 'user_id': user.user_id,
                 'wechat_openid': user.wechat_openid,
@@ -394,7 +392,7 @@ def search_users(decoded):
         # 兼容旧的nickname参数
         if not keyword:
             keyword = params.get('nickname', '').strip()
-        
+
         scope = params.get('scope', 'all')
         community_id = params.get('community_id')
         limit = int(params.get('limit', 10))
@@ -430,11 +428,11 @@ def search_users(decoded):
         # 检查是否是完整手机号（11位数字）
         import re
         is_full_phone = re.match(r'^1[3-9]\d{9}$', keyword)
-        
+
         if is_full_phone:
             # 如果是完整手机号，使用phone_hash进行精确匹配
             phone_hash = _calculate_phone_hash(keyword)
-            
+
             # 只使用phone_hash进行搜索，不再搜索昵称
             # 因为完整手机号搜索应该精确匹配
             query = User.query.filter(
@@ -498,7 +496,7 @@ def bind_phone(decoded):
         current_user = UserService.query_user_by_openid(decoded.get('openid'))
         if not current_user:
             return make_err_response({}, '用户不存在')
-        
+
         from hashlib import sha256
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
@@ -508,20 +506,20 @@ def bind_phone(decoded):
             primary = _merge_accounts_by_time(current_user, target)
             _audit(current_user.user_id, 'bind_phone', {'phone': phone})
             return make_succ_response({'message': '绑定手机号成功，账号已合并'})
-        
+
         # 直接更新用户信息，避免嵌套事务问题
         current_user.phone_hash = phone_hash
         current_user.phone_number = phone[:3] + '****' + \
             phone[-4:] if len(phone) >= 7 else phone
         current_user.updated_at = datetime.datetime.now()
-        
+
         # Flask-SQLAlchemy 自动管理会话
-            db.session.commit()
+        db.session.commit()
         _audit(current_user.user_id, 'bind_phone', {'phone': phone})
         return make_succ_response({'message': '绑定手机号成功'})
     except Exception as e:
         # Flask-SQLAlchemy 自动管理会话
-            db.session.rollback()
+        db.session.rollback()
         app.logger.error(f'绑定手机号失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'绑定手机号失败: {str(e)}')
 
@@ -561,7 +559,7 @@ def bind_wechat(decoded):
             return make_succ_response({'message': '绑定微信成功'})
     except Exception as e:
         # Flask-SQLAlchemy 自动管理会话
-            db.session.rollback()
+        db.session.rollback()
         app.logger.error(f'绑定微信失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'绑定微信失败: {str(e)}')
 
@@ -665,7 +663,3 @@ def add_verification_fields():
             conn.commit()
     except Exception as e:
         app.logger.error(f'添加验证字段时发生错误: {str(e)}')
-
-# 在应用启动后初始化验证字段
-# with app.app_context():
-#     init_verification_fields()

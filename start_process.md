@@ -262,7 +262,7 @@ flowchart TD
 
     L --> T[创建默认社区]
     S --> T
-    T --> U[设置社区属性<br/>- name: 安卡大家庭<br/>- description: 系统默认社区<br/>- creator_user_id: 超级管理员ID<br/>- is_default: true]
+    T --> U[设置社区属性<br/>- name: 安卡大家庭<br/>- description: 系统默认社区<br/>- creator_id: 超级管理员ID<br/>- is_default: true]
     U --> V[添加到数据库会话]
     V --> W[创建 CommunityStaff 关系<br/>- 角色: manager (主管)<br/>- 用户: 超级管理员]
     W --> X[创建审计日志]

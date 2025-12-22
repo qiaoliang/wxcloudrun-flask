@@ -30,13 +30,13 @@ class CheckinRuleService:
                 # 使用 Flask-SQLAlchemy 的 db.session
                 rules = db.session.query(CheckinRule).filter(
                     CheckinRule.user_id == user_id,  # 更新字段名
-                    CheckinRule.is_active == True  # 更新字段名，只查询激活的规则
+                    CheckinRule.status == 1  # 更新字段名，只查询启用状态的规则
                 ).all()
                 return rules or []  # 确保总是返回列表
             else:
                 rules = session.query(CheckinRule).filter(
                     CheckinRule.user_id == user_id,
-                    CheckinRule.is_active == True
+                    CheckinRule.status == 1
                 ).all()
                 return rules or []
         except Exception as e:

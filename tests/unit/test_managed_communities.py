@@ -31,7 +31,7 @@ class TestManagedCommunities:
         community = Community(
             name="测试社区",
             description="测试社区描述",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add(community)
         test_session.flush()
@@ -71,7 +71,7 @@ class TestManagedCommunities:
         community = Community(
             name="专员社区",
             description="专员社区描述",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add(community)
         test_session.flush()
@@ -102,17 +102,17 @@ class TestManagedCommunities:
         community1 = Community(
             name="主管社区",
             description="用户是主管的社区",
-            creator_user_id=1
+            creator_id=1
         )
         community2 = Community(
             name="专员社区",
             description="用户是专员的社区",
-            creator_user_id=1
+            creator_id=1
         )
         community3 = Community(
             name="成员社区",
             description="用户只是成员的社区",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add_all([community1, community2, community3])
         test_session.flush()
@@ -166,7 +166,7 @@ class TestManagedCommunities:
         community = Community(
             name="角色测试社区",
             description="用于测试角色的社区",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add(community)
         test_session.flush()
@@ -216,13 +216,13 @@ class TestManagedCommunities:
         active_community = Community(
             name="活跃社区",
             description="活跃的社区",
-            creator_user_id=1,
+            creator_id=1,
             status=1  # 活跃
         )
         inactive_community = Community(
             name="停用社区",
             description="已停用的社区",
-            creator_user_id=1,
+            creator_id=1,
             status=0  # 停用
         )
         test_session.add_all([active_community, inactive_community])
@@ -258,7 +258,7 @@ class TestManagedCommunities:
         community = Community(
             name="测试社区",
             description="测试社区描述",
-            creator_user_id=1
+            creator_id=1
         )
         test_session.add(community)
         test_session.flush()

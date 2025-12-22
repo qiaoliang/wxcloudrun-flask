@@ -37,13 +37,13 @@ class TestMultiCommunityRoleUnit:
         community_a = Community(
             name="社区A",
             location="测试地址A",
-            creator_user_id=user.user_id,
+            creator_id=user.user_id,
             status=1
         )
         community_b = Community(
             name="社区B",
             location="测试地址B",
-            creator_user_id=user.user_id,
+            creator_id=user.user_id,
             status=1
         )
         test_session.add_all([community_a, community_b])
@@ -89,7 +89,7 @@ class TestMultiCommunityRoleUnit:
         community = Community(
             name="角色变更社区",
             location="测试地址",
-            creator_user_id=1,
+            creator_id=1,
             status=1
         )
         test_session.add_all([user, community])
@@ -130,7 +130,7 @@ class TestMultiCommunityRoleUnit:
         community = Community(
             name="权限测试社区",
             location="测试地址",
-            creator_user_id=1,
+            creator_id=1,
             status=1
         )
         test_session.add(community)
@@ -199,7 +199,7 @@ class TestMultiCommunityRoleUnit:
         community = Community(
             name="申请测试社区",
             location="测试地址",
-            creator_user_id=1,
+            creator_id=1,
             status=1
         )
         test_session.add_all([user, community])

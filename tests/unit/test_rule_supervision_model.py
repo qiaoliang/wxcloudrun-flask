@@ -31,11 +31,11 @@ class TestSupervisionRuleRelationModel:
             role=2,  # supervisor
             status=1
         )
-        
+
         test_session.add(user1)
         test_session.add(user2)
         test_session.flush()  # Get IDs without committing
-        
+
         # Create test community
         community = Community(
             name="测试社区",
@@ -43,18 +43,18 @@ class TestSupervisionRuleRelationModel:
         )
         test_session.add(community)
         test_session.flush()
-        
+
         # Create a test rule
         rule = CheckinRule(
             user_id=user1.user_id,
             community_id=community.community_id,
             rule_type='起床打卡',
-            is_active=True
+            status=1
         )
-        
+
         test_session.add(rule)
         test_session.flush()
-        
+
         # Create supervision relation
         relation = SupervisionRuleRelation(
             solo_user_id=user1.user_id,
@@ -62,10 +62,10 @@ class TestSupervisionRuleRelationModel:
             rule_id=rule.rule_id,  # Specific rule supervision
             status=1  # Pending
         )
-        
+
         test_session.add(relation)
         test_session.commit()
-        
+
         # Verify the relation was created
         assert relation.relation_id is not None
         assert relation.solo_user_id == user1.user_id
@@ -90,11 +90,11 @@ class TestSupervisionRuleRelationModel:
             role=2,  # supervisor
             status=1
         )
-        
+
         test_session.add(user1)
         test_session.add(user2)
         test_session.flush()
-        
+
         # Create supervision relation for all rules (rule_id is None)
         relation = SupervisionRuleRelation(
             solo_user_id=user1.user_id,
@@ -102,10 +102,10 @@ class TestSupervisionRuleRelationModel:
             rule_id=None,  # All rules supervision
             status=1
         )
-        
+
         test_session.add(relation)
         test_session.commit()
-        
+
         # Verify the relation was created
         assert relation.relation_id is not None
         assert relation.solo_user_id == user1.user_id
@@ -128,10 +128,10 @@ class TestSupervisionRuleRelationModel:
             role=2,
             status=1
         )
-        
+
         test_session.add_all([user1, user2])
         test_session.flush()
-        
+
         relation = SupervisionRuleRelation(
             solo_user_id=user1.user_id,
             supervisor_user_id=user2.user_id,
@@ -139,11 +139,11 @@ class TestSupervisionRuleRelationModel:
         )
         test_session.add(relation)
         test_session.commit()
-        
+
         # Update status to active
         relation.status = 2  # Active
         test_session.commit()
-        
+
         # Verify update
         updated_relation = test_session.query(SupervisionRuleRelation).filter_by(
             relation_id=relation.relation_id
@@ -171,10 +171,10 @@ class TestSupervisionRuleRelationModel:
             role=2,
             status=1
         )
-        
+
         test_session.add_all([solo_user, supervisor1, supervisor2])
         test_session.flush()
-        
+
         # Create multiple supervision relations
         relation1 = SupervisionRuleRelation(
             solo_user_id=solo_user.user_id,
@@ -186,10 +186,10 @@ class TestSupervisionRuleRelationModel:
             supervisor_user_id=supervisor2.user_id,
             status=1
         )
-        
+
         test_session.add_all([relation1, relation2])
         test_session.commit()
-        
+
         # Verify multiple supervisors
         supervisor_relations = test_session.query(SupervisionRuleRelation).filter_by(
             solo_user_id=solo_user.user_id
@@ -217,10 +217,10 @@ class TestSupervisionRuleRelationModel:
             role=1,
             status=1
         )
-        
+
         test_session.add_all([supervisor, solo_user1, solo_user2])
         test_session.flush()
-        
+
         # Create supervision relations
         relation1 = SupervisionRuleRelation(
             solo_user_id=solo_user1.user_id,
@@ -232,10 +232,10 @@ class TestSupervisionRuleRelationModel:
             supervisor_user_id=supervisor.user_id,
             status=1
         )
-        
+
         test_session.add_all([relation1, relation2])
         test_session.commit()
-        
+
         # Verify supervisor oversees multiple users
         supervised_users = test_session.query(SupervisionRuleRelation).filter_by(
             supervisor_user_id=supervisor.user_id
@@ -257,10 +257,10 @@ class TestSupervisionRuleRelationModel:
             role=2,
             status=1
         )
-        
+
         test_session.add_all([user, supervisor])
         test_session.flush()
-        
+
         # Create test community
         community = Community(
             name="测试社区",
@@ -268,16 +268,16 @@ class TestSupervisionRuleRelationModel:
         )
         test_session.add(community)
         test_session.flush()
-        
+
         rule = CheckinRule(
             user_id=user.user_id,
             community_id=community.community_id,
             rule_type='早起打卡',
-            is_active=True
+            status=1
         )
         test_session.add(rule)
         test_session.flush()
-        
+
         # Create supervision for specific rule
         relation = SupervisionRuleRelation(
             solo_user_id=user.user_id,
@@ -287,7 +287,7 @@ class TestSupervisionRuleRelationModel:
         )
         test_session.add(relation)
         test_session.commit()
-        
+
         # Verify relation is tied to specific rule
         found_relation = test_session.query(SupervisionRuleRelation).filter_by(
             relation_id=relation.relation_id
@@ -309,10 +309,10 @@ class TestSupervisionRuleRelationModel:
             role=2,
             status=1
         )
-        
+
         test_session.add_all([user, supervisor])
         test_session.flush()
-        
+
         relation = SupervisionRuleRelation(
             solo_user_id=user.user_id,
             supervisor_user_id=supervisor.user_id,
@@ -320,19 +320,19 @@ class TestSupervisionRuleRelationModel:
         )
         test_session.add(relation)
         test_session.commit()
-        
+
         relation_id = relation.relation_id
-        
+
         # Delete the supervision relation
         test_session.delete(relation)
         test_session.commit()
-        
+
         # Verify relation is deleted
         remaining_relation = test_session.query(SupervisionRuleRelation).filter_by(
             relation_id=relation_id
         ).first()
         assert remaining_relation is None
-        
+
         # Verify users still exist
         remaining_user = test_session.query(User).filter_by(
             wechat_openid='delete_test_user'
