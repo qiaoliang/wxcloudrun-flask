@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import config
 from config_manager import get_database_config
-from database import bind_flask_db
+from database.flask_models import db  # 导入Flask-SQLAlchemy实例
 
 # 配置日志
 logs_dir = 'logs'
@@ -27,6 +27,9 @@ logging.basicConfig(
 # 初始化 Flask web 应用
 app = Flask(__name__, instance_relative_config=True)
 
+# 加载配置
+app.config.from_object('config')
+
 # 配置调试模式
 app.config['DEBUG'] = config.DEBUG
 
@@ -34,16 +37,13 @@ app.config['DEBUG'] = config.DEBUG
 db_config = get_database_config()
 app.config['DATABASE_CONFIG'] = db_config
 
-# db_core在 main.py 中的main() 函数中才执行绑定
-db_core = None
+# 初始化Flask-SQLAlchemy
+db.init_app(app)
 
-# 导入模型（使用新的数据库模块）
-from database.models import (
+# 导入Flask-SQLAlchemy模型
+from database.flask_models import (
     User, Community, CheckinRule, CheckinRecord,
-    SupervisionRuleRelation, CommunityStaff,
-    CommunityApplication, ShareLink, ShareLinkAccessLog,
-    VerificationCode, UserAuditLog, CommunityCheckinRule,
-    UserCommunityRule, Counters
+    UserAuditLog, Counters
 )
 
 # 导入视图模块以注册路由

@@ -451,7 +451,6 @@ def logout():
 @app.route('/api/auth/register_phone', methods=['POST'])
 def register_phone():
     from const_default import DEFUALT_COMMUNITY_NAME
-    from wxcloudrun.user_service import UserService
     try:
         params = request.get_json() or {}
         phone = params.get('phone')
