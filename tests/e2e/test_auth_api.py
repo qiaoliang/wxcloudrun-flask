@@ -85,12 +85,17 @@ class TestAuthAPI:
         测试微信登录成功（完整用户信息）
         验证真实API行为而非mock行为
         """
-        # 准备请求数据
-        expected_user_nickname = "李四张三"
+        # 准备请求数据 - 使用时间戳和随机数确保每次测试都创建新用户
+        import time
+        import random
+        timestamp = int(time.time() * 1000000)
+        random_suffix = random.randint(10000, 99999)
+        unique_id = f"{timestamp}_{random_suffix}"
+        expected_user_nickname = f"李四张三_{unique_id}"
         login_data = {
-            "code": "wx_auth_code_here_create_user",
+            "code": f"wx_auth_code_create_user_{unique_id}",
             "nickname": expected_user_nickname,
-            "avatar_url": "https://example.com/avatar.jpg"
+            "avatar_url": f"https://example.com/avatar_{unique_id}.jpg"
         }
 
         # 发送登录请求

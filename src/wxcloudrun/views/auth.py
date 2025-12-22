@@ -23,10 +23,14 @@ from wxcloudrun.utils.auth import generate_jwt_token, generate_refresh_token
 
 def _format_user_login_response(user, token, refresh_token, is_new_user=False):
     """统一格式化登录响应"""
-    # 获取社区名称
+    # 获取社区名称 - 安全处理避免session问题
     community_name = None
-    if user.community_id and hasattr(user, 'community') and user.community:
-        community_name = user.community.name
+    try:
+        if user.community_id and hasattr(user, 'community') and user.community:
+            community_name = user.community.name
+    except Exception as e:
+        app.logger.warning(f'无法获取社区名称，可能是session问题: {e}')
+        # 不抛出错误，继续使用默认值
     
     # 调试：记录社区信息获取情况
     if user.community_id:
@@ -330,9 +334,13 @@ def login_wechat():
                 'token': token,
                 'refresh_token': refresh_token,
                 'user_id': user.user_id,
-                'login_type': 'existing_user'
+                'wechat_openid': user.wechat_openid,
+                'nickname': user.nickname,
+                'avatar_url': user.avatar_url,
+                'phone_number': user.phone_number,
+                'login_type': 'new_user' if is_new else 'existing_user'
             }
-            app.logger.warning('使用最小响应格式返回')
+            app.logger.warning(f'使用最小响应格式返回，login_type: {minimal_response["login_type"]}')
             return make_succ_response(minimal_response)
         except Exception as fallback_error:
             app.logger.error(f'最小响应构造也失败: {str(fallback_error)}')
@@ -443,6 +451,7 @@ def logout():
 @app.route('/api/auth/register_phone', methods=['POST'])
 def register_phone():
     from const_default import DEFUALT_COMMUNITY_NAME
+    from wxcloudrun.user_service import UserService
     try:
         params = request.get_json() or {}
         phone = params.get('phone')
@@ -473,7 +482,6 @@ def register_phone():
             return make_err_response({'code': 'PHONE_EXISTS'}, '该手机号已注册，请直接登录')
 
         # Create new user using UserService to avoid session issues
-        from wxcloudrun.user_service import UserService
         # Generate masked phone number for display purposes only
         masked = normalized_phone[:3] + '****' + normalized_phone[-4:] if len(normalized_phone) >= 7 else normalized_phone
         app.logger.info(f"Creating user with masked phone: {masked} (phone_hash will be used for uniqueness)")
