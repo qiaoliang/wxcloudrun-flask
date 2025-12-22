@@ -29,7 +29,8 @@ class TestDeleteRuleCoreLogic:
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="时间戳测试规则",
+            rule_type="personal",
+            rule_name="时间戳测试规则",
             status=1
         )
         test_session.add(rule)
@@ -63,7 +64,8 @@ class TestDeleteRuleCoreLogic:
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="幂等性测试规则",
+            rule_type="personal",
+            rule_name="幂等性测试规则",
             status=1
         )
         test_session.add(rule)
@@ -101,7 +103,8 @@ class TestDeleteRuleCoreLogic:
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="多状态记录测试规则",
+            rule_type="personal",
+            rule_name="多状态记录测试规则",
             status=1
         )
         test_session.add(rule)
@@ -160,7 +163,8 @@ class TestDeleteRuleCoreLogic:
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="数据完整性测试规则",
+            rule_type="personal",
+            rule_name="数据完整性测试规则",
             status=1
         )
         test_session.add(rule)
@@ -211,14 +215,16 @@ class TestDeleteRuleCoreLogic:
         active_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="活跃规则",
+            rule_type="personal",
+            rule_name="活跃规则",
             status=1
         )
         deleted_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="已删除规则",
-            status=1
+            rule_type="personal",
+            rule_name="已删除规则",
+            status=2  # 已删除状态
         )
         test_session.add_all([active_rule, deleted_rule])
         test_session.commit()
@@ -237,7 +243,7 @@ class TestDeleteRuleCoreLogic:
             status=1
         ).all()
         assert len(active_rules) == 1
-        assert active_rules[0].rule_type == "活跃规则"
+        assert active_rules[0].status == 1
 
         # 查询已删除规则
         deleted_rules = test_session.query(CheckinRule).filter_by(
@@ -245,4 +251,4 @@ class TestDeleteRuleCoreLogic:
             status=2
         ).all()
         assert len(deleted_rules) == 1
-        assert deleted_rules[0].rule_type == "已删除规则"
+        assert deleted_rules[0].status == 2

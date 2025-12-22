@@ -44,7 +44,8 @@ db = initialize_for_test()
 
         # 创建规则
         rule = CheckinRule(
-            solo_user_id=user1.user_id,
+            user_id=user1.user_id,
+            rule_type='personal',
             rule_name='起床打卡',
             icon_url='🌅',
             frequency_type=0,

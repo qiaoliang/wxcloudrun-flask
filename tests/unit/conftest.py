@@ -55,9 +55,10 @@ def test_rule(test_session, test_user):
     
     rule = CheckinRule(
         user_id=test_user.user_id,
-        community_id=community.community_id,  # 添加必需的 community_id
-        rule_type="测试规则",
-        is_active=True
+        community_id=community.community_id,
+        rule_type="personal",
+        rule_name="测试规则",
+        status=1
     )
     test_session.add(rule)
     test_session.commit()

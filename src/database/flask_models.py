@@ -72,6 +72,7 @@ class Community(db.Model):
     name = Column(db.String(100), nullable=False, unique=True, comment='社区名称')
     description = Column(db.Text, comment='社区描述')
     creator_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='创建人ID')
+    manager_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='主管ID')
     status = Column(db.Integer, default=1, nullable=False, comment='社区状态')
     settings = Column(db.Text, comment='社区设置（JSON）')
     location = Column(db.String(200), comment='地理位置')
@@ -106,9 +107,16 @@ class CheckinRule(db.Model):
 
     rule_id = Column(db.Integer, primary_key=True)
     user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
-    rule_type = Column(db.String(50), nullable=False, comment='规则类型')
-    rule_content = Column(db.Text, comment='规则内容')
+    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=True, comment='规则来源社区')
+    rule_type = Column(db.String(50), nullable=False, default='personal', comment='规则类型: personal=个人规则, community=社区规则')
+    rule_name = Column(db.String(100), nullable=False, comment='规则名称')
+    icon_url = Column(db.String(500), comment='图标URL')
+    frequency_type = Column(db.Integer, nullable=False, default=0, comment='频率类型')
+    time_slot_type = Column(db.Integer, nullable=False, default=4, comment='时间段类型')
+    custom_time = Column(db.Time, comment='自定义时间')
+    custom_start_date = Column(db.Date, comment='自定义开始日期')
+    custom_end_date = Column(db.Date, comment='自定义结束日期')
+    week_days = Column(db.Integer, default=127, comment='周天数')
     status = Column(db.Integer, default=1, comment='规则状态: 0=停用, 1=启用, 2=删除')
     created_at = Column(db.DateTime, default=datetime.now)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -124,14 +132,21 @@ class CheckinRule(db.Model):
             'user_id': self.user_id,
             'community_id': self.community_id,
             'rule_type': self.rule_type,
-            'rule_content': self.rule_content,
+            'rule_name': self.rule_name,
+            'icon_url': self.icon_url,
+            'frequency_type': self.frequency_type,
+            'time_slot_type': self.time_slot_type,
+            'custom_time': self.custom_time.isoformat() if self.custom_time else None,
+            'custom_start_date': self.custom_start_date.isoformat() if self.custom_start_date else None,
+            'custom_end_date': self.custom_end_date.isoformat() if self.custom_end_date else None,
+            'week_days': self.week_days,
             'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
     def __repr__(self):
-        return f'<CheckinRule {self.rule_id}: {self.rule_type}>'
+        return f'<CheckinRule {self.rule_id}: {self.rule_name}>'
 
 
 class CheckinRecord(db.Model):

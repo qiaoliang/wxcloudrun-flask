@@ -36,7 +36,8 @@ class TestDeleteRuleCoreLogic:
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="测试规则",
+            rule_type="personal",
+            rule_name="测试规则",
             status=1
         )
         test_session.add(rule)
@@ -76,7 +77,8 @@ class TestDeleteRuleCoreLogic:
         active_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="正常规则",
+            rule_type="personal",
+            rule_name="正常规则",
             status=1
         )
 
@@ -84,7 +86,8 @@ class TestDeleteRuleCoreLogic:
         deleted_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="已删除规则",
+            rule_type="personal",
+            rule_name="已删除规则",
             status=2
         )
 
@@ -92,7 +95,8 @@ class TestDeleteRuleCoreLogic:
         disabled_rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="禁用规则",
+            rule_type="personal",
+            rule_name="禁用规则",
             status=0
         )
 
@@ -106,10 +110,10 @@ class TestDeleteRuleCoreLogic:
 
         # 验证只返回正常的规则
         assert len(rules) == 1
-        rule_types = [rule.rule_type for rule in rules]
-        assert "正常规则" in rule_types
-        assert "已删除规则" not in rule_types
-        assert "禁用规则" not in rule_types
+        state = [rule.status for rule in rules]
+        assert 1 in state
+        assert 2 not in state
+        assert 0 not in state
 
     def test_soft_delete_preserves_data_integrity(self, test_session, test_user):
         """测试软删除保持数据完整性"""
@@ -125,7 +129,8 @@ class TestDeleteRuleCoreLogic:
         rule = CheckinRule(
             user_id=test_user.user_id,
             community_id=community.community_id,
-            rule_type="数据完整性测试规则",
+            rule_type="personal",
+            rule_name="数据完整性测试规则",
             status=1
         )
         test_session.add(rule)

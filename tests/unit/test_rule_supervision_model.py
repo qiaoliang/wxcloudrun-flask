@@ -48,7 +48,8 @@ class TestSupervisionRuleRelationModel:
         rule = CheckinRule(
             user_id=user1.user_id,
             community_id=community.community_id,
-            rule_type='起床打卡',
+            rule_type='personal',
+            rule_name='起床打卡',
             status=1
         )
 
@@ -272,7 +273,8 @@ class TestSupervisionRuleRelationModel:
         rule = CheckinRule(
             user_id=user.user_id,
             community_id=community.community_id,
-            rule_type='早起打卡',
+            rule_type='personal',
+            rule_name='早起打卡',
             status=1
         )
         test_session.add(rule)

@@ -93,10 +93,10 @@ class CheckinRuleService:
         try:
             # 创建规则实体
             new_rule = CheckinRule(
-                user_id=user_id,  # 更新字段名
-                community_id=rule_data.get('community_id', 1),  # 添加必需的 community_id
-                rule_type=rule_data['rule_name'],  # 更新字段名
-                is_active=True,  # 更新字段名
+                user_id=user_id,
+                community_id=rule_data.get('community_id'),
+                rule_type=rule_data.get('rule_type', 'personal'),
+                rule_name=rule_data['rule_name'],
                 icon_url=rule_data.get('icon_url', ''),
                 frequency_type=frequency_type,
                 time_slot_type=rule_data.get('time_slot_type', 4),
