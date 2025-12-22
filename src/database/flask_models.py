@@ -198,6 +198,93 @@ class CommunityStaff(db.Model):
     community = db.relationship('Community', backref='staff_members')
     user = db.relationship('User', backref='staff_roles')
 
+class CommunityCheckinRule(db.Model):
+    """社区打卡规则表"""
+    __tablename__ = 'community_checkin_rules'
+
+    community_rule_id = Column(Integer, primary_key=True, autoincrement=True)
+    community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
+    rule_name = Column(String(100), nullable=False, comment='规则名称')
+    icon_url = Column(String(500), comment='图标URL')
+    frequency_type = Column(Integer, nullable=False, default=0, comment='频率类型')
+    time_slot_type = Column(Integer, nullable=False, default=4, comment='时间段类型')
+    custom_time = Column(Time, comment='自定义时间')
+    custom_start_date = Column(Date, comment='自定义开始日期')
+    custom_end_date = Column(Date, comment='自定义结束日期')
+    week_days = Column(Integer, default=127, comment='周天数')
+    status = Column(Integer, default=0, comment='规则状态: 0=停用, 1=启用, 2=删除')
+    created_by = Column(Integer, ForeignKey('users.user_id'), nullable=False, comment='创建者')
+    updated_by = Column(Integer, ForeignKey('users.user_id'), comment='最后更新者')
+    enabled_at = Column(DateTime, comment='启用时间')
+    disabled_at = Column(DateTime, comment='停用时间')
+    enabled_by = Column(Integer, ForeignKey('users.user_id'), comment='启用人')
+    disabled_by = Column(Integer, ForeignKey('users.user_id'), comment='停用人')
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    community = db.relationship('Community', backref='community_checkin_rules')
+    creator = db.relationship('User', foreign_keys=[created_by])
+    updater = db.relationship('User', foreign_keys=[updated_by])
+    enabler = db.relationship('User', foreign_keys=[enabled_by])
+    disabler = db.relationship('User', foreign_keys=[disabled_by])
+
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        result = {
+            'community_rule_id': self.community_rule_id,
+            'community_id': self.community_id,
+            'rule_name': self.rule_name,
+            'icon_url': self.icon_url,
+            'frequency_type': self.frequency_type,
+            'time_slot_type': self.time_slot_type,
+            'custom_time': self.custom_time.isoformat() if self.custom_time else None,
+            'custom_start_date': self.custom_start_date.isoformat() if self.custom_start_date else None,
+            'custom_end_date': self.custom_end_date.isoformat() if self.custom_end_date else None,
+            'week_days': self.week_days,
+            'status': self.status,
+            'created_by': self.created_by,
+            'updated_by': self.updated_by,
+            'enabled_at': self.enabled_at.isoformat() if self.enabled_at else None,
+            'disabled_at': self.disabled_at.isoformat() if self.disabled_at else None,
+            'enabled_by': self.enabled_by,
+            'disabled_by': self.disabled_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+        # 安全地添加关系信息（如果已加载）
+        try:
+            if self.community:
+                result['community_name'] = self.community.name
+        except Exception:
+            pass  # 关系未加载，忽略
+
+        try:
+            if self.creator:
+                result['created_by_name'] = self.creator.nickname or self.creator.phone
+        except Exception:
+            pass
+
+        try:
+            if self.updater:
+                result['updated_by_name'] = self.updater.nickname or self.updater.phone
+        except Exception:
+            pass
+
+        try:
+            if self.enabler:
+                result['enabled_by_name'] = self.enabler.nickname or self.enabler.phone
+        except Exception:
+            pass
+
+        try:
+            if self.disabler:
+                result['disabled_by_name'] = self.disabler.nickname or self.disabler.phone
+        except Exception:
+            pass
+
+        return result
 
 class CommunityApplication(db.Model):
     """社区申请表"""

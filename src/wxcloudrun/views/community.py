@@ -48,43 +48,42 @@ def _format_community_data(community):
     community_id = community.community_id
 
     # Using Flask-SQLAlchemy db.session
-        # 重新查询社区
-        community = db.session.query(Community).filter_by(
-            community_id=community_id).first()
+    # 重新查询社区
+    community = db.session.query(Community).filter_by(
+        community_id=community_id).first()
 
-        # 获取管理员数量
-        admin_count = db.session.query(CommunityStaff).filter_by(
-            community_id=community_id).count()
+    # 获取管理员数量
+    admin_count = db.session.query(CommunityStaff).filter_by(
+        community_id=community_id).count()
+    # 获取创建者信息
+    creator = None
+    if community.creator_user_id:
+        creator_user = db.session.query(User).get(community.creator_user_id)
+        if creator_user:
+            creator = {
+                'user_id': creator_user.user_id,
+                'nickname': creator_user.nickname
+            }
 
-        # 获取创建者信息
-        creator = None
-        if community.creator_user_id:
-            creator_user = db.session.query(User).get(community.creator_user_id)
-            if creator_user:
-                creator = {
-                    'user_id': creator_user.user_id,
-                    'nickname': creator_user.nickname
-                }
-
-        # 获取用户数量
+    # 获取用户数量
         user_count = db.session.query(User).filter_by(
-            community_id=community_id).count()
+        community_id=community_id).count()
 
         return {
-            'community_id': community.community_id,
-            'name': community.name,
-            'description': community.description,
-            'status': community.status,
-            'status_name': community.status_name,
-            'location': community.location,
-            'is_default': community.is_default,
-            'is_blackhouse': community.is_blackhouse,
-            'created_at': community.created_at.isoformat() if community.created_at else None,
-            'updated_at': community.updated_at.isoformat() if community.updated_at else None,
-            'creator': creator,
-            'admin_count': admin_count,
-            'user_count': user_count
-        }
+        'community_id': community.community_id,
+        'name': community.name,
+        'description': community.description,
+        'status': community.status,
+        'status_name': community.status_name,
+        'location': community.location,
+        'is_default': community.is_default,
+        'is_blackhouse': community.is_blackhouse,
+        'created_at': community.created_at.isoformat() if community.created_at else None,
+        'updated_at': community.updated_at.isoformat() if community.updated_at else None,
+        'creator': creator,
+        'admin_count': admin_count,
+        'user_count': user_count
+    }
 
 
 @app.route('/api/communities', methods=['GET'])
@@ -107,53 +106,53 @@ def get_communities():
         return error
 
     try:
-        # 使用 get_db().get_session() 方式操作数据库
-        db = get_db()
         # Using Flask-SQLAlchemy db.session
-            # 查询所有社区
-            communities = db.session.query(Community).all()
+        # db = get_db()  # Using Flask-SQLAlchemy
+        # Using Flask-SQLAlchemy db.session
+        # 查询所有社区
+        communities = db.session.query(Community).all()
 
-            # 格式化响应数据
-            result = []
-            for community in communities:
-                # 获取管理员数量
-                admin_count = db.session.query(CommunityStaff).filter_by(
-                    community_id=community.community_id).count()
+        # 格式化响应数据
+        result = []
+        for community in communities:
+            # 获取管理员数量
+            admin_count = db.session.query(CommunityStaff).filter_by(
+                community_id=community.community_id).count()
 
-                # 获取创建者信息
-                creator = None
-                if community.creator_user_id:
-                    creator_user = db.session.query(User).get(
-                        community.creator_user_id)
-                    if creator_user:
-                        creator = {
-                            'user_id': creator_user.user_id,
-                            'nickname': creator_user.nickname
-                        }
+            # 获取创建者信息
+            creator = None
+            if community.creator_user_id:
+                creator_user = db.session.query(User).get(
+                    community.creator_user_id)
+                if creator_user:
+                    creator = {
+                        'user_id': creator_user.user_id,
+                        'nickname': creator_user.nickname
+                    }
 
-                # 获取用户数量
-                user_count = db.session.query(User).filter_by(
-                    community_id=community.community_id).count()
+            # 获取用户数量
+            user_count = db.session.query(User).filter_by(
+                community_id=community.community_id).count()
 
-                community_data = {
-                    'community_id': community.community_id,
-                    'name': community.name,
-                    'description': community.description,
-                    'status': community.status,
-                    'status_name': community.status_name,
-                    'location': community.location,
-                    'is_default': community.is_default,
-                    'is_blackhouse': community.is_blackhouse,
-                    'created_at': community.created_at.isoformat() if community.created_at else None,
-                    'updated_at': community.updated_at.isoformat() if community.updated_at else None,
-                    'creator': creator,
-                    'admin_count': admin_count,
-                    'user_count': user_count
-                }
-                result.append(community_data)
+            community_data = {
+                'community_id': community.community_id,
+                'name': community.name,
+                'description': community.description,
+                'status': community.status,
+                'status_name': community.status_name,
+                'location': community.location,
+                'is_default': community.is_default,
+                'is_blackhouse': community.is_blackhouse,
+                'created_at': community.created_at.isoformat() if community.created_at else None,
+                'updated_at': community.updated_at.isoformat() if community.updated_at else None,
+                'creator': creator,
+                'admin_count': admin_count,
+                'user_count': user_count
+            }
+            result.append(community_data)
 
-            app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
-            return make_succ_response(result)
+        app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
+        return make_succ_response(result)
 
     except Exception as e:
         app_logger.error(f'获取社区列表失败: ----{str(e)}', exc_info=True)
@@ -178,95 +177,95 @@ def get_community_list():
     try:
         # 使用数据库会话上下文管理器
         # Using Flask-SQLAlchemy db.session
-            user = db.session.query(User).get(user_id)
+        user = db.session.query(User).get(user_id)
 
-            if not user:
-                return make_err_response({}, '用户不存在')
+        if not user:
+            return make_err_response({}, '用户不存在')
 
-            # 检查权限: 支持多角色
-            if user.role not in [2, 3, 4]:  # 非社区工作人员
-                return make_err_response({}, '权限不足，需要社区工作人员权限')
+        # 检查权限: 支持多角色
+        if user.role not in [2, 3, 4]:  # 非社区工作人员
+            return make_err_response({}, '权限不足，需要社区工作人员权限')
 
-            # 获取请求参数
-            page = int(request.args.get('page', 1))
-            page_size = int(request.args.get('page_size', 20))
-            status_filter = request.args.get(
-                'status', 'all')  # all/active/inactive
+        # 获取请求参数
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+        status_filter = request.args.get(
+            'status', 'all')  # all/active/inactive
 
-            # 根据用户角色获取社区列表
-            if user.role == 4:  # 超级管理员 - 所有社区
-                communities, total = CommunityService.get_communities_with_filters(
-                    status_filter=status_filter,
-                    page=page,
-                    page_size=page_size
-                )
-            elif user.role == 3:  # 社区主管 - 主管的社区
-                communities, total = CommunityService.get_manager_communities(
-                    user_id=user.user_id,
-                    status_filter=status_filter,
-                    page=page,
-                    page_size=page_size
-                )
-            else:  # user.role == 2, 社区专员 - 专员的社区
-                communities, total = CommunityService.get_staff_communities(
-                    user_id=user.user_id,
-                    status_filter=status_filter,
-                    page=page,
-                    page_size=page_size
-                )
+        # 根据用户角色获取社区列表
+        if user.role == 4:  # 超级管理员 - 所有社区
+            communities, total = CommunityService.get_communities_with_filters(
+                status_filter=status_filter,
+                page=page,
+                page_size=page_size
+            )
+        elif user.role == 3:  # 社区主管 - 主管的社区
+            communities, total = CommunityService.get_manager_communities(
+                user_id=user.user_id,
+                status_filter=status_filter,
+                page=page,
+                page_size=page_size
+            )
+        else:  # user.role == 2, 社区专员 - 专员的社区
+            communities, total = CommunityService.get_staff_communities(
+                user_id=user.user_id,
+                status_filter=status_filter,
+                page=page,
+                page_size=page_size
+            )
 
-            # 格式化响应数据
-            result = []
-            for community_dict in communities:
-                # community_dict是从CommunityService返回的字典
-                community_id = community_dict['community_id']
-                community_name = community_dict['name']
-                community_location = community_dict['location']
-                community_status = community_dict['status']
-                community_description = community_dict['description']
-                community_created_at = community_dict['created_at'].isoformat(
-                ) if community_dict['created_at'] else None
-                community_updated_at = community_dict['updated_at'].isoformat(
-                ) if community_dict['updated_at'] else None
+        # 格式化响应数据
+        result = []
+        for community_dict in communities:
+            # community_dict是从CommunityService返回的字典
+            community_id = community_dict['community_id']
+            community_name = community_dict['name']
+            community_location = community_dict['location']
+            community_status = community_dict['status']
+            community_description = community_dict['description']
+            community_created_at = community_dict['created_at'].isoformat(
+            ) if community_dict['created_at'] else None
+            community_updated_at = community_dict['updated_at'].isoformat(
+            ) if community_dict['updated_at'] else None
 
-                # 获取主管信息 - 使用当前会话
-                manager = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    role='manager'
-                ).first()
+            # 获取主管信息 - 使用当前会话
+            manager = db.session.query(CommunityStaff).filter_by(
+                community_id=community_id,
+                role='manager'
+            ).first()
 
-                manager_name = None
-                manager_id = None
-                if manager:
-                    manager_user = db.session.query(User).get(manager.user_id)
-                    if manager_user:
-                        manager_name = manager_user.nickname
-                        manager_id = str(manager.user_id)
+            manager_name = None
+            manager_id = None
+            if manager:
+                manager_user = db.session.query(User).get(manager.user_id)
+                if manager_user:
+                    manager_name = manager_user.nickname
+                    manager_id = str(manager.user_id)
 
-                community_data = {
-                    'id': str(community_id),
-                    'name': community_name,
-                    'location': community_location,
-                    'location_lat': None,  # TODO: 添加到数据库字段
-                    'location_lon': None,  # TODO: 添加到数据库字段
-                    'status': 'active' if community_status == 1 else 'inactive',
-                    'manager_id': manager_id,
-                    'manager_name': manager_name,
-                    'description': community_description,
-                    'created_at': community_created_at,
-                    'updated_at': community_updated_at
-                }
-                result.append(community_data)
+            community_data = {
+                'id': str(community_id),
+                'name': community_name,
+                'location': community_location,
+                'location_lat': None,  # TODO: 添加到数据库字段
+                'location_lon': None,  # TODO: 添加到数据库字段
+                'status': 'active' if community_status == 1 else 'inactive',
+                'manager_id': manager_id,
+                'manager_name': manager_name,
+                'description': community_description,
+                'created_at': community_created_at,
+                'updated_at': community_updated_at
+            }
+            result.append(community_data)
 
-            has_more = (page * page_size) < total
+        has_more = (page * page_size) < total
 
-            app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
-            return make_succ_response({
-                'communities': result,
-                'total': total,
-                'has_more': has_more,
-                'current_page': page
-            })
+        app_logger.info(f'成功获取社区列表，共 {len(result)} 个社区')
+        return make_succ_response({
+            'communities': result,
+            'total': total,
+            'has_more': has_more,
+            'current_page': page
+        })
 
     except Exception as e:
         app_logger.error(f'获取社区列表失败: {str(e)}', exc_info=True)
@@ -997,7 +996,7 @@ def add_community_staff(decoded):
     app_logger.info('=== 开始添加社区工作人员 ===')
 
     user_id = decoded.get('user_id')
-    
+
     try:
         # 获取请求数据
         data = request.get_json()
@@ -1016,7 +1015,7 @@ def add_community_staff(decoded):
         )
 
         app_logger.info(f'添加工作人员成功: 成功{result["success_count"]}人, 失败{len(result["failed"])}人')
-        
+
         return make_succ_response({
             'added_count': result['success_count'],
             'failed': result['failed'],
@@ -1027,162 +1026,6 @@ def add_community_staff(decoded):
     except ValueError as e:
         app_logger.warning(f'添加工作人员参数错误: {str(e)}')
         return make_err_response({}, str(e))
-    except Exception as e:
-        app_logger.error(f'添加社区工作人员失败: {str(e)}', exc_info=True)
-        return make_err_response({}, f'添加工作人员失败: {str(e)}')
-
-    try:
-        data = request.get_json()
-        community_id = data.get('community_id')
-        user_ids = data.get('user_ids', [])
-        role = data.get('role', 'staff')  # manager 或 staff
-
-        if not community_id:
-            return make_err_response({}, '缺少社区ID')
-
-        if not user_ids or not isinstance(user_ids, list):
-            return make_err_response({}, '用户ID列表不能为空')
-
-        if role not in ['manager', 'staff']:
-            return make_err_response({}, '角色参数错误，必须是manager或staff')
-
-        # 使用 get_db().get_session() 方式操作数据库
-        db = get_db()
-        # Using Flask-SQLAlchemy db.session
-            # 检查社区是否存在
-            community = db.session.query(Community).get(community_id)
-            if not community:
-                return make_err_response({}, '社区不存在')
-
-            # 权限检查: super_admin 或 community_staff（主管或专员）
-            if user.role != 4:  # 不是super_admin
-                staff_record = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    user_id=user_id
-                ).first()
-                if not staff_record:
-                    return make_err_response({}, '权限不足，需要社区工作人员权限')
-
-                # 如果是专员（非主管）尝试添加主管，则拒绝
-                if staff_record.role == 'staff' and role == 'manager':
-                    return make_err_response({}, '专员不能添加主管，需要主管权限')
-
-            # 如果是添加主管,只能添加一个
-            if role == 'manager' and len(user_ids) > 1:
-                return make_err_response({}, '主管只能添加一个')
-
-            # 检查是否已有主管
-            if role == 'manager':
-                existing_manager = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    role='manager'
-                ).first()
-                if existing_manager:
-                    return make_err_response({}, '该社区已有主管')
-
-            added_count = 0
-            failed = []
-
-            # Layer 3: 环境守卫 - 验证user_ids的数据类型并转换为整数
-            # 数据库中的user_id是整数，但前端可能传递字符串
-            processed_user_ids = []
-            for uid in user_ids:
-                try:
-                    # 尝试转换为整数
-                    if isinstance(uid, str):
-                        uid_int = int(uid)
-                    elif isinstance(uid, int):
-                        uid_int = uid
-                    else:
-                        failed.append({'user_id': uid, 'reason': f'无效的用户ID类型: {type(uid).__name__}'})
-                        continue
-
-                    # 验证整数是否有效（正数）
-                    if uid_int <= 0:
-                        failed.append({'user_id': uid, 'reason': '用户ID必须为正整数'})
-                        continue
-
-                    processed_user_ids.append(uid_int)
-                except (ValueError, TypeError) as e:
-                    failed.append({'user_id': uid, 'reason': f'无效的用户ID格式: {str(e)}'})
-                    continue
-
-            # 如果没有有效的用户ID，直接返回错误
-            if not processed_user_ids:
-                app_logger.error(f'所有用户ID都无效: {user_ids}')
-                return make_err_response({'failed': failed}, '所有用户ID都无效')
-
-            app_logger.info(f'用户ID验证通过: 原始{len(user_ids)}个，有效{len(processed_user_ids)}个，失败{len(failed)}个')
-            app_logger.info(f'处理后的用户ID: {processed_user_ids}')
-
-            for uid in processed_user_ids:
-                try:
-                    # 检查用户是否存在
-                    target_user = db.session.query(User).get(uid)
-                    if not target_user:
-                        failed.append({'user_id': uid, 'reason': '用户不存在'})
-                        continue
-
-                    # 检查用户是否已在当前社区任职（避免在同一社区重复任职）
-                    existing_in_current_community = db.session.query(CommunityStaff).filter_by(
-                        community_id=community_id,
-                        user_id=uid
-                    ).first()
-
-                    if existing_in_current_community:
-                        failed.append({'user_id': uid, 'reason': '用户已在当前社区任职'})
-                        continue
-
-                    # 添加工作人员
-                    staff = CommunityStaff(
-                        community_id=community_id,
-                        user_id=uid,
-                        role=role
-                    )
-                    db.session.add(staff)
-
-                    # 记录审计日志
-                    audit_log = UserAuditLog(
-                        user_id=user_id,
-                        action="add_community_staff",
-                        detail=f"添加用户{uid}为社区{community_id}的{role}"
-                    )
-                    db.session.add(audit_log)
-
-                    added_count += 1
-                    app_logger.info(f'成功添加工作人员: 社区{community_id}, 用户{uid}, 角色{role}')
-
-                except Exception as e:
-                    app_logger.error(f'添加工作人员失败 user_id={uid}: {str(e)}')
-                    failed.append({'user_id': uid, 'reason': str(e)})
-
-            if added_count == 0:
-                return make_err_response({'failed': failed}, '添加失败')
-
-            # 提交事务
-            db.session.commit()
-
-            # 获取添加成功的用户详细信息
-            added_users_info = []
-            for uid in user_ids:
-                if not any(f['user_id'] == uid for f in failed):
-                    target_user = db.session.query(User).get(uid)
-                    if target_user:
-                        added_users_info.append({
-                            'user_id': str(uid),
-                            'nickname': target_user.nickname or '未设置昵称',
-                            'avatar_url': target_user.avatar_url,
-                            'phone_number': target_user.phone_number or '未设置手机号'
-                        })
-
-            app_logger.info(f'批量添加工作人员完成: 社区{community_id}, 成功{added_count}人, 失败{len(failed)}人')
-            return make_succ_response({
-                'added_count': added_count,
-                'failed': failed,
-                'added_users': added_users_info,
-                'message': f'成功添加{added_count}名{role}'
-            })
-
     except Exception as e:
         app_logger.error(f'添加社区工作人员失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'添加工作人员失败: {str(e)}')
@@ -1215,8 +1058,8 @@ def remove_community_staff():
         if not community_id or not target_user_id:
             return make_err_response({}, '缺少必要参数')
 
-        # 使用 get_db().get_session() 方式操作数据库
-        db = get_db()
+        # Using Flask-SQLAlchemy db.session
+        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 检查社区是否存在
             community = db.session.query(Community).get(community_id)
@@ -1425,8 +1268,8 @@ def add_community_users():
         if len(user_ids) > 50:
             return make_err_response({}, '最多只能添加50个用户')
 
-        # 使用 get_db().get_session() 方式操作数据库
-        db = get_db()
+        # Using Flask-SQLAlchemy db.session
+        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 检查社区是否存在
             community = db.session.query(Community).get(community_id)
@@ -1644,8 +1487,8 @@ def update_community_new():
         if not community_id:
             return make_err_response({}, '缺少社区ID')
 
-        # 使用 get_db().get_session() 方式操作数据库
-        db = get_db()
+        # Using Flask-SQLAlchemy db.session
+        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 查找社区
             community = db.session.query(Community).get(community_id)
@@ -1758,8 +1601,8 @@ def toggle_community_status_new():
         if status not in ['active', 'inactive']:
             return make_err_response({}, '状态参数错误，必须是active或inactive')
 
-        # 使用 get_db().get_session() 方式操作数据库
-        db = get_db()
+        # Using Flask-SQLAlchemy db.session
+        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 查找社区
             community = db.session.query(Community).get(community_id)
@@ -2212,7 +2055,7 @@ def _verify_community_access(user_id, community_id):
         return False, "参数错误"
 
     try:
-        db = get_db()
+        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 查询用户
             user = db.session.query(User).get(user_id)
@@ -2264,99 +2107,99 @@ def _get_community_detail_data(community_id):
     from database.flask_models import CommunityStaff
     from sqlalchemy import func
 
-    db = get_db()
+        # db = get_db()  # Using Flask-SQLAlchemy
     # Using Flask-SQLAlchemy db.session
-        # 使用单个查询获取所有需要的数据
-        # 查询社区基本信息及关联的创建者信息
-        from sqlalchemy.orm import joinedload
+    # 使用单个查询获取所有需要的数据
+    # 查询社区基本信息及关联的创建者信息
+    from sqlalchemy.orm import joinedload
 
-        community = db.session.query(Community).get(community_id)
-        if not community:
-            return None
+    community = db.session.query(Community).get(community_id)
+    if not community:
+        return None
 
-        # 使用子查询优化统计信息获取
-        # 获取专员数量（role='staff'）
-        staff_only_count = db.session.query(CommunityStaff).filter(
-            CommunityStaff.community_id == community_id,
-            CommunityStaff.role == 'staff'
-        ).count()
+    # 使用子查询优化统计信息获取
+    # 获取专员数量（role='staff'）
+    staff_only_count = db.session.query(CommunityStaff).filter(
+        CommunityStaff.community_id == community_id,
+        CommunityStaff.role == 'staff'
+    ).count()
 
-        # 获取主管数量（role='manager'）
-        manager_count = db.session.query(CommunityStaff).filter(
-            CommunityStaff.community_id == community_id,
-            CommunityStaff.role == 'manager'
-        ).count()
+    # 获取主管数量（role='manager'）
+    manager_count = db.session.query(CommunityStaff).filter(
+        CommunityStaff.community_id == community_id,
+        CommunityStaff.role == 'manager'
+    ).count()
 
-        # 获取工作人员总数（包括主管和专员）
-        staff_count = db.session.query(CommunityStaff).filter(
-            CommunityStaff.community_id == community_id
-        ).count()
+    # 获取工作人员总数（包括主管和专员）
+    staff_count = db.session.query(CommunityStaff).filter(
+        CommunityStaff.community_id == community_id
+    ).count()
 
-        # 获取总用户数量（包括所有用户）
-        total_user_count = db.session.query(User).filter(
-            User.community_id == community_id
-        ).count()
+    # 获取总用户数量（包括所有用户）
+    total_user_count = db.session.query(User).filter(
+        User.community_id == community_id
+    ).count()
 
-        # 计算社区用户人数（除专员和主管外的总人数）
-        community_user_count = total_user_count - (staff_only_count + manager_count)
-        if community_user_count < 0:
-            community_user_count = 0
+    # 计算社区用户人数（除专员和主管外的总人数）
+    community_user_count = total_user_count - (staff_only_count + manager_count)
+    if community_user_count < 0:
+        community_user_count = 0
 
-        # 获取创建者信息（如果存在）
-        creator = None
-        if community.creator_user_id:
-            creator_user = db.session.query(User).filter(
-                User.user_id == community.creator_user_id
-            ).first()
-            if creator_user:
-                creator = {
-                    'user_id': creator_user.user_id,
-                    'nickname': creator_user.nickname
-                }
-
-        # 获取主管信息
-        manager = None
-        manager_staff = db.session.query(CommunityStaff).filter(
-            CommunityStaff.community_id == community_id,
-            CommunityStaff.role == 'manager'
+    # 获取创建者信息（如果存在）
+    creator = None
+    if community.creator_user_id:
+        creator_user = db.session.query(User).filter(
+            User.user_id == community.creator_user_id
         ).first()
-
-        if manager_staff:
-            manager_user = db.session.query(User).filter(
-                User.user_id == manager_staff.user_id
-            ).first()
-            if manager_user:
-                manager = {
-                    'user_id': manager_user.user_id,
-                    'nickname': manager_user.nickname,
-                    'phone': manager_user.phone_number
-                }
-
-        # 返回整合后的数据
-        return {
-            'id': community.community_id,
-            'name': community.name,
-            'description': community.description,
-            'location': community.location,
-            'status': 'active' if community.status == 1 else 'inactive',
-            'is_default': community.is_default,
-            'is_blackhouse': community.is_blackhouse,
-            'created_at': community.created_at.isoformat() if community.created_at else None,
-            'updated_at': community.updated_at.isoformat() if community.updated_at else None,
-            'creator': creator,
-            'manager': manager,
-            'stats': {
-                'admin_count': staff_only_count or 0,  # 保持向后兼容，实际是专员数量
-                'manager_count': manager_count or 0,
-                'staff_count': staff_count or 0,  # 工作人员总数（主管+专员）
-                # 仅专员数量
-                'staff_only_count': staff_only_count or 0,
-                'user_count': community_user_count or 0,  # 社区用户人数（除专员和主管外）
-                'checkin_rate': 0,  # 需要根据业务逻辑计算
-                'support_count': 0,  # 需要根据业务逻辑计算
-                'active_events': 0   # 需要根据业务逻辑计算
+        if creator_user:
+            creator = {
+                'user_id': creator_user.user_id,
+                'nickname': creator_user.nickname
             }
+
+    # 获取主管信息
+    manager = None
+    manager_staff = db.session.query(CommunityStaff).filter(
+        CommunityStaff.community_id == community_id,
+        CommunityStaff.role == 'manager'
+    ).first()
+
+    if manager_staff:
+        manager_user = db.session.query(User).filter(
+            User.user_id == manager_staff.user_id
+        ).first()
+        if manager_user:
+            manager = {
+                'user_id': manager_user.user_id,
+                'nickname': manager_user.nickname,
+                'phone': manager_user.phone_number
+            }
+
+    # 返回整合后的数据
+    return {
+        'id': community.community_id,
+        'name': community.name,
+        'description': community.description,
+        'location': community.location,
+        'status': 'active' if community.status == 1 else 'inactive',
+        'is_default': community.is_default,
+        'is_blackhouse': community.is_blackhouse,
+        'created_at': community.created_at.isoformat() if community.created_at else None,
+        'updated_at': community.updated_at.isoformat() if community.updated_at else None,
+        'creator': creator,
+        'manager': manager,
+        'stats': {
+            'admin_count': staff_only_count or 0,  # 保持向后兼容，实际是专员数量
+            'manager_count': manager_count or 0,
+            'staff_count': staff_count or 0,  # 工作人员总数（主管+专员）
+            # 仅专员数量
+            'staff_only_count': staff_only_count or 0,
+            'user_count': community_user_count or 0,  # 社区用户人数（除专员和主管外）
+            'checkin_rate': 0,  # 需要根据业务逻辑计算
+            'support_count': 0,  # 需要根据业务逻辑计算
+            'active_events': 0   # 需要根据业务逻辑计算
         }
+    }
 
 
 @app.route('/api/communities/<int:community_id>', methods=['GET'])
@@ -2498,52 +2341,52 @@ def create_community_user():
 def switch_user_community():
     """用户切换社区并自动管理规则"""
     app_logger.info('=== 开始处理用户社区切换 ===')
-    
+
     try:
         decoded, error_response = verify_token()
         if error_response:
             return error_response
-            
+
         user_id = decoded.get('user_id')
         params = request.get_json()
-        
+
         if not params:
             return make_err_response({}, '缺少请求参数')
-            
+
         new_community_id = params.get('community_id')
         if not new_community_id:
             return make_err_response({}, '缺少新社区ID')
-            
+
         # 获取当前用户信息
         user = User.query.get(user_id)
         if not user:
             return make_err_response({}, '用户不存在')
-            
+
         old_community_id = user.community_id
-        
+
         # 检查新社区是否存在
         new_community = Community.query.get(new_community_id)
         if not new_community:
             return make_err_response({}, '目标社区不存在')
-            
+
         # 检查用户是否已经是目标社区成员
         if old_community_id == new_community_id:
             return make_err_response({}, '用户已经在该社区中')
-            
+
         # 处理社区切换和规则管理
         result = CommunityStaffService.handle_user_community_change(
             user_id=user_id,
             old_community_id=old_community_id,
             new_community_id=new_community_id
         )
-        
+
         # 更新用户的社区归属
         user.community_id = new_community_id
         user.community_joined_at = datetime.now()
         db.db.session.commit()
-        
+
         app_logger.info(f"用户{user_id}社区切换成功: {old_community_id} -> {new_community_id}")
-        
+
         return make_succ_response({
             'message': result['message'],
             'old_community_id': old_community_id,
@@ -2551,7 +2394,7 @@ def switch_user_community():
             'deactivated_rules_count': result['deactivated_count'],
             'activated_rules_count': result['activated_count']
         })
-        
+
     except ValueError as e:
         app_logger.error(f'用户社区切换失败（业务逻辑错误）: {str(e)}')
         return make_err_response({}, str(e))
