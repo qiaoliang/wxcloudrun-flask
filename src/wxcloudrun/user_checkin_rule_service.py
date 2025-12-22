@@ -150,6 +150,8 @@ class UserCheckinRuleService:
             
             # 确保当前社区的所有已启用规则都有映射记录
             enabled_rules = [rule for rule in all_rules if rule.status == 1]
+            new_mappings_created = False
+            
             for rule in enabled_rules:
                 if rule.community_rule_id not in user_mappings:
                     # 如果已启用规则没有映射记录，说明是数据不一致，自动创建映射
@@ -161,20 +163,14 @@ class UserCheckinRuleService:
                     )
                     db.session.add(new_mapping)
                     user_mappings[rule.community_rule_id] = True
+                    new_mappings_created = True
                     
             # 提交新创建的映射记录
-            if any(rule.community_rule_id not in [m.community_rule_id for m in mappings] 
-                  for rule in enabled_rules):
+            if new_mappings_created:
                 db.session.commit()
-                
-                # 提交新创建的映射记录
-                if any(rule.community_rule_id not in [m.community_rule_id for m in mappings] 
-                      for rule in enabled_rules):
-                    db.session.commit()
-                
-                # Flask-SQLAlchemy 自动处理会话，直接返回规则列表
-                # 在使用时再处理映射状态
-                return all_rules
+            
+            # 返回规则列表
+            return all_rules
                 
         except SQLAlchemyError as e:
             logger.error(f"获取用户所有社区规则失败: {str(e)}")

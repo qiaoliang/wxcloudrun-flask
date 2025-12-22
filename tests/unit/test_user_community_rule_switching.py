@@ -212,7 +212,7 @@ class TestUserCommunityRuleSwitching:
             # 验证是社区B规则1
             active_rule = session.query(CommunityCheckinRule).get(active_b_rules[0].community_rule_id)
             assert active_rule.community_id == community_b_id
-            assert active_rule.rule_name == "社区B规则1"
+            assert active_rule.rule_type == "社区B规则1"
 
     def test_personal_rules_unchanged(self, setup_test_data, test_app):
         """测试个人规则在社区切换时不受影响"""
@@ -250,7 +250,7 @@ class TestUserCommunityRuleSwitching:
         user_id = setup_test_data['user_id']
         community_a_id = setup_test_data['community_a_id']
         community_b_id = setup_test_data['community_b_id']
-    
+
         # 在Flask应用上下文中执行
         with test_app.app_context():
             # 用户加入社区A
@@ -259,50 +259,50 @@ class TestUserCommunityRuleSwitching:
                 old_community_id=None,
                 new_community_id=community_a_id
             )
-    
+
             # 获取用户规则列表
             rules_after_a = UserCheckinRuleService.get_user_all_rules(user_id)
-    
+
             # 验证规则列表
             community_rules = [r for r in rules_after_a if r['rule_source'] == 'community']
             personal_rules = [r for r in rules_after_a if r['rule_source'] == 'personal']
-    
+
             assert len(community_rules) == 2  # 社区A的2个规则
             assert len(personal_rules) == 1  # 1个个人规则
-    
+
             # 验证社区规则都来自社区A
             db = get_db()
             with db.get_session() as session:
                 community_a = session.query(Community).get(community_a_id)
                 community_a_name = community_a.name
-    
+
             for rule in community_rules:
                 assert community_a_name in rule['source_label']
                 assert rule['is_active_for_user'] is True
-    
+
             # 切换到社区B
             CommunityStaffService.handle_user_community_change(
                 user_id=user_id,
                 old_community_id=community_a_id,
                 new_community_id=community_b_id
             )
-    
+
             # 再次获取用户规则列表
             rules_after_b = UserCheckinRuleService.get_user_all_rules(user_id)
-    
+
             community_rules_b = [r for r in rules_after_b if r['rule_source'] == 'community']
             personal_rules_b = [r for r in rules_after_b if r['rule_source'] == 'personal']
-    
+
             # 验证规则列表更新
             active_community_rules_b = [r for r in community_rules_b if r['is_active_for_user']]
             assert len(active_community_rules_b) == 1  # 只有社区B的1个启用规则对用户激活
             assert len(personal_rules_b) == 1  # 个人规则数量不变
-    
+
             # 验证社区规则来自社区B
             with db.get_session() as session:
                 community_b = session.query(Community).get(community_b_id)
                 community_b_name = community_b.name
-    
+
             for rule in active_community_rules_b:
                 assert community_b_name in rule['source_label']
                 assert rule['is_active_for_user'] is True
