@@ -10,7 +10,7 @@ from datetime import datetime
 # 添加项目根目录到Python路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from database.models import User, CheckinRule, SupervisionRuleRelation
+from database.flask_models import User, CheckinRule, SupervisionRuleRelation, Community
 
 
 class TestSupervisionRuleRelationModel:
@@ -36,16 +36,20 @@ class TestSupervisionRuleRelationModel:
         test_session.add(user2)
         test_session.flush()  # Get IDs without committing
         
+        # Create test community
+        community = Community(
+            name="测试社区",
+            status=1
+        )
+        test_session.add(community)
+        test_session.flush()
+        
         # Create a test rule
         rule = CheckinRule(
-            solo_user_id=user1.user_id,
-            rule_name='起床打卡',
-            icon_url='🌅',
-            frequency_type=0,
-            time_slot_type=4,
-            custom_time=None,
-            week_days=127,
-            status=1
+            user_id=user1.user_id,
+            community_id=community.community_id,
+            rule_type='起床打卡',
+            is_active=True
         )
         
         test_session.add(rule)
@@ -257,10 +261,19 @@ class TestSupervisionRuleRelationModel:
         test_session.add_all([user, supervisor])
         test_session.flush()
         
-        rule = CheckinRule(
-            solo_user_id=user.user_id,
-            rule_name='早起打卡',
+        # Create test community
+        community = Community(
+            name="测试社区",
             status=1
+        )
+        test_session.add(community)
+        test_session.flush()
+        
+        rule = CheckinRule(
+            user_id=user.user_id,
+            community_id=community.community_id,
+            rule_type='早起打卡',
+            is_active=True
         )
         test_session.add(rule)
         test_session.flush()

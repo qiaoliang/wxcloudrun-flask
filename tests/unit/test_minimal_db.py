@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 # 添加src路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from database.models import User, Community, CheckinRule, CheckinRecord, SupervisionRuleRelation
+from database.flask_models import User, Community, CheckinRule, CheckinRecord, SupervisionRuleRelation
 from datetime import datetime
 
 
@@ -61,6 +61,14 @@ class TestMinimalDBInit:
 
     def test_model_operations(self, test_session):
         """测试模型操作（与生产环境相同）"""
+        # 创建社区
+        community = Community(
+            name="测试社区",
+            status=1
+        )
+        test_session.add(community)
+        test_session.flush()
+        
         # 创建用户
         user = User(
             wechat_openid="test_user_1",
@@ -73,9 +81,10 @@ class TestMinimalDBInit:
         
         # 创建打卡规则
         rule = CheckinRule(
-            solo_user_id=user.user_id,
-            rule_name="测试规则",
-            status=1
+            user_id=user.user_id,
+            community_id=community.community_id,
+            rule_type="测试规则",
+            is_active=True
         )
         test_session.add(rule)
         test_session.flush()
@@ -83,9 +92,9 @@ class TestMinimalDBInit:
         # 创建打卡记录
         record = CheckinRecord(
             rule_id=rule.rule_id,
-            solo_user_id=user.user_id,
-            status=1,
-            planned_time=datetime.now()
+            user_id=user.user_id,
+            checkin_type="测试打卡",
+            checkin_time=datetime.now()
         )
         test_session.add(record)
         test_session.commit()
@@ -104,12 +113,20 @@ class TestMinimalDBInit:
         
         # 测试关联查询
         user_rules = test_session.query(CheckinRule).filter_by(
-            solo_user_id=user.user_id
+            user_id=user.user_id
         ).all()
         assert len(user_rules) == 1
 
     def test_supervision_relation(self, test_session):
         """测试监督关系（使用生产环境的模型方法）"""
+        # 创建社区
+        community = Community(
+            name="测试社区",
+            status=1
+        )
+        test_session.add(community)
+        test_session.flush()
+        
         # 创建用户
         solo_user = User(
             wechat_openid="solo_user_test",
@@ -128,9 +145,10 @@ class TestMinimalDBInit:
         
         # 创建打卡规则
         rule = CheckinRule(
-            solo_user_id=solo_user.user_id,
-            rule_name="监督测试规则",
-            status=1
+            user_id=solo_user.user_id,
+            community_id=community.community_id,
+            rule_type="监督测试规则",
+            is_active=True
         )
         test_session.add(rule)
         test_session.flush()
