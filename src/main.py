@@ -90,6 +90,10 @@ def main():
     # 获取环境类型
     env_type = os.getenv('ENV_TYPE', 'unit')
 
+    # 检查是否为Flask调试器重启的子进程
+    is_flask_restart = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
+    is_debug_mode = flask_app.debug
+
     # 2. 初始化数据库并绑定到 Flask
     migration_logger.info("正在初始化数据库并绑定到 Flask 应用...")
     with flask_app.app_context():
@@ -109,21 +113,38 @@ def main():
         flask_app.db_core = db_core
 
         # 3. 执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
+        # 同时避免在Flask调试器重启时重复执行迁移
         if env_type in ['unit']:
             migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
             migration_success = True
+        elif is_debug_mode and not is_flask_restart:
+            # 调试模式下的第一次启动（主进程）
+            migration_logger.info("调试模式主进程：执行数据库迁移")
+            migration_success = run_migration()
+            if not migration_success:
+                migration_logger.error("数据库迁移失败，程序退出")
+                sys.exit(1)
+        elif is_debug_mode and is_flask_restart:
+            # 调试模式下的重启（子进程），跳过迁移
+            migration_logger.info("调试模式重启进程：跳过数据库迁移")
+            migration_success = True
         else:
+            # 生产模式，正常执行迁移
             migration_success = run_migration()
             if not migration_success:
                 migration_logger.error("数据库迁移失败，程序退出")
                 sys.exit(1)
         
-        app.logger.info("开始注入超级管理员和默认社区.....")
-        
-        # 创建超级管理员和默认社区
-        create_super_admin_and_default_community(db_core)
-        
-        app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
+        # 只在执行了迁移或需要初始化时创建超级管理员
+        if env_type not in ['unit'] and (not is_debug_mode or not is_flask_restart):
+            app.logger.info("开始注入超级管理员和默认社区.....")
+            
+            # 创建超级管理员和默认社区
+            create_super_admin_and_default_community(db_core)
+            
+            app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
+        else:
+            app.logger.info("跳过超级管理员和默认社区注入")
 
     # 4. 默认社区初始化已在数据库迁移完成后自动执行
 
