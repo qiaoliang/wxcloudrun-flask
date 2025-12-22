@@ -4,7 +4,7 @@ import time as time_module
 from datetime import datetime, date, time, timedelta
 
 from wxcloudrun import app
-from database.models import CheckinRule, CheckinRecord, User
+from database.flask_models import CheckinRule, CheckinRecord, User
 from wxcloudrun.checkin_record_service import CheckinRecordService
 
 

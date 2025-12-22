@@ -7,7 +7,7 @@ import logging
 import secrets
 import os
 from hashlib import sha256
-from database.models import User, Community, CommunityStaff
+from database.flask_models import User, Community, CommunityStaff
 from database.core import get_database
 from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID,BLACKHOUSE_COMMUNITY_NAME
 

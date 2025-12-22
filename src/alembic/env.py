@@ -13,7 +13,7 @@ from config_manager import load_environment_config, get_database_config
 load_environment_config()  # 确保环境变量已加载
 
 # 导入新的数据库模型
-from database.models import Base
+from database.flask_models import Base
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -84,7 +84,7 @@ def run_migrations_online():
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, 
+            connection=connection,
             target_metadata=target_metadata,
             process_revision_directives=process_revision_directives
         )

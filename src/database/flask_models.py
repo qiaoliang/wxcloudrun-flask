@@ -121,6 +121,19 @@ class CheckinRule(db.Model):
     user = db.relationship('User', backref='checkin_rules')
     community = db.relationship('Community', backref='checkin_rules')
 
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        return {
+            'rule_id': self.rule_id,
+            'user_id': self.user_id,
+            'community_id': self.community_id,
+            'rule_type': self.rule_type,
+            'rule_content': self.rule_content,
+            'is_active': self.is_active,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
     def __repr__(self):
         return f'<CheckinRule {self.rule_id}: {self.rule_type}>'
 

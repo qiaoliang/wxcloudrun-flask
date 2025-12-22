@@ -10,7 +10,7 @@ from datetime import datetime
 from hashlib import sha256
 from sqlalchemy.exc import OperationalError
 from .dao import get_db
-from database.models import User,UserAuditLog
+from database.flask_models import User,UserAuditLog
 from hashutil import pwd_hash,phone_hash,sms_code_hash,PWD_SALT,PHONE_SALT,random_str
 
 logger = logging.getLogger('UserService')
@@ -167,7 +167,7 @@ class UserService:
         """
         try:
             from sqlalchemy.orm import joinedload
-            
+
             # 如果session为None，创建新的会话
             if session is None:
                 with get_db().get_session() as session:
@@ -193,7 +193,7 @@ class UserService:
         """
         try:
             from sqlalchemy.orm import joinedload
-            
+
             # 如果session为None，创建新的会话
             if session is None:
                 with get_db().get_session() as session:

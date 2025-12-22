@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_
 from flask import current_app
 
 from database import get_database
-from database.models import Counters, User, CheckinRule, CheckinRecord
+from database.flask_models import Counters, User, CheckinRule, CheckinRecord
 
 # 初始化日志
 logger = logging.getLogger('log')
@@ -25,7 +25,7 @@ def get_db():
     import os
     if os.getenv('ENV_TYPE') == 'unit':
         return get_database('test')
-    
+
     # 回退到全局数据库实例
     return get_database()
 

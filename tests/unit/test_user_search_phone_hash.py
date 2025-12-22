@@ -12,7 +12,7 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from database.models import User
+from database.flask_models import User
 from database import initialize_for_test
 from hashlib import sha256
 import os
@@ -20,10 +20,10 @@ import os
 def _calculate_phone_hash(phone):
     """
     计算手机号的hash值
-    
+
     Args:
         phone (str): 手机号
-        
+
     Returns:
         str: 手机号的hash值
     """
@@ -45,7 +45,7 @@ class TestUserSearchByPhoneHash:
         # 创建目标用户
         full_phone = "13888888888"
         phone_hash = _calculate_phone_hash(full_phone)
-        
+
         target_user = User(
             wechat_openid="target_openid",
             nickname="测试用户",
@@ -55,10 +55,10 @@ class TestUserSearchByPhoneHash:
         )
         test_session.add(target_user)
         test_session.commit()
-        
+
         # 测试通过phone_hash查找用户
         found_user = test_session.query(User).filter(User.phone_hash == phone_hash).first()
-        
+
         assert found_user is not None
         assert found_user.user_id == target_user.user_id
         assert found_user.nickname == "测试用户"
@@ -72,10 +72,10 @@ class TestUserSearchByPhoneHash:
         full_phone = "13888888888"
         phone_hash1 = _calculate_phone_hash(full_phone)
         phone_hash2 = _calculate_phone_hash(full_phone)
-        
+
         # 相同手机号应该产生相同的hash
         assert phone_hash1 == phone_hash2
-        
+
         # 不同手机号应该产生不同的hash
         different_phone = "13888888889"
         phone_hash3 = _calculate_phone_hash(different_phone)
@@ -92,7 +92,7 @@ class TestUserSearchByPhoneHash:
             role=1
         )
         user2 = User(
-            wechat_openid="user2_openid", 
+            wechat_openid="user2_openid",
             nickname="用户测试B",
             role=1
         )
@@ -103,11 +103,11 @@ class TestUserSearchByPhoneHash:
         )
         test_session.add_all([user1, user2, user3])
         test_session.commit()
-        
+
         # 测试模糊匹配
         users_with_test = test_session.query(User).filter(User.nickname.ilike('%测试%')).all()
         assert len(users_with_test) == 2
-        
+
         users_with_user = test_session.query(User).filter(User.nickname.ilike('%用户%')).all()
         assert len(users_with_user) == 3
 
@@ -116,14 +116,14 @@ class TestUserSearchByPhoneHash:
         测试完整手机号检测逻辑
         """
         import re
-        
+
         # 完整手机号模式
         full_phone_pattern = r'^1[3-9]\d{9}$'
-        
+
         # 测试完整手机号
         assert re.match(full_phone_pattern, '13888888888') is not None
         assert re.match(full_phone_pattern, '15912345678') is not None
-        
+
         # 测试非完整手机号
         assert re.match(full_phone_pattern, '138****8888') is None
         assert re.match(full_phone_pattern, '1388888') is None

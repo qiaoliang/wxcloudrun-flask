@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, date, time
 from sqlalchemy.exc import OperationalError
 from .dao import get_db
-from database.models import CheckinRule, CheckinRecord
+from database.flask_models import CheckinRule, CheckinRecord
 
 logger = logging.getLogger('CheckinRuleService')
 
@@ -24,25 +24,24 @@ class CheckinRuleService:
         :return: 打卡规则列表
         """
         try:
+            from database.flask_models import db
+
             if session is None:
-                with get_db().get_session() as session:
-                    rules = session.query(CheckinRule).filter(
-                        CheckinRule.solo_user_id == user_id,
-                        CheckinRule.status != 2  # 排除已删除的规则
-                    ).all()
-                    # 确保对象在会话关闭后仍可访问
-                    for rule in rules:
-                        session.expunge(rule)
-                    return rules
+                # 使用 Flask-SQLAlchemy 的 db.session
+                rules = db.session.query(CheckinRule).filter(
+                    CheckinRule.user_id == user_id,  # 更新字段名
+                    CheckinRule.is_active == True  # 更新字段名，只查询激活的规则
+                ).all()
+                return rules or []  # 确保总是返回列表
             else:
                 rules = session.query(CheckinRule).filter(
-                    CheckinRule.solo_user_id == user_id,
-                    CheckinRule.status != 2  # 排除已删除的规则
+                    CheckinRule.user_id == user_id,
+                    CheckinRule.is_active == True
                 ).all()
-                return rules
-        except OperationalError as e:
+                return rules or []
+        except Exception as e:
             logger.error(f"查询用户打卡规则失败: {str(e)}")
-            return []
+            return []  # 确保总是返回列表
 
     @staticmethod
     def query_rule_by_id(rule_id, session=None):
@@ -53,16 +52,16 @@ class CheckinRuleService:
         :return: 打卡规则实体
         """
         try:
+            from database.flask_models import db
+
             if session is None:
-                with get_db().get_session() as session:
-                    rule = session.query(CheckinRule).get(rule_id)
-                    if rule:
-                        session.expunge(rule)
-                    return rule
+                # 使用 Flask-SQLAlchemy 的 db.session
+                rule = db.session.query(CheckinRule).get(rule_id)
+                return rule
             else:
                 rule = session.query(CheckinRule).get(rule_id)
                 return rule
-        except OperationalError as e:
+        except Exception as e:
             logger.error(f"查询打卡规则失败: {str(e)}")
             return None
 
@@ -94,8 +93,10 @@ class CheckinRuleService:
         try:
             # 创建规则实体
             new_rule = CheckinRule(
-                solo_user_id=user_id,
-                rule_name=rule_data['rule_name'],
+                user_id=user_id,  # 更新字段名
+                community_id=rule_data.get('community_id', 1),  # 添加必需的 community_id
+                rule_type=rule_data['rule_name'],  # 更新字段名
+                is_active=True,  # 更新字段名
                 icon_url=rule_data.get('icon_url', ''),
                 frequency_type=frequency_type,
                 time_slot_type=rule_data.get('time_slot_type', 4),
@@ -364,9 +365,9 @@ class CheckinRuleService:
                 # 社区规则字典中使用community_rule_id作为rule_id
                 return rule.get('community_rule_id')
             return rule.get(attr_name)
-        
+
         # 处理CommunityCheckinRule对象
-        from database.models import CommunityCheckinRule
+        from database.flask_models import CommunityCheckinRule
         if isinstance(rule, CommunityCheckinRule):
             # CommunityCheckinRule使用community_rule_id而不是rule_id
             if attr_name == 'rule_id':
@@ -464,12 +465,12 @@ class CheckinRuleService:
                     logger.warning(f"解析自定义时间失败: {custom_time}, 错误: {e}")
                     # 如果解析失败，使用默认时间
                     return datetime.combine(today, time(20, 0))
-            
+
             # 再次检查类型，确保是time对象
             if not isinstance(custom_time, time):  # 不是datetime.time对象
                 logger.warning(f"custom_time不是有效的datetime.time对象: {custom_time}, 类型: {type(custom_time)}")
                 return datetime.combine(today, time(20, 0))
-            
+
             return datetime.combine(today, custom_time)
         elif time_slot_type == 1:  # 上午
             return datetime.combine(today, time(9, 0))

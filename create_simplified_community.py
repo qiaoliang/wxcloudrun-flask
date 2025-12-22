@@ -7,23 +7,23 @@ def create_simplified_version():
     # 读取原始文件
     with open('src/wxcloudrun/old_community_service.py', 'r', encoding='utf-8') as f:
         content = f.read()
-    
+
     # 替换导入
     content = content.replace(
-        'from .dao import get_db\nfrom database.models import User, Community, CommunityApplication, UserAuditLog',
+        'from .dao import get_db\nfrom database.flask_models import User, Community, CommunityApplication, UserAuditLog',
         'from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog'
     )
-    
+
     # 简化方法 - 移除 session 参数逻辑
     lines = content.split('\n')
     new_lines = []
     i = 0
     in_method = False
     method_indent = 0
-    
+
     while i < len(lines):
         line = lines[i]
-        
+
         # 检测方法定义
         if 'def ' in line and '@staticmethod' in lines[i-1] if i > 0 else False:
             # 移除 session 参数
@@ -35,7 +35,7 @@ def create_simplified_version():
             method_indent = len(line) - len(line.lstrip())
             i += 1
             continue
-        
+
         # 在方法内部
         if in_method:
             # 检测方法结束
@@ -44,7 +44,7 @@ def create_simplified_version():
                 new_lines.append(line)
                 i += 1
                 continue
-            
+
             # 跳过 session 相关代码
             if 'session is None' in line or 'session:' in line:
                 i += 1
@@ -68,7 +68,7 @@ def create_simplified_version():
                     else:
                         break
                 continue
-            
+
             # 替换数据库操作
             if 'get_db()' in line:
                 line = '# ' + line  # 注释掉
@@ -86,17 +86,17 @@ def create_simplified_version():
                 line = line.replace('session.expunge', 'db.session.expunge')
             if 'session.delete' in line:
                 line = line.replace('session.delete', 'db.session.delete')
-            
+
             new_lines.append(line)
             i += 1
         else:
             new_lines.append(line)
             i += 1
-    
+
     # 写入新文件
     with open('src/wxcloudrun/community_service.py', 'w', encoding='utf-8') as f:
         f.write('\n'.join(new_lines))
-    
+
     print("Created simplified version!")
 
 if __name__ == '__main__':

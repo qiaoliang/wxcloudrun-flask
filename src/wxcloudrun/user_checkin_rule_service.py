@@ -220,12 +220,12 @@ class UserCheckinRuleService:
                 today_records = (db.session.query(CheckinRecord)
                             .filter(
                                 CheckinRecord.rule_id == rule.community_rule_id,
-                                func.date(CheckinRecord.planned_time) == today,
-                                CheckinRecord.solo_user_id == user_id
+                                func.date(CheckinRecord.checkin_time) == today,  # 更新字段名
+                                CheckinRecord.user_id == user_id  # 更新字段名
                             )
                             .all())
 
-                # 计算计划时间
+                # 计算计划时间 - 使用规则的时间设置
                 planned_time = CheckinRecordService._calculate_planned_time(rule, today)
 
                 # 确定打卡状态
@@ -275,7 +275,7 @@ class UserCheckinRuleService:
             if rule_source == 'personal':
                 # 获取个人规则
                 rule = CheckinRuleService.query_rule_by_id(rule_id)
-                if not rule or rule.solo_user_id != user_id:
+                if not rule or rule.user_id != user_id:  # 更新字段名
                     raise ValueError('个人规则不存在或无权限')
 
                 rule_dict = rule.to_dict()

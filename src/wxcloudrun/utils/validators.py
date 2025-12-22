@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from hashlib import sha256
 from wxcloudrun import app
-from database.models import VerificationCode
+from database.flask_models import VerificationCode
 
 
 def normalize_phone_number(phone):
@@ -103,7 +103,7 @@ def _audit(user_id, action, detail=None):
     """
     try:
         import json
-        from database.models import UserAuditLog
+        from database.flask_models import UserAuditLog
         log = UserAuditLog(user_id=user_id, action=action, detail=json.dumps(
             detail) if isinstance(detail, dict) else detail)
         from flask import current_app
@@ -123,10 +123,10 @@ def _mask_phone_number(phone):
     """
     if not phone or len(phone) < 7:
         return phone
-    
+
     # 标准化手机号（移除+86等前缀）
     normalized = normalize_phone_number(phone)
-    
+
     # 生成脱敏号码
     if len(normalized) >= 7:
         return normalized[:3] + '****' + normalized[-4:]

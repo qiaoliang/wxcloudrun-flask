@@ -45,8 +45,17 @@ def test_user(test_session):
 @pytest.fixture(scope='function')
 def test_rule(test_session, test_user):
     """创建测试打卡规则"""
+    # 先创建一个默认社区
+    community = Community(
+        name="默认测试社区",
+        status=1
+    )
+    test_session.add(community)
+    test_session.flush()
+    
     rule = CheckinRule(
         user_id=test_user.user_id,
+        community_id=community.community_id,  # 添加必需的 community_id
         rule_type="测试规则",
         is_active=True
     )

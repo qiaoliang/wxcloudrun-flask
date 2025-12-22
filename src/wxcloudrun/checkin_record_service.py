@@ -9,7 +9,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy import func
 from .dao import get_db
 from .checkin_rule_service import CheckinRuleService
-from database.models import CheckinRecord, SupervisionRuleRelation
+from database.flask_models import CheckinRecord, SupervisionRuleRelation
 
 logger = logging.getLogger('CheckinRecordService')
 
@@ -34,17 +34,17 @@ class CheckinRecordService:
             # 验证社区规则是否存在且用户有权限
             from .community_checkin_rule_service import CommunityCheckinRuleService
             from .user_checkin_rule_service import UserCheckinRuleService
-            
+
             rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
             if not rule:
                 raise ValueError('社区打卡规则不存在')
-            
+
             # 检查用户是否有权限打卡此社区规则
             try:
                 user_rule = UserCheckinRuleService.get_rule_by_id(rule_id, user_id, 'community')
             except ValueError:
                 raise ValueError('无权限打卡此社区规则')
-                
+
         else:
             # 验证个人规则是否存在且属于当前用户
             rule = CheckinRuleService.query_rule_by_id(rule_id)
@@ -469,13 +469,13 @@ class CheckinRecordService:
                     logger.warning(f"解析自定义时间失败: {custom_time}, 错误: {e}")
                     # 如果解析失败，使用默认时间
                     return datetime.combine(target_date, time(20, 0))
-        
+
         if time_slot_type == 4 and custom_time:  # 自定义时间
             # 再次检查类型，确保是time对象
             if not hasattr(custom_time, 'hour'):  # 不是time对象
                 logger.warning(f"custom_time不是有效的时间对象: {custom_time}, 类型: {type(custom_time)}")
                 return datetime.combine(target_date, time(20, 0))
-            
+
             return datetime.combine(target_date, custom_time)
         elif time_slot_type == 1:  # 上午
             return datetime.combine(target_date, time(9, 0))

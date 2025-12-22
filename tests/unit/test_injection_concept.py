@@ -11,7 +11,7 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from database import initialize_for_test, get_database, reset_all
-from database.models import User
+from database.flask_models import User
 
 
 class TestDatabaseInjectionConcept:
@@ -22,15 +22,15 @@ class TestDatabaseInjectionConcept:
         # 1. 重置并初始化数据库
         reset_all()
         db = initialize_for_test()
-        
+
         # 2. 验证数据库已准备好
         assert db is not None
         assert hasattr(db, 'get_session')
-        
+
         # 3. 使用数据库进行操作
         import time
         timestamp = str(int(time.time() * 1000))
-        
+
         with db.get_session() as session:
             user = User(
                 wechat_openid=f"concept_test_{timestamp}",
@@ -39,7 +39,7 @@ class TestDatabaseInjectionConcept:
             )
             session.add(user)
             session.commit()
-            
+
             # 验证数据已保存
             saved_user = session.query(User).filter_by(wechat_openid=f"concept_test_{timestamp}").first()
             assert saved_user is not None
@@ -50,14 +50,14 @@ class TestDatabaseInjectionConcept:
         # 获取数据库实例
         db1 = get_database()
         db2 = get_database()
-        
+
         # 应该是同一个实例
         assert db1 is db2
-        
+
         # 使用时间戳确保唯一性
         import time
         timestamp = str(int(time.time() * 1000))
-        
+
         # 在不同会话中操作
         with db1.get_session() as session1:
             user1 = User(
@@ -67,7 +67,7 @@ class TestDatabaseInjectionConcept:
             )
             session1.add(user1)
             session1.commit()
-        
+
         with db2.get_session() as session2:
             user2 = User(
                 wechat_openid=f"singleton_test_2_{timestamp}",
@@ -76,7 +76,7 @@ class TestDatabaseInjectionConcept:
             )
             session2.add(user2)
             session2.commit()
-        
+
         # 验证两个用户都存在（共享同一个数据库）
         with db1.get_session() as session:
             users = session.query(User).filter(
@@ -88,11 +88,11 @@ class TestDatabaseInjectionConcept:
         """测试数据库独立于Flask的概念"""
         # 数据库可以在没有Flask的情况下初始化和使用
         db = initialize_for_test()
-        
+
         # 验证数据库功能
         import time
         timestamp = str(int(time.time() * 1000))
-        
+
         with db.get_session() as session:
             # 创建多个用户
             for i in range(3):
@@ -103,7 +103,7 @@ class TestDatabaseInjectionConcept:
                 )
                 session.add(user)
             session.commit()
-            
+
             # 查询验证
             users = session.query(User).filter(
                 User.wechat_openid.like(f'independent_test_{timestamp}_%')
@@ -113,11 +113,11 @@ class TestDatabaseInjectionConcept:
     def test_session_isolation_within_same_database(self):
         """测试同一数据库中的会话隔离"""
         db = initialize_for_test()
-        
+
         # 使用时间戳确保唯一性
         import time
         timestamp = str(int(time.time() * 1000))
-        
+
         # 在第一个会话中开始事务
         with db.get_session() as session1:
             user1 = User(
@@ -127,7 +127,7 @@ class TestDatabaseInjectionConcept:
             )
             session1.add(user1)
             # 注意：这里不提交，测试隔离
-            
+
             # 在第二个会话中查询
             with db.get_session() as session2:
                 # 由于session1未提交，这里应该看不到user1
@@ -135,7 +135,7 @@ class TestDatabaseInjectionConcept:
                     wechat_openid=f"isolation_test_1_{timestamp}"
                 ).first()
                 assert found_user is None
-                
+
                 # 在session2中添加另一个用户
                 user2 = User(
                     wechat_openid=f"isolation_test_2_{timestamp}",
@@ -144,10 +144,10 @@ class TestDatabaseInjectionConcept:
                 )
                 session2.add(user2)
                 session2.commit()
-            
+
             # 回到session1，现在提交
             session1.commit()
-        
+
         # 在新会话中验证两个用户都存在
         with db.get_session() as session:
             users = session.query(User).filter(
@@ -159,10 +159,10 @@ class TestDatabaseInjectionConcept:
         """测试数据库重置和重新初始化"""
         # 初始化数据库并添加数据
         db1 = initialize_for_test()
-        
+
         import time
         timestamp = str(int(time.time() * 1000))
-        
+
         with db1.get_session() as session:
             user = User(
                 wechat_openid=f"reset_test_{timestamp}",
@@ -171,18 +171,18 @@ class TestDatabaseInjectionConcept:
             )
             session.add(user)
             session.commit()
-        
+
         # 验证数据存在
         with db1.get_session() as session:
             users = session.query(User).all()
             assert len(users) >= 1
-        
+
         # 重置数据库
         reset_all()
-        
+
         # 重新初始化
         db2 = initialize_for_test()
-        
+
         # 验证数据库为空
         with db2.get_session() as session:
             users = session.query(User).all()
@@ -191,10 +191,10 @@ class TestDatabaseInjectionConcept:
     def test_multiple_database_operations(self):
         """测试多个数据库操作的组合"""
         db = initialize_for_test()
-        
+
         import time
         timestamp = str(int(time.time() * 1000))
-        
+
         # 批量操作1：创建用户
         with db.get_session() as session:
             users = []
@@ -207,7 +207,7 @@ class TestDatabaseInjectionConcept:
                 session.add(user)
                 users.append(user)
             session.commit()
-        
+
         # 批量操作2：查询和更新
         with db.get_session() as session:
             # 查询所有用户
@@ -215,12 +215,12 @@ class TestDatabaseInjectionConcept:
                 User.wechat_openid.like(f'multi_op_{timestamp}_%')
             ).all()
             assert len(all_users) == 5
-            
+
             # 更新前3个用户的角色
             for i, user in enumerate(all_users[:3]):
                 user.role = 2
             session.commit()
-        
+
         # 批量操作3：验证更新
         with db.get_session() as session:
             role1_users = session.query(User).filter_by(role=1).filter(
@@ -229,6 +229,6 @@ class TestDatabaseInjectionConcept:
             role2_users = session.query(User).filter_by(role=2).filter(
                 User.wechat_openid.like(f'multi_op_{timestamp}_%')
             ).all()
-            
+
             assert len(role1_users) == 2
             assert len(role2_users) == 3
