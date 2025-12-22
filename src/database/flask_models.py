@@ -219,6 +219,50 @@ class CommunityApplication(db.Model):
     target_community = db.relationship('Community', backref='applications')
 
 
+class ShareLink(db.Model):
+    """分享链接表"""
+    __tablename__ = 'share_links'
+
+    link_id = Column(db.Integer, primary_key=True)
+    token = Column(db.String(64), unique=True, nullable=False)
+    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=False)
+    expires_at = Column(db.DateTime, nullable=False)
+    created_at = Column(db.DateTime, default=datetime.now)
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    solo_user = db.relationship('User', backref='share_links')
+    rule = db.relationship('CheckinRule', backref='share_links')
+
+
+class ShareLinkAccessLog(db.Model):
+    """分享链接访问日志表"""
+    __tablename__ = 'share_link_access_logs'
+
+    log_id = Column(db.Integer, primary_key=True)
+    token = Column(db.String(64), nullable=False)
+    accessed_at = Column(db.DateTime, default=datetime.now)
+    ip_address = Column(db.String(64))
+    user_agent = Column(db.String(512))
+
+
+class VerificationCode(db.Model):
+    """验证码表"""
+    __tablename__ = 'verification_codes'
+
+    id = Column(db.Integer, primary_key=True)
+    phone_number = Column(db.String(20), nullable=False)
+    purpose = Column(db.String(50), nullable=False)
+    code_hash = Column(db.String(128), nullable=False)
+    salt = Column(db.String(32), nullable=False)
+    expires_at = Column(db.DateTime, nullable=False)
+    last_sent_at = Column(db.DateTime, nullable=False)
+    is_used = Column(db.Boolean, default=False)
+    created_at = Column(db.DateTime, default=datetime.now)
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+
 class Counters(db.Model):
     """计数器表"""
     __tablename__ = 'counters'

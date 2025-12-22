@@ -42,8 +42,8 @@ setup:
 	fi
 	@echo "激活虚拟环境并安装依赖..."
 	@source venv_py312/bin/activate \
-	#@pip install -r requirements.txt
-	#@pip install -r requirements-test.txt
+	@pip install -r requirements.txt
+	@pip install -r requirements-test.txt
 	@echo "环境设置完成"
 
 # 运行集成测试
