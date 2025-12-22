@@ -94,25 +94,25 @@ def _migrate_user_data(src_user_id, dst_user_id):
         
         # 迁移打卡规则（排除已删除的）
         rules = CheckinRule.query.filter(
-            CheckinRule.solo_user_id == src_user_id,
+            CheckinRule.user_id == src_user_id,
             CheckinRule.status != 2
         ).all()
         for r in rules:
             # 检查是否已存在同名规则
             existing_rule = CheckinRule.query.filter(
-                CheckinRule.solo_user_id == dst_user_id,
+                CheckinRule.user_id == dst_user_id,
                 CheckinRule.rule_name == r.rule_name,
                 CheckinRule.status != 2
             ).first()
             if not existing_rule:
-                r.solo_user_id = dst_user_id
+                r.user_id = dst_user_id
         
         # 迁移打卡记录
         records = CheckinRecord.query.filter(
-            CheckinRecord.solo_user_id == src_user_id
+            CheckinRecord.user_id == src_user_id
         ).all()
         for rec in records:
-            rec.solo_user_id = dst_user_id
+            rec.user_id = dst_user_id
         
         # 迁移监护关系（作为被监护人）
         rels = SupervisionRuleRelation.query.filter(

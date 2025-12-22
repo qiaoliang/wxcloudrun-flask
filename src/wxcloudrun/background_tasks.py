@@ -48,7 +48,7 @@ def _process_missed_for_today(now):
             raise e
     for rule in rules:
         try:
-            user = User.query.get(rule.solo_user_id)
+            user = User.query.get(rule.user_id)  # 更新字段名
             if not user:
                 continue
             # 所有用户都可以有打卡规则，不需要特殊检查
@@ -70,13 +70,13 @@ def _process_missed_for_today(now):
             # 使用 service 方法创建记录
             CheckinRecordService._create_record(
                 rule_id=rule.rule_id,
-                user_id=rule.solo_user_id,
+                user_id=rule.user_id,  # 更新字段名
                 checkin_time=None,
                 planned_time=planned_dt,
                 status=0
             )
             app.logger.info(
-                f"[missing-mark] 用户 {rule.solo_user_id} 规则 {rule.rule_id} 标记为miss，计划时间 {planned_dt}"
+                f"[missing-mark] 用户 {rule.user_id} 规则 {rule.rule_id} 标记为miss，计划时间 {planned_dt}"  # 更新字段名
             )
         except Exception as e:
             app.logger.error(

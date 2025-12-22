@@ -521,7 +521,7 @@ def get_supervised_checkin_records(decoded):
         if rule_id:
             # 查询特定规则的打卡记录
             records = CheckinRecord.query.filter(
-                CheckinRecord.solo_user_id == int(solo_user_id),
+                CheckinRecord.user_id == int(solo_user_id),
                 CheckinRecord.rule_id == int(rule_id),
                 CheckinRecord.planned_time >= datetime.combine(
                     start_date, time.min),
@@ -536,7 +536,7 @@ def get_supervised_checkin_records(decoded):
                 records = []
             else:
                 records = CheckinRecord.query.filter(
-                    CheckinRecord.solo_user_id == int(solo_user_id),
+                    CheckinRecord.user_id == int(solo_user_id),
                     CheckinRecord.rule_id.in_(rule_ids),
                     CheckinRecord.planned_time >= datetime.combine(
                         start_date, time.min),

@@ -1192,7 +1192,7 @@ def get_community_users_list():
             from sqlalchemy import and_, func
             unchecked_records = CheckinRecord.query.filter(
                 and_(
-                    CheckinRecord.solo_user_id == member_user.user_id,
+                    CheckinRecord.user_id == member_user.user_id,
                     func.date(CheckinRecord.planned_time) == today,
                     CheckinRecord.status == 0  # 0-missed(未打卡)
                 )

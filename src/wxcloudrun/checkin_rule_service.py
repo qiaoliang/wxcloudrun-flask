@@ -149,7 +149,7 @@ class CheckinRuleService:
                         raise ValueError('打卡规则不存在')
 
                     # 权限验证
-                    if rule.solo_user_id != user_id:
+                    if rule.user_id != user_id:  # 更新字段名
                         raise ValueError('无权限修改此打卡规则')
 
                     # 更新字段
@@ -195,7 +195,7 @@ class CheckinRuleService:
                     raise ValueError('打卡规则不存在')
 
                 # 权限验证
-                if rule.solo_user_id != user_id:
+                if rule.user_id != user_id:  # 更新字段名
                     raise ValueError('无权限修改此打卡规则')
 
                 # 更新字段
@@ -260,7 +260,7 @@ class CheckinRuleService:
                         raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
 
                     # 权限验证
-                    if rule.solo_user_id != user_id:
+                    if rule.user_id != user_id:  # 更新字段名
                         raise ValueError('无权限删除此打卡规则')
 
                     # 软删除
@@ -278,7 +278,7 @@ class CheckinRuleService:
                     raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
 
                 # 权限验证
-                if rule.solo_user_id != user_id:
+                if rule.user_id != user_id:  # 更新字段名
                     raise ValueError('无权限删除此打卡规则')
 
                 # 软删除

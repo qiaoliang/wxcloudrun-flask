@@ -48,7 +48,7 @@ class CheckinRecordService:
         else:
             # 验证个人规则是否存在且属于当前用户
             rule = CheckinRuleService.query_rule_by_id(rule_id)
-            if not rule or rule.solo_user_id != user_id:
+            if not rule or rule.user_id != user_id:  # 更新字段名
                 raise ValueError('打卡规则不存在或无权限')
 
         # 检查今天是否已有打卡记录
@@ -101,7 +101,7 @@ class CheckinRecordService:
         """
         # 验证规则是否存在且属于当前用户
         rule = CheckinRuleService.query_rule_by_id(rule_id)
-        if not rule or rule.solo_user_id != user_id:
+        if not rule or rule.user_id != user_id:  # 更新字段名
             raise ValueError('打卡规则不存在或无权限')
 
         # 检查今天是否已打卡
@@ -139,7 +139,7 @@ class CheckinRecordService:
             raise ValueError('打卡记录不存在')
 
         # 权限验证
-        if record.solo_user_id != user_id:
+        if record.user_id != user_id:  # 更新字段名
             raise ValueError('无权限撤销此打卡记录')
 
         # 检查打卡时间是否在30分钟内
@@ -240,7 +240,7 @@ class CheckinRecordService:
                 # 查询可以监督所有规则的用户的记录
                 if all_rules_users:
                     all_rules_records = session.query(CheckinRecord).filter(
-                        CheckinRecord.solo_user_id.in_(all_rules_users),
+                        CheckinRecord.user_id.in_(all_rules_users),
                         CheckinRecord.planned_time >= start_date,
                         CheckinRecord.planned_time <= end_date
                     ).all()
@@ -249,7 +249,7 @@ class CheckinRecordService:
                 # 查询特定规则的记录
                 for spec in specific_rules:
                     spec_records = session.query(CheckinRecord).filter(
-                        CheckinRecord.solo_user_id == spec['user_id'],
+                        CheckinRecord.user_id == spec['user_id'],
                         CheckinRecord.rule_id == spec['rule_id'],
                         CheckinRecord.planned_time >= start_date,
                         CheckinRecord.planned_time <= end_date
@@ -296,7 +296,7 @@ class CheckinRecordService:
                 # 查询可以监督所有规则的用户的记录
                 if all_rules_users:
                     all_rules_records = session.query(CheckinRecord).filter(
-                        CheckinRecord.solo_user_id.in_(all_rules_users),
+                        CheckinRecord.user_id.in_(all_rules_users),
                         CheckinRecord.planned_time >= start_date,
                         CheckinRecord.planned_time <= end_date
                     ).all()
@@ -305,7 +305,7 @@ class CheckinRecordService:
                 # 查询特定规则的记录
                 for spec in specific_rules:
                     spec_records = session.query(CheckinRecord).filter(
-                        CheckinRecord.solo_user_id == spec['user_id'],
+                        CheckinRecord.user_id == spec['user_id'],
                         CheckinRecord.rule_id == spec['rule_id'],
                         CheckinRecord.planned_time >= start_date,
                         CheckinRecord.planned_time <= end_date
@@ -415,7 +415,7 @@ class CheckinRecordService:
             if session is None:
                 with get_db().get_session() as session:
                     records = session.query(CheckinRecord).filter(
-                        CheckinRecord.solo_user_id == user_id,
+                        CheckinRecord.user_id == user_id,
                         CheckinRecord.planned_time >= start_date,
                         CheckinRecord.planned_time <= end_date
                     ).order_by(CheckinRecord.planned_time.desc()).all()
@@ -425,7 +425,7 @@ class CheckinRecordService:
             else:
                 # 使用传入的session
                 records = session.query(CheckinRecord).filter(
-                    CheckinRecord.solo_user_id == user_id,
+                    CheckinRecord.user_id == user_id,
                     CheckinRecord.planned_time >= start_date,
                     CheckinRecord.planned_time <= end_date
                 ).order_by(CheckinRecord.planned_time.desc()).all()
@@ -511,7 +511,7 @@ class CheckinRecordService:
                 # 个人规则打卡记录
                 new_record = CheckinRecord(
                     rule_id=rule_id,
-                    solo_user_id=user_id,
+                    user_id=user_id,  # 更新字段名
                     checkin_time=checkin_time,
                     status=status,
                     planned_time=planned_time

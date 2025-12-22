@@ -104,7 +104,8 @@ class TestUserCommunityRuleSwitching:
 
             # 为用户创建个人规则
             personal_rule = CheckinRule(
-                solo_user_id=test_user.user_id,
+                user_id=test_user.user_id,  # 更新字段名
+                community_id=community_a.community_id,  # 添加必需的community_id
                 rule_name="个人规则1",
                 frequency_type=1,
                 time_slot_type=1,
@@ -126,17 +127,19 @@ class TestUserCommunityRuleSwitching:
                 'personal_rule_id': personal_rule.rule_id
             }
 
-    def test_initial_community_assignment(self, setup_test_data):
+    def test_initial_community_assignment(self, setup_test_data, test_app):
         """测试初始社区分配时的规则激活"""
         user_id = setup_test_data['user_id']
         community_a_id = setup_test_data['community_a_id']
 
-        # 用户初始分配到社区A
-        result = CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=None,
-            new_community_id=community_a_id
-        )
+        # 在Flask应用上下文中执行
+        with test_app.app_context():
+            # 用户初始分配到社区A
+            result = CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=None,
+                new_community_id=community_a_id
+            )
 
         # 验证结果
         assert result['success'] is True
@@ -157,25 +160,27 @@ class TestUserCommunityRuleSwitching:
                 rule = session.query(CommunityCheckinRule).get(mapping.community_rule_id)
                 assert rule.community_id == community_a_id
 
-    def test_community_switching(self, setup_test_data):
+    def test_community_switching(self, setup_test_data, test_app):
         """测试从社区A切换到社区B的规则管理"""
         user_id = setup_test_data['user_id']
         community_a_id = setup_test_data['community_a_id']
         community_b_id = setup_test_data['community_b_id']
 
-        # 步骤1: 用户先加入社区A
-        CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=None,
-            new_community_id=community_a_id
-        )
+        # 在Flask应用上下文中执行
+        with test_app.app_context():
+            # 步骤1: 用户先加入社区A
+            CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=None,
+                new_community_id=community_a_id
+            )
 
-        # 步骤2: 切换到社区B
-        result = CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=community_a_id,
-            new_community_id=community_b_id
-        )
+            # 步骤2: 切换到社区B
+            result = CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=community_a_id,
+                new_community_id=community_b_id
+            )
 
         # 验证切换结果
         assert result['success'] is True
@@ -209,26 +214,28 @@ class TestUserCommunityRuleSwitching:
             assert active_rule.community_id == community_b_id
             assert active_rule.rule_name == "社区B规则1"
 
-    def test_personal_rules_unchanged(self, setup_test_data):
+    def test_personal_rules_unchanged(self, setup_test_data, test_app):
         """测试个人规则在社区切换时不受影响"""
         user_id = setup_test_data['user_id']
         community_a_id = setup_test_data['community_a_id']
         community_b_id = setup_test_data['community_b_id']
         personal_rule_id = setup_test_data['personal_rule_id']
 
-        # 用户加入社区A
-        CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=None,
-            new_community_id=community_a_id
-        )
+        # 在Flask应用上下文中执行
+        with test_app.app_context():
+            # 用户加入社区A
+            CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=None,
+                new_community_id=community_a_id
+            )
 
-        # 切换到社区B
-        CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=community_a_id,
-            new_community_id=community_b_id
-        )
+            # 切换到社区B
+            CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=community_a_id,
+                new_community_id=community_b_id
+            )
 
         # 验证个人规则状态
         db = get_db()
@@ -236,94 +243,97 @@ class TestUserCommunityRuleSwitching:
             personal_rule = session.query(CheckinRule).get(personal_rule_id)
             assert personal_rule is not None
             assert personal_rule.status == 1  # 个人规则状态未改变
-            assert personal_rule.solo_user_id == user_id
+            assert personal_rule.user_id == user_id  # 更新字段名
 
-    def test_get_user_rules_after_switching(self, setup_test_data):
+    def test_get_user_rules_after_switching(self, setup_test_data, test_app):
         """测试社区切换后获取用户规则列表的正确性"""
         user_id = setup_test_data['user_id']
         community_a_id = setup_test_data['community_a_id']
         community_b_id = setup_test_data['community_b_id']
-
-        # 用户加入社区A
-        CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=None,
-            new_community_id=community_a_id
-        )
-
-        # 获取用户规则列表
-        rules_after_a = UserCheckinRuleService.get_user_all_rules(user_id)
-
-        # 验证规则列表
-        community_rules = [r for r in rules_after_a if r['rule_source'] == 'community']
-        personal_rules = [r for r in rules_after_a if r['rule_source'] == 'personal']
-
-        assert len(community_rules) == 2  # 社区A的2个规则
-        assert len(personal_rules) == 1  # 1个个人规则
-
-        # 验证社区规则都来自社区A
-        db = get_db()
-        with db.get_session() as session:
-            community_a = session.query(Community).get(community_a_id)
-            community_a_name = community_a.name
-
-        for rule in community_rules:
-            assert community_a_name in rule['source_label']
-            assert rule['is_active_for_user'] is True
-
-        # 切换到社区B
-        CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=community_a_id,
-            new_community_id=community_b_id
-        )
-
-        # 再次获取用户规则列表
-        rules_after_b = UserCheckinRuleService.get_user_all_rules(user_id)
-
-        community_rules_b = [r for r in rules_after_b if r['rule_source'] == 'community']
-        personal_rules_b = [r for r in rules_after_b if r['rule_source'] == 'personal']
-
-        # 验证规则列表更新
-        active_community_rules_b = [r for r in community_rules_b if r['is_active_for_user']]
-        assert len(active_community_rules_b) == 1  # 只有社区B的1个启用规则对用户激活
-        assert len(personal_rules_b) == 1  # 个人规则数量不变
-
-        # 验证社区规则来自社区B
-        with db.get_session() as session:
-            community_b = session.query(Community).get(community_b_id)
-            community_b_name = community_b.name
-
-        for rule in active_community_rules_b:
-            assert community_b_name in rule['source_label']
-            assert rule['is_active_for_user'] is True
-
-    def test_switch_back_to_previous_community(self, setup_test_data):
+    
+        # 在Flask应用上下文中执行
+        with test_app.app_context():
+            # 用户加入社区A
+            CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=None,
+                new_community_id=community_a_id
+            )
+    
+            # 获取用户规则列表
+            rules_after_a = UserCheckinRuleService.get_user_all_rules(user_id)
+    
+            # 验证规则列表
+            community_rules = [r for r in rules_after_a if r['rule_source'] == 'community']
+            personal_rules = [r for r in rules_after_a if r['rule_source'] == 'personal']
+    
+            assert len(community_rules) == 2  # 社区A的2个规则
+            assert len(personal_rules) == 1  # 1个个人规则
+    
+            # 验证社区规则都来自社区A
+            db = get_db()
+            with db.get_session() as session:
+                community_a = session.query(Community).get(community_a_id)
+                community_a_name = community_a.name
+    
+            for rule in community_rules:
+                assert community_a_name in rule['source_label']
+                assert rule['is_active_for_user'] is True
+    
+            # 切换到社区B
+            CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=community_a_id,
+                new_community_id=community_b_id
+            )
+    
+            # 再次获取用户规则列表
+            rules_after_b = UserCheckinRuleService.get_user_all_rules(user_id)
+    
+            community_rules_b = [r for r in rules_after_b if r['rule_source'] == 'community']
+            personal_rules_b = [r for r in rules_after_b if r['rule_source'] == 'personal']
+    
+            # 验证规则列表更新
+            active_community_rules_b = [r for r in community_rules_b if r['is_active_for_user']]
+            assert len(active_community_rules_b) == 1  # 只有社区B的1个启用规则对用户激活
+            assert len(personal_rules_b) == 1  # 个人规则数量不变
+    
+            # 验证社区规则来自社区B
+            with db.get_session() as session:
+                community_b = session.query(Community).get(community_b_id)
+                community_b_name = community_b.name
+    
+            for rule in active_community_rules_b:
+                assert community_b_name in rule['source_label']
+                assert rule['is_active_for_user'] is True
+    def test_switch_back_to_previous_community(self, setup_test_data, test_app):
         """测试切换回原社区时规则的重新激活"""
         user_id = setup_test_data['user_id']
         community_a_id = setup_test_data['community_a_id']
         community_b_id = setup_test_data['community_b_id']
 
-        # 用户加入社区A
-        CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=None,
-            new_community_id=community_a_id
-        )
+        # 在Flask应用上下文中执行
+        with test_app.app_context():
+            # 用户加入社区A
+            CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=None,
+                new_community_id=community_a_id
+            )
 
-        # 切换到社区B
-        CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=community_a_id,
-            new_community_id=community_b_id
-        )
+            # 切换到社区B
+            CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=community_a_id,
+                new_community_id=community_b_id
+            )
 
-        # 再切换回社区A
-        result = CommunityStaffService.handle_user_community_change(
-            user_id=user_id,
-            old_community_id=community_b_id,
-            new_community_id=community_a_id
-        )
+            # 再切换回社区A
+            result = CommunityStaffService.handle_user_community_change(
+                user_id=user_id,
+                old_community_id=community_b_id,
+                new_community_id=community_a_id
+            )
 
         # 验证切换结果
         assert result['success'] is True
