@@ -12,7 +12,7 @@ from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from database import get_database
-from database.models import User, SupervisionRuleRelation
+from database.flask_models import User, SupervisionRuleRelation
 from wxcloudrun.utils.auth import verify_token
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code
 
@@ -90,7 +90,7 @@ def _merge_accounts_by_time(account1, account2):
 def _migrate_user_data(src_user_id, dst_user_id):
     """改进的数据迁移函数，增加事务处理和冲突解决"""
     try:
-        from database.models import CheckinRule, CheckinRecord
+        from database.flask_models import CheckinRule, CheckinRecord
         
         # 迁移打卡规则（排除已删除的）
         rules = CheckinRule.query.filter(
@@ -455,7 +455,7 @@ def search_users(decoded):
 
         # 根据scope限制搜索范围
         if scope == 'community':
-            from database.models import CommunityStaff
+            from database.flask_models import CommunityStaff
             query = query.join(CommunityStaff, User.user_id == CommunityStaff.user_id).filter(
                 CommunityStaff.community_id == int(community_id)
             )

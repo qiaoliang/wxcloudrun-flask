@@ -13,7 +13,7 @@ from unittest.mock import patch, MagicMock
 # 添加项目路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from database.models import User, Community, CommunityApplication, CommunityStaff
+from database.flask_models import User, Community, CommunityApplication, CommunityStaff
 
 
 def generate_random_openid():

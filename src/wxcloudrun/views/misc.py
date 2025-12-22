@@ -9,7 +9,7 @@ from flask import render_template, request, Response
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response, make_succ_empty_response
 from wxcloudrun.dao import query_counterbyid, delete_counterbyid, insert_counter, update_counterbyid
-from database.models import Counters
+from database.flask_models import Counters
 from config_manager import analyze_all_configs, detect_external_systems_status
 
 app_logger = logging.getLogger('log')
@@ -94,7 +94,7 @@ def count():
         app.logger.info("执行清理用户数据操作（测试环境专用）")
         try:
             from database import get_database
-            from database.models import User
+            from database.flask_models import User
             
             db = get_database()
             with db.get_session() as session:

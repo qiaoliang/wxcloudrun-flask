@@ -12,7 +12,7 @@ from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
 from database import get_database
-from database.models import SupervisionRuleRelation, CheckinRecord
+from database.flask_models import SupervisionRuleRelation, CheckinRecord
 from wxcloudrun.decorators import login_required
 
 app_logger = logging.getLogger('log')

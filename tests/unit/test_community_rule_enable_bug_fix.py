@@ -7,7 +7,7 @@ from datetime import datetime
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 from wxcloudrun.dao import get_db
-from database.models import Community, User, CommunityCheckinRule, UserCommunityRule, CommunityStaff
+from database.flask_models import Community, User, CommunityCheckinRule, UserCommunityRule, CommunityStaff
 
 
 class TestCommunityRuleEnableBugFix:
@@ -16,7 +16,7 @@ class TestCommunityRuleEnableBugFix:
     def test_rule_enable_user_view_sync(self, test_session):
         """测试规则启用后用户视图同步更新"""
         # 准备测试数据
-        from database.models import Community, User, CommunityStaff
+        from database.flask_models import Community, User, CommunityStaff
         
         # 创建社区
         community = Community(
@@ -111,7 +111,7 @@ class TestCommunityRuleEnableBugFix:
     def test_missing_mapping_auto_creation(self, test_session):
         """测试缺失映射记录的自动创建"""
         # 准备测试数据
-        from database.models import Community, User, CommunityStaff
+        from database.flask_models import Community, User, CommunityStaff
         
         # 创建社区
         community = Community(

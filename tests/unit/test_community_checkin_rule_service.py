@@ -7,7 +7,7 @@ import re
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from database.models import User, Community,CommunityCheckinRule
+from database.flask_models import User, Community,CommunityCheckinRule
 from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 from wxcloudrun.community_service import CommunityService

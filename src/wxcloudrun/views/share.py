@@ -11,7 +11,7 @@ from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from database import get_database
-from database.models import ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
+from database.flask_models import ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
 from wxcloudrun.decorators import login_required
 from wxcloudrun.utils.auth import verify_token
 import secrets

@@ -17,7 +17,7 @@ def community_permission_required(f):
     from functools import wraps
     from wxcloudrun.community_service import CommunityService
     from wxcloudrun.dao import get_db
-    from database.models import CommunityCheckinRule
+    from database.flask_models import CommunityCheckinRule
 
     @wraps(f)
     def decorated_function(decoded, *args, **kwargs):

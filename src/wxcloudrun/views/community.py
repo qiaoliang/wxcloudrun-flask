@@ -10,15 +10,13 @@ from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.decorators import login_required
 from wxcloudrun.utils.auth import verify_token, require_community_staff, get_current_user
-from database import get_database
-from database.models import User, Community, CommunityApplication, UserAuditLog, CommunityStaff
+from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
 from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
 app_logger = logging.getLogger('log')
 
 # 获取数据库实例
-db = get_database()
 
 
 def _check_community_admin_permission(user, community_id):
@@ -49,19 +47,19 @@ def _format_community_data(community):
     # 获取community_id，然后重新查询以避免会话问题
     community_id = community.community_id
 
-    with get_db().get_session() as session:
+    # Using Flask-SQLAlchemy db.session
         # 重新查询社区
-        community = session.query(Community).filter_by(
+        community = db.session.query(Community).filter_by(
             community_id=community_id).first()
 
         # 获取管理员数量
-        admin_count = session.query(CommunityStaff).filter_by(
+        admin_count = db.session.query(CommunityStaff).filter_by(
             community_id=community_id).count()
 
         # 获取创建者信息
         creator = None
         if community.creator_user_id:
-            creator_user = session.query(User).get(community.creator_user_id)
+            creator_user = db.session.query(User).get(community.creator_user_id)
             if creator_user:
                 creator = {
                     'user_id': creator_user.user_id,
@@ -69,7 +67,7 @@ def _format_community_data(community):
                 }
 
         # 获取用户数量
-        user_count = session.query(User).filter_by(
+        user_count = db.session.query(User).filter_by(
             community_id=community_id).count()
 
         return {
@@ -111,21 +109,21 @@ def get_communities():
     try:
         # 使用 get_db().get_session() 方式操作数据库
         db = get_db()
-        with db.get_session() as session:
+        # Using Flask-SQLAlchemy db.session
             # 查询所有社区
-            communities = session.query(Community).all()
+            communities = db.session.query(Community).all()
 
             # 格式化响应数据
             result = []
             for community in communities:
                 # 获取管理员数量
-                admin_count = session.query(CommunityStaff).filter_by(
+                admin_count = db.session.query(CommunityStaff).filter_by(
                     community_id=community.community_id).count()
 
                 # 获取创建者信息
                 creator = None
                 if community.creator_user_id:
-                    creator_user = session.query(User).get(
+                    creator_user = db.session.query(User).get(
                         community.creator_user_id)
                     if creator_user:
                         creator = {
@@ -134,7 +132,7 @@ def get_communities():
                         }
 
                 # 获取用户数量
-                user_count = session.query(User).filter_by(
+                user_count = db.session.query(User).filter_by(
                     community_id=community.community_id).count()
 
                 community_data = {
@@ -165,8 +163,8 @@ def get_communities():
 @app.route('/api/community/list', methods=['GET'])
 def get_community_list():
     """获取社区列表 (新版API,支持分页和筛选)"""
-    from database.models import CommunityStaff
-    from database import get_session
+    from database.flask_models import CommunityStaff
+    # from database import get_session  # Using Flask-SQLAlchemy
 
     app_logger.info('=== 开始获取社区列表 ===')
 
@@ -179,8 +177,8 @@ def get_community_list():
 
     try:
         # 使用数据库会话上下文管理器
-        with get_session() as session:
-            user = session.query(User).get(user_id)
+        # Using Flask-SQLAlchemy db.session
+            user = db.session.query(User).get(user_id)
 
             if not user:
                 return make_err_response({}, '用户不存在')
@@ -232,7 +230,7 @@ def get_community_list():
                 ) if community_dict['updated_at'] else None
 
                 # 获取主管信息 - 使用当前会话
-                manager = session.query(CommunityStaff).filter_by(
+                manager = db.session.query(CommunityStaff).filter_by(
                     community_id=community_id,
                     role='manager'
                 ).first()
@@ -240,7 +238,7 @@ def get_community_list():
                 manager_name = None
                 manager_id = None
                 if manager:
-                    manager_user = session.query(User).get(manager.user_id)
+                    manager_user = db.session.query(User).get(manager.user_id)
                     if manager_user:
                         manager_name = manager_user.nickname
                         manager_id = str(manager.user_id)
@@ -388,7 +386,7 @@ def remove_user_from_community(community_id, target_user_id):
         target_user.community_id = default_community.community_id
 
         # 如果用户是原社区的管理员，移除管理员权限
-        from database.models import CommunityStaff
+        from database.flask_models import CommunityStaff
         staff_role = CommunityStaff.query.filter_by(
             community_id=community_id,
             user_id=target_user_id
@@ -402,9 +400,9 @@ def remove_user_from_community(community_id, target_user_id):
             action="remove_user_from_community",
             detail=f"从社区{community_id}移除用户{target_user_id}，移至默认社区{default_community.community_id}"
         )
-        db.session.add(audit_log)
+        db.db.session.add(audit_log)
 
-        db.session.commit()
+        db.db.session.commit()
 
         app.logger.info(
             f'从社区移除用户成功: {community_id}, 用户: {target_user_id}, 已移至默认社区')
@@ -618,7 +616,7 @@ def get_user_community():
 @app.route('/api/user/managed-communities', methods=['GET'])
 def get_managed_communities():
     """获取当前用户管理的社区列表"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
 
     app.logger.info('=== 开始获取用户管理的社区列表 ===')
 
@@ -752,7 +750,7 @@ def get_available_communities():
 @app.route('/api/community/staff/list', methods=['GET'])
 def get_community_staff_list():
     """获取社区工作人员列表"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
 
     app_logger.info('=== 开始获取社区工作人员列表 ===')
 
@@ -855,7 +853,7 @@ def get_community_staff_list():
 @app.route('/api/community/staff/list-enhanced', methods=['GET'])
 def get_community_staff_list_enhanced():
     """获取社区工作人员列表（增强版）- 支持分页和搜索"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
 
     app_logger.info('=== 开始获取社区工作人员列表（增强版） ===')
 
@@ -1050,15 +1048,15 @@ def add_community_staff(decoded):
 
         # 使用 get_db().get_session() 方式操作数据库
         db = get_db()
-        with db.get_session() as session:
+        # Using Flask-SQLAlchemy db.session
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = db.session.query(Community).get(community_id)
             if not community:
                 return make_err_response({}, '社区不存在')
 
             # 权限检查: super_admin 或 community_staff（主管或专员）
             if user.role != 4:  # 不是super_admin
-                staff_record = session.query(CommunityStaff).filter_by(
+                staff_record = db.session.query(CommunityStaff).filter_by(
                     community_id=community_id,
                     user_id=user_id
                 ).first()
@@ -1075,7 +1073,7 @@ def add_community_staff(decoded):
 
             # 检查是否已有主管
             if role == 'manager':
-                existing_manager = session.query(CommunityStaff).filter_by(
+                existing_manager = db.session.query(CommunityStaff).filter_by(
                     community_id=community_id,
                     role='manager'
                 ).first()
@@ -1120,13 +1118,13 @@ def add_community_staff(decoded):
             for uid in processed_user_ids:
                 try:
                     # 检查用户是否存在
-                    target_user = session.query(User).get(uid)
+                    target_user = db.session.query(User).get(uid)
                     if not target_user:
                         failed.append({'user_id': uid, 'reason': '用户不存在'})
                         continue
 
                     # 检查用户是否已在当前社区任职（避免在同一社区重复任职）
-                    existing_in_current_community = session.query(CommunityStaff).filter_by(
+                    existing_in_current_community = db.session.query(CommunityStaff).filter_by(
                         community_id=community_id,
                         user_id=uid
                     ).first()
@@ -1141,7 +1139,7 @@ def add_community_staff(decoded):
                         user_id=uid,
                         role=role
                     )
-                    session.add(staff)
+                    db.session.add(staff)
 
                     # 记录审计日志
                     audit_log = UserAuditLog(
@@ -1149,7 +1147,7 @@ def add_community_staff(decoded):
                         action="add_community_staff",
                         detail=f"添加用户{uid}为社区{community_id}的{role}"
                     )
-                    session.add(audit_log)
+                    db.session.add(audit_log)
 
                     added_count += 1
                     app_logger.info(f'成功添加工作人员: 社区{community_id}, 用户{uid}, 角色{role}')
@@ -1162,13 +1160,13 @@ def add_community_staff(decoded):
                 return make_err_response({'failed': failed}, '添加失败')
 
             # 提交事务
-            session.commit()
+            db.session.commit()
 
             # 获取添加成功的用户详细信息
             added_users_info = []
             for uid in user_ids:
                 if not any(f['user_id'] == uid for f in failed):
-                    target_user = session.query(User).get(uid)
+                    target_user = db.session.query(User).get(uid)
                     if target_user:
                         added_users_info.append({
                             'user_id': str(uid),
@@ -1193,7 +1191,7 @@ def add_community_staff(decoded):
 @app.route('/api/community/remove-staff', methods=['POST'])
 def remove_community_staff():
     """移除社区工作人员"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
     from wxcloudrun.dao import get_db
 
     app_logger.info('=== 开始移除社区工作人员 ===')
@@ -1219,15 +1217,15 @@ def remove_community_staff():
 
         # 使用 get_db().get_session() 方式操作数据库
         db = get_db()
-        with db.get_session() as session:
+        # Using Flask-SQLAlchemy db.session
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = db.session.query(Community).get(community_id)
             if not community:
                 return make_err_response({}, '社区不存在')
 
             # 权限检查: super_admin 或 community_staff（主管或专员）
             if user.role != 4:  # 不是super_admin
-                staff_record = session.query(CommunityStaff).filter_by(
+                staff_record = db.session.query(CommunityStaff).filter_by(
                     community_id=community_id,
                     user_id=user_id
                 ).first()
@@ -1235,7 +1233,7 @@ def remove_community_staff():
                     return make_err_response({}, '权限不足，需要社区工作人员权限')
 
                 # 检查要移除的工作人员记录
-                target_staff = session.query(CommunityStaff).filter_by(
+                target_staff = db.session.query(CommunityStaff).filter_by(
                     community_id=community_id,
                     user_id=target_user_id
                 ).first()
@@ -1253,7 +1251,7 @@ def remove_community_staff():
                     return make_err_response({}, '不能移除自己，请联系其他管理员操作')
 
             # 查找工作人员记录（如果上面已经查过，这里再查一次确保存在）
-            staff = session.query(CommunityStaff).filter_by(
+            staff = db.session.query(CommunityStaff).filter_by(
                 community_id=community_id,
                 user_id=target_user_id
             ).first()
@@ -1267,11 +1265,11 @@ def remove_community_staff():
                 action="remove_community_staff",
                 detail=f"从社区{community_id}移除工作人员{target_user_id}（角色：{staff.role}）"
             )
-            session.add(audit_log)
+            db.session.add(audit_log)
 
             # 删除记录
             session.delete(staff)
-            session.commit()
+            db.session.commit()
 
             app_logger.info(f'移除工作人员成功: 社区{community_id}, 用户{target_user_id}, 角色{staff.role}')
             return make_succ_response({
@@ -1292,8 +1290,8 @@ def remove_community_staff():
 @app.route('/api/community/users', methods=['GET'])
 def get_community_users_list():
     """获取社区用户列表 (新版API)"""
-    from database.models import CommunityStaff
-    from database.models import CheckinRecord
+    from database.flask_models import CommunityStaff
+    from database.flask_models import CheckinRecord
     from datetime import date
 
     app_logger.info('=== 开始获取社区用户列表 ===')
@@ -1396,7 +1394,7 @@ def get_community_users_list():
 @app.route('/api/community/add-users', methods=['POST'])
 def add_community_users():
     """添加社区用户"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
     from wxcloudrun.dao import get_db
     from datetime import datetime
 
@@ -1429,15 +1427,15 @@ def add_community_users():
 
         # 使用 get_db().get_session() 方式操作数据库
         db = get_db()
-        with db.get_session() as session:
+        # Using Flask-SQLAlchemy db.session
             # 检查社区是否存在
-            community = session.query(Community).get(community_id)
+            community = db.session.query(Community).get(community_id)
             if not community:
                 return make_err_response({}, '社区不存在')
 
             # 权限检查: super_admin, community_manager 或 community_staff
             if user.role != 4:  # 不是super_admin
-                staff_record = session.query(CommunityStaff).filter_by(
+                staff_record = db.session.query(CommunityStaff).filter_by(
                     community_id=community_id,
                     user_id=user_id
                 ).first()
@@ -1450,7 +1448,7 @@ def add_community_users():
             for uid in user_ids:
                 try:
                     # 检查用户是否存在
-                    target_user = session.query(User).get(uid)
+                    target_user = db.session.query(User).get(uid)
                     if not target_user:
                         failed.append({'user_id': uid, 'reason': '用户不存在'})
                         continue
@@ -1469,7 +1467,7 @@ def add_community_users():
                     app_logger.error(f'添加用户失败 user_id={uid}: {str(e)}')
                     failed.append({'user_id': uid, 'reason': str(e)})
 
-            session.commit()
+            db.session.commit()
 
             if added_count == 0:
                 return make_err_response({'added_count': added_count, 'failed': failed}, '添加失败')
@@ -1488,7 +1486,7 @@ def add_community_users():
 def remove_community_user():
     """移除社区用户"""
     from wxcloudrun.community_service import CommunityService
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
 
     app_logger.info('=== 开始移除社区用户 ===')
 
@@ -1648,9 +1646,9 @@ def update_community_new():
 
         # 使用 get_db().get_session() 方式操作数据库
         db = get_db()
-        with db.get_session() as session:
+        # Using Flask-SQLAlchemy db.session
             # 查找社区
-            community = session.query(Community).get(community_id)
+            community = db.session.query(Community).get(community_id)
             if not community:
                 return make_err_response({}, '社区不存在')
 
@@ -1663,7 +1661,7 @@ def update_community_new():
                     return make_err_response({}, '社区名称长度必须在2-50个字符之间')
 
                 # 检查名称是否与其他社区重复
-                existing = session.query(Community).filter(
+                existing = db.session.query(Community).filter(
                     Community.name == name,
                     Community.community_id != community_id
                 ).first()
@@ -1689,17 +1687,17 @@ def update_community_new():
 
             # 如果更新了主管
             if 'manager_id' in data:
-                from database.models import CommunityStaff
+                from database.flask_models import CommunityStaff
                 new_manager_id = data['manager_id']
 
                 if new_manager_id:
                     # 检查新主管是否存在
-                    new_manager = session.query(User).get(new_manager_id)
+                    new_manager = db.session.query(User).get(new_manager_id)
                     if not new_manager:
                         return make_err_response({}, '指定的主管不存在')
 
                     # 移除旧主管
-                    old_manager = session.query(CommunityStaff).filter_by(
+                    old_manager = db.session.query(CommunityStaff).filter_by(
                         community_id=community_id,
                         role='manager'
                     ).first()
@@ -1712,9 +1710,9 @@ def update_community_new():
                         user_id=new_manager_id,
                         role='manager'
                     )
-                    session.add(new_staff)
+                    db.session.add(new_staff)
 
-            session.commit()
+            db.session.commit()
 
             app_logger.info(f'更新社区成功: {community.name} (ID: {community_id})')
             return make_succ_response({
@@ -1762,9 +1760,9 @@ def toggle_community_status_new():
 
         # 使用 get_db().get_session() 方式操作数据库
         db = get_db()
-        with db.get_session() as session:
+        # Using Flask-SQLAlchemy db.session
             # 查找社区
-            community = session.query(Community).get(community_id)
+            community = db.session.query(Community).get(community_id)
             if not community:
                 return make_err_response({}, '社区不存在')
 
@@ -1774,7 +1772,7 @@ def toggle_community_status_new():
 
             # 更新状态
             community.status = 1 if status == 'active' else 2
-            session.commit()
+            db.session.commit()
 
             app_logger.info(f'切换社区状态成功: {community.name} -> {status}')
             return make_succ_response({
@@ -1790,7 +1788,7 @@ def toggle_community_status_new():
 @app.route('/api/community/delete', methods=['POST'])
 def delete_community_new():
     """删除社区 (新版API)"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
     from const_default import DEFUALT_COMMUNITY_NAME
     app_logger.info('=== 开始删除社区 ===')
 
@@ -1843,7 +1841,7 @@ def delete_community_new():
 
         # 删除社区
         db.session.delete(community)
-        db.session.commit()
+        db.db.session.commit()
 
         app_logger.info(f'删除社区成功: {community.name} (ID: {community_id})')
         return make_succ_response({})
@@ -1857,7 +1855,7 @@ def delete_community_new():
 @app.route('/api/user/search', methods=['GET'])
 def search_users_for_community():
     """搜索用户 (社区管理用)"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
 
     app_logger.info('=== 开始搜索用户 ===')
 
@@ -1920,7 +1918,7 @@ def search_users_for_community():
 @app.route('/api/user/search-all-excluding-blackroom', methods=['GET'])
 def search_users_excluding_blackroom():
     """搜索所有用户（排除黑屋社区的用户）- 用于专员管理添加专员功能"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
     from const_default import DEFAULT_BLACK_ROOM_ID
 
     app_logger.info('=== 开始搜索所有用户（排除黑屋社区） ===')
@@ -2206,7 +2204,7 @@ def check_community_access(community_id):
 
 def _verify_community_access(user_id, community_id):
     """验证用户是否有权限访问社区"""
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
     from wxcloudrun.dao import get_db
 
     # 防御性检查：确保参数有效
@@ -2215,9 +2213,9 @@ def _verify_community_access(user_id, community_id):
 
     try:
         db = get_db()
-        with db.get_session() as session:
+        # Using Flask-SQLAlchemy db.session
             # 查询用户
-            user = session.query(User).get(user_id)
+            user = db.session.query(User).get(user_id)
             if not user:
                 return False, "用户不存在"
 
@@ -2231,13 +2229,13 @@ def _verify_community_access(user_id, community_id):
 
             # 社区工作人员
             if user.role == 3:
-                staff = session.query(CommunityStaff).filter(
+                staff = db.session.query(CommunityStaff).filter(
                     CommunityStaff.user_id == user_id,
                     CommunityStaff.community_id == community_id
                 ).first()
                 if staff:
                     # 检查社区状态
-                    community = session.query(Community).get(community_id)
+                    community = db.session.query(Community).get(community_id)
                     if community and community.status == 1:  # 只允许访问启用的社区
                         return True, None
                     else:
@@ -2263,39 +2261,39 @@ def _validate_community_id(community_id_str):
 def _get_community_detail_data(community_id):
     """获取社区详情数据（优化版查询）"""
     from wxcloudrun.dao import get_db
-    from database.models import CommunityStaff
+    from database.flask_models import CommunityStaff
     from sqlalchemy import func
 
     db = get_db()
-    with db.get_session() as session:
+    # Using Flask-SQLAlchemy db.session
         # 使用单个查询获取所有需要的数据
         # 查询社区基本信息及关联的创建者信息
         from sqlalchemy.orm import joinedload
 
-        community = session.query(Community).get(community_id)
+        community = db.session.query(Community).get(community_id)
         if not community:
             return None
 
         # 使用子查询优化统计信息获取
         # 获取专员数量（role='staff'）
-        staff_only_count = session.query(CommunityStaff).filter(
+        staff_only_count = db.session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'staff'
         ).count()
 
         # 获取主管数量（role='manager'）
-        manager_count = session.query(CommunityStaff).filter(
+        manager_count = db.session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'manager'
         ).count()
 
         # 获取工作人员总数（包括主管和专员）
-        staff_count = session.query(CommunityStaff).filter(
+        staff_count = db.session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id
         ).count()
 
         # 获取总用户数量（包括所有用户）
-        total_user_count = session.query(User).filter(
+        total_user_count = db.session.query(User).filter(
             User.community_id == community_id
         ).count()
 
@@ -2307,7 +2305,7 @@ def _get_community_detail_data(community_id):
         # 获取创建者信息（如果存在）
         creator = None
         if community.creator_user_id:
-            creator_user = session.query(User).filter(
+            creator_user = db.session.query(User).filter(
                 User.user_id == community.creator_user_id
             ).first()
             if creator_user:
@@ -2318,13 +2316,13 @@ def _get_community_detail_data(community_id):
 
         # 获取主管信息
         manager = None
-        manager_staff = session.query(CommunityStaff).filter(
+        manager_staff = db.session.query(CommunityStaff).filter(
             CommunityStaff.community_id == community_id,
             CommunityStaff.role == 'manager'
         ).first()
 
         if manager_staff:
-            manager_user = session.query(User).filter(
+            manager_user = db.session.query(User).filter(
                 User.user_id == manager_staff.user_id
             ).first()
             if manager_user:
@@ -2542,7 +2540,7 @@ def switch_user_community():
         # 更新用户的社区归属
         user.community_id = new_community_id
         user.community_joined_at = datetime.now()
-        db.session.commit()
+        db.db.session.commit()
         
         app_logger.info(f"用户{user_id}社区切换成功: {old_community_id} -> {new_community_id}")
         

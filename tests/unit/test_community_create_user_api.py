@@ -12,7 +12,7 @@ import re
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from database.models import User, Community
+from database.flask_models import User, Community
 from const_default import DEFUALT_COMMUNITY_NAME
 
 

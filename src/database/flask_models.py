@@ -74,10 +74,31 @@ class Community(db.Model):
     community_id = Column(db.Integer, primary_key=True)
     name = Column(db.String(100), nullable=False, unique=True, comment='社区名称')
     description = Column(db.Text, comment='社区描述')
-    address = Column(db.String(200), comment='社区地址')
+    creator_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='创建人ID')
+    status = Column(db.Integer, default=1, nullable=False, comment='社区状态')
+    settings = Column(db.Text, comment='社区设置（JSON）')
+    location = Column(db.String(200), comment='地理位置')
+    location_lat = Column(db.Float, comment='纬度')
+    location_lon = Column(db.Float, comment='经度')
+    is_default = Column(db.Boolean, default=False, nullable=False, comment='是否默认社区')
+    is_blackhouse = Column(db.Boolean, default=False, nullable=False, comment='是否黑屋社区')
     created_at = Column(db.DateTime, default=datetime.now)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-    status = Column(db.Integer, default=1, comment='社区状态')
+
+    # 关系
+    creator = db.relationship('User', foreign_keys=[creator_user_id], backref='created_communities')
+    # 注意：users backref 与 User 模型中的 community 关系冲突，所以不在这里定义
+
+    # 状态映射
+    STATUS_MAPPING = {
+        1: 'enabled',
+        2: 'disabled'
+    }
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        return self.STATUS_MAPPING.get(self.status, 'unknown')
 
     def __repr__(self):
         return f'<Community {self.community_id}: {self.name}>'
@@ -139,6 +160,63 @@ class UserAuditLog(db.Model):
 
     def __repr__(self):
         return f'<UserAuditLog {self.log_id}: User {self.user_id} {self.action}>'
+
+
+class SupervisionRuleRelation(db.Model):
+    """监督规则关系表"""
+    __tablename__ = 'supervision_rule_relations'
+
+    relation_id = Column(db.Integer, primary_key=True)
+    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    supervisor_user_id = Column(db.Integer, db.ForeignKey('users.user_id'))
+    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'))
+    status = Column(db.Integer, default=1, comment='关系状态')
+    created_at = Column(db.DateTime, default=datetime.now)
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    invite_token = Column(db.String(64), unique=True)
+    invite_expires_at = Column(db.DateTime)
+
+    # 关系
+    solo_user = db.relationship('User', foreign_keys=[solo_user_id], backref='supervised_by_relations')
+    supervisor_user = db.relationship('User', foreign_keys=[supervisor_user_id], backref='supervising_relations')
+    rule = db.relationship('CheckinRule', backref='supervision_relations')
+
+
+class CommunityStaff(db.Model):
+    """社区工作人员表"""
+    __tablename__ = 'community_staff'
+
+    id = Column(db.Integer, primary_key=True)
+    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    role = Column(db.String(20), nullable=False, comment='角色')
+    scope = Column(db.String(200), comment='负责范围')
+    added_at = Column(db.DateTime, default=datetime.now)
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    community = db.relationship('Community', backref='staff_members')
+    user = db.relationship('User', backref='staff_roles')
+
+
+class CommunityApplication(db.Model):
+    """社区申请表"""
+    __tablename__ = 'community_applications'
+
+    application_id = Column(db.Integer, primary_key=True)
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    target_community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
+    status = Column(db.Integer, default=1, nullable=False)
+    reason = Column(db.Text, comment='申请理由')
+    rejection_reason = Column(db.Text, comment='拒绝理由')
+    processed_by = Column(db.Integer, db.ForeignKey('users.user_id'))
+    created_at = Column(db.DateTime, default=datetime.now)
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    user = db.relationship('User', foreign_keys=[user_id], backref='community_applications')
+    processor = db.relationship('User', foreign_keys=[processed_by], backref='processed_applications')
+    target_community = db.relationship('Community', backref='applications')
 
 
 class Counters(db.Model):

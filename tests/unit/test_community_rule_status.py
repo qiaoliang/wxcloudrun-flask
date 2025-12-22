@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, date
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
-from database.models import CommunityCheckinRule, UserCommunityRule, User, Community, CommunityStaff
+from database.flask_models import CommunityCheckinRule, UserCommunityRule, User, Community, CommunityStaff
 
 
 def test_community_rule_disable_enable(test_session):
