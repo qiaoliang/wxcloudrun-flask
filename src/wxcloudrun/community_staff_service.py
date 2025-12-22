@@ -83,12 +83,12 @@ class CommunityStaffService:
             raise ValueError('角色参数错误，必须是manager或staff')
         
         # 检查社区是否存在
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             raise ValueError('社区不存在')
         
-        # 权限检查
-        operator_user = db.session.query(User).get(operator_user_id)
+        # 检查操作用户是否存在
+        operator_user = db.session.get(User, operator_user_id)
         if not operator_user:
             raise ValueError('操作者用户不存在')
         
@@ -153,7 +153,7 @@ class CommunityStaffService:
         for uid in processed_user_ids:
             try:
                 # 检查用户是否存在
-                target_user = db.session.query(User).get(uid)
+                target_user = db.session.get(User, uid)
                 if not target_user:
                     failed.append({'user_id': uid, 'reason': '用户不存在'})
                     continue
@@ -326,7 +326,7 @@ class CommunityStaffService:
             from datetime import datetime
             
             # 0. 更新用户的社区归属
-            user = db.session.query(User).get(user_id)
+            user = db.session.get(User, user_id)
             if not user:
                 raise ValueError(f'用户不存在: {user_id}')
             

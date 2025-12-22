@@ -129,7 +129,7 @@ class UserCheckinRuleService:
         """
         try:
             # 获取用户信息
-            user = db.session.query(User).get(user_id)
+            user = db.session.get(User, user_id)
             if not user or not user.community_id:
                 return []
             
@@ -283,7 +283,7 @@ class UserCheckinRuleService:
                 rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
 
                 # 检查用户是否有权限查看此规则
-                user = db.session.query(User).get(user_id)
+                user = db.session.get(User, user_id)
                 if not user or user.community_id != rule['community_id']:
                     raise ValueError('社区规则不存在或无权限')
 
