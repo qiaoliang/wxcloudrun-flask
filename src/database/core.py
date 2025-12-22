@@ -147,7 +147,7 @@ class DatabaseCore:
             raise RuntimeError("数据库未初始化")
 
         # 导入模型定义
-        from .models import Base
+        from .flask_models import Base
         Base.metadata.create_all(self.engine)
 
     def drop_tables(self):
@@ -155,7 +155,7 @@ class DatabaseCore:
         if not self._is_initialized:
             raise RuntimeError("数据库未初始化")
 
-        from .models import Base
+        from .flask_models import Base
         Base.metadata.drop_all(self.engine)
 
     def reset_database(self):

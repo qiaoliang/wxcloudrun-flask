@@ -12,7 +12,7 @@ from .core import (
     get_session,
     reset_all
 )
-from . import models
+from . import flask_models as models
 
 # 导出的公共接口
 __all__ = [

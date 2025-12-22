@@ -11,13 +11,9 @@ from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
-from database import get_database
-from database.flask_models import User, SupervisionRuleRelation
+from database.flask_models import db, User, SupervisionRuleRelation
 from wxcloudrun.utils.auth import verify_token
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code
-
-# 获取数据库实例
-db = get_database()
 
 
 def _calculate_phone_hash(phone):
@@ -59,29 +55,29 @@ def _merge_accounts_by_time(account1, account2):
     
     app.logger.info(f'准备迁移信息 - wechat_openid: {migrate_wechat_openid}, phone_hash: {migrate_phone_hash}')
     
-    with db.get_session() as session:
-        # 清空次要账号的唯一字段
-        secondary.wechat_openid = f"disabled_{secondary.user_id}_{int(time.time())}"
-        secondary.phone_hash = f"disabled_{secondary.user_id}_{int(time.time())}"
-        secondary.phone_number = None
-        session.flush()  # 刷新到数据库但不提交
+    # Flask-SQLAlchemy 自动管理会话
+    # 清空次要账号的唯一字段
+    secondary.wechat_openid = f"disabled_{secondary.user_id}_{int(time.time())}"
+    secondary.phone_hash = f"disabled_{secondary.user_id}_{int(time.time())}"
+    secondary.phone_number = None
+    db.session.flush()  # 刷新到数据库但不提交
         
         # 更新主账号信息
-        if migrate_wechat_openid:
+    if migrate_wechat_openid:
             primary.wechat_openid = migrate_wechat_openid
             app.logger.info(f'主账号已更新wechat_openid')
         if migrate_phone_hash:
-            primary.phone_hash = migrate_phone_hash
-            primary.phone_number = migrate_phone_number
-            app.logger.info(f'主账号已更新phone_hash和phone_number')
-        
-        # 迁移数据
-        _migrate_user_data(secondary.user_id, primary.user_id)
-        app.logger.info(f'数据迁移完成')
+        primary.phone_hash = migrate_phone_hash
+        primary.phone_number = migrate_phone_number
+        app.logger.info(f'主账号已更新phone_hash和phone_number')
+    
+    # 迁移数据
+    _migrate_user_data(secondary.user_id, primary.user_id)
+    app.logger.info(f'数据迁移完成')
         
         # 禁用次要账号
         secondary.status = 2
-        session.commit()
+        db.session.commit()
     
     app.logger.info(f'账号合并完成: 主账号 {primary.user_id}, 次账号 {secondary.user_id} 已禁用')
     return primary
@@ -519,13 +515,13 @@ def bind_phone(decoded):
             phone[-4:] if len(phone) >= 7 else phone
         current_user.updated_at = datetime.datetime.now()
         
-        with db.get_session() as session:
-            session.commit()
+        # Flask-SQLAlchemy 自动管理会话
+            db.session.commit()
         _audit(current_user.user_id, 'bind_phone', {'phone': phone})
         return make_succ_response({'message': '绑定手机号成功'})
     except Exception as e:
-        with db.get_session() as session:
-            session.rollback()
+        # Flask-SQLAlchemy 自动管理会话
+            db.session.rollback()
         app.logger.error(f'绑定手机号失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'绑定手机号失败: {str(e)}')
 
@@ -534,8 +530,8 @@ def bind_phone(decoded):
 @login_required
 def bind_wechat(decoded):
     try:
-        with db.get_session() as session:
-            with session.begin_nested():
+        # Flask-SQLAlchemy 自动管理会话
+            with db.session.begin_nested():
                 params = request.get_json() or {}
                 wx_code = params.get('code')
                 phone_code = params.get('phone_code')
@@ -564,8 +560,8 @@ def bind_wechat(decoded):
             _audit(current_user.user_id, 'bind_wechat', {'openid': openid})
             return make_succ_response({'message': '绑定微信成功'})
     except Exception as e:
-        with db.get_session() as session:
-            session.rollback()
+        # Flask-SQLAlchemy 自动管理会话
+            db.session.rollback()
         app.logger.error(f'绑定微信失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'绑定微信失败: {str(e)}')
 

@@ -58,12 +58,10 @@ class User(db.Model):
 
     @property
     def role_name(self):
-        """获取角色名称"""
         return self.ROLE_MAPPING.get(self.role, '未知角色')
 
     @property
     def status_name(self):
-        """获取状态名称"""
         return self.STATUS_MAPPING.get(self.status, '未知状态')
 
 
@@ -408,7 +406,7 @@ class CommunityEvent(db.Model):
     # 状态映射
     STATUS_MAPPING = {
         1: '进行中',
-        2: '已完成', 
+        2: '已完成',
         3: '已取消'
     }
 
