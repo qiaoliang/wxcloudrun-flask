@@ -131,7 +131,7 @@ class CommunityCheckinRuleService:
                 raise ValueError('更新者用户ID必须为正整数')
 
             # 获取规则
-            rule = db.session.query(CommunityCheckinRule).get(rule_id)
+            rule = db.session.get(CommunityCheckinRule, rule_id)
             if not rule:
                 raise ValueError(f'社区规则不存在: {rule_id}')
 
@@ -207,7 +207,7 @@ class CommunityCheckinRuleService:
             logger.debug(f"启用社区规则: rule_id={rule_id}, enabled_by={enabled_by_int}")
 
             # 获取规则
-            rule = db.session.query(CommunityCheckinRule).get(rule_id)
+            rule = db.session.get(CommunityCheckinRule, rule_id)
             if not rule:
                 raise ValueError(f'社区规则不存在: {rule_id}')
 
@@ -291,7 +291,7 @@ class CommunityCheckinRuleService:
                 raise ValueError('停用人用户ID必须为正整数')
 
             # 获取规则
-            rule = db.session.query(CommunityCheckinRule).get(rule_id)
+            rule = db.session.get(CommunityCheckinRule, rule_id)
             if not rule:
                 raise ValueError(f'社区规则不存在: {rule_id}')
 
@@ -482,7 +482,7 @@ class CommunityCheckinRuleService:
         """
         try:
             # 获取用户所在社区
-            user = db.session.query(User).get(user_id)
+            user = db.session.get(User, user_id)
             if not user or not user.community_id:
                 return []
 
@@ -586,7 +586,7 @@ class CommunityCheckinRuleService:
         """
         try:
             # 获取规则
-            rule = db.session.query(CommunityCheckinRule).get(rule_id)
+            rule = db.session.get(CommunityCheckinRule, rule_id)
             if not rule:
                 raise ValueError(f'社区规则不存在: {rule_id}')
 
