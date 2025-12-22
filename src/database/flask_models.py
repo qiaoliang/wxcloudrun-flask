@@ -361,3 +361,132 @@ class Counters(db.Model):
 
     def __repr__(self):
         return f'<Counter {self.id}: {self.count}>'
+
+
+class CommunityEvent(db.Model):
+    """社区事件表"""
+    __tablename__ = 'community_events'
+
+    event_id = Column(db.Integer, primary_key=True, autoincrement=True)
+    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
+    title = Column(db.String(200), nullable=False, comment='事件标题')
+    description = Column(db.Text, comment='事件描述')
+    event_type = Column(db.String(50), nullable=False, default='call_for_help', comment='事件类型')
+    status = Column(db.Integer, default=1, comment='事件状态：1-进行中，2-已完成，3-已取消')
+    target_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), comment='目标用户ID')
+    location = Column(db.String(200), comment='事件地点')
+    created_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='创建者ID')
+    created_at = Column(db.DateTime, default=datetime.now)
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    completed_at = Column(db.DateTime, comment='完成时间')
+
+    # 关系
+    community = db.relationship('Community', backref='events')
+    creator = db.relationship('User', foreign_keys=[created_by], backref='created_events')
+    target_user = db.relationship('User', foreign_keys=[target_user_id], backref='targeted_events')
+    supports = db.relationship('EventSupport', backref='event', cascade='all, delete-orphan')
+
+    # 事件类型映射
+    EVENT_TYPE_MAPPING = {
+        'call_for_help': '求助',
+        'supporting': '应援'
+    }
+
+    # 状态映射
+    STATUS_MAPPING = {
+        1: '进行中',
+        2: '已完成', 
+        3: '已取消'
+    }
+
+    @property
+    def event_type_label(self):
+        """获取事件类型标签"""
+        return self.EVENT_TYPE_MAPPING.get(self.event_type, '未知')
+
+    @property
+    def status_label(self):
+        """获取状态标签"""
+        return self.STATUS_MAPPING.get(self.status, '未知')
+
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        result = {
+            'event_id': self.event_id,
+            'community_id': self.community_id,
+            'title': self.title,
+            'description': self.description,
+            'event_type': self.event_type,
+            'event_type_label': self.event_type_label,
+            'status': self.status,
+            'status_label': self.status_label,
+            'target_user_id': self.target_user_id,
+            'location': self.location,
+            'created_by': self.created_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'support_count': len([s for s in self.supports if s.status == 1])
+        }
+
+        # 添加关联信息
+        try:
+            if self.community:
+                result['community_name'] = self.community.name
+            if self.creator:
+                result['creator_name'] = self.creator.nickname or self.creator.phone_number
+            if self.target_user:
+                result['target_user_name'] = self.target_user.nickname or self.target_user.phone_number
+        except Exception:
+            pass
+
+        return result
+
+
+class EventSupport(db.Model):
+    """事件应援记录表"""
+    __tablename__ = 'event_supports'
+
+    support_id = Column(db.Integer, primary_key=True, autoincrement=True)
+    event_id = Column(db.Integer, db.ForeignKey('community_events.event_id'), nullable=False)
+    supporter_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    support_content = Column(db.Text, comment='应援内容')
+    status = Column(db.Integer, default=1, comment='应援状态：1-有效，2-已取消')
+    created_at = Column(db.DateTime, default=datetime.now)
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    supporter = db.relationship('User', backref='supports')
+
+    # 状态映射
+    STATUS_MAPPING = {
+        1: '有效',
+        2: '已取消'
+    }
+
+    @property
+    def status_label(self):
+        """获取状态标签"""
+        return self.STATUS_MAPPING.get(self.status, '未知')
+
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        result = {
+            'support_id': self.support_id,
+            'event_id': self.event_id,
+            'supporter_id': self.supporter_id,
+            'support_content': self.support_content,
+            'status': self.status,
+            'status_label': self.status_label,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+        # 添加关联信息
+        try:
+            if self.supporter:
+                result['supporter_name'] = self.supporter.nickname or self.supporter.phone_number
+        except Exception:
+            pass
+
+        return result
