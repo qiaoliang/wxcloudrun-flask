@@ -54,13 +54,21 @@ class CommunityService:
         if existing:
             raise ValueError(f"社区名称已存在: {name}")
 
+        # 处理 settings 字段：如果是字典，转换为 JSON 字符串
+        settings_json = None
+        if settings is not None:
+            if isinstance(settings, dict):
+                settings_json = json.dumps(settings)
+            else:
+                settings_json = settings
+
         # 创建社区
         community = Community(
             name=name,
             description=description,
             creator_id=creator_id,
             location=location,
-            settings=settings or {},
+            settings=settings_json,
             manager_id=manager_id,
             location_lat=location_lat,
             location_lon=location_lon,
