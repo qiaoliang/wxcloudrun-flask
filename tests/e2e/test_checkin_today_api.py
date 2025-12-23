@@ -222,11 +222,11 @@ class TestCheckinTodayAPI:
         
         assert new_checkin_item is not None, f"未找到规则ID为 {rule_id} 的打卡项"
         assert new_checkin_item["rule_name"] == "晨练"
-        assert checkin_item["icon_url"] == "https://example.com/exercise.png"
-        assert checkin_item["planned_time"] == "09:00:00"  # 上午默认9点
-        assert checkin_item["status"] == "unchecked"
-        assert checkin_item["checkin_time"] is None
-        assert checkin_item["record_id"] is None
+        assert new_checkin_item["icon_url"] == "https://example.com/exercise.png"
+        assert new_checkin_item["planned_time"] == "09:00:00"  # 上午默认9点
+        assert new_checkin_item["status"] == "unchecked"
+        assert new_checkin_item["checkin_time"] is None
+        assert new_checkin_item["record_id"] is None
         
         print(f"✅ 测试通过：用户有每天打卡规则时返回正确的打卡事项")
 
@@ -267,6 +267,7 @@ class TestCheckinTodayAPI:
         assert rule_response.status_code == 200
         rule_result = rule_response.json()
         assert rule_result["code"] == 1
+        rule_id = rule_result["data"]["rule_id"]
         
         # 发送获取今日打卡事项请求
         response = requests.get(
@@ -280,11 +281,18 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证打卡事项内容
-        checkin_item = data["data"]["checkin_items"][0]
-        assert checkin_item["rule_name"] == "服药提醒"
-        assert checkin_item["planned_time"] == "14:30:00"  # 自定义时间
-        assert checkin_item["status"] == "unchecked"
+        # 验证新创建的打卡事项内容
+        # 寻找新创建的打卡项（基于规则ID）
+        new_checkin_item = None
+        for item in data["data"]["checkin_items"]:
+            if item["rule_id"] == rule_id:
+                new_checkin_item = item
+                break
+        
+        assert new_checkin_item is not None, f"未找到规则ID为 {rule_id} 的打卡项"
+        assert new_checkin_item["rule_name"] == "服药提醒"
+        assert new_checkin_item["planned_time"] == "14:30:00"  # 自定义时间
+        assert new_checkin_item["status"] == "unchecked"
         
         print(f"✅ 测试通过：自定义时间的打卡规则返回正确的计划时间")
 
