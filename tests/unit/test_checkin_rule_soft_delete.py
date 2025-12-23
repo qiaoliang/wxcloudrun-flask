@@ -47,6 +47,7 @@ class TestDeleteRuleCoreLogic:
         record = CheckinRecord(
             rule_id=rule.rule_id,
             user_id=test_user.user_id,
+            planned_time=datetime.now(),
             checkin_time=datetime.now(),
             checkin_type="测试打卡"
         )
@@ -141,6 +142,7 @@ class TestDeleteRuleCoreLogic:
             record = CheckinRecord(
                 rule_id=rule.rule_id,
                 user_id=test_user.user_id,
+                planned_time=datetime.now(),
                 checkin_time=datetime.now(),
                 checkin_type=f"测试打卡{i+1}"
             )

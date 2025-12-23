@@ -122,6 +122,7 @@ class TestDeleteRuleCoreLogic:
             record = CheckinRecord(
                 rule_id=rule.rule_id,
                 user_id=test_user.user_id,
+                planned_time=record_data["checkin_time"],
                 checkin_type=record_data["checkin_type"],
                 checkin_time=record_data["checkin_time"]
             )
@@ -175,6 +176,7 @@ class TestDeleteRuleCoreLogic:
             record = CheckinRecord(
                 rule_id=rule.rule_id,
                 user_id=test_user.user_id,
+                planned_time=datetime.now() + timedelta(hours=i),
                 checkin_type=f"打卡{i+1}",
                 checkin_time=datetime.now() + timedelta(hours=i)
             )
