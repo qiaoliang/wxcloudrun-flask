@@ -11,7 +11,7 @@ import pytest
 import requests
 import time
 from datetime import datetime
-from tests.e2e.testutil import create_phone_user, create_wx_user, get_headers_by_creating_phone_user, uuid_str, random_str
+from tests.e2e.testutil import create_phone_user, create_wx_user, get_headers_by_creating_phone_user, uuid_str, random_str, generate_unique_phone
 
 class TestMultiCommunityRoleAssignmentE2E:
 
@@ -178,10 +178,10 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 1. 创建测试用户
-        test_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '多角色测试用户')
+        test_user_id = self._create_test_user(base_url, generate_unique_phone(), '多角色测试用户')
 
         # 2. 创建另一个用户作为社区B的主管
-        manager_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区主管用户')
+        manager_user_id = self._create_test_user(base_url, generate_unique_phone(), '社区主管用户')
 
         # 3. 创建两个社区
         # 社区A：超级管理员作为主管（默认）
@@ -278,10 +278,10 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 创建测试用户
-        test_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '权限测试用户')
+        test_user_id = self._create_test_user(base_url, generate_unique_phone(), '权限测试用户')
 
         # 创建另一个用户作为社区B的主管
-        manager_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区主管用户2')
+        manager_user_id = self._create_test_user(base_url, generate_unique_phone(), '社区主管用户2')
 
         # 创建两个社区
         # 社区A：超级管理员作为主管（默认）
@@ -339,10 +339,10 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 创建测试用户
-        test_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '移除测试用户')
+        test_user_id = self._create_test_user(base_url, generate_unique_phone(), '移除测试用户')
 
         # 创建另一个用户作为社区B的主管
-        manager_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区主管用户3')
+        manager_user_id = self._create_test_user(base_url, generate_unique_phone(), '社区主管用户3')
 
         # 创建三个社区
         community_a_id = self._create_test_community(base_url, admin_headers, '移除测试社区A')
@@ -425,11 +425,11 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 创建多个测试用户
-        user_a_id = self._create_test_user(base_url, f'138{random_str(8)}', '管理社区测试用户A')
-        user_b_id = self._create_test_user(base_url, f'138{random_str(8)}', '管理社区测试用户B')
+        user_a_id = self._create_test_user(base_url, generate_unique_phone(), '管理社区测试用户A')
+        user_b_id = self._create_test_user(base_url, generate_unique_phone(), '管理社区测试用户B')
         # 创建额外的用户作为指定主管
-        manager_y_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区Y主管')
-        manager_z_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区Z主管')
+        manager_y_id = self._create_test_user(base_url, generate_unique_phone(), '社区Y主管')
+        manager_z_id = self._create_test_user(base_url, generate_unique_phone(), '社区Z主管')
 
         # 创建多个社区，指定不同的主管
         community_x_id = self._create_test_community(base_url, admin_headers, '管理测试社区X')  # 超级管理员作为主管

@@ -18,7 +18,7 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from hashutil import random_str, uuid_str
+from hashutil import random_str, uuid_str, generate_unique_phone
 
 
 class TestCommunityAPI:
@@ -346,8 +346,8 @@ class TestCommunityAPI:
         base_url = self.base_url
         
         # 1. 创建普通用户
+        phone = generate_unique_phone()
         timestamp = int(time.time())
-        phone = f'138{random_str(8)}'
         nickname = f'测试用户_{timestamp}'
         
         user_id = self._create_test_user(base_url, phone, nickname)

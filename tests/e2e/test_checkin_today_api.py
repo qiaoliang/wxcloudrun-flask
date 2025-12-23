@@ -98,8 +98,7 @@ class TestCheckinTodayAPI:
         预期结果：返回空的打卡事项列表
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -147,8 +146,7 @@ class TestCheckinTodayAPI:
         预期结果：返回今日打卡事项，状态为未打卡
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -219,8 +217,7 @@ class TestCheckinTodayAPI:
         预期结果：返回今日打卡事项，计划时间为自定义时间
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -278,8 +275,7 @@ class TestCheckinTodayAPI:
         预期结果：返回今日打卡事项，状态为已打卡
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -348,8 +344,7 @@ class TestCheckinTodayAPI:
         预期结果：返回所有今日需要打卡的事项
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -421,8 +416,7 @@ class TestCheckinTodayAPI:
         预期结果：返回今日打卡事项
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -482,8 +476,7 @@ class TestCheckinTodayAPI:
         预期结果：不返回该打卡事项
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -550,8 +543,7 @@ class TestCheckinTodayAPI:
             pytest.skip("今天是周末，跳过工作日测试")
         
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -612,8 +604,7 @@ class TestCheckinTodayAPI:
             pytest.skip("今天是工作日，跳过周末测试")
         
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -711,8 +702,7 @@ class TestCheckinTodayAPI:
         预期结果：不返回已禁用的打卡事项
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -765,8 +755,7 @@ class TestCheckinTodayAPI:
         预期结果：返回今日打卡事项，状态为未打卡
         """
         # 创建测试用户
-        timestamp = int(time_module.time() * 1000)
-        phone = f'138{random_str(8)}'  # 确保138开头，共11位
+        phone = generate_unique_phone()
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']

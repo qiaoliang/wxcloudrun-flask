@@ -11,7 +11,7 @@ import os
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from hashutil import random_str, uuid_str
+from hashutil import random_str, uuid_str, generate_unique_phone
 
 class TestPhoneSearchDebug:
 
@@ -132,7 +132,7 @@ class TestPhoneSearchDebug:
         print(f"✅ 用户创建成功，ID: {user_id}")
         
         # 2. 尝试不同的验证码绑定手机号
-        test_phone = f"138{random_str(8)}"
+        test_phone = generate_unique_phone()
         
         # 测试不同的验证码
         test_codes = ["666888", "888666", "111111", "999999", "555555"]

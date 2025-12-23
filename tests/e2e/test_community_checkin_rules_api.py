@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from hashutil import random_str, uuid_str
+from hashutil import random_str, uuid_str, generate_unique_phone
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 # 导入测试工具函数
 from tests.e2e.testutil import get_headers_by_creating_phone_user, create_phone_user, TEST_DEFAULT_SMS_CODE, TEST_DEFAULT_PWD, TEST_DEFAULT_WXCAHT_CODE
@@ -161,7 +161,7 @@ class TestCommunityCheckinRulesAPI:
         base_url = self.base_url
 
         # 创建普通用户（非社区管理员）
-        phone = f"138{random_str(8)}"
+        phone = generate_unique_phone()
         nickname = f"普通用户_{random_str(6)}"
         user_data = create_phone_user(base_url, phone, nickname)
         user_token = user_data['token']
@@ -514,7 +514,7 @@ class TestCommunityCheckinRulesAPI:
         rule_id = a_rule['community_rule_id']
 
         # 创建另一个普通用户
-        phone = f"139{random_str(8)}"
+        phone = generate_unique_phone()
         nickname = f"其他用户_{random_str(6)}"
         other_headers,_ = get_headers_by_creating_phone_user(base_url, phone, nickname)
 

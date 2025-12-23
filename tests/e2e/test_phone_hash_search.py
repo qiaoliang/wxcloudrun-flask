@@ -13,7 +13,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.insert(0, project_root)
 
 from hashlib import sha256
-from hashutil import random_str, uuid_str
+from hashutil import random_str, uuid_str, generate_unique_phone
 
 class TestUserSearchByPhoneIntegration:
 
@@ -98,7 +98,7 @@ class TestUserSearchByPhoneIntegration:
 
     def test_phone_hash_calculation(self):
         """验证phone_hash计算是否正确"""
-        phone = f"138{random_str(8)}"
+        phone = generate_unique_phone()
         phone_secret = "default_secret"
         expected_hash = sha256(
             f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
@@ -177,7 +177,7 @@ class TestUserSearchByPhoneIntegration:
         print(f"✅ 通过完整手机号找到用户: {found_user['nickname']}")
         
         # 5. 验证使用错误手机号找不到用户
-        wrong_phone = f"138{random_str(8)}"
+        wrong_phone = generate_unique_phone()
         wrong_response = requests.get(
             f"{url_env}/api/users/search",
             params={"keyword": wrong_phone},

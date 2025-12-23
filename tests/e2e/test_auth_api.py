@@ -19,7 +19,7 @@ import pytest
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-from hashutil import random_str,uuid_str
+from hashutil import random_str,uuid_str,generate_unique_phone
 # 导入DAO模块和Flask app
 from wxcloudrun import app
 
@@ -535,7 +535,7 @@ class TestAuthAPI:
         当前实现返回code=1，API文档要求code=0
         """
         # 准备请求数据
-        phone_number = f"138{random_str(8)}"
+        phone_number = generate_unique_phone()
         nickname = uuid_str(16)
         # 确保密码符合强度要求：至少8位，包含字母和数字
         password = f"test{random_str(8)}"
@@ -625,7 +625,7 @@ class TestAuthAPI:
         # 准备请求数据（缺少code）
         nickname = f"测试用户_{uuid_str(8)}"
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "nickname": nickname,
             "password": "password123"
         }
@@ -666,7 +666,7 @@ class TestAuthAPI:
         for invalid_code in invalid_codes:
             # 准备请求数据
             register_data = {
-                "phone": f"138{random_str(8)}",
+                "phone": generate_unique_phone(),
                 "code": invalid_code,
                 "nickname": "测试用户",
                 "password": "password123"
@@ -693,7 +693,7 @@ class TestAuthAPI:
 
         # 测试缺少验证码参数的情况
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "nickname": "测试用户",
             "password": "password123"
             # 故意缺少 code 参数
@@ -721,7 +721,7 @@ class TestAuthAPI:
         # 准备请求数据（弱密码）
         nickname = f"测试用户_{uuid_str(8)}"
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "code": "123456",
             "nickname": nickname,
             "password": "123"  # 密码太短
@@ -753,7 +753,7 @@ class TestAuthAPI:
         # 先注册一个用户
         nickname = f"测试用户_{uuid_str(8)}"
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "code": "123456",
             "nickname": nickname,
             "password": "password123"
@@ -790,7 +790,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "code": "123456",
             "password": "password123"
         }
@@ -802,7 +802,7 @@ class TestAuthAPI:
 
         # 使用验证码登录
         login_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "code": "123456"
         }
 
@@ -891,7 +891,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "code": "123456",
             "password": "password123"
         }
@@ -903,7 +903,7 @@ class TestAuthAPI:
 
         # 使用密码登录
         login_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "password": "password123"
         }
 
@@ -937,7 +937,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "code": "123456",
             "password": "password123"
         }
@@ -949,7 +949,7 @@ class TestAuthAPI:
 
         # 使用错误密码登录
         login_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": generate_unique_phone(),
             "password": "wrongpassword"
         }
 
@@ -976,7 +976,7 @@ class TestAuthAPI:
         当前实现返回code=1，API文档要求code=0
         """
         # 先注册一个用户
-        phone_number = f"138{random_str(8)}"
+        phone_number = generate_unique_phone()
         register_data = {
             "phone": phone_number,
             "code": "123456",

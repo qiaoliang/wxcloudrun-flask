@@ -3,6 +3,15 @@ import os
 from hashlib import sha256
 import uuid
 import time
+import threading
+
+# 全局计数器，用于生成唯一的测试手机号
+_phone_counter = 0
+_phone_counter_lock = threading.Lock()
+
+# 超级管理员手机号，需要避免生成这个号码
+SUPER_ADMIN_PHONE = '13900007997'
+
 PWD_SALT = secrets.token_hex(8)
 PHONE_SALT = os.getenv('PHONE_ENC_SECRET', 'default_secret')
 def pwd_hash(pwd):
@@ -34,3 +43,22 @@ def random_str(len:int) -> str:
     timestamp = str(int(time.time() * 1000000))
     result = f"{timestamp}"
     return result[:len]
+
+def generate_unique_phone() -> str:
+    """
+    生成唯一的测试手机号
+    确保手机号符合11位数字格式，且不与超级管理员号码冲突
+    """
+    global _phone_counter
+    with _phone_counter_lock:
+        _phone_counter += 1
+        # 生成格式：139 + 1000 + 递增数字 (确保11位)
+        # 例如: 139100000001, 139100000002, ...
+        phone = f"139100{_phone_counter:06d}"
+        
+        # 确保不会生成超级管理员的手机号
+        if phone == SUPER_ADMIN_PHONE:
+            _phone_counter += 1
+            phone = f"139100{_phone_counter:06d}"
+    
+    return phone

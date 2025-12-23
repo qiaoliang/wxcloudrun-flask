@@ -11,6 +11,9 @@ TEST_DEFAULT_PWD ='TEST_DEFAULT_PWD_123456'
 TEST_DEFAULT_AVATAR ="/avatar/TEST_DEFAULT_AVATAR"
 TEST_DEFAULT_WXCAHT_CODE = '123456'
 
+# 从hashutil导入generate_unique_phone函数
+from hashutil import generate_unique_phone
+
 def uuid_str(length:int) ->str:
     if not isinstance(length, int) or length < 1 or length > 32:
         raise ValueError("长度必须是1-32之间的整数")
@@ -63,3 +66,6 @@ def create_wx_user(base_url, wxchat_code, nickname, avatal_url=TEST_DEFAULT_AVAT
         register_data = response.json()
         assert register_data.get('code') == 1
         return register_data['data']
+
+# 导出函数
+__all__ = ['uuid_str', 'random_str', 'create_phone_user', 'create_wx_user', 'TEST_DEFAULT_PWD', 'TEST_DEFAULT_WXCAHT_CODE', 'TEST_DEFAULT_SMS_CODE', 'TEST_DEFAULT_AVATAR', 'get_headers_by_creating_phone_user', 'generate_unique_phone']
