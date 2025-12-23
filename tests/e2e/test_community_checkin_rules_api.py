@@ -94,7 +94,8 @@ class TestCommunityCheckinRulesAPI:
             # 查找占用端口 9998 的进程
             result = subprocess.run(['lsof', '-t', '-i:9998'], 
                                   capture_output=True, text=True)
-            if result.returncode == 0: split('\n')')
+            if result.returncode == 0:
+                pids = result.stdout.strip().split('\n')
                 for pid in pids:
                     if pid:
                         subprocess.run(['kill', '-9', pid], capture_output=True)

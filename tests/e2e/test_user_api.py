@@ -87,7 +87,8 @@ class TestUserAPI:
             # 查找占用端口 9998 的进程
             result = subprocess.run(['lsof', '-t', '-i:9998'], 
                                   capture_output=True, text=True)
-            if result.returncode == 0: split('\n')')
+            if result.returncode == 0:
+                pids = result.stdout.strip().split('\n')
                 for pid in pids:
                     if pid:
                         subprocess.run(['kill', '-9', pid], capture_output=True)
@@ -97,7 +98,7 @@ class TestUserAPI:
 
     """用户搜索API测试类"""
 
-    def test_create_wechat_user(self,self.base_url,auto_headers=None):
+    def test_create_wechat_user(self, base_url, auto_headers=None):
         wechat_code = f"wx_auth_new_user_{uuid_str(5)}"
         nickname =f"wx_auth_new_nickname_{uuid_str(5)}"
         avatar_url=f"{self.base_url}/avatar/{uuid_str(20)}"
@@ -107,7 +108,7 @@ class TestUserAPI:
         assert result['name'] == nickname
         assert result['avatar_url'] == avatar_url
 
-    def test_create_phone_user(self,self.base_url,auto_headers=None):
+    def test_create_phone_user(self, base_url, auto_headers=None):
         phone_number = f"139{random_str(8)}"
         nickname =f"phone_user_nickname_{uuid_str(5)}"
 
