@@ -9,7 +9,7 @@ import requests
 import json
 import time as time_module
 from datetime import datetime, date, time
-from tests.e2e.testutil import uuid_str, random_str, create_phone_user
+from tests.e2e.testutil import uuid_str, random_str, create_phone_user, generate_unique_phone
 
 
 class TestCheckinTodayAPI:
