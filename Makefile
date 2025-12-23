@@ -1,6 +1,6 @@
 # Makefile for backend testing
 
-.PHONY: help test-integration ut test-all clean setup e2e
+.PHONY: help test-integration ut test-all clean setup e2e it its
 
 # 默认目标
 help:
@@ -12,6 +12,8 @@ help:
 	@echo "  make test-migration - 运行数据库迁移测试"
 	@echo "  make e2e     - 运行E2E测试（需要Docker）"
 	@echo "  make e2e-single TEST=<test> - 运行单个E2E测试用例"
+	@echo "  make it     - 运行所有集成测试用例"
+	@echo "  make its TEST=<test> - 运行单个集成测试用例"
 	@echo "  make test-all     - 运行所有测试"
 	@echo "  make test-coverage - 生成测试覆盖率报告"
 	@echo "  make clean        - 清理测试文件"
@@ -33,6 +35,9 @@ help:
 	@echo "  make test-migration VERBOSE=1  # 详细输出"
 	@echo "  make e2e-single TEST=test_multi_community_role_e2e.py  # 运行单个E2E测试文件"
 	@echo "  make e2e-single TEST=test_multi_community_role_e2e.py::TestMultiCommunityRole::test_user_can_join_multiple_communities  # 运行单个测试函数"
+	@echo "  make it            # 运行所有集成测试用例"
+	@echo "  make its TEST=tests/integration/test_user_integration.py  # 运行单个集成测试文件"
+	@echo "  make its TEST=tests/integration/test_user_integration.py::TestUserIntegration::test_user_creation_and_isolation  # 运行单个集成测试函数"
 
 # 设置测试环境
 setup:
@@ -56,6 +61,18 @@ test-integration: setup
 	else \
 		python -m pytest tests/integration/ -v; \
 	fi
+
+# 运行所有集成测试（it = integration tests）
+it: setup
+	@echo "=== 运行所有集成测试用例 ==="
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python -m pytest tests/integration/ -v -s; \
+	else \
+		python -m pytest tests/integration/ -v; \
+	fi
+	@echo "✓ 所有集成测试完成"
 
 # 运行单个集成测试文件
 test-registration: setup
@@ -131,6 +148,26 @@ ut-s: setup
 		python -m pytest $(TEST) -v; \
 	fi
 	@echo "✓ 单个单元测试完成"
+
+# 运行单个集成测试用例 (its = integration test single)
+its: setup
+	@if [ -z "$(TEST)" ]; then \
+		echo "请指定集成测试文件、测试类或测试函数，例如:"; \
+		echo "  make its TEST=tests/integration/test_user_integration.py"; \
+		echo "  make its TEST=tests/integration/test_user_integration.py::TestUserIntegration"; \
+		echo "  make its TEST=tests/integration/test_user_integration.py::TestUserIntegration::test_user_creation_and_isolation"; \
+		exit 1; \
+	fi
+	@echo "=== 运行单个集成测试用例 ==="
+	@echo "测试: $(TEST)"
+	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python -m pytest $(TEST) -v -s; \
+	else \
+		python -m pytest $(TEST) -v; \
+	fi
+	@echo "✓ 单个集成测试完成"
 
 # 运行所有测试
 test-all: setup
