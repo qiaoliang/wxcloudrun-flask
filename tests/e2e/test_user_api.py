@@ -110,8 +110,9 @@ class TestUserAPI:
 
     def test_create_phone_user(self):
         import time
-        # 使用时间戳确保唯一性
-        phone_number = f"139{int(time.time() * 1000)}"[-8:]  # 取最后8位
+        # 使用时间戳确保唯一性，生成有效的11位手机号
+        timestamp = int(time.time() * 1000)
+        phone_number = f"139{str(timestamp)[-8:]}"  # 确保139开头，共11位
         nickname =f"phone_user_nickname_{uuid_str(5)}"
 
         pwd=f"{self.base_url}/avatar/{uuid_str(20)}"
@@ -167,7 +168,8 @@ class TestUserAPI:
         url_env = self.base_url
         # 准备测试数据
         import time
-        test_phone = f"139{int(time.time() * 1000)}"[-8:]  # 使用时间戳确保唯一
+        timestamp = int(time.time() * 1000)
+        test_phone = f"139{str(timestamp)[-8:]}"  # 确保139开头，共11位
         test_nickname = f"test_user_{uuid_str(5)}"  # 测试昵称
 
         # 1. 创建用户并绑定手机号
