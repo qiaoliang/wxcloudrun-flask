@@ -6,6 +6,7 @@ import pytest
 import sys
 import os
 import requests
+import time
 
 # 添加项目根目录到Python路径
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
@@ -117,7 +118,8 @@ class TestUserSearchByPhoneIntegration:
         url_env = self.base_url
         
         # 1. 使用手机号注册创建测试用户
-        test_phone = "13999999999"
+        timestamp = int(time.time() * 1000)
+        test_phone = f"139{str(timestamp)[-8:]}"  # 确保139开头，共11位
         register_data = {
             "phone": test_phone,
             "code": "666888",  # 使用有效验证码
