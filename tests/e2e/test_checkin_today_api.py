@@ -356,12 +356,17 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证打卡事项内容
-        checkin_item = data["data"]["checkin_items"][0]
-        assert checkin_item["rule_id"] == rule_id
-        assert checkin_item["status"] == "checked"
-        assert checkin_item["checkin_time"] is not None
-        assert checkin_item["record_id"] == record_id
+        # 验证打卡事项内容 - 通过规则ID查找正确的打卡项
+        new_checkin_item = None
+        for item in data["data"]["checkin_items"]:
+            if item["rule_id"] == rule_id:
+                new_checkin_item = item
+                break
+        
+        assert new_checkin_item is not None, f"未找到规则ID为 {rule_id} 的打卡项"
+        assert new_checkin_item["status"] == "checked"
+        assert new_checkin_item["checkin_time"] is not None
+        assert new_checkin_item["record_id"] == record_id
         
         print(f"✅ 测试通过：已打卡的事项状态正确显示为checked")
 
