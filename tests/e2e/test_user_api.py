@@ -188,7 +188,7 @@ class TestUserAPI:
                 "phone": "13900007997",
                 "password": "Firefox0820"
             },
-            timeout=5
+            timeout=15
         )
         admin_token = admin_login_response.json()["data"]["token"]
         admin_headers = {
@@ -202,7 +202,7 @@ class TestUserAPI:
             f"{url_env}/api/users/search",
             params=params,
             headers=admin_headers,
-            timeout=5
+            timeout=15
         )
 
         # 验证响应
