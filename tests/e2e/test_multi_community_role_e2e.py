@@ -9,6 +9,7 @@
 """
 import pytest
 import requests
+import time
 from datetime import datetime
 
 
@@ -121,8 +122,9 @@ class TestMultiCommunityRoleAssignmentE2E:
         base_url = self.base_url
         admin_token, super_admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
+        timestamp = int(time.time() * 1000)
         commu_data = {
-            'name': '我的q 测试社区',
+            'name': f'我的q 测试社区_{timestamp}',
             'location': 'q 测试社区 的测试地址 ',
             'description': '测试社区描述',
             'manager_id':super_admin_id
