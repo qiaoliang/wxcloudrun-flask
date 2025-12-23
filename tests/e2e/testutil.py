@@ -3,8 +3,13 @@ import time
 import pytest
 import requests
 import time
+import sys
+import os
 from datetime import datetime
 
+# 添加src目录到Python路径，以便导入hashutil
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+sys.path.insert(0, project_root)
 
 TEST_DEFAULT_SMS_CODE = 'wx_auth_123456'
 TEST_DEFAULT_PWD ='TEST_DEFAULT_PWD_123456'
