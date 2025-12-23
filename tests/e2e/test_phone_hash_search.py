@@ -25,7 +25,7 @@ class TestUserSearchByPhoneIntegration:
         import requests
         
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'unit'
+        os.environ['ENV_TYPE'] = 'function'
         
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
@@ -97,7 +97,7 @@ class TestUserSearchByPhoneIntegration:
 
     def test_phone_hash_calculation(self):
         """验证phone_hash计算是否正确"""
-        phone = "13888888888"
+        phone = f"138{random_str(8)}"
         phone_secret = "default_secret"
         expected_hash = sha256(
             f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
@@ -176,7 +176,7 @@ class TestUserSearchByPhoneIntegration:
         print(f"✅ 通过完整手机号找到用户: {found_user['nickname']}")
         
         # 5. 验证使用错误手机号找不到用户
-        wrong_phone = "13888888888"
+        wrong_phone = f"138{random_str(8)}"
         wrong_response = requests.get(
             f"{url_env}/api/users/search",
             params={"keyword": wrong_phone},
