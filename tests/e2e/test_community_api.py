@@ -12,6 +12,14 @@ import requests
 import time
 from datetime import datetime
 
+# 添加项目根目录到Python路径
+import sys
+import os
+project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+sys.path.insert(0, project_root)
+
+from hashutil import random_str, uuid_str
+
 
 class TestCommunityAPI:
 
