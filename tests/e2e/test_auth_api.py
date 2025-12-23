@@ -366,7 +366,7 @@ class TestAuthAPI:
         """
         # 准备请求数据（缺少code）
         login_data = {
-            "nickname": "张三",
+            "nickname": f"测试用户_{uuid_str(8)}",
             "avatar_url": "https://example.com/avatar.jpg"
         }
 
@@ -393,7 +393,7 @@ class TestAuthAPI:
         # 准备请求数据（无效code）
         login_data = {
             "code": "invalid_code",
-            "nickname": "张三",
+            "nickname": f"测试用户_{uuid_str(8)}",
             "avatar_url": "https://example.com/avatar.jpg"
         }
 
@@ -595,7 +595,7 @@ class TestAuthAPI:
         # 准备请求数据（缺少phone）
         register_data = {
             "code": "123456",
-            "nickname": "张三",
+            "nickname": f"测试用户_{uuid_str(8)}",
             "password": "password123"
         }
 
@@ -623,9 +623,10 @@ class TestAuthAPI:
         当前实现返回200状态码和code=0，API文档要求返回400状态码
         """
         # 准备请求数据（缺少code）
+        nickname = f"测试用户_{uuid_str(8)}"
         register_data = {
             "phone": f"138{random_str(8)}",
-            "nickname": "张三",
+            "nickname": nickname,
             "password": "password123"
         }
 
@@ -718,10 +719,11 @@ class TestAuthAPI:
         当前实现返回200状态码和code=0，API文档要求返回400状态码
         """
         # 准备请求数据（弱密码）
+        nickname = f"测试用户_{uuid_str(8)}"
         register_data = {
             "phone": f"138{random_str(8)}",
             "code": "123456",
-            "nickname": "张三",
+            "nickname": nickname,
             "password": "123"  # 密码太短
         }
 
@@ -749,10 +751,11 @@ class TestAuthAPI:
         当前实现返回200状态码和code=0，API文档要求返回409状态码
         """
         # 先注册一个用户
+        nickname = f"测试用户_{uuid_str(8)}"
         register_data = {
             "phone": f"138{random_str(8)}",
             "code": "123456",
-            "nickname": "张三",
+            "nickname": nickname,
             "password": "password123"
         }
         requests.post(
@@ -973,8 +976,9 @@ class TestAuthAPI:
         当前实现返回code=1，API文档要求code=0
         """
         # 先注册一个用户
+        phone_number = f"138{random_str(8)}"
         register_data = {
-            "phone": f"138{random_str(8)}",
+            "phone": phone_number,
             "code": "123456",
             "nickname": "张三",
             "password": "password123"
@@ -987,7 +991,7 @@ class TestAuthAPI:
 
         # 使用验证码+密码登录
         login_data = {
-            "phone": "13812345678",
+            "phone": phone_number,
             "code": "123456",
             "password": "password123"
         }
@@ -1021,7 +1025,8 @@ class TestAuthAPI:
 
         # 验证具体值
         assert response_data["nickname"] == "张三"
-        assert response_data["phone_number"] == "138****5678"
+        phone_masked = f"{phone_number[:3]}****{phone_number[-4:]}"
+        assert response_data["phone_number"] == phone_masked
         assert response_data["wechat_openid"] == None  # 手机用户的 wechat_openid 为空字符串
         assert response_data["login_type"] == "existing_user"  # 已实现
 
