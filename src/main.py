@@ -135,13 +135,21 @@ def main():
                 migration_logger.error("数据库迁移失败，程序退出")
                 sys.exit(1)
         
-        # 只在执行了迁移或需要初始化时创建超级管理员
-        if env_type not in ['unit'] and (not is_debug_mode or not is_flask_restart):
+        # 在function环境下总是执行初始化，其他环境根据调试模式决定
+        should_initialize = False
+        
+        if env_type == 'function':
+            # function环境总是执行初始化
+            should_initialize = True
+            app.logger.info("function环境：总是执行超级管理员和默认社区初始化")
+        elif env_type not in ['unit'] and (not is_debug_mode or not is_flask_restart):
+            # 其他非unit环境，在非调试模式或调试模式的主进程中执行
+            should_initialize = True
             app.logger.info("开始注入超级管理员和默认社区.....")
-            
+        
+        if should_initialize:
             # 创建超级管理员和默认社区
             create_super_admin_and_default_community(db_core)
-            
             app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
         else:
             app.logger.info("跳过超级管理员和默认社区注入")
