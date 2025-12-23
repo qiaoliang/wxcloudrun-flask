@@ -109,7 +109,9 @@ class TestUserAPI:
         assert result['avatar_url'] == avatar_url
 
     def test_create_phone_user(self):
-        phone_number = f"139{random_str(8)}"
+        import time
+        # 使用时间戳确保唯一性
+        phone_number = f"139{int(time.time() * 1000)}"[-8:]  # 取最后8位
         nickname =f"phone_user_nickname_{uuid_str(5)}"
 
         pwd=f"{self.base_url}/avatar/{uuid_str(20)}"
@@ -163,12 +165,12 @@ class TestUserAPI:
         验证API能够正确根据手机号找到对应的用户
         """
         url_env = self.base_url
+        # 准备测试数据
+        import time
+        test_phone = f"139{int(time.time() * 1000)}"[-8:]  # 使用时间戳确保唯一
+        test_nickname = f"test_user_{uuid_str(5)}"  # 测试昵称
 
-        # 1. 创建测试用户 - 使用特定的手机号
-        test_phone = "13812345678"
-        test_nickname = "手机测试用户"
-
-        # 创建用户并绑定手机号
+        # 1. 创建用户并绑定手机号
         user_response = create_phone_user(
             url_env,
             test_phone,
