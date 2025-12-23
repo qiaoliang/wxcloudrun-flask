@@ -12,7 +12,7 @@ import time
 import signal
 import subprocess
 from datetime import datetime
-import .testutil import create_phone_user, create_wx_user, get_headers_by_creating_phone_user, random_str, uuid_str
+from tests.e2e.testutil import create_phone_user, create_wx_user, get_headers_by_creating_phone_user, random_str, uuid_str
 
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

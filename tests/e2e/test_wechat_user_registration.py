@@ -9,12 +9,11 @@ import json
 import os
 import sys
 
-# 添加项目根目录到Python路径，以便导入dao模块
+# 添加项目根目录到Python路径，以便导入app
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, project_root)
 
-# 导入DAO模块和Flask app
-from wxcloudrun import dao, app
+from wxcloudrun import app
 
 
 class TestWechatUserRegistration:
@@ -28,7 +27,7 @@ class TestWechatUserRegistration:
         import requests
         
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'func'
+        os.environ['ENV_TYPE'] = 'unit'
         
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')

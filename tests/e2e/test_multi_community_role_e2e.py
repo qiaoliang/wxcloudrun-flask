@@ -11,7 +11,7 @@ import pytest
 import requests
 import time
 from datetime import datetime
-from .testutil import create_phone_user, create_wx_user, get_headers_by_creating_phone_user, uuid_str, random_str
+from tests.e2e.testutil import create_phone_user, create_wx_user, get_headers_by_creating_phone_user, uuid_str, random_str
 
 class TestMultiCommunityRoleAssignmentE2E:
 
@@ -24,7 +24,7 @@ class TestMultiCommunityRoleAssignmentE2E:
         import requests
 
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'func'
+        os.environ['ENV_TYPE'] = 'unit'
 
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')

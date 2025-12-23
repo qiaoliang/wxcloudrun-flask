@@ -15,7 +15,7 @@ sys.path.insert(0, project_root)
 
 from tests.e2e.testutil import uuid_str,TEST_DEFAULT_PWD,TEST_DEFAULT_WXCAHT_CODE,TEST_DEFAULT_SMS_CODE,create_phone_user,create_wx_user,random_str
 # 导入DAO模块和Flask app
-from wxcloudrun import dao, app
+from wxcloudrun import app
 
 class TestUserAPI:
 
@@ -28,7 +28,7 @@ class TestUserAPI:
         import requests
         
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'func'
+        os.environ['ENV_TYPE'] = 'unit'
         
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
