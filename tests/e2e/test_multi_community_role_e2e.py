@@ -11,7 +11,7 @@ import pytest
 import requests
 import time
 from datetime import datetime
-
+from .testutil import create_phone_user, create_wx_user, get_headers_by_creating_phone_user, uuid_str, random_str
 
 class TestMultiCommunityRoleAssignmentE2E:
 
@@ -22,18 +22,18 @@ class TestMultiCommunityRoleAssignmentE2E:
         import time
         import subprocess
         import requests
-        
+
         # 设置环境变量
         os.environ['ENV_TYPE'] = 'func'
-        
+
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
-        
+
         # 清理可能存在的进程
         self._cleanup_existing_processes()
-        
+
         # 启动 Flask 应用（在后台运行）
         self.flask_process = subprocess.Popen(
             [sys.executable, 'main.py', '127.0.0.1', '9998'],
@@ -42,10 +42,10 @@ class TestMultiCommunityRoleAssignmentE2E:
             stderr=subprocess.PIPE,
             env=os.environ.copy()
         )
-        
+
         # 等待应用启动
         time.sleep(5)
-        
+
         # 验证应用是否成功启动
         max_attempts = 10
         for attempt in range(max_attempts):
@@ -58,7 +58,7 @@ class TestMultiCommunityRoleAssignmentE2E:
                 if attempt == max_attempts - 1:
                     pytest.fail("Flask 应用启动失败")
                 time.sleep(1)
-        
+
         # 保存base_url供测试方法使用
         self.base_url = f'http://localhost:9998'
 
@@ -72,16 +72,16 @@ class TestMultiCommunityRoleAssignmentE2E:
                 self.flask_process.kill()
                 self.flask_process.wait()
             print("Flask 应用已停止")
-        
+
         # 再次清理可能残留的进程
         self._cleanup_existing_processes()
-    
+
     def _cleanup_existing_processes(self):
         """清理可能存在的 Flask 进程"""
         import subprocess
         try:
             # 查找占用端口 9998 的进程
-            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+            result = subprocess.run(['lsof', '-t', '-i:9998'],
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 pids = result.stdout.strip().split('\n')
@@ -122,11 +122,10 @@ class TestMultiCommunityRoleAssignmentE2E:
         base_url = self.base_url
         admin_token, super_admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
-        timestamp = int(time.time() * 1000)
         commu_data = {
-            'name': f'我的q 测试社区_{timestamp}',
-            'location': 'q 测试社区 的测试地址 ',
-            'description': '测试社区描述',
+            'name': f'我的q 测试社区_{uuid_str(20)}',
+            'location': 'q 测试社区 的测试地址_{uuid_str(20)}',
+            'description': '测试社区描述_{uuid_str(20)}',
             'manager_id':super_admin_id
         }
         response = requests.post(f'{base_url}/api/community/create',
@@ -179,10 +178,10 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 1. 创建测试用户
-        test_user_id = self._create_test_user(base_url, '13800000001', '多角色测试用户')
+        test_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '多角色测试用户')
 
         # 2. 创建另一个用户作为社区B的主管
-        manager_user_id = self._create_test_user(base_url, '13800000002', '社区主管用户')
+        manager_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区主管用户')
 
         # 3. 创建两个社区
         # 社区A：超级管理员作为主管（默认）
