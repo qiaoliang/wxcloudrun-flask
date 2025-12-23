@@ -354,9 +354,20 @@ class TestCommunityCheckinRulesAPI:
     def test_get_rules_with_include_disabled(self):
         """测试获取规则列表时包含已禁用的规则"""
         base_url = self.base_url
-        header,comm,a_rule = self._create_header_and_commu_and_a_rule(base_url)
+        header, comm, a_rule = self._create_header_and_commu_and_a_rule(base_url)
         comm_id = comm['community_id']
-        rule1_id= a_rule["community_rule_id"]
+        rule1_id = a_rule["community_rule_id"]
+        
+        # 创建规则前先获取当前社区的规则数量
+        response_before = requests.get(f"{base_url}/api/community-checkin/rules?community_id={comm_id}&include_disabled=true",
+                               headers=header)
+        assert response_before.status_code == 200
+        list_data_before = response_before.json()
+        assert list_data_before.get('code') == 1, f"获取规则列表失败: {list_data_before.get('msg')}"
+        rules_before = list_data_before['data']['rules']
+        initial_rule_count = len(rules_before)
+        print(f"创建规则前的规则数量: {initial_rule_count}")
+        
         # 创建第二个规则
         rule_data2 = {
             "community_id": comm_id,
@@ -385,7 +396,8 @@ class TestCommunityCheckinRulesAPI:
         list_data = response.json()
         assert list_data.get('code') == 1, f"获取规则列表失败: {list_data.get('msg')}"
         rules = list_data['data']['rules']
-        assert len(rules) == 2, f"应该有2个规则，实际有{len(rules)}个"
+        # 验证规则数量比之前增加了2个（我们创建了2个规则）
+        assert len(rules) == initial_rule_count + 2, f"应该有{initial_rule_count + 2}个规则，实际有{len(rules)}个"
         
         # 启用第一个规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule1_id}/enable", headers=header)
@@ -394,15 +406,19 @@ class TestCommunityCheckinRulesAPI:
         assert res_data.get('msg') == "规则已启用"
         assert res_data.get('data')['status'] == 1
         assert res_data.get('data')['community_id'] == int(comm_id)
-        # 得到启用的规则列表
+        
+        # 获取启用的规则列表
         response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={comm_id}&include_disabled=False",
                                headers=header)
         assert response.status_code == 200
         list_data = response.json()
         assert list_data.get('code') == 1, f"获取规则列表失败: {list_data.get('msg')}"
         rules = list_data['data']['rules']
+        # 获取启用的规则
         enabled_rules = [r for r in rules if r['status'] == 1]
-        assert len(enabled_rules) == 1, f"应该有1个启用的规则，实际有{len(enabled_rules)}个"
+        # 验证启用的规则数量比之前增加了1个
+        expected_enabled_count = len([r for r in rules_before if r['status'] == 1]) + 1
+        assert len(enabled_rules) == expected_enabled_count, f"应该有{expected_enabled_count}个启用的规则，实际有{len(enabled_rules)}个"
 
         # 启用然后禁用第二个规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule2_id}/enable", headers=header)
@@ -422,8 +438,9 @@ class TestCommunityCheckinRulesAPI:
         rules = list_data['data']['rules']
 
         # 应该只包含启用的规则 (status=1)
-        #enabled_rules = [r for r in rules if r['status'] == 1]
-        assert len(rules) == 1, f"应该有1个启用的规则，实际有{len(rules)}个"
+        # 验证启用规则的数量
+        expected_enabled_count = len([r for r in rules_before if r['status'] == 1]) + 1  # rule1被启用
+        assert len(rules) == expected_enabled_count, f"应该有{expected_enabled_count}个启用的规则，实际有{len(rules)}个"
 
         # 2. 获取包含已禁用规则的列表
         response = requests.get(f"{base_url}/api/community-checkin/rules?community_id={comm['community_id']}&include_disabled=true",
@@ -433,15 +450,16 @@ class TestCommunityCheckinRulesAPI:
         rules_all = list_data_all['data']['rules']
 
         # 应该包含所有规则（包括停用的）
-        assert len(rules_all) == 2, f"应该包含2个规则，实际有{len(rules_all)}个"
+        assert len(rules_all) == initial_rule_count + 2, f"应该包含{initial_rule_count + 2}个规则，实际有{len(rules_all)}个"
 
         # 找到已禁用的规则 (status=0)
         disabled_rules = [r for r in rules_all if r['status'] == 0]
-        assert len(disabled_rules) == 1, f"应该有1个已禁用的规则，实际有{len(disabled_rules)}个"
+        expected_disabled_count = len([r for r in rules_before if r['status'] == 0]) + 1  # rule2被禁用
+        assert len(disabled_rules) == expected_disabled_count, f"应该有{expected_disabled_count}个已禁用的规则，实际有{len(disabled_rules)}个"
 
         # 找到启用的规则 (status=1)
         enabled_rules = [r for r in rules_all if r['status'] == 1]
-        assert len(enabled_rules) == 1, f"应该有1个启用的规则，实际有{len(enabled_rules)}个"
+        assert len(enabled_rules) == expected_enabled_count, f"应该有{expected_enabled_count}个启用的规则，实际有{len(enabled_rules)}个"
 
     def _create_header_and_commu_and_a_rule(self, base_url,rule_data=None):
         """创建规则的参数验证"""
