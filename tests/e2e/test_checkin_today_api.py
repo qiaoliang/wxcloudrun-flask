@@ -157,6 +157,18 @@ class TestCheckinTodayAPI:
             "Content-Type": "application/json"
         }
         
+        # 在创建规则前，先获取当前打卡项的数量
+        response_before = requests.get(
+            f"{self.base_url}/api/checkin/today",
+            headers=headers,
+            timeout=5
+        )
+        assert response_before.status_code == 200
+        data_before = response_before.json()
+        assert data_before["code"] == 1, f"获取失败: {data_before.get('msg')}"
+        initial_count = len(data_before["data"]["checkin_items"])
+        print(f"创建规则前的打卡项数量: {initial_count}")
+        
         # 创建每天打卡的规则
         rule_data = {
             "rule_name": "晨练",
@@ -197,12 +209,19 @@ class TestCheckinTodayAPI:
         response_data = data["data"]
         assert "date" in response_data
         assert "checkin_items" in response_data
-        assert len(response_data["checkin_items"]) == 1
+        # 验证打卡项数量比之前增加了1
+        assert len(response_data["checkin_items"]) == initial_count + 1
         
-        # 验证打卡事项内容
-        checkin_item = response_data["checkin_items"][0]
-        assert checkin_item["rule_id"] == rule_id
-        assert checkin_item["rule_name"] == "晨练"
+        # 验证新创建的打卡事项内容
+        # 寻找新创建的打卡项（基于规则ID）
+        new_checkin_item = None
+        for item in response_data["checkin_items"]:
+            if item["rule_id"] == rule_id:
+                new_checkin_item = item
+                break
+        
+        assert new_checkin_item is not None, f"未找到规则ID为 {rule_id} 的打卡项"
+        assert new_checkin_item["rule_name"] == "晨练"
         assert checkin_item["icon_url"] == "https://example.com/exercise.png"
         assert checkin_item["planned_time"] == "09:00:00"  # 上午默认9点
         assert checkin_item["status"] == "unchecked"
@@ -355,6 +374,18 @@ class TestCheckinTodayAPI:
             "Content-Type": "application/json"
         }
         
+        # 在创建规则前，先获取当前打卡项的数量
+        response_before = requests.get(
+            f"{self.base_url}/api/checkin/today",
+            headers=headers,
+            timeout=5
+        )
+        assert response_before.status_code == 200
+        data_before = response_before.json()
+        assert data_before["code"] == 1
+        initial_count = len(data_before["data"]["checkin_items"])
+        print(f"创建规则前的打卡项数量: {initial_count}")
+        
         # 创建多个打卡规则
         rules = [
             {
@@ -399,14 +430,16 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证返回3个打卡事项
+        # 验证返回的打卡事项数量比之前增加了3个
         checkin_items = data["data"]["checkin_items"]
-        assert len(checkin_items) == 3
+        assert len(checkin_items) == initial_count + 3
         
-        # 验证每个事项的计划时间
+        # 验证每个事项的计划时间（只验证新创建的3个规则的时间）
         expected_times = ["09:00:00", "14:00:00", "20:00:00"]
         actual_times = [item["planned_time"] for item in checkin_items]
-        assert sorted(actual_times) == sorted(expected_times)
+        # 检查预期的时间是否在返回的时间列表中
+        for expected_time in expected_times:
+            assert expected_time in actual_times, f"期望时间 {expected_time} 不在返回的时间列表中"
         
         print(f"✅ 测试通过：多个打卡规则时返回所有今日事项")
 
@@ -426,6 +459,18 @@ class TestCheckinTodayAPI:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+        
+        # 在创建规则前，先获取当前打卡项的数量
+        response_before = requests.get(
+            f"{self.base_url}/api/checkin/today",
+            headers=headers,
+            timeout=5
+        )
+        assert response_before.status_code == 200
+        data_before = response_before.json()
+        assert data_before["code"] == 1
+        initial_count = len(data_before["data"]["checkin_items"])
+        print(f"创建规则前的打卡项数量: {initial_count}")
         
         # 获取今天是周几（0=周一，6=周日）
         today_weekday = date.today().weekday()
@@ -463,10 +508,12 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证返回1个打卡事项
+        # 验证返回的打卡事项数量比之前增加了1
         checkin_items = data["data"]["checkin_items"]
-        assert len(checkin_items) == 1
-        assert checkin_items[0]["rule_name"] == "周例会"
+        assert len(checkin_items) == initial_count + 1
+        # 验证新创建的规则包含"周例会"
+        rule_names = [item["rule_name"] for item in checkin_items]
+        assert "周例会" in rule_names
         
         print(f"✅ 测试通过：每周规则在打卡日内时返回打卡事项")
 
@@ -486,6 +533,18 @@ class TestCheckinTodayAPI:
             "Authorization": f"Bearer {token}",
             "Content-Type": "application/json"
         }
+        
+        # 在创建规则前，先获取当前打卡项的数量
+        response_before = requests.get(
+            f"{self.base_url}/api/checkin/today",
+            headers=headers,
+            timeout=5
+        )
+        assert response_before.status_code == 200
+        data_before = response_before.json()
+        assert data_before["code"] == 1
+        initial_count = len(data_before["data"]["checkin_items"])
+        print(f"创建规则前的打卡项数量: {initial_count}")
         
         # 获取今天是周几（0=周一，6=周日）
         today_weekday = date.today().weekday()
@@ -524,9 +583,9 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证不返回打卡事项
+        # 验证打卡事项数量没有增加
         checkin_items = data["data"]["checkin_items"]
-        assert len(checkin_items) == 0
+        assert len(checkin_items) == initial_count  # 不应增加，因为规则不适用于今天
         
         print(f"✅ 测试通过：每周规则在非打卡日时不返回打卡事项")
 
@@ -554,6 +613,18 @@ class TestCheckinTodayAPI:
             "Content-Type": "application/json"
         }
         
+        # 在创建规则前，先获取当前打卡项的数量
+        response_before = requests.get(
+            f"{self.base_url}/api/checkin/today",
+            headers=headers,
+            timeout=5
+        )
+        assert response_before.status_code == 200
+        data_before = response_before.json()
+        assert data_before["code"] == 1
+        initial_count = len(data_before["data"]["checkin_items"])
+        print(f"创建规则前的打卡项数量: {initial_count}")
+        
         # 创建工作日打卡规则
         rule_data = {
             "rule_name": "上班打卡",
@@ -584,10 +655,12 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证返回1个打卡事项
+        # 验证返回的打卡事项数量比之前增加了1
         checkin_items = data["data"]["checkin_items"]
-        assert len(checkin_items) == 1
-        assert checkin_items[0]["rule_name"] == "上班打卡"
+        assert len(checkin_items) == initial_count + 1
+        # 验证新创建的规则包含"上班打卡"
+        rule_names = [item["rule_name"] for item in checkin_items]
+        assert "上班打卡" in rule_names
         
         print(f"✅ 测试通过：工作日规则在工作日时返回打卡事项")
 
@@ -615,6 +688,18 @@ class TestCheckinTodayAPI:
             "Content-Type": "application/json"
         }
         
+        # 在创建规则前，先获取当前打卡项的数量
+        response_before = requests.get(
+            f"{self.base_url}/api/checkin/today",
+            headers=headers,
+            timeout=5
+        )
+        assert response_before.status_code == 200
+        data_before = response_before.json()
+        assert data_before["code"] == 1
+        initial_count = len(data_before["data"]["checkin_items"])
+        print(f"创建规则前的打卡项数量: {initial_count}")
+        
         # 创建工作日打卡规则
         rule_data = {
             "rule_name": "上班打卡",
@@ -645,9 +730,9 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证不返回打卡事项
+        # 验证打卡事项数量没有增加（因为今天是周末，工作日规则不适用）
         checkin_items = data["data"]["checkin_items"]
-        assert len(checkin_items) == 0
+        assert len(checkin_items) == initial_count  # 数量没有变化，因为规则今天不适用
         
         print(f"✅ 测试通过：工作日规则在周末时不返回打卡事项")
 
@@ -713,6 +798,18 @@ class TestCheckinTodayAPI:
             "Content-Type": "application/json"
         }
         
+        # 在创建规则前，先获取当前打卡项的数量
+        response_before = requests.get(
+            f"{self.base_url}/api/checkin/today",
+            headers=headers,
+            timeout=5
+        )
+        assert response_before.status_code == 200
+        data_before = response_before.json()
+        assert data_before["code"] == 1
+        initial_count = len(data_before["data"]["checkin_items"])
+        print(f"创建规则前的打卡项数量: {initial_count}")
+        
         # 创建已禁用的打卡规则
         rule_data = {
             "rule_name": "已禁用的规则",
@@ -743,9 +840,9 @@ class TestCheckinTodayAPI:
         data = response.json()
         assert data["code"] == 1
         
-        # 验证不返回已禁用的打卡事项
+        # 验证打卡事项数量没有增加（因为规则是禁用的）
         checkin_items = data["data"]["checkin_items"]
-        assert len(checkin_items) == 0
+        assert len(checkin_items) == initial_count  # 数量没有变化，因为规则是禁用的
         
         print(f"✅ 测试通过：已禁用的规则不返回打卡事项")
 
