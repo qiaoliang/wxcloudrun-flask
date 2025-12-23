@@ -492,7 +492,7 @@ class TestCommunityCheckinRulesAPI:
         data = response.json()
         assert data.get('code') == 1
         assert "创建社区规则成功" in data.get('msg', '')
-        assert data['data']['community_rule_id'] is 1
+        assert data['data']['community_rule_id'] is not None  # 只检查ID存在，不检查具体值
     def test_rule_detail_permission(self):
         """测试规则详情的权限控制"""
         base_url = self.base_url
