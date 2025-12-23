@@ -18,9 +18,86 @@ from wxcloudrun import dao, app
 
 
 class TestWechatUserRegistration:
+
+    def setup_method(self):
+        """每个测试方法前的设置：启动 Flask 应用"""
+        import os
+        import sys
+        import time
+        import subprocess
+        import requests
+        
+        # 设置环境变量
+        os.environ['ENV_TYPE'] = 'func'
+        
+        # 确保 src 目录在 Python 路径中
+        src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # 清理可能存在的进程
+        self._cleanup_existing_processes()
+        
+        # 启动 Flask 应用（在后台运行）
+        self.flask_process = subprocess.Popen(
+            [sys.executable, 'main.py', '127.0.0.1', '9998'],
+            cwd=src_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy()
+        )
+        
+        # 等待应用启动
+        time.sleep(5)
+        
+        # 验证应用是否成功启动
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(f'http://localhost:9998/', timeout=2)
+                if response.status_code == 200:
+                    print(f"Flask 应用成功启动 (尝试 {attempt + 1}/{max_attempts})")
+                    break
+            except requests.exceptions.RequestException:
+                if attempt == max_attempts - 1:
+                    pytest.fail("Flask 应用启动失败")
+                time.sleep(1)
+        
+        # 保存base_url供测试方法使用
+        self.base_url = f'http://localhost:9998'
+
+    def teardown_method(self):
+        """每个测试方法后的清理：停止 Flask 应用"""
+        if hasattr(self, 'flask_process') and self.flask_process:
+            self.flask_process.terminate()
+            try:
+                self.flask_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.flask_process.kill()
+                self.flask_process.wait()
+            print("Flask 应用已停止")
+        
+        # 再次清理可能残留的进程
+        self._cleanup_existing_processes()
+    
+    def _cleanup_existing_processes(self):
+        """清理可能存在的 Flask 进程"""
+        import subprocess
+        try:
+            # 查找占用端口 9998 的进程
+            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0: split('\n')')
+                for pid in pids:
+                    if pid:
+                        subprocess.run(['kill', '-9', pid], capture_output=True)
+                        print(f"已终止进程 {pid}")
+        except Exception as e:
+            print(f"清理进程时出错: {e}")
+
     """微信用户注册测试类"""
 
-    def test_register_wechat_user_via_login_and_find_in_db(self, test_server):
+    def test_register_wechat_user_via_login_and_find_in_db(self):
         """
         测试通过 /api/auth/login_wechat 新注册一个wechat_user
         注册成功后，可以使用 DAO.py 从数据库中找到这个用户
@@ -45,7 +122,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求以注册新用户
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -76,7 +153,7 @@ class TestWechatUserRegistration:
         print(f"   昵称: {result['nickname']}")
         print(f"   头像: {result['avatar_url']}")
 
-    def test_register_same_wechat_user_twice_returns_existing_user(self, test_server):
+    def test_register_same_wechat_user_twice_returns_existing_user(self):
         """
         测试使用相同的openid再次登录应该返回已存在的用户，而不是创建新用户
         """
@@ -98,7 +175,7 @@ class TestWechatUserRegistration:
 
         # 第一次登录 - 应该注册新用户
         response1 = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -112,7 +189,7 @@ class TestWechatUserRegistration:
 
         # 第二次登录 - 应该返回已存在的用户
         response2 = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -130,7 +207,7 @@ class TestWechatUserRegistration:
         print(f"   用户ID: {first_user_id}")
         print(f"   登录类型: {data2['data']['login_type']}")
 
-    def test_register_wechat_user_with_minimal_data(self, test_server):
+    def test_register_wechat_user_with_minimal_data(self):
         """
         测试使用最少必需数据注册微信用户
         必须提供 code、nickname 和 avatar_url
@@ -148,7 +225,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -167,7 +244,7 @@ class TestWechatUserRegistration:
         
         print("✅ 提供所有必需参数成功注册用户")
 
-    def test_register_wechat_user_missing_code_returns_error(self, test_server):
+    def test_register_wechat_user_missing_code_returns_error(self):
         """
         测试缺少code参数应该返回错误
         """
@@ -179,7 +256,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -192,7 +269,7 @@ class TestWechatUserRegistration:
 
         print(f"✅ 缺少code参数正确返回错误: {data['msg']}")
 
-    def test_register_wechat_user_with_empty_code_returns_error(self, test_server):
+    def test_register_wechat_user_with_empty_code_returns_error(self):
         """
         测试空code参数应该返回错误
         """
@@ -205,7 +282,7 @@ class TestWechatUserRegistration:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )

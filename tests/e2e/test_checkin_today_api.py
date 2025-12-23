@@ -12,9 +12,86 @@ from tests.e2e.testutil import uuid_str, random_str, create_phone_user
 
 
 class TestCheckinTodayAPI:
+
+    def setup_method(self):
+        """每个测试方法前的设置：启动 Flask 应用"""
+        import os
+        import sys
+        import time
+        import subprocess
+        import requests
+        
+        # 设置环境变量
+        os.environ['ENV_TYPE'] = 'func'
+        
+        # 确保 src 目录在 Python 路径中
+        src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # 清理可能存在的进程
+        self._cleanup_existing_processes()
+        
+        # 启动 Flask 应用（在后台运行）
+        self.flask_process = subprocess.Popen(
+            [sys.executable, 'main.py', '127.0.0.1', '9998'],
+            cwd=src_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy()
+        )
+        
+        # 等待应用启动
+        time.sleep(5)
+        
+        # 验证应用是否成功启动
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(f'http://localhost:9998/', timeout=2)
+                if response.status_code == 200:
+                    print(f"Flask 应用成功启动 (尝试 {attempt + 1}/{max_attempts})")
+                    break
+            except requests.exceptions.RequestException:
+                if attempt == max_attempts - 1:
+                    pytest.fail("Flask 应用启动失败")
+                time.sleep(1)
+        
+        # 保存base_url供测试方法使用
+        self.base_url = f'http://localhost:9998'
+
+    def teardown_method(self):
+        """每个测试方法后的清理：停止 Flask 应用"""
+        if hasattr(self, 'flask_process') and self.flask_process:
+            self.flask_process.terminate()
+            try:
+                self.flask_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.flask_process.kill()
+                self.flask_process.wait()
+            print("Flask 应用已停止")
+        
+        # 再次清理可能残留的进程
+        self._cleanup_existing_processes()
+    
+    def _cleanup_existing_processes(self):
+        """清理可能存在的 Flask 进程"""
+        import subprocess
+        try:
+            # 查找占用端口 9998 的进程
+            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0: split('\n')')
+                for pid in pids:
+                    if pid:
+                        subprocess.run(['kill', '-9', pid], capture_output=True)
+                        print(f"已终止进程 {pid}")
+        except Exception as e:
+            print(f"清理进程时出错: {e}")
+
     """打卡今日事项API测试类"""
 
-    def test_get_today_checkin_no_rules(self, test_server):
+    def test_get_today_checkin_no_rules(self):
         """
         测试场景：用户没有任何打卡规则
         预期结果：返回空的打卡事项列表
@@ -22,7 +99,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -33,7 +110,7 @@ class TestCheckinTodayAPI:
         
         # 发送请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -61,7 +138,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：用户无打卡规则时返回空列表")
 
-    def test_get_today_checkin_with_daily_rule(self, test_server):
+    def test_get_today_checkin_with_daily_rule(self):
         """
         测试场景：用户有每天打卡的规则
         预期结果：返回今日打卡事项，状态为未打卡
@@ -69,7 +146,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -88,7 +165,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -102,7 +179,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -132,7 +209,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：用户有每天打卡规则时返回正确的打卡事项")
 
-    def test_get_today_checkin_with_custom_time(self, test_server):
+    def test_get_today_checkin_with_custom_time(self):
         """
         测试场景：用户有自定义时间的打卡规则
         预期结果：返回今日打卡事项，计划时间为自定义时间
@@ -140,7 +217,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -160,7 +237,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -172,7 +249,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -190,7 +267,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：自定义时间的打卡规则返回正确的计划时间")
 
-    def test_get_today_checkin_after_checkin(self, test_server):
+    def test_get_today_checkin_after_checkin(self):
         """
         测试场景：用户已完成今日打卡
         预期结果：返回今日打卡事项，状态为已打卡
@@ -198,7 +275,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -216,7 +293,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -227,7 +304,7 @@ class TestCheckinTodayAPI:
         
         # 执行打卡
         checkin_response = requests.post(
-            f"{test_server}/api/checkin",
+            f"{self.base_url}/api/checkin",
             headers=headers,
             json={"rule_id": rule_id},
             timeout=5
@@ -240,7 +317,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -259,7 +336,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：已打卡的事项状态正确显示为checked")
 
-    def test_get_today_checkin_multiple_rules(self, test_server):
+    def test_get_today_checkin_multiple_rules(self):
         """
         测试场景：用户有多个打卡规则
         预期结果：返回所有今日需要打卡的事项
@@ -267,7 +344,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -300,7 +377,7 @@ class TestCheckinTodayAPI:
         
         for rule_data in rules:
             rule_response = requests.post(
-                f"{test_server}/api/checkin/rules",
+                f"{self.base_url}/api/checkin/rules",
                 headers=headers,
                 json=rule_data,
                 timeout=5
@@ -310,7 +387,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -331,7 +408,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：多个打卡规则时返回所有今日事项")
 
-    def test_get_today_checkin_weekly_rule_today_included(self, test_server):
+    def test_get_today_checkin_weekly_rule_today_included(self):
         """
         测试场景：用户有每周打卡规则，今天在打卡日内
         预期结果：返回今日打卡事项
@@ -339,7 +416,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -363,7 +440,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -374,7 +451,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -391,7 +468,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：每周规则在打卡日内时返回打卡事项")
 
-    def test_get_today_checkin_weekly_rule_today_excluded(self, test_server):
+    def test_get_today_checkin_weekly_rule_today_excluded(self):
         """
         测试场景：用户有每周打卡规则，今天不在打卡日内
         预期结果：不返回该打卡事项
@@ -399,7 +476,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -424,7 +501,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -435,7 +512,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -451,7 +528,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：每周规则在非打卡日时不返回打卡事项")
 
-    def test_get_today_checkin_workday_rule_on_weekday(self, test_server):
+    def test_get_today_checkin_workday_rule_on_weekday(self):
         """
         测试场景：用户有工作日打卡规则，今天是工作日
         预期结果：返回今日打卡事项
@@ -466,7 +543,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -484,7 +561,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -495,7 +572,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -512,7 +589,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：工作日规则在工作日时返回打卡事项")
 
-    def test_get_today_checkin_workday_rule_on_weekend(self, test_server):
+    def test_get_today_checkin_workday_rule_on_weekend(self):
         """
         测试场景：用户有工作日打卡规则，今天是周末
         预期结果：不返回该打卡事项
@@ -527,7 +604,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -545,7 +622,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -556,7 +633,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -572,14 +649,14 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：工作日规则在周末时不返回打卡事项")
 
-    def test_get_today_checkin_without_token(self, test_server):
+    def test_get_today_checkin_without_token(self):
         """
         测试场景：未提供认证token
         预期结果：返回401错误或code=0
         """
         # 发送请求（不带Authorization头）
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             timeout=5
         )
         
@@ -591,7 +668,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：未提供token时返回错误")
 
-    def test_get_today_checkin_with_invalid_token(self, test_server):
+    def test_get_today_checkin_with_invalid_token(self):
         """
         测试场景：提供无效的token
         预期结果：返回401错误或code=0
@@ -604,7 +681,7 @@ class TestCheckinTodayAPI:
         
         # 发送请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -617,7 +694,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：无效token时返回错误")
 
-    def test_get_today_checkin_disabled_rule(self, test_server):
+    def test_get_today_checkin_disabled_rule(self):
         """
         测试场景：用户有已禁用的打卡规则
         预期结果：不返回已禁用的打卡事项
@@ -625,7 +702,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -643,7 +720,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -654,7 +731,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )
@@ -670,7 +747,7 @@ class TestCheckinTodayAPI:
         
         print(f"✅ 测试通过：已禁用的规则不返回打卡事项")
 
-    def test_get_today_checkin_after_cancel(self, test_server):
+    def test_get_today_checkin_after_cancel(self):
         """
         测试场景：用户打卡后又撤销了打卡
         预期结果：返回今日打卡事项，状态为未打卡
@@ -678,7 +755,7 @@ class TestCheckinTodayAPI:
         # 创建测试用户
         phone = f"138{random_str(8)}"
         nickname = f"测试用户_{uuid_str(8)}"
-        user_data = create_phone_user(test_server, phone, nickname)
+        user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
         
         # 准备请求头
@@ -696,7 +773,7 @@ class TestCheckinTodayAPI:
         }
         
         rule_response = requests.post(
-            f"{test_server}/api/checkin/rules",
+            f"{self.base_url}/api/checkin/rules",
             headers=headers,
             json=rule_data,
             timeout=5
@@ -707,7 +784,7 @@ class TestCheckinTodayAPI:
         
         # 执行打卡
         checkin_response = requests.post(
-            f"{test_server}/api/checkin",
+            f"{self.base_url}/api/checkin",
             headers=headers,
             json={"rule_id": rule_id},
             timeout=5
@@ -718,7 +795,7 @@ class TestCheckinTodayAPI:
         
         # 撤销打卡
         cancel_response = requests.post(
-            f"{test_server}/api/checkin/cancel",
+            f"{self.base_url}/api/checkin/cancel",
             headers=headers,
             json={"record_id": record_id},
             timeout=5
@@ -729,7 +806,7 @@ class TestCheckinTodayAPI:
         
         # 发送获取今日打卡事项请求
         response = requests.get(
-            f"{test_server}/api/checkin/today",
+            f"{self.base_url}/api/checkin/today",
             headers=headers,
             timeout=5
         )

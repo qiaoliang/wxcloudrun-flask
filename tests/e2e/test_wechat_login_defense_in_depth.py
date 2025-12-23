@@ -10,16 +10,93 @@ import datetime
 from tests.e2e.testutil import uuid_str
 
 class TestWechatLoginDefenseInDepth:
+
+    def setup_method(self):
+        """每个测试方法前的设置：启动 Flask 应用"""
+        import os
+        import sys
+        import time
+        import subprocess
+        import requests
+        
+        # 设置环境变量
+        os.environ['ENV_TYPE'] = 'func'
+        
+        # 确保 src 目录在 Python 路径中
+        src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # 清理可能存在的进程
+        self._cleanup_existing_processes()
+        
+        # 启动 Flask 应用（在后台运行）
+        self.flask_process = subprocess.Popen(
+            [sys.executable, 'main.py', '127.0.0.1', '9998'],
+            cwd=src_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy()
+        )
+        
+        # 等待应用启动
+        time.sleep(5)
+        
+        # 验证应用是否成功启动
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(f'http://localhost:9998/', timeout=2)
+                if response.status_code == 200:
+                    print(f"Flask 应用成功启动 (尝试 {attempt + 1}/{max_attempts})")
+                    break
+            except requests.exceptions.RequestException:
+                if attempt == max_attempts - 1:
+                    pytest.fail("Flask 应用启动失败")
+                time.sleep(1)
+        
+        # 保存base_url供测试方法使用
+        self.base_url = f'http://localhost:9998'
+
+    def teardown_method(self):
+        """每个测试方法后的清理：停止 Flask 应用"""
+        if hasattr(self, 'flask_process') and self.flask_process:
+            self.flask_process.terminate()
+            try:
+                self.flask_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.flask_process.kill()
+                self.flask_process.wait()
+            print("Flask 应用已停止")
+        
+        # 再次清理可能残留的进程
+        self._cleanup_existing_processes()
+    
+    def _cleanup_existing_processes(self):
+        """清理可能存在的 Flask 进程"""
+        import subprocess
+        try:
+            # 查找占用端口 9998 的进程
+            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0: split('\n')')
+                for pid in pids:
+                    if pid:
+                        subprocess.run(['kill', '-9', pid], capture_output=True)
+                        print(f"已终止进程 {pid}")
+        except Exception as e:
+            print(f"清理进程时出错: {e}")
+
     """测试微信登录的defense-in-depth机制"""
 
-    def test_layer1_entry_point_validation_code_required(self, test_server):
+    def test_layer1_entry_point_validation_code_required(self):
         """
         测试Layer 1: 入口点验证 - code参数仍然是必需的
         验证即使其他参数可选，code参数仍然是必需的
         """
         # 测试完全空的请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json={},
             timeout=5
         )
@@ -29,7 +106,7 @@ class TestWechatLoginDefenseInDepth:
         assert data["code"] == 0  # 应该失败
         assert "缺少请求体参数" in data["msg"]
 
-    def test_layer1_entry_point_validation_accepts_partial_data(self, test_server):
+    def test_layer1_entry_point_validation_accepts_partial_data(self):
         """
         测试Layer 1: 入口点验证 - 接受部分用户数据
         验证API能接受只有code的请求
@@ -39,7 +116,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -49,7 +126,7 @@ class TestWechatLoginDefenseInDepth:
         assert data["code"] == 1  # 应该成功
         assert data["msg"] == "success"
 
-    def test_layer2_business_logic_default_nickname_generation(self, test_server):
+    def test_layer2_business_logic_default_nickname_generation(self):
         """
         测试Layer 2: 业务逻辑验证 - 默认昵称生成
         验证当昵称为空时，系统能生成合理的默认昵称
@@ -61,7 +138,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -76,7 +153,7 @@ class TestWechatLoginDefenseInDepth:
         # 验证默认昵称格式（可能包含时间戳）
         assert "微信用户" in result["nickname"] or len(result["nickname"]) > 5
 
-    def test_layer2_business_logic_default_avatar_generation(self, test_server):
+    def test_layer2_business_logic_default_avatar_generation(self):
         """
         测试Layer 2: 业务逻辑验证 - 默认头像生成
         验证当头像URL无效时，系统能提供默认头像
@@ -88,7 +165,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -102,7 +179,7 @@ class TestWechatLoginDefenseInDepth:
         # 验证默认头像URL格式
         assert result["avatar_url"].startswith("http") or len(result["avatar_url"]) > 10
 
-    def test_layer3_environment_guard_long_nickname_truncation(self, test_server):
+    def test_layer3_environment_guard_long_nickname_truncation(self):
         """
         测试Layer 3: 环境守卫 - 长昵称截断
         验证系统会截断过长的昵称以防止数据库错误
@@ -116,7 +193,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -132,7 +209,7 @@ class TestWechatLoginDefenseInDepth:
         assert result["nickname"].endswith("...")  # 应该以省略号结尾
         assert len(result["nickname"]) >= 50  # 应该包含50个字符（或接近）
 
-    def test_layer3_environment_guard_malicious_content_filtering(self, test_server):
+    def test_layer3_environment_guard_malicious_content_filtering(self):
         """
         测试Layer 3: 环境守卫 - 恶意内容过滤
         验证系统能处理包含潜在恶意内容的输入
@@ -146,7 +223,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -160,7 +237,7 @@ class TestWechatLoginDefenseInDepth:
         # 系统应该处理恶意内容（具体处理方式取决于实现）
         assert len(result["nickname"]) > 0
 
-    def test_layer4_debug_dashboard_logging_completeness(self, test_server):
+    def test_layer4_debug_dashboard_logging_completeness(self):
         """
         测试Layer 4: 调试仪表 - 日志完整性
         验证即使在异常情况下，系统也能记录足够的调试信息
@@ -173,7 +250,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=edge_case_data,
             timeout=5
         )
@@ -193,7 +270,7 @@ class TestWechatLoginDefenseInDepth:
             for field in required_fields:
                 assert field in result, f"响应缺少必需字段: {field}"
 
-    def test_defense_in_depth_multiple_scenarios(self, test_server):
+    def test_defense_in_depth_multiple_scenarios(self):
         """
         测试defense-in-depth: 多种边缘情况组合
         验证当多个问题同时出现时，系统仍能正常工作
@@ -206,7 +283,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=combined_edge_case,
             timeout=5
         )
@@ -223,7 +300,7 @@ class TestWechatLoginDefenseInDepth:
             assert result["avatar_url"] is not None
             assert len(result["avatar_url"]) > 0
 
-    def test_defense_in_depth_existing_user_update(self, test_server):
+    def test_defense_in_depth_existing_user_update(self):
         """
         测试defense-in-depth: 现有用户更新时的保护机制
         验证更新现有用户信息时的安全检查
@@ -236,7 +313,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         first_response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=initial_data,
             timeout=5
         )
@@ -253,7 +330,7 @@ class TestWechatLoginDefenseInDepth:
         }
 
         second_response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=update_data,
             timeout=5
         )
@@ -269,7 +346,7 @@ class TestWechatLoginDefenseInDepth:
         assert result["nickname"].endswith("...")  # 应该以省略号结尾
         assert result["avatar_url"] is not None
 
-    def test_defense_in_depth_response_structure_integrity(self, test_server):
+    def test_defense_in_depth_response_structure_integrity(self):
         """
         测试defense-in-depth: 响应结构完整性
         验证即使在异常情况下，响应结构也保持一致
@@ -283,7 +360,7 @@ class TestWechatLoginDefenseInDepth:
 
         for i, test_case in enumerate(test_cases):
             response = requests.post(
-                f"{test_server}/api/auth/login_wechat",
+                f"{self.base_url}/api/auth/login_wechat",
                 json=test_case,
                 timeout=5
             )

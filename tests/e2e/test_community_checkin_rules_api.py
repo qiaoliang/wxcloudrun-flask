@@ -25,6 +25,83 @@ from .testutil import get_headers_by_creating_phone_user, create_phone_user, TES
 
 
 class TestCommunityCheckinRulesAPI:
+
+    def setup_method(self):
+        """每个测试方法前的设置：启动 Flask 应用"""
+        import os
+        import sys
+        import time
+        import subprocess
+        import requests
+        
+        # 设置环境变量
+        os.environ['ENV_TYPE'] = 'func'
+        
+        # 确保 src 目录在 Python 路径中
+        src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # 清理可能存在的进程
+        self._cleanup_existing_processes()
+        
+        # 启动 Flask 应用（在后台运行）
+        self.flask_process = subprocess.Popen(
+            [sys.executable, 'main.py', '127.0.0.1', '9998'],
+            cwd=src_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy()
+        )
+        
+        # 等待应用启动
+        time.sleep(5)
+        
+        # 验证应用是否成功启动
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(f'http://localhost:9998/', timeout=2)
+                if response.status_code == 200:
+                    print(f"Flask 应用成功启动 (尝试 {attempt + 1}/{max_attempts})")
+                    break
+            except requests.exceptions.RequestException:
+                if attempt == max_attempts - 1:
+                    pytest.fail("Flask 应用启动失败")
+                time.sleep(1)
+        
+        # 保存base_url供测试方法使用
+        self.base_url = f'http://localhost:9998'
+
+    def teardown_method(self):
+        """每个测试方法后的清理：停止 Flask 应用"""
+        if hasattr(self, 'flask_process') and self.flask_process:
+            self.flask_process.terminate()
+            try:
+                self.flask_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.flask_process.kill()
+                self.flask_process.wait()
+            print("Flask 应用已停止")
+        
+        # 再次清理可能残留的进程
+        self._cleanup_existing_processes()
+    
+    def _cleanup_existing_processes(self):
+        """清理可能存在的 Flask 进程"""
+        import subprocess
+        try:
+            # 查找占用端口 9998 的进程
+            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0: split('\n')')
+                for pid in pids:
+                    if pid:
+                        subprocess.run(['kill', '-9', pid], capture_output=True)
+                        print(f"已终止进程 {pid}")
+        except Exception as e:
+            print(f"清理进程时出错: {e}")
+
     """社区打卡规则API测试类"""
 
     def _get_super_admin_token(self, base_url):
@@ -67,9 +144,9 @@ class TestCommunityCheckinRulesAPI:
         assert data.get('code') == 1, "创建社区失败"
         return admin_headers,data['data']
 
-    def test_get_rules_requires_authentication(self, test_server):
+    def test_get_rules_requires_authentication(self):
         """测试获取规则列表需要认证"""
-        base_url = test_server
+        base_url = self.base_url
 
         # 未认证的请求应该失败
         response = requests.get(f"{base_url}/api/community-checkin/rules?community_id=1")
@@ -78,9 +155,9 @@ class TestCommunityCheckinRulesAPI:
         assert data.get('code') == 0, "未认证请求应该失败"
         assert 'token' in data.get('msg', '').lower() or '认证' in data.get('msg', ''), "错误消息应该提到认证"
 
-    def test_get_rules_requires_community_permission(self, test_server):
+    def test_get_rules_requires_community_permission(self):
         """测试获取规则列表需要社区管理权限"""
-        base_url = test_server
+        base_url = self.base_url
 
         # 创建普通用户（非社区管理员）
         phone = f"138{random_str(8)}"
@@ -100,11 +177,11 @@ class TestCommunityCheckinRulesAPI:
         assert data.get('code') == 0, "无权限访问应该失败"
         assert '权限' in data.get('msg', '') or 'permission' in data.get('msg', '').lower(), "错误消息应该提到权限"
 
-    def test_create_and_get_rules_workflow(self, test_server):
+    def test_create_and_get_rules_workflow(self):
         """测试完整的规则创建和获取流程"""
         # 创建社区和社区管理员
 
-        base_url = test_server
+        base_url = self.base_url
         auth_headers, commu = self._create_community_and_admin_headers(base_url)
 
         # 1. 尝试创建规则（应该失败，因为用户可能没有社区管理权限）
@@ -130,9 +207,9 @@ class TestCommunityCheckinRulesAPI:
         assert '社区' in create_data.get('msg', '') or '权限' in create_data.get('msg', '') or 'community' in create_data.get('msg', '').lower(), f"错误消息应该提到社区或权限: {create_data.get('msg')}"
 
 
-    def test_update_rule(self, test_server):
+    def test_update_rule(self):
         """测试修改规则"""
-        base_url = test_server
+        base_url = self.base_url
         # 先创建一个规则
         auth_headers, commu,a_rule=self._create_header_and_commu_and_a_rule(base_url)
 
@@ -163,11 +240,11 @@ class TestCommunityCheckinRulesAPI:
         assert rule_detail['frequency_type'] == update_data['frequency_type'], "频率类型应该已更新"
         assert rule_detail['time_slot_type'] == update_data['time_slot_type'], "时间段类型应该已更新"
 
-    def test_enable_and_disable_rule(self, test_server):
+    def test_enable_and_disable_rule(self):
         """测试启用和停用规则"""
-        base_url = test_server
+        base_url = self.base_url
         # 先创建一个规则
-        header,commu,a_new_rule= self._create_header_and_commu_and_a_rule(test_server)
+        header,commu,a_new_rule= self._create_header_and_commu_and_a_rule(self.base_url)
         rule_id = a_new_rule["community_rule_id"]
         # 1. 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
@@ -199,12 +276,12 @@ class TestCommunityCheckinRulesAPI:
         detail_data = response.json()
         assert detail_data['data']['status'] == 0, "规则详情应该显示已停用 (status=0)"
 
-    def test_cannot_update_enabled_rule(self, test_server):
+    def test_cannot_update_enabled_rule(self):
         """测试不能修改已启用的规则"""
-        base_url = test_server
+        base_url = self.base_url
 
         # 创建并启用一个规则
-        header,comm,a_rule = self._create_header_and_commu_and_a_rule(test_server)
+        header,comm,a_rule = self._create_header_and_commu_and_a_rule(self.base_url)
         rule_id = a_rule["community_rule_id"]
         # 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
@@ -226,11 +303,11 @@ class TestCommunityCheckinRulesAPI:
         assert update_response.get('code') == 0, "修改已启用的规则应该失败"
         assert '启用' in update_response.get('msg', '') or 'enabled' in update_response.get('msg', '').lower(), "错误消息应该提到规则已启用"
 
-    def test_delete_rule(self, test_server):
-        base_url = test_server
+    def test_delete_rule(self):
+        base_url = self.base_url
 
         # 创建一个规则（未启用状态）
-        header,comm,a_rule = self._create_header_and_commu_and_a_rule(test_server)
+        header,comm,a_rule = self._create_header_and_commu_and_a_rule(self.base_url)
         rule_id = a_rule["community_rule_id"]
 
         # 删除规则
@@ -251,12 +328,12 @@ class TestCommunityCheckinRulesAPI:
         assert detail_data.get('msg') == "此规则已删除"
 
 
-    def test_cannot_delete_enabled_rule(self, test_server):
+    def test_cannot_delete_enabled_rule(self):
         """测试不能删除已启用的规则"""
-        base_url = test_server
+        base_url = self.base_url
 
         # 创建并启用一个规则
-        header,comm,a_rule = self._create_header_and_commu_and_a_rule(test_server)
+        header,comm,a_rule = self._create_header_and_commu_and_a_rule(self.base_url)
         rule_id = a_rule["community_rule_id"]
         # 启用规则
         response = requests.post(f"{base_url}/api/community-checkin/rules/{rule_id}/enable",
@@ -273,9 +350,9 @@ class TestCommunityCheckinRulesAPI:
         assert delete_data.get('code') == 0, "删除已启用的规则应该失败"
         assert '启用' in delete_data.get('msg', '') or 'enabled' in delete_data.get('msg', '').lower(), "错误消息应该提到规则已启用"
 
-    def test_get_rules_with_include_disabled(self, test_server):
+    def test_get_rules_with_include_disabled(self):
         """测试获取规则列表时包含已禁用的规则"""
-        base_url = test_server
+        base_url = self.base_url
         header,comm,a_rule = self._create_header_and_commu_and_a_rule(base_url)
         comm_id = comm['community_id']
         rule1_id= a_rule["community_rule_id"]
@@ -390,12 +467,12 @@ class TestCommunityCheckinRulesAPI:
         assert result.get('code') == 1
         a_rule= result['data']
         return auth_headers,commu, a_rule
-    def test_create_rule_successfully(self, test_server):
-        base_url = test_server
-        auth_headers, commu=self._create_community_and_admin_headers(test_server)
+    def test_create_rule_successfully(self):
+        base_url = self.base_url
+        auth_headers, commu=self._create_community_and_admin_headers(self.base_url)
 
         """测试创建规则的参数验证"""
-        base_url = test_server
+        base_url = self.base_url
         test_data={
             "community_id": commu['community_id'],
             "rule_name": "每日健康打卡",
@@ -415,9 +492,9 @@ class TestCommunityCheckinRulesAPI:
         assert data.get('code') == 1
         assert "创建社区规则成功" in data.get('msg', '')
         assert data['data']['community_rule_id'] is 1
-    def test_rule_detail_permission(self, test_server):
+    def test_rule_detail_permission(self):
         """测试规则详情的权限控制"""
-        base_url = test_server
+        base_url = self.base_url
         auth_headers, commu = self._create_community_and_admin_headers(base_url)
 
         # 创建一个规则
@@ -432,7 +509,7 @@ class TestCommunityCheckinRulesAPI:
             "custom_end_date": "2025-12-31",
         }
         # 使用现有的方法创建规则
-        header, commu_created, a_rule = self._create_header_and_commu_and_a_rule(test_server, rule_data)
+        header, commu_created, a_rule = self._create_header_and_commu_and_a_rule(self.base_url, rule_data)
         rule_id = a_rule['community_rule_id']
 
         # 创建另一个普通用户

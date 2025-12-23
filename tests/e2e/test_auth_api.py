@@ -26,6 +26,84 @@ from wxcloudrun import dao, app
 
 
 class TestAuthAPI:
+
+    def setup_method(self):
+        """每个测试方法前的设置：启动 Flask 应用"""
+        import os
+        import sys
+        import time
+        import subprocess
+        import requests
+        
+        # 设置环境变量
+        os.environ['ENV_TYPE'] = 'func'
+        
+        # 确保 src 目录在 Python 路径中
+        src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # 清理可能存在的进程
+        self._cleanup_existing_processes()
+        
+        # 启动 Flask 应用（在后台运行）
+        self.flask_process = subprocess.Popen(
+            [sys.executable, 'main.py', '127.0.0.1', '9998'],
+            cwd=src_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy()
+        )
+        
+        # 等待应用启动
+        time.sleep(5)
+        
+        # 验证应用是否成功启动
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(f'http://localhost:9998/', timeout=2)
+                if response.status_code == 200:
+                    print(f"Flask 应用成功启动 (尝试 {attempt + 1}/{max_attempts})")
+                    break
+            except requests.exceptions.RequestException:
+                if attempt == max_attempts - 1:
+                    pytest.fail("Flask 应用启动失败")
+                time.sleep(1)
+        
+        # 保存base_url供测试方法使用
+        self.base_url = f'http://localhost:9998'
+
+    def teardown_method(self):
+        """每个测试方法后的清理：停止 Flask 应用"""
+        if hasattr(self, 'flask_process') and self.flask_process:
+            self.flask_process.terminate()
+            try:
+                self.flask_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.flask_process.kill()
+                self.flask_process.wait()
+            print("Flask 应用已停止")
+        
+        # 再次清理可能残留的进程
+        self._cleanup_existing_processes()
+    
+    def _cleanup_existing_processes(self):
+        """清理可能存在的 Flask 进程"""
+        import subprocess
+        try:
+            # 查找占用端口 9998 的进程
+            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0:
+                pids = result.stdout.strip().split('\n')
+                for pid in pids:
+                    if pid:
+                        subprocess.run(['kill', '-9', pid], capture_output=True)
+                        print(f"已终止进程 {pid}")
+        except Exception as e:
+            print(f"清理进程时出错: {e}")
+
     """认证API测试类"""
 
     @staticmethod
@@ -80,7 +158,7 @@ class TestAuthAPI:
         }
     """认证API测试类"""
 
-    def test_wechat_login_success(self, test_server):
+    def test_wechat_login_success(self):
         """
         测试微信登录成功（完整用户信息）
         验证真实API行为而非mock行为
@@ -95,7 +173,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -122,7 +200,7 @@ class TestAuthAPI:
 
         print(f"✅ 用户创建成功，ID: {result['user_id']}, 昵称: {result['nickname']}")
 
-    def test_wechat_login_success_code_only_defense_in_depth(self, test_server):
+    def test_wechat_login_success_code_only_defense_in_depth(self):
         """
         测试defense-in-depth：仅使用code登录成功
         验证当缺少用户信息时，API能正确处理并提供默认值
@@ -134,7 +212,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -162,7 +240,7 @@ class TestAuthAPI:
 
         print(f"✅ 仅code登录成功，ID: {result['user_id']}, 默认昵称: {result['nickname']}")
 
-    def test_wechat_login_with_empty_user_info_defense_in_depth(self, test_server):
+    def test_wechat_login_with_empty_user_info_defense_in_depth(self):
         """
         测试defense-in-depth：空用户信息的处理
         验证当提供空的用户信息时，API能正确处理
@@ -176,7 +254,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -201,7 +279,7 @@ class TestAuthAPI:
 
         print(f"✅ 空用户信息处理成功，ID: {result['user_id']}, 处理后昵称: {result['nickname']}")
 
-    def test_wechat_login_with_invalid_avatar_url_defense_in_depth(self, test_server):
+    def test_wechat_login_with_invalid_avatar_url_defense_in_depth(self):
         """
         测试defense-in-depth：无效头像URL的处理
         验证当提供无效头像URL时，API能正确处理
@@ -215,7 +293,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -240,7 +318,7 @@ class TestAuthAPI:
 
         print(f"✅ 无效头像URL处理成功，ID: {result['user_id']}, 头像URL: {result['avatar_url'][:50]}...")
 
-    def test_wechat_login_with_long_nickname_defense_in_depth(self, test_server):
+    def test_wechat_login_with_long_nickname_defense_in_depth(self):
         """
         测试defense-in-depth：过长昵称的处理
         验证当提供过长昵称时，API能正确截断处理
@@ -255,7 +333,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -280,7 +358,7 @@ class TestAuthAPI:
 
         print(f"✅ 过长昵称处理成功，ID: {result['user_id']}, 截断后昵称: {result['nickname']}")
 
-    def test_wechat_login_missing_code(self, test_server):
+    def test_wechat_login_missing_code(self):
         """
         测试微信登录缺少code参数
         code仍然是必需参数，应该返回错误
@@ -293,7 +371,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -305,7 +383,7 @@ class TestAuthAPI:
         assert "缺少code参数" in data["msg"]
         print("✅ 微信登录缺少code参数正确返回错误")
 
-    def test_wechat_login_invalid_code(self, test_server):
+    def test_wechat_login_invalid_code(self):
         """
         测试微信登录无效code
         应该返回401错误
@@ -320,7 +398,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -331,7 +409,7 @@ class TestAuthAPI:
         # assert response.status_code == 401  # 期望行为（根据API文档）
         print("✅ 微信登录无效code当前行为测试通过（需要实现以符合API文档）")
 
-    def test_refresh_token_missing_token(self, test_server):
+    def test_refresh_token_missing_token(self):
         """
         测试刷新token缺少refresh_token参数
         应该返回400错误
@@ -341,7 +419,7 @@ class TestAuthAPI:
 
         # 发送刷新请求
         response = requests.post(
-            f"{test_server}/api/refresh_token",
+            f"{self.base_url}/api/refresh_token",
             json=refresh_data,
             timeout=5
         )
@@ -352,7 +430,7 @@ class TestAuthAPI:
         assert result["msg"] == "缺少请求体参数"  # 刷新token缺少refresh_token参数正确返回空字符串
         print("✅ 刷新token时，缺少原有的token参数，正确返回")
 
-    def test_refresh_token_invalid_token(self, test_server):
+    def test_refresh_token_invalid_token(self):
         """
         测试刷新token使用无效的refresh_token
         应该返回 code: 0 和错误信息
@@ -375,7 +453,7 @@ class TestAuthAPI:
 
             # 发送刷新请求
             response = requests.post(
-                f"{test_server}/api/refresh_token",
+                f"{self.base_url}/api/refresh_token",
                 json=refresh_data,
                 timeout=5
             )
@@ -398,7 +476,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/refresh_token",
+            f"{self.base_url}/api/refresh_token",
             json=refresh_data,
             timeout=5
         )
@@ -410,14 +488,14 @@ class TestAuthAPI:
 
         print(f"✅ 数据库中不存在的 refresh_token 正确返回 code: 0")
 
-    def test_logout_without_token(self, test_server):
+    def test_logout_without_token(self):
         """
         测试登出时没有提供 token
         应该返回 '缺少token参数'
         """
         # 发送登出请求（没有Authorization头）
         response = requests.post(
-            f"{test_server}/api/logout",
+            f"{self.base_url}/api/logout",
             timeout=5
         )
 
@@ -427,7 +505,7 @@ class TestAuthAPI:
         assert data["code"] == 0
         assert data["msg"] == "缺少token参数"
 
-    def test_logout_invalid_token(self, test_server):
+    def test_logout_invalid_token(self):
         """
         测试登出时提供无效token
         应该返回401错误
@@ -439,7 +517,7 @@ class TestAuthAPI:
 
         # 发送登出请求
         response = requests.post(
-            f"{test_server}/api/logout",
+            f"{self.base_url}/api/logout",
             headers=headers,
             timeout=5
         )
@@ -450,7 +528,7 @@ class TestAuthAPI:
         assert data["code"] == 0           # 业务错误 ERROR CODE
         assert data["msg"] =="token格式错误"
 
-    def test_phone_register_success(self, test_server):
+    def test_phone_register_success(self):
         """
         测试手机号注册成功
         当前实现返回code=1，API文档要求code=0
@@ -470,7 +548,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -508,7 +586,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册当前行为测试通过（需要实现以符合API文档）")
 
-    def test_phone_register_missing_phone(self, test_server):
+    def test_phone_register_missing_phone(self):
         """
         测试手机号注册缺少phone参数
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -522,7 +600,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -538,7 +616,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册缺少phone参数当前行为测试通过（需要实现以符合API文档）")
 
-    def test_phone_register_missing_code(self, test_server):
+    def test_phone_register_missing_code(self):
         """
         测试手机号注册缺少code参数
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -552,7 +630,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -566,7 +644,7 @@ class TestAuthAPI:
         assert data["code"] == 0  # 错误响应
         assert data["msg"] == "缺少phone或code参数"
 
-    def test_phone_register_invalid_sms_code(self, test_server):
+    def test_phone_register_invalid_sms_code(self):
         """
         测试手机号注册无效验证码
         应该返回 code: 0 和错误信息
@@ -594,7 +672,7 @@ class TestAuthAPI:
 
             # 发送注册请求
             response = requests.post(
-                f"{test_server}/api/auth/register_phone",
+                f"{self.base_url}/api/auth/register_phone",
                 json=register_data,
                 timeout=5
             )
@@ -620,7 +698,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -633,7 +711,7 @@ class TestAuthAPI:
         print(f"✅ 缺少验证码参数正确返回 code: 0")
         print(f"  错误信息: {data['msg']}")
 
-    def test_phone_register_weak_password(self, test_server):
+    def test_phone_register_weak_password(self):
         """
         测试手机号注册密码强度不足
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -648,7 +726,7 @@ class TestAuthAPI:
 
         # 发送注册请求
         response = requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -664,7 +742,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册密码强度不足当前行为测试通过（需要实现以符合API文档）")
 
-    def test_phone_register_existing_phone(self, test_server):
+    def test_phone_register_existing_phone(self):
         """
         测试手机号注册手机号已存在
         当前实现返回200状态码和code=0，API文档要求返回409状态码
@@ -677,14 +755,14 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
 
         # 再次注册相同手机号
         response = requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -701,7 +779,7 @@ class TestAuthAPI:
 
         print("✅ 手机号注册手机号已存在当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_code_success(self, test_server):
+    def test_login_phone_code_success(self):
         """
         测试手机号验证码登录成功
         当前实现返回code=1，API文档要求code=0
@@ -713,7 +791,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -725,7 +803,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_phone_code",
+            f"{self.base_url}/api/auth/login_phone_code",
             json=login_data,
             timeout=5
         )
@@ -747,7 +825,7 @@ class TestAuthAPI:
 
         print("✅ 手机号验证码登录当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_code_missing_phone(self, test_server):
+    def test_login_phone_code_missing_phone(self):
         """
         测试手机号验证码登录缺少phone参数
         当前实现返回200状态码和code=0，API文档要求返回400状态码
@@ -758,7 +836,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_phone_code",
+            f"{self.base_url}/api/auth/login_phone_code",
             json=login_data,
             timeout=5
         )
@@ -774,7 +852,7 @@ class TestAuthAPI:
 
         print("✅ 手机号验证码登录缺少phone参数当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_code_user_not_exists(self, test_server):
+    def test_login_phone_code_user_not_exists(self):
         """
         测试手机号验证码登录用户不存在
         当前实现返回200状态码和code=0，API文档要求返回404状态码
@@ -786,7 +864,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_phone_code",
+            f"{self.base_url}/api/auth/login_phone_code",
             json=login_data,
             timeout=5
         )
@@ -802,7 +880,7 @@ class TestAuthAPI:
 
         print("✅ 手机号验证码登录用户不存在当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_password_success(self, test_server):
+    def test_login_phone_password_success(self):
         """
         测试手机号密码登录成功
         当前实现返回code=1，API文档要求code=0
@@ -814,7 +892,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -826,7 +904,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_phone_password",
+            f"{self.base_url}/api/auth/login_phone_password",
             json=login_data,
             timeout=5
         )
@@ -848,7 +926,7 @@ class TestAuthAPI:
 
         print("✅ 手机号密码登录当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_password_wrong_password(self, test_server):
+    def test_login_phone_password_wrong_password(self):
         """
         测试手机号密码登录密码错误
         当前实现返回200状态码和code=0，API文档要求返回401状态码
@@ -860,7 +938,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -872,7 +950,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_phone_password",
+            f"{self.base_url}/api/auth/login_phone_password",
             json=login_data,
             timeout=5
         )
@@ -888,7 +966,7 @@ class TestAuthAPI:
 
         print("✅ 手机号密码登录密码错误当前行为测试通过（需要实现以符合API文档）")
 
-    def test_login_phone_success(self, test_server):
+    def test_login_phone_success(self):
         """
         测试手机号验证码+密码登录成功
         当前实现返回code=1，API文档要求code=0
@@ -901,7 +979,7 @@ class TestAuthAPI:
             "password": "password123"
         }
         requests.post(
-            f"{test_server}/api/auth/register_phone",
+            f"{self.base_url}/api/auth/register_phone",
             json=register_data,
             timeout=5
         )
@@ -914,7 +992,7 @@ class TestAuthAPI:
         }
 
         response = requests.post(
-            f"{test_server}/api/auth/login_phone",
+            f"{self.base_url}/api/auth/login_phone",
             json=login_data,
             timeout=5
         )
@@ -948,7 +1026,7 @@ class TestAuthAPI:
 
         print("✅ 手机号验证码+密码登录当前行为测试通过（需要实现以符合API文档）")
 
-    def test_refresh_token_success(self, test_server):
+    def test_refresh_token_success(self):
         """
         测试刷新token成功
         应该返回新的token和refresh_token
@@ -964,7 +1042,7 @@ class TestAuthAPI:
 
         # 发送登录请求
         login_response = requests.post(
-            f"{test_server}/api/auth/login_wechat",
+            f"{self.base_url}/api/auth/login_wechat",
             json=login_data,
             timeout=5
         )
@@ -987,7 +1065,7 @@ class TestAuthAPI:
 
         # 发送刷新请求
         refresh_response = requests.post(
-            f"{test_server}/api/refresh_token",
+            f"{self.base_url}/api/refresh_token",
             json=refresh_request_data,
             timeout=5
         )

@@ -13,6 +13,83 @@ from datetime import datetime
 
 
 class TestMultiCommunityRoleAssignmentE2E:
+
+    def setup_method(self):
+        """每个测试方法前的设置：启动 Flask 应用"""
+        import os
+        import sys
+        import time
+        import subprocess
+        import requests
+        
+        # 设置环境变量
+        os.environ['ENV_TYPE'] = 'func'
+        
+        # 确保 src 目录在 Python 路径中
+        src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        # 清理可能存在的进程
+        self._cleanup_existing_processes()
+        
+        # 启动 Flask 应用（在后台运行）
+        self.flask_process = subprocess.Popen(
+            [sys.executable, 'main.py', '127.0.0.1', '9998'],
+            cwd=src_path,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=os.environ.copy()
+        )
+        
+        # 等待应用启动
+        time.sleep(5)
+        
+        # 验证应用是否成功启动
+        max_attempts = 10
+        for attempt in range(max_attempts):
+            try:
+                response = requests.get(f'http://localhost:9998/', timeout=2)
+                if response.status_code == 200:
+                    print(f"Flask 应用成功启动 (尝试 {attempt + 1}/{max_attempts})")
+                    break
+            except requests.exceptions.RequestException:
+                if attempt == max_attempts - 1:
+                    pytest.fail("Flask 应用启动失败")
+                time.sleep(1)
+        
+        # 保存base_url供测试方法使用
+        self.base_url = f'http://localhost:9998'
+
+    def teardown_method(self):
+        """每个测试方法后的清理：停止 Flask 应用"""
+        if hasattr(self, 'flask_process') and self.flask_process:
+            self.flask_process.terminate()
+            try:
+                self.flask_process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.flask_process.kill()
+                self.flask_process.wait()
+            print("Flask 应用已停止")
+        
+        # 再次清理可能残留的进程
+        self._cleanup_existing_processes()
+    
+    def _cleanup_existing_processes(self):
+        """清理可能存在的 Flask 进程"""
+        import subprocess
+        try:
+            # 查找占用端口 9998 的进程
+            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+                                  capture_output=True, text=True)
+            if result.returncode == 0: split('\n')')
+                for pid in pids:
+                    if pid:
+                        subprocess.run(['kill', '-9', pid], capture_output=True)
+                        print(f"已终止进程 {pid}")
+        except Exception as e:
+            print(f"清理进程时出错: {e}")
+
     """端到端测试：用户在多个社区担任不同角色的功能"""
 
     def _get_super_admin_token(self, base_url):
@@ -38,9 +115,9 @@ class TestMultiCommunityRoleAssignmentE2E:
         register_data = register_response.json()
         assert register_data.get('code') == 1, f"注册失败: {register_data}"
         return register_data['data']['user_id']
-    def test_super_admin_create_community(self, test_server):
+    def test_super_admin_create_community(self):
         """超级管理员创建测试社区"""
-        base_url = test_server
+        base_url = self.base_url
         admin_token, super_admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
         commu_data = {
@@ -88,12 +165,12 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_token, _ = self._get_super_admin_token(base_url)
         return admin_token
 
-    def test_multi_community_role_assignment_basic_flow(self, test_server):
+    def test_multi_community_role_assignment_basic_flow(self):
         """
         E2E测试：基本的多社区角色分配流程
         业务规则：用户可以在多个社区担任不同角色
         """
-        base_url = test_server
+        base_url = self.base_url
         # 获取超级管理员权限
         admin_token, super_admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
@@ -188,12 +265,12 @@ class TestMultiCommunityRoleAssignmentE2E:
 
         print("✓ E2E基本流程测试通过：用户成功在多个社区担任不同角色")
 
-    def test_user_permission_based_on_community_role(self, test_server):
+    def test_user_permission_based_on_community_role(self):
         """
         E2E测试：验证用户权限根据其在特定社区的角色正确生效
         业务规则：用户在每个社区的权限应基于其在该社区的角色
         """
-        base_url = test_server
+        base_url = self.base_url
         # 获取超级管理员权限
         admin_token, super_admin_id = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
@@ -249,12 +326,12 @@ class TestMultiCommunityRoleAssignmentE2E:
 
         print("✓ E2E权限测试通过：用户权限根据社区角色正确生效")
 
-    def test_user_can_be_removed_from_individual_communities(self, test_server):
+    def test_user_can_be_removed_from_individual_communities(self):
         """
         E2E测试：验证用户可以从单个社区移除，但保留在其他社区的任职
         业务规则：移除操作应该是社区级别的，不影响用户在其他社区的角色
         """
-        base_url = test_server
+        base_url = self.base_url
         # 获取超级管理员权限
         admin_token, _ = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
@@ -336,11 +413,11 @@ class TestMultiCommunityRoleAssignmentE2E:
 
         print("✓ E2E移除测试通过：用户可从单个社区移除而不影响其他社区")
 
-    def test_get_managed_communities_api_returns_correct_roles(self, test_server):
+    def test_get_managed_communities_api_returns_correct_roles(self):
         """
         业务规则：API应准确返回用户在每个社区的角色
         """
-        base_url = test_server
+        base_url = self.base_url
         # 获取超级管理员权限
         admin_token, _ = self._get_super_admin_token(base_url)
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
