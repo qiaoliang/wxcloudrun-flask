@@ -20,80 +20,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 class TestApplicationInitialization:
     """应用初始化端到端测试"""
 
-    def setup_method(self):
-        """每个测试方法前的设置：启动 Flask 应用"""
-        # 设置环境变量
-        os.environ['ENV_TYPE'] = 'function'
-
-        # 确保 src 目录在 Python 路径中
-        src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
-        if src_path not in sys.path:
-            sys.path.insert(0, src_path)
-
-        # 清理可能存在的进程
-        self._cleanup_existing_processes()
-
-        # 启动 Flask 应用（在后台运行）
-        self.flask_process = subprocess.Popen(
-            [sys.executable, 'main.py', '127.0.0.1', '9997'],
-            cwd=src_path,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            env=os.environ.copy()
-        )
-
-        # 等待应用启动
-        time.sleep(5)
-
-        # 验证应用是否成功启动
-        max_attempts = 10
-        for attempt in range(max_attempts):
-            try:
-                response = requests.get('http://localhost:9997/', timeout=2)
-                if response.status_code == 200:
-                    print(f"Flask 应用成功启动 (尝试 {attempt + 1}/{max_attempts})")
-                    break
-            except requests.exceptions.RequestException:
-                if attempt == max_attempts - 1:
-                    pytest.fail("Flask 应用启动失败")
-                time.sleep(1)
-
-    def teardown_method(self):
-        """每个测试方法后的清理：停止 Flask 应用"""
-        if hasattr(self, 'flask_process') and self.flask_process:
-            self.flask_process.terminate()
-            try:
-                self.flask_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                self.flask_process.kill()
-                self.flask_process.wait()
-            print("Flask 应用已停止")
-
-        # 再次清理可能残留的进程
-        self._cleanup_existing_processes()
-
-    def _cleanup_existing_processes(self):
-        """清理可能存在的 Flask 进程"""
-        try:
-            # 查找占用端口 9997 的进程
-            result = subprocess.run(['lsof', '-t', '-i:9997'],
-                                  capture_output=True, text=True)
-            if result.returncode == 0:
-                pids = result.stdout.strip().split('\n')
-                for pid in pids:
-                    if pid:
-                        subprocess.run(['kill', '-9', pid], capture_output=True)
-                        print(f"已终止进程 {pid}")
-        except Exception as e:
-            print(f"清理进程时出错: {e}")
-
-    def test_default_community_and_super_admin_created_after_startup(self):
+    def test_default_community_and_super_admin_created_after_startup(self, base_url):
         """
         测试应用启动后默认社区和超级管理员被正确创建
 
         这是TDD测试：先写测试，观察失败，然后实现代码
         """
-        base_url = 'http://localhost:9997'
 
 
         # 1. 验证默认社区存在
