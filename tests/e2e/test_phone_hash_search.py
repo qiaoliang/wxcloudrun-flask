@@ -103,7 +103,7 @@ class TestUserSearchByPhoneIntegration:
         
         # 验证计算方式与绑定手机号时一致
         from wxcloudrun.views.user import bind_phone
-        from database.models import User
+        from database.flask_models import User
         
         # 模拟用户绑定手机号时的hash计算
         actual_hash = sha256(
