@@ -22,7 +22,7 @@ class TestCheckinTodayAPI:
         import requests
         
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'unit'
+        os.environ['ENV_TYPE'] = 'function'
         
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
@@ -99,7 +99,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -148,7 +148,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -220,7 +220,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -279,7 +279,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -349,7 +349,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -422,7 +422,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -483,7 +483,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -551,7 +551,7 @@ class TestCheckinTodayAPI:
         
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -613,7 +613,7 @@ class TestCheckinTodayAPI:
         
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -712,7 +712,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
@@ -766,7 +766,7 @@ class TestCheckinTodayAPI:
         """
         # 创建测试用户
         timestamp = int(time_module.time() * 1000)
-        phone = f"138{str(timestamp)[-8:]}"  # 确保138开头，共11位
+        phone = f'138{random_str(8)}'  # 确保138开头，共11位
         nickname = f"测试用户_{uuid_str(8)}"
         user_data = create_phone_user(self.base_url, phone, nickname)
         token = user_data['token']
