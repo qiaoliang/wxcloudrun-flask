@@ -48,17 +48,35 @@ def generate_unique_phone() -> str:
     """
     生成唯一的测试手机号
     确保手机号符合11位数字格式，且不与超级管理员号码冲突
+    使用时间戳+随机数确保跨进程唯一性
     """
-    global _phone_counter
-    with _phone_counter_lock:
-        _phone_counter += 1
-        # 生成格式：139 + 1000 + 递增数字 (确保11位)
-        # 例如: 139100000001, 139100000002, ...
-        phone = f"139100{_phone_counter:06d}"
-        
-        # 确保不会生成超级管理员的手机号
-        if phone == SUPER_ADMIN_PHONE:
-            _phone_counter += 1
-            phone = f"139100{_phone_counter:06d}"
+    import random
+    # 使用当前时间的微妙部分 + 随机数确保唯一性
+    current_time = int(time.time() * 1000000)  # 微妙时间戳
+    random_part = random.randint(10000, 99999)  # 5位随机数
+    # 组合时间戳和随机数的后几位，确保总共是11位数字
+    # 139开头，总共11位，所以后面需要9位数字
+    # 使用时间戳的后7位 + 2位随机数组成9位数字
+    time_part = int(str(current_time)[-7:])  # 取时间戳后7位
+    if time_part < 1000000:  # 确保至少是7位数
+        time_part += 1000000
+    random_part = random.randint(10, 99)  # 2位随机数
+    phone = f"139{time_part:07d}{random_part:02d}"
+    
+    # 确保手机号是11位
+    if len(phone) > 11:
+        phone = phone[:11]
+    elif len(phone) < 11:
+        # 如果长度不足11位，用随机数字补足
+        while len(phone) < 11:
+            phone += str(random.randint(0, 9))
+    
+    # 确保不会生成超级管理员的手机号
+    if phone == SUPER_ADMIN_PHONE:
+        # 如果冲突，增加一个随机偏移
+        offset = random.randint(1, 99)
+        phone = f"139{int(phone[3:]) + offset:08d}"
+        if len(phone) > 11:
+            phone = phone[:11]
     
     return phone
