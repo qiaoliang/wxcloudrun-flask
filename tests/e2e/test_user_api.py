@@ -28,7 +28,7 @@ class TestUserAPI:
         import requests
         
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'unit'
+        os.environ['ENV_TYPE'] = 'function'
         
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
@@ -133,8 +133,8 @@ class TestUserAPI:
         """
         url_env = self.base_url
         # 创建测试用户
-        expected_user_nickname= "t张三"
-        a_user=create_wx_user(url_env, "wx-code-13812345678", expected_user_nickname)
+        expected_user_nickname= f"测试用户_{uuid_str(8)}"
+        a_user=create_wx_user(url_env, f"wx-code-{uuid_str(10)}", expected_user_nickname)
 
         # 使用创建用户返回的token进行搜索
         user_token = a_user["token"]
