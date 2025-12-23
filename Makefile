@@ -224,6 +224,9 @@ test-method: setup
 # 运行E2E测试
 e2e: setup
 	@echo "=== 运行E2E测试 ==="
+	@echo "清理数据库和迁移脚本..."
+	@rm -f src/data/*.db 2>/dev/null || true
+	@rm -f src/alembic/versions/*.py 2>/dev/null || true
 	@echo "注意: 每个测试函数将启动独立的 Flask 进程，使用内存数据库"
 	@# 运行E2E测试
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
@@ -240,6 +243,9 @@ e2e-single: setup
 		exit 1; \
 	fi
 	@echo "=== 运行单个E2E测试用例 ==="
+	@echo "清理数据库和迁移脚本..."
+	@rm -f src/data/*.db 2>/dev/null || true
+	@rm -f src/alembic/versions/*.py 2>/dev/null || true
 	@echo "测试: $(TEST)"
 	@echo "注意: 测试将启动独立的 Flask 进程，使用内存数据库"
 	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
