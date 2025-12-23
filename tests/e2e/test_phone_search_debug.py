@@ -22,7 +22,7 @@ class TestPhoneSearchDebug:
         import requests
         
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'unit'
+        os.environ['ENV_TYPE'] = 'function'
         
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
@@ -130,7 +130,7 @@ class TestPhoneSearchDebug:
         print(f"✅ 用户创建成功，ID: {user_id}")
         
         # 2. 尝试不同的验证码绑定手机号
-        test_phone = "13888888888"
+        test_phone = f"138{random_str(8)}"
         
         # 测试不同的验证码
         test_codes = ["666888", "888666", "111111", "999999", "555555"]
