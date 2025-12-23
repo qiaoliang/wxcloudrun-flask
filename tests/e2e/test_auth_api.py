@@ -36,7 +36,7 @@ class TestAuthAPI:
         import requests
 
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'unit'
+        os.environ['ENV_TYPE'] = 'function'
 
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
@@ -165,7 +165,7 @@ class TestAuthAPI:
         """
         # 准备请求数据
         import uuid
-        expected_user_nickname = "李四张三"
+        expected_user_nickname = f"测试用户_{uuid_str(8)}"
         unique_code = f"wx_auth_code_{uuid.uuid4().hex[:8]}"
         login_data = {
             "code": unique_code,
@@ -624,7 +624,7 @@ class TestAuthAPI:
         """
         # 准备请求数据（缺少code）
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "nickname": "张三",
             "password": "password123"
         }
@@ -665,7 +665,7 @@ class TestAuthAPI:
         for invalid_code in invalid_codes:
             # 准备请求数据
             register_data = {
-                "phone": "13812345678",
+                "phone": f"138{random_str(8)}",
                 "code": invalid_code,
                 "nickname": "测试用户",
                 "password": "password123"
@@ -692,7 +692,7 @@ class TestAuthAPI:
 
         # 测试缺少验证码参数的情况
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "nickname": "测试用户",
             "password": "password123"
             # 故意缺少 code 参数
@@ -719,7 +719,7 @@ class TestAuthAPI:
         """
         # 准备请求数据（弱密码）
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "code": "123456",
             "nickname": "张三",
             "password": "123"  # 密码太短
@@ -750,7 +750,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "code": "123456",
             "nickname": "张三",
             "password": "password123"
@@ -787,7 +787,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "code": "123456",
             "password": "password123"
         }
@@ -799,7 +799,7 @@ class TestAuthAPI:
 
         # 使用验证码登录
         login_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "code": "123456"
         }
 
@@ -888,7 +888,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "code": "123456",
             "password": "password123"
         }
@@ -900,7 +900,7 @@ class TestAuthAPI:
 
         # 使用密码登录
         login_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "password": "password123"
         }
 
@@ -934,7 +934,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "code": "123456",
             "password": "password123"
         }
@@ -946,7 +946,7 @@ class TestAuthAPI:
 
         # 使用错误密码登录
         login_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "password": "wrongpassword"
         }
 
@@ -974,7 +974,7 @@ class TestAuthAPI:
         """
         # 先注册一个用户
         register_data = {
-            "phone": "13812345678",
+            "phone": f"138{random_str(8)}",
             "code": "123456",
             "nickname": "张三",
             "password": "password123"
