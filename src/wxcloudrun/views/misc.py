@@ -8,8 +8,7 @@ from datetime import datetime
 from flask import render_template, request, Response
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response, make_succ_empty_response
-from wxcloudrun.dao import query_counterbyid, delete_counterbyid, insert_counter, update_counterbyid
-from database.flask_models import Counters
+from database.flask_models import Counters, db
 from config_manager import analyze_all_configs, detect_external_systems_status
 
 app_logger = logging.getLogger('log')
@@ -59,7 +58,7 @@ def count():
     # 执行自增操作
     if action == 'inc':
         app.logger.info("开始执行计数器自增操作")
-        counter = query_counterbyid(1)
+        counter = Counters.query.get(1)
         app.logger.info(f"查询到的计数器: {counter.count if counter else 'None'}")
 
         if counter is None:
@@ -69,14 +68,15 @@ def count():
             counter.count = 1
             counter.created_at = datetime.now()
             counter.updated_at = datetime.now()
-            insert_counter(counter)
+            db.session.add(counter)
+            db.session.commit()
             app.logger.info("新计数器已插入数据库")
         else:
             app.logger.info(f"计数器存在，当前值: {counter.count}，即将递增")
             counter.count += 1
             app.logger.info(f"递增后值: {counter.count}")
             counter.updated_at = datetime.now()
-            update_counterbyid(counter)
+            db.session.commit()
             app.logger.info("计数器已更新")
 
         app.logger.info(f"返回计数值: {counter.count}")
@@ -85,7 +85,10 @@ def count():
     # 执行清0操作
     elif action == 'clear':
         app.logger.info("执行清零操作")
-        delete_counterbyid(1)
+        counter = Counters.query.get(1)
+        if counter:
+            db.session.delete(counter)
+            db.session.commit()
         app.logger.info("计数器已清零")
         return make_succ_empty_response()
 
@@ -93,14 +96,11 @@ def count():
     elif action == 'clear_users':
         app.logger.info("执行清理用户数据操作（测试环境专用）")
         try:
-            from database import get_database
             from database.flask_models import User
             
-            db = get_database()
-            with db.get_session() as session:
-                # 删除所有用户数据
-                session.query(User).delete()
-                session.commit()
+            # 删除所有用户数据
+            User.query.delete()
+            db.session.commit()
             app.logger.info("所有用户数据已清理")
             return make_succ_empty_response()
         except Exception as e:
@@ -120,7 +120,7 @@ def get_count():
     :return: 计数的值
     """
     app.logger.info("接收到计数器GET请求")
-    counter = query_counterbyid(1)
+    counter = Counters.query.get(1)
     count_value = 0 if counter is None else counter.count
     app.logger.info(f"查询到的计数器值: {count_value}")
     return make_succ_response(count_value)

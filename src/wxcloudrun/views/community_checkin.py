@@ -16,8 +16,8 @@ def community_permission_required(f):
     """检查用户是否有社区管理权限的装饰器"""
     from functools import wraps
     from wxcloudrun.community_service import CommunityService
-    from wxcloudrun.dao import get_db
     from database.flask_models import CommunityCheckinRule
+    from database.flask_models import db
 
     @wraps(f)
     def decorated_function(decoded, *args, **kwargs):
@@ -60,14 +60,13 @@ def community_permission_required(f):
             try:
                 rule_id = kwargs['rule_id']
                 logger.debug(f"从kwargs获取rule_id: {rule_id}")
-                # 直接查询数据库获取社区ID，避免复杂的对象加载
-                with get_db().get_session() as session:
-                    rule = session.query(CommunityCheckinRule).get(rule_id)
-                    if rule:
-                        community_id = rule.community_id
-                        logger.debug(f"从数据库规则获取community_id: {community_id}")
-                    else:
-                        logger.warning(f"规则不存在: rule_id={rule_id}")
+                # 直接查询数据库获取社区ID，使用Flask-SQLAlchemy
+                rule = CommunityCheckinRule.query.get(rule_id)
+                if rule:
+                    community_id = rule.community_id
+                    logger.debug(f"从数据库规则获取community_id: {community_id}")
+                else:
+                    logger.warning(f"规则不存在: rule_id={rule_id}")
             except Exception as e:
                 logger.warning(f"从规则ID获取社区ID失败: {str(e)}")
                 # 继续执行，让下面的错误处理返回"缺少社区ID参数"

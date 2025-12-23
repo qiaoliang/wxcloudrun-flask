@@ -42,7 +42,6 @@ def _check_super_admin_permission(user):
 
 def _format_community_data(community):
     """格式化社区数据"""
-    from wxcloudrun.dao import get_db
 
     # 获取community_id，然后重新查询以避免会话问题
     community_id = community.community_id
@@ -90,7 +89,6 @@ def _format_community_data(community):
 def get_communities():
     """获取社区列表（超级管理员专用）- 为了兼容应用初始化测试"""
     app.logger.info('=== 开始获取社区列表 ===')
-    from wxcloudrun.dao import get_db
 
     # 验证token
     decoded, error_response = verify_token()
@@ -1035,8 +1033,6 @@ def add_community_staff(decoded):
 def remove_community_staff():
     """移除社区工作人员"""
     from database.flask_models import CommunityStaff
-    from wxcloudrun.dao import get_db
-
     app_logger.info('=== 开始移除社区工作人员 ===')
 
     # 验证token
@@ -1238,7 +1234,6 @@ def get_community_users_list():
 def add_community_users():
     """添加社区用户"""
     from database.flask_models import CommunityStaff
-    from wxcloudrun.dao import get_db
     from datetime import datetime
 
     app_logger.info('=== 开始添加社区用户 ===')
@@ -1463,7 +1458,6 @@ def create_community_new():
 def update_community_new():
     """更新社区信息 (新版API)"""
     app_logger.info('=== 开始更新社区信息 ===')
-    from wxcloudrun.dao import get_db
 
     # 验证token
     decoded, error_response = verify_token()
@@ -1573,7 +1567,6 @@ def toggle_community_status_new():
     """切换社区状态 (新版API)"""
     app_logger.info('=== 开始切换社区状态 ===')
     from const_default import DEFUALT_COMMUNITY_NAME
-    from wxcloudrun.dao import get_db
 
     # 验证token
     decoded, error_response = verify_token()
@@ -2048,7 +2041,6 @@ def check_community_access(community_id):
 def _verify_community_access(user_id, community_id):
     """验证用户是否有权限访问社区"""
     from database.flask_models import CommunityStaff
-    from wxcloudrun.dao import get_db
 
     # 防御性检查：确保参数有效
     if not user_id or not community_id:
@@ -2103,7 +2095,6 @@ def _validate_community_id(community_id_str):
 
 def _get_community_detail_data(community_id):
     """获取社区详情数据（优化版查询）"""
-    from wxcloudrun.dao import get_db
     from database.flask_models import CommunityStaff
     from sqlalchemy import func
 
