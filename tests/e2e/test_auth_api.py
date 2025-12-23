@@ -164,9 +164,11 @@ class TestAuthAPI:
         验证真实API行为而非mock行为
         """
         # 准备请求数据
+        import uuid
         expected_user_nickname = "李四张三"
+        unique_code = f"wx_auth_code_{uuid.uuid4().hex[:8]}"
         login_data = {
-            "code": "wx_auth_code_here_create_user",
+            "code": unique_code,
             "nickname": expected_user_nickname,
             "avatar_url": "https://example.com/avatar.jpg"
         }
@@ -206,8 +208,10 @@ class TestAuthAPI:
         验证当缺少用户信息时，API能正确处理并提供默认值
         """
         # 准备请求数据 - 只有code，没有用户信息
+        import uuid
+        unique_code = f"wx_auth_code_defense_{uuid.uuid4().hex[:8]}"
         login_data = {
-            "code": "wx_auth_code_defense_in_depth"
+            "code": unique_code
         }
 
         # 发送登录请求
@@ -246,8 +250,10 @@ class TestAuthAPI:
         验证当提供空的用户信息时，API能正确处理
         """
         # 准备请求数据 - 空的用户信息
+        import uuid
+        unique_code = f"wx_auth_code_empty_{uuid.uuid4().hex[:8]}"
         login_data = {
-            "code": "wx_auth_code_empty_info",
+            "code": unique_code,
             "nickname": "",
             "avatar_url": ""
         }
@@ -285,8 +291,10 @@ class TestAuthAPI:
         验证当提供无效头像URL时，API能正确处理
         """
         # 准备请求数据 - 无效的头像URL
+        import uuid
+        unique_code = f"wx_auth_code_invalid_{uuid.uuid4().hex[:8]}"
         login_data = {
-            "code": "wx_auth_code_invalid_avatar",
+            "code": unique_code,
             "nickname": "测试用户",
             "avatar_url": "invalid_url_format"  # 无效的URL格式
         }
