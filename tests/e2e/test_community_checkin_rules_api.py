@@ -21,7 +21,7 @@ sys.path.insert(0, project_root)
 from hashutil import random_str, uuid_str
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 # 导入测试工具函数
-from .testutil import get_headers_by_creating_phone_user, create_phone_user, TEST_DEFAULT_SMS_CODE, TEST_DEFAULT_PWD, TEST_DEFAULT_WXCAHT_CODE
+from tests.e2e.testutil import get_headers_by_creating_phone_user, create_phone_user, TEST_DEFAULT_SMS_CODE, TEST_DEFAULT_PWD, TEST_DEFAULT_WXCAHT_CODE
 
 
 class TestCommunityCheckinRulesAPI:
