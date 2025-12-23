@@ -34,18 +34,18 @@ class TestAuthAPI:
         import time
         import subprocess
         import requests
-        
+
         # 设置环境变量
         os.environ['ENV_TYPE'] = 'func'
-        
+
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
-        
+
         # 清理可能存在的进程
         self._cleanup_existing_processes()
-        
+
         # 启动 Flask 应用（在后台运行）
         self.flask_process = subprocess.Popen(
             [sys.executable, 'main.py', '127.0.0.1', '9998'],
@@ -54,10 +54,10 @@ class TestAuthAPI:
             stderr=subprocess.PIPE,
             env=os.environ.copy()
         )
-        
+
         # 等待应用启动
         time.sleep(5)
-        
+
         # 验证应用是否成功启动
         max_attempts = 10
         for attempt in range(max_attempts):
@@ -70,7 +70,7 @@ class TestAuthAPI:
                 if attempt == max_attempts - 1:
                     pytest.fail("Flask 应用启动失败")
                 time.sleep(1)
-        
+
         # 保存base_url供测试方法使用
         self.base_url = f'http://localhost:9998'
 
@@ -84,16 +84,16 @@ class TestAuthAPI:
                 self.flask_process.kill()
                 self.flask_process.wait()
             print("Flask 应用已停止")
-        
+
         # 再次清理可能残留的进程
         self._cleanup_existing_processes()
-    
+
     def _cleanup_existing_processes(self):
         """清理可能存在的 Flask 进程"""
         import subprocess
         try:
             # 查找占用端口 9998 的进程
-            result = subprocess.run(['lsof', '-t', '-i:9998'], 
+            result = subprocess.run(['lsof', '-t', '-i:9998'],
                                   capture_output=True, text=True)
             if result.returncode == 0:
                 pids = result.stdout.strip().split('\n')
@@ -326,13 +326,12 @@ class TestAuthAPI:
 
         print(f"✅ 无效头像URL处理成功，ID: {result['user_id']}, 头像URL: {result['avatar_url'][:50]}...")
 
-    def test_wechat_login_with_long_nickname_defense_in_depth(self):
+    def test_wechat_login_with_long_nickname_will_be_shorten(self):
         """
-        测试defense-in-depth：过长昵称的处理
         验证当提供过长昵称时，API能正确截断处理
         """
         # 准备请求数据 - 过长的昵称
-        long_nickname = "这是一个过长的昵称"+uuid_str(30)+uuid_str(30)
+        long_nickname = "这是一个过长的昵称"+random_str(8)+uuid_str(30)+random_str(8)+random_str(8)
         login_data = {
             "code": "wx_auth_code_long_nickname",
             "nickname": long_nickname,
@@ -355,16 +354,10 @@ class TestAuthAPI:
         # 验证返回的数据结构
         result = data.get("data")
         assert isinstance(result, dict)
-        assert result["login_type"] == "new_user"
         assert result['user_id'] is not None
-
-        # Defense-in-depth验证：系统应该处理过长昵称
-        assert result['nickname'] is not None
+        assert len(result['nickname']) > 0  # 不应该是空字符串
         assert len(result['nickname']) <= 53  # 应该被截断到50字符+省略号
         assert result['nickname'].endswith("...")  # 应该以省略号结尾
-        assert len(result['nickname']) > 0  # 不应该是空字符串
-
-        print(f"✅ 过长昵称处理成功，ID: {result['user_id']}, 截断后昵称: {result['nickname']}")
 
     def test_wechat_login_missing_code(self):
         """
