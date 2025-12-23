@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
-from wxcloudrun.dao import get_db
+
 from database.flask_models import Community, User, CommunityCheckinRule, UserCommunityRule, CommunityStaff
 
 

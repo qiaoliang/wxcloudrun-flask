@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 from sqlalchemy.exc import OperationalError
 from database.flask_models import User, UserAuditLog
 from wxcloudrun.user_service import UserService
-from wxcloudrun.dao import get_db
+
 from hashutil import phone_hash, pwd_hash
 
 

@@ -105,8 +105,6 @@ def get_communities():
 
     try:
         # Using Flask-SQLAlchemy db.session
-        # db = get_db()  # Using Flask-SQLAlchemy
-        # Using Flask-SQLAlchemy db.session
         # 查询所有社区
         communities = db.session.query(Community).all()
 
@@ -1055,8 +1053,6 @@ def remove_community_staff():
             return make_err_response({}, '缺少必要参数')
 
         # Using Flask-SQLAlchemy db.session
-        # db = get_db()  # Using Flask-SQLAlchemy
-        # Using Flask-SQLAlchemy db.session
             # 检查社区是否存在
             community = db.session.query(Community).get(community_id)
             if not community:
@@ -1263,8 +1259,6 @@ def add_community_users():
         if len(user_ids) > 50:
             return make_err_response({}, '最多只能添加50个用户')
 
-        # Using Flask-SQLAlchemy db.session
-        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 检查社区是否存在
             community = db.session.query(Community).get(community_id)
@@ -1482,8 +1476,6 @@ def update_community_new():
             return make_err_response({}, '缺少社区ID')
 
         # Using Flask-SQLAlchemy db.session
-        # db = get_db()  # Using Flask-SQLAlchemy
-        # Using Flask-SQLAlchemy db.session
             # 查找社区
             community = db.session.query(Community).get(community_id)
             if not community:
@@ -1594,8 +1586,6 @@ def toggle_community_status_new():
         if status not in ['active', 'inactive']:
             return make_err_response({}, '状态参数错误，必须是active或inactive')
 
-        # Using Flask-SQLAlchemy db.session
-        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 查找社区
             community = db.session.query(Community).get(community_id)
@@ -2047,7 +2037,6 @@ def _verify_community_access(user_id, community_id):
         return False, "参数错误"
 
     try:
-        # db = get_db()  # Using Flask-SQLAlchemy
         # Using Flask-SQLAlchemy db.session
             # 查询用户
             user = db.session.query(User).get(user_id)
@@ -2098,7 +2087,6 @@ def _get_community_detail_data(community_id):
     from database.flask_models import CommunityStaff
     from sqlalchemy import func
 
-        # db = get_db()  # Using Flask-SQLAlchemy
     # Using Flask-SQLAlchemy db.session
     # 使用单个查询获取所有需要的数据
     # 查询社区基本信息及关联的创建者信息

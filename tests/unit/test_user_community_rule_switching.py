@@ -8,7 +8,7 @@ from datetime import datetime
 from database.flask_models import db, User, Community, CommunityCheckinRule, CheckinRule, UserCommunityRule
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
-from wxcloudrun.dao import get_db
+
 
 
 def generate_random_community_name():
