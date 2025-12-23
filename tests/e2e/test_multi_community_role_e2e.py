@@ -24,7 +24,7 @@ class TestMultiCommunityRoleAssignmentE2E:
         import requests
 
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'unit'
+        os.environ['ENV_TYPE'] = 'function'
 
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
@@ -278,10 +278,10 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 创建测试用户
-        test_user_id = self._create_test_user(base_url, '13800000002', '权限测试用户')
+        test_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '权限测试用户')
 
         # 创建另一个用户作为社区B的主管
-        manager_user_id = self._create_test_user(base_url, '13800000003', '社区主管用户2')
+        manager_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区主管用户2')
 
         # 创建两个社区
         # 社区A：超级管理员作为主管（默认）
@@ -339,10 +339,10 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 创建测试用户
-        test_user_id = self._create_test_user(base_url, '13800000004', '移除测试用户')
+        test_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '移除测试用户')
 
         # 创建另一个用户作为社区B的主管
-        manager_user_id = self._create_test_user(base_url, '13800000005', '社区主管用户3')
+        manager_user_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区主管用户3')
 
         # 创建三个社区
         community_a_id = self._create_test_community(base_url, admin_headers, '移除测试社区A')
@@ -425,11 +425,11 @@ class TestMultiCommunityRoleAssignmentE2E:
         admin_headers = {'Authorization': f'Bearer {admin_token}'}
 
         # 创建多个测试用户
-        user_a_id = self._create_test_user(base_url, '13800000006', '管理社区测试用户A')
-        user_b_id = self._create_test_user(base_url, '13800000007', '管理社区测试用户B')
+        user_a_id = self._create_test_user(base_url, f'138{random_str(8)}', '管理社区测试用户A')
+        user_b_id = self._create_test_user(base_url, f'138{random_str(8)}', '管理社区测试用户B')
         # 创建额外的用户作为指定主管
-        manager_y_id = self._create_test_user(base_url, '13800000008', '社区Y主管')
-        manager_z_id = self._create_test_user(base_url, '13800000009', '社区Z主管')
+        manager_y_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区Y主管')
+        manager_z_id = self._create_test_user(base_url, f'138{random_str(8)}', '社区Z主管')
 
         # 创建多个社区，指定不同的主管
         community_x_id = self._create_test_community(base_url, admin_headers, '管理测试社区X')  # 超级管理员作为主管
