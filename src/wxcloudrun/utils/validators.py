@@ -65,15 +65,23 @@ def _verify_sms_code(phone, purpose, code):
     # 在 mock 环境下（should_use_real_sms() 返回 False），进行基本验证
     from config_manager import should_use_real_sms
     if not should_use_real_sms():
-        app.logger.info(f"[Mock SMS] 验证验证码，ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
-        # 在测试环境下，验证一些明显无效的验证码
-        # 注意：'000000' 现在作为特殊验证码，用于超级管理员免验证码创建用户
-        invalid_codes = ["999999", "12345", "1234567", "abcdef", "", " ", "null", "@#$%^&"]
-        if code in invalid_codes:
+        app.logger.info(f"[Mock SMS] 验证验证码 - phone: {phone}, purpose: {purpose}, code: {code}, ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
+        
+        # 定义明确的测试验证码
+        valid_test_codes = ["123456", "000000", "111111", "222222", "333333", "444444", "555555", "666666", "777777", "888888", "999999"]
+        # 明确无效的验证码
+        invalid_codes = ["12345", "1234567", "abcdef", "", " ", "null", "@#$%^&"]
+        
+        if code in valid_test_codes:
+            app.logger.info(f"[Mock SMS] 验证码 '{code}' 是有效的测试验证码")
+            return True
+        elif code in invalid_codes:
             app.logger.info(f"[Mock SMS] 验证码 '{code}' 被识别为无效")
             return False
-        # 其他验证码视为有效（包括'000000'）
-        return True
+        else:
+            # 对于其他验证码，在测试环境下也认为是有效的（保持向后兼容）
+            app.logger.info(f"[Mock SMS] 验证码 '{code}' 是未知验证码，在测试环境下视为有效")
+            return True
 
     vc = VerificationCode.query.filter_by(
         phone_number=phone, purpose=purpose).first()

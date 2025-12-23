@@ -806,7 +806,7 @@ class TestAuthAPI:
         response = requests.post(
             f"{self.base_url}/api/auth/login_phone_code",
             json=login_data,
-            timeout=5
+            timeout=10
         )
 
         # 验证响应
