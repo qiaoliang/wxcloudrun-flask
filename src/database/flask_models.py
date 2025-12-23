@@ -155,15 +155,31 @@ class CheckinRecord(db.Model):
 
     record_id = Column(db.Integer, primary_key=True)
     user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=False)
-    checkin_time = Column(db.DateTime, default=datetime.now, comment='打卡时间')
+    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='社区规则打卡用户ID')
+    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=True)
+    community_rule_id = Column(db.Integer, nullable=True, comment='社区规则ID')
+    planned_time = Column(db.DateTime, nullable=False, comment='计划打卡时间')
+    checkin_time = Column(db.DateTime, comment='实际打卡时间')
     checkin_type = Column(db.String(50), comment='打卡类型')
     content = Column(db.Text, comment='打卡内容')
+    status = Column(db.Integer, default=0, comment='打卡状态: 0=未打卡, 1=已打卡, 2=已撤销')
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_at = Column(db.DateTime, default=datetime.now)
 
     # 关系
-    user = db.relationship('User', backref='checkin_records')
+    user = db.relationship('User', foreign_keys=[user_id], backref='checkin_records')
+    solo_user = db.relationship('User', foreign_keys=[solo_user_id], backref='solo_checkin_records')
     rule = db.relationship('CheckinRule', backref='records')
+
+    @property
+    def status_name(self):
+        """获取状态名称"""
+        status_mapping = {
+            0: 'unchecked',
+            1: 'checked',
+            2: 'cancelled'
+        }
+        return status_mapping.get(self.status, 'unknown')
 
     def __repr__(self):
         return f'<CheckinRecord {self.record_id}: User {self.user_id} at {self.checkin_time}>'

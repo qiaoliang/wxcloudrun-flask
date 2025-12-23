@@ -7,9 +7,8 @@ import logging
 from datetime import datetime, date, time, timedelta
 from sqlalchemy.exc import OperationalError
 from sqlalchemy import func
-from .dao import get_db
 from .checkin_rule_service import CheckinRuleService
-from database.flask_models import CheckinRecord, SupervisionRuleRelation
+from database.flask_models import CheckinRecord, SupervisionRuleRelation, db
 
 logger = logging.getLogger('CheckinRecordService')
 
@@ -209,37 +208,36 @@ class CheckinRecordService:
         :return: 打卡记录列表
         """
         try:
-            # 如果session为None，创建新的会话
+            # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                with get_db().get_session() as session:
-                    # 获取监督关系
-                    relations = session.query(SupervisionRuleRelation).filter(
-                        SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
-                        SupervisionRuleRelation.status == 2  # 已同意
-                    ).all()
+                # 获取监督关系
+                relations = db.session.query(SupervisionRuleRelation).filter(
+                    SupervisionRuleRelation.supervisor_user_id == supervisor_user_id,
+                    SupervisionRuleRelation.status == 2  # 已同意
+                ).all()
 
-                    if not relations:
-                        return []
+                if not relations:
+                    return []
 
-                    # 分离可以监督所有规则的用户和特定规则的关系
-                    all_rules_users = set()
-                    specific_rules = []
+                # 分离可以监督所有规则的用户和特定规则的关系
+                all_rules_users = set()
+                specific_rules = []
 
-                    for relation in relations:
-                        if relation.rule_id is None:
-                            all_rules_users.add(relation.solo_user_id)
-                        else:
-                            specific_rules.append({
-                                'user_id': relation.solo_user_id,
-                                'rule_id': relation.rule_id
-                            })
+                for relation in relations:
+                    if relation.rule_id is None:
+                        all_rules_users.add(relation.solo_user_id)
+                    else:
+                        specific_rules.append({
+                            'user_id': relation.solo_user_id,
+                            'rule_id': relation.rule_id
+                        })
 
                 # 查询打卡记录
                 records = []
 
                 # 查询可以监督所有规则的用户的记录
                 if all_rules_users:
-                    all_rules_records = session.query(CheckinRecord).filter(
+                    all_rules_records = db.session.query(CheckinRecord).filter(
                         CheckinRecord.user_id.in_(all_rules_users),
                         CheckinRecord.planned_time >= start_date,
                         CheckinRecord.planned_time <= end_date
@@ -248,7 +246,7 @@ class CheckinRecordService:
 
                 # 查询特定规则的记录
                 for spec in specific_rules:
-                    spec_records = session.query(CheckinRecord).filter(
+                    spec_records = db.session.query(CheckinRecord).filter(
                         CheckinRecord.user_id == spec['user_id'],
                         CheckinRecord.rule_id == spec['rule_id'],
                         CheckinRecord.planned_time >= start_date,
@@ -260,9 +258,7 @@ class CheckinRecordService:
                 unique_records = list({r.record_id: r for r in records}.values())
                 unique_records.sort(key=lambda x: x.planned_time, reverse=True)
 
-                # 确保对象在会话关闭后可访问
-                for record in unique_records:
-                    session.expunge(record)
+                # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
                 logger.info(f"获取监督记录成功，监护人ID: {supervisor_user_id}, 记录数量: {len(unique_records)}")
                 return unique_records
@@ -335,13 +331,10 @@ class CheckinRecordService:
         :return: 打卡记录实体
         """
         try:
-            # 如果session为None，创建新的会话
+            # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                with get_db().get_session() as session:
-                    record = session.query(CheckinRecord).get(record_id)
-                    if record:
-                        session.expunge(record)
-                    return record
+                record = db.session.query(CheckinRecord).get(record_id)
+                return record
             else:
                 # 使用传入的session
                 record = session.query(CheckinRecord).get(record_id)
@@ -362,24 +355,21 @@ class CheckinRecordService:
         :return: 打卡记录列表
         """
         try:
-            # 如果session为None，创建新的会话
+            # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                with get_db().get_session() as session:
-                    if rule_source == 'community':
-                        # 查询社区规则打卡记录
-                        records = session.query(CheckinRecord).filter(
-                            CheckinRecord.community_rule_id == rule_id,
-                            func.date(CheckinRecord.planned_time) == checkin_date
-                        ).all()
-                    else:
-                        # 查询个人规则打卡记录
-                        records = session.query(CheckinRecord).filter(
-                            CheckinRecord.rule_id == rule_id,
-                            func.date(CheckinRecord.planned_time) == checkin_date
-                        ).all()
-                    for record in records:
-                        session.expunge(record)
-                    return records
+                if rule_source == 'community':
+                    # 查询社区规则打卡记录
+                    records = db.session.query(CheckinRecord).filter(
+                        CheckinRecord.community_rule_id == rule_id,
+                        func.date(CheckinRecord.planned_time) == checkin_date
+                    ).all()
+                else:
+                    # 查询个人规则打卡记录
+                    records = db.session.query(CheckinRecord).filter(
+                        CheckinRecord.rule_id == rule_id,
+                        func.date(CheckinRecord.planned_time) == checkin_date
+                    ).all()
+                return records
             else:
                 # 使用传入的session
                 if rule_source == 'community':
@@ -411,17 +401,14 @@ class CheckinRecordService:
         :return: 打卡记录列表
         """
         try:
-            # 如果session为None，创建新的会话
+            # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                with get_db().get_session() as session:
-                    records = session.query(CheckinRecord).filter(
-                        CheckinRecord.user_id == user_id,
-                        CheckinRecord.planned_time >= start_date,
-                        CheckinRecord.planned_time <= end_date
-                    ).order_by(CheckinRecord.planned_time.desc()).all()
-                    for record in records:
-                        session.expunge(record)
-                    return records
+                records = db.session.query(CheckinRecord).filter(
+                    CheckinRecord.user_id == user_id,
+                    CheckinRecord.planned_time >= start_date,
+                    CheckinRecord.planned_time <= end_date
+                ).order_by(CheckinRecord.planned_time.desc()).all()
+                return records
             else:
                 # 使用传入的session
                 records = session.query(CheckinRecord).filter(
@@ -517,21 +504,20 @@ class CheckinRecordService:
                     planned_time=planned_time
                 )
 
-            # 如果session为None，创建新的会话
+            # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                with get_db().get_session() as session:
-                    session.add(new_record)
-                    session.commit()
-                    session.refresh(new_record)
-                    record_id = new_record.record_id
-                    session.expunge(new_record)
+                db.session.add(new_record)
+                db.session.commit()
+                db.session.refresh(new_record)
+                record_id = new_record.record_id
+                # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
                 return record_id
             else:
                 # 使用传入的session
                 session.add(new_record)
                 # 注意：使用外部传入的session时，由调用者负责commit
-                session.refresh(new_record)
+                session.flush()  # 使用 flush 而不是 refresh，确保对象在session中
                 record_id = new_record.record_id
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return record_id
@@ -551,21 +537,20 @@ class CheckinRecordService:
         :return: 记录ID
         """
         try:
-            # 如果session为None，创建新的会话
+            # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                with get_db().get_session() as session:
-                    record = session.query(CheckinRecord).get(record_id)
-                    if not record:
-                        raise ValueError('打卡记录不存在')
+                record = db.session.query(CheckinRecord).get(record_id)
+                if not record:
+                    raise ValueError('打卡记录不存在')
 
-                    record.checkin_time = checkin_time
-                    record.status = status
-                    record.updated_at = datetime.now()
+                record.checkin_time = checkin_time
+                record.status = status
+                record.updated_at = datetime.now()
 
-                    session.flush()
-                    session.commit()
+                db.session.flush()
+                db.session.commit()
 
-                    return record_id
+                return record_id
             else:
                 # 使用传入的session
                 record = session.query(CheckinRecord).get(record_id)

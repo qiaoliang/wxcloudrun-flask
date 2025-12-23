@@ -6,8 +6,7 @@
 import logging
 from datetime import datetime, date, time
 from sqlalchemy.exc import OperationalError
-from .dao import get_db
-from database.flask_models import CheckinRule, CheckinRecord
+from database.flask_models import CheckinRule, CheckinRecord, db
 
 logger = logging.getLogger('CheckinRuleService')
 
@@ -24,8 +23,6 @@ class CheckinRuleService:
         :return: 打卡规则列表
         """
         try:
-            from database.flask_models import db
-
             if session is None:
                 # 使用 Flask-SQLAlchemy 的 db.session
                 rules = db.session.query(CheckinRule).filter(
@@ -52,8 +49,6 @@ class CheckinRuleService:
         :return: 打卡规则实体
         """
         try:
-            from database.flask_models import db
-
             if session is None:
                 # 使用 Flask-SQLAlchemy 的 db.session
                 rule = db.session.query(CheckinRule).get(rule_id)
@@ -108,11 +103,10 @@ class CheckinRuleService:
             )
 
             if session is None:
-                with get_db().get_session() as session:
-                    session.add(new_rule)
-                    session.commit()
-                    session.refresh(new_rule)
-                    session.expunge(new_rule)
+                db.session.add(new_rule)
+                db.session.commit()
+                db.session.refresh(new_rule)
+                # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
                 logger.info(f"创建打卡规则成功: 用户ID={user_id}, 规则ID={new_rule.rule_id}")
                 return new_rule
@@ -142,52 +136,51 @@ class CheckinRuleService:
         """
         try:
             if session is None:
-                with get_db().get_session() as session:
-                    rule = session.query(CheckinRule).get(rule_id)
+                rule = db.session.query(CheckinRule).get(rule_id)
 
-                    if not rule:
-                        raise ValueError('打卡规则不存在')
+                if not rule:
+                    raise ValueError('打卡规则不存在')
 
-                    # 权限验证
-                    if rule.user_id != user_id:  # 更新字段名
-                        raise ValueError('无权限修改此打卡规则')
+                # 权限验证
+                if rule.user_id != user_id:  # 更新字段名
+                    raise ValueError('无权限修改此打卡规则')
 
-                    # 更新字段
-                    if 'rule_name' in rule_data:
-                        rule.rule_name = rule_data['rule_name']
-                    if 'icon_url' in rule_data:
-                        rule.icon_url = rule_data['icon_url']
-                    if 'frequency_type' in rule_data:
-                        rule.frequency_type = rule_data['frequency_type']
-                    if 'time_slot_type' in rule_data:
-                        rule.time_slot_type = rule_data['time_slot_type']
-                    if 'custom_time' in rule_data:
-                        rule.custom_time = rule_data['custom_time']
-                    if 'week_days' in rule_data:
-                        rule.week_days = rule_data['week_days']
-                    if 'custom_start_date' in rule_data:
-                        rule.custom_start_date = rule_data['custom_start_date']
-                    if 'custom_end_date' in rule_data:
-                        rule.custom_end_date = rule_data['custom_end_date']
-                    if 'status' in rule_data:
-                        rule.status = rule_data['status']
+                # 更新字段
+                if 'rule_name' in rule_data:
+                    rule.rule_name = rule_data['rule_name']
+                if 'icon_url' in rule_data:
+                    rule.icon_url = rule_data['icon_url']
+                if 'frequency_type' in rule_data:
+                    rule.frequency_type = rule_data['frequency_type']
+                if 'time_slot_type' in rule_data:
+                    rule.time_slot_type = rule_data['time_slot_type']
+                if 'custom_time' in rule_data:
+                    rule.custom_time = rule_data['custom_time']
+                if 'week_days' in rule_data:
+                    rule.week_days = rule_data['week_days']
+                if 'custom_start_date' in rule_data:
+                    rule.custom_start_date = rule_data['custom_start_date']
+                if 'custom_end_date' in rule_data:
+                    rule.custom_end_date = rule_data['custom_end_date']
+                if 'status' in rule_data:
+                    rule.status = rule_data['status']
 
-                    rule.updated_at = datetime.now()
+                rule.updated_at = datetime.now()
 
-                    # 验证自定义频率的日期范围
-                    if rule.frequency_type == 3:
-                        if not rule.custom_start_date or not rule.custom_end_date:
-                            raise ValueError('自定义频率必须提供起止日期')
-                        if rule.custom_end_date < rule.custom_start_date:
-                            raise ValueError('结束日期不能早于开始日期')
+                # 验证自定义频率的日期范围
+                if rule.frequency_type == 3:
+                    if not rule.custom_start_date or not rule.custom_end_date:
+                        raise ValueError('自定义频率必须提供起止日期')
+                    if rule.custom_end_date < rule.custom_start_date:
+                        raise ValueError('结束日期不能早于开始日期')
 
-                    session.flush()
-                    session.commit()
-                    session.refresh(rule)
-                    session.expunge(rule)
+                db.session.flush()
+                db.session.commit()
+                db.session.refresh(rule)
+                # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
-                    logger.info(f"更新打卡规则成功: 规则ID={rule_id}")
-                    return rule
+                logger.info(f"更新打卡规则成功: 规则ID={rule_id}")
+                return rule
             else:
                 rule = session.query(CheckinRule).get(rule_id)
 
@@ -253,24 +246,23 @@ class CheckinRuleService:
         """
         try:
             if session is None:
-                with get_db().get_session() as session:
-                    rule = session.query(CheckinRule).get(rule_id)
+                rule = db.session.query(CheckinRule).get(rule_id)
 
-                    if not rule:
-                        raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
+                if not rule:
+                    raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
 
-                    # 权限验证
-                    if rule.user_id != user_id:  # 更新字段名
-                        raise ValueError('无权限删除此打卡规则')
+                # 权限验证
+                if rule.user_id != user_id:  # 更新字段名
+                    raise ValueError('无权限删除此打卡规则')
 
-                    # 软删除
-                    rule.status = 2  # 已删除
-                    rule.deleted_at = datetime.now()
+                # 软删除
+                rule.status = 2  # 已删除
+                rule.deleted_at = datetime.now()
 
-                    session.commit()
+                db.session.commit()
 
-                    logger.info(f"删除打卡规则成功: 规则ID={rule_id}")
-                    return True
+                logger.info(f"删除打卡规则成功: 规则ID={rule_id}")
+                return True
             else:
                 rule = session.query(CheckinRule).get(rule_id)
 
@@ -412,23 +404,21 @@ class CheckinRuleService:
         try:
             from sqlalchemy import func
             if session is None:
-                with get_db().get_session() as session:
-                    query = session.query(CheckinRecord).filter(
-                        func.date(CheckinRecord.planned_time) == today
-                    )
+                query = db.session.query(CheckinRecord).filter(
+                    func.date(CheckinRecord.planned_time) == today
+                )
 
-                    # 根据规则来源过滤
-                    if rule_source == 'community':
-                        # 社区规则的打卡记录使用community_rule_id字段
-                        query = query.filter(CheckinRecord.community_rule_id == rule_id)
-                    else:
-                        # 个人规则的打卡记录使用rule_id字段
-                        query = query.filter(CheckinRecord.rule_id == rule_id)
+                # 根据规则来源过滤
+                if rule_source == 'community':
+                    # 社区规则的打卡记录使用community_rule_id字段
+                    query = query.filter(CheckinRecord.community_rule_id == rule_id)
+                else:
+                    # 个人规则的打卡记录使用rule_id字段
+                    query = query.filter(CheckinRecord.rule_id == rule_id)
 
-                    records = query.all()
-                    for record in records:
-                        session.expunge(record)
-                    return records
+                records = query.all()
+                # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
+                return records
             else:
                 query = session.query(CheckinRecord).filter(
                     func.date(CheckinRecord.planned_time) == today
