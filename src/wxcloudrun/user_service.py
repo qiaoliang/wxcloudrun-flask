@@ -73,9 +73,10 @@ class UserService:
                 existing_user.refresh_token_expire = user.refresh_token_expire
             existing_user.updated_at = user.updated_at or datetime.now()
 
-            db.session.flush()
+            db.session.commit()
         except OperationalError as e:
             logger.info(f"update_user_by_id errorMsg= {e}")
+            db.session.rollback()
 
     @staticmethod
     def query_user_by_openid(openid):

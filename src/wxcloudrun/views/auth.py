@@ -366,13 +366,26 @@ def refresh_token():
             app.logger.warning('刷新Token请求缺少refresh_token参数')
             return make_err_response({}, '缺少refresh_token参数')
 
-        app.logger.info('开始验证refresh token...')
+        app.logger.info(f'开始验证refresh token: {refresh_token[:20]}...')
 
         # 从数据库中查找用户信息
         from wxcloudrun.user_service import UserService
         user = UserService.query_user_by_refresh_token(refresh_token)
-        if not user or not user.refresh_token or user.refresh_token != refresh_token:
+        
+        # Add more debugging info
+        if not user:
+            app.logger.warning(f'未找到用户，refresh_token: {refresh_token[:20]}...')
+            return make_err_response({}, '无效的refresh_token')
+        
+        app.logger.info(f'找到用户，用户ID: {user.user_id}')
+        app.logger.info(f'数据库中存储的refresh_token: {user.refresh_token[:20] if user.refresh_token else None}...')
+        app.logger.info(f'请求中的refresh_token: {refresh_token[:20]}...')
+        app.logger.info(f'refresh_token匹配: {user.refresh_token == refresh_token}')
+        app.logger.info(f'refresh_token字段存在: {bool(user.refresh_token)}')
+
+        if not user.refresh_token or user.refresh_token != refresh_token:
             app.logger.warning(f'无效的refresh_token: {refresh_token[:20]}...')
+            app.logger.warning(f'数据库中的token: {user.refresh_token[:20] if user.refresh_token else None}...')
             return make_err_response({}, '无效的refresh_token')
 
         # 检查refresh token是否过期
@@ -606,39 +619,73 @@ def login_phone_code():
 
 @app.route('/api/auth/login_phone_password', methods=['POST'])
 def login_phone_password():
+    app.logger.info('=== 开始执行手机号密码登录接口 ===')
     try:
         params = request.get_json() or {}
         phone = params.get('phone')
         password = params.get('password')
+        app.logger.info(f'登录请求参数 - phone: {phone}, password: {"*" * len(password) if password else "None"}')
+        
         if not phone or not password:
+            app.logger.warning('登录请求缺少phone或password参数')
             return make_err_response({}, '缺少phone或password参数')
 
         # 标准化电话号码格式
         normalized_phone = normalize_phone_number(phone)
+        app.logger.info(f'标准化后的手机号: {normalized_phone}')
 
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
-        user = UserService.query_user_by_phone_hash(phone_hash)
+        app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
+
+        # 数据库查询 - 添加执行时间监控
+        import time
+        try:
+            app.logger.info('开始执行UserService.query_user_by_phone_hash...')
+            start_time = time.time()
+            user = UserService.query_user_by_phone_hash(phone_hash)
+            query_time = time.time() - start_time
+            app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
+            
+            # 检查查询时间是否异常长
+            if query_time > 3.0:
+                app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
+                
+        except Exception as db_error:
+            app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
+            return make_err_response({}, '数据库查询失败')
+
         if not user:
+            app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
         if not user.password_hash or not user.password_salt:
+            app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
             return make_err_response({}, '账号未设置密码')
         pwd_hash = sha256(
             f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
         if pwd_hash != user.password_hash:
+            app.logger.warning(f'密码验证失败 - user_id: {user.user_id}')
             return make_err_response({}, '密码不正确')
+        
+        app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
             UserService.update_user_by_id(user)
+            app.logger.info(f'已更新用户昵称: {user.nickname}')
 
+        app.logger.info('开始生成JWT token...')
         # 使用工具函数生成token
         token, error_response = generate_jwt_token(user, expires_hours=2)
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
+        
+        app.logger.info('保存refresh token到数据库...')
         UserService.update_user_by_id(user)
         _audit(user.user_id, 'login_phone_password', {'phone': phone})
+        
+        app.logger.info('=== 手机号密码登录接口执行完成 ===')
         return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
     except Exception as e:
         app.logger.error(f'密码登录失败: {str(e)}', exc_info=True)
@@ -650,45 +697,75 @@ def login_phone():
     """
     手机号登录：需要同时验证验证码和密码
     """
+    app.logger.info('=== 开始执行手机号登录接口（验证验证码+密码） ===')
     try:
         params = request.get_json() or {}
         phone = params.get('phone')
         code = params.get('code')
         password = params.get('password')
+        app.logger.info(f'登录请求参数 - phone: {phone}, code: {code}, password: {"*" * len(password) if password else "None"}')
 
         # 参数验证
         if not phone or not code or not password:
+            app.logger.warning('登录请求缺少phone、code或password参数')
             return make_err_response({}, '缺少phone、code或password参数')
 
         # 标准化电话号码格式
         normalized_phone = normalize_phone_number(phone)
+        app.logger.info(f'标准化后的手机号: {normalized_phone}')
 
         # 验证码验证（允许使用login或register类型的验证码）
         # 这样用户可以使用注册时发送的验证码进行登录
-        if not _verify_sms_code(normalized_phone, 'login', code) and not _verify_sms_code(normalized_phone, 'register', code):
+        app.logger.info('开始验证SMS验证码...')
+        code_valid = _verify_sms_code(normalized_phone, 'login', code) or _verify_sms_code(normalized_phone, 'register', code)
+        if not code_valid:
+            app.logger.warning(f'验证码验证失败 - phone: {normalized_phone}, code: {code}')
             return make_err_response({}, '验证码无效或已过期')
+        app.logger.info('验证码验证通过')
 
         # 查找用户
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
-        user = UserService.query_user_by_phone_hash(phone_hash)
+        app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
+
+        # 数据库查询 - 添加执行时间监控
+        import time
+        try:
+            app.logger.info('开始执行UserService.query_user_by_phone_hash...')
+            start_time = time.time()
+            user = UserService.query_user_by_phone_hash(phone_hash)
+            query_time = time.time() - start_time
+            app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
+            
+            # 检查查询时间是否异常长
+            if query_time > 3.0:
+                app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
+                
+        except Exception as db_error:
+            app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
+            return make_err_response({}, '数据库查询失败')
 
         if not user:
+            app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
         if not user.password_hash or not user.password_salt:
+            app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
             return make_err_response({}, '账号未设置密码')
 
         # 密码验证
         pwd_hash = sha256(
             f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
         if pwd_hash != user.password_hash:
+            app.logger.warning(f'密码验证失败 - user_id: {user.user_id}')
             return make_err_response({}, '密码不正确')
 
         # 更新用户昵称（如果需要）
+        app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
             UserService.update_user_by_id(user)
+            app.logger.info(f'已更新用户昵称: {user.nickname}')
 
         # 检查并补充社区信息（修复历史遗留问题）
         if not user.community_id:
@@ -704,19 +781,23 @@ def login_phone():
         else:
             app.logger.debug(f'手机用户已有社区信息，社区ID: {user.community_id}')
 
+        app.logger.info('开始生成JWT token...')
         # 使用工具函数生成token
         token, error_response = generate_jwt_token(user, expires_hours=2)
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
+        
+        app.logger.info('保存refresh token到数据库...')
         UserService.update_user_by_id(user)
-
         _audit(user.user_id, 'login_phone', {'phone': phone})
 
         # 使用统一的响应格式
         response_data = _format_user_login_response(
             user, token, refresh_token, is_new_user=False
         )
+        
+        app.logger.info('=== 手机号登录接口执行完成 ===')
         return make_succ_response(response_data)
 
     except Exception as e:

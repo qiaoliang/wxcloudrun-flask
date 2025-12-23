@@ -853,8 +853,14 @@ class TestCheckinTodayAPI:
         assert data["code"] == 1
         
         # 验证打卡事项状态为未打卡
-        checkin_item = data["data"]["checkin_items"][0]
-        assert checkin_item["rule_id"] == rule_id
+        # 通过规则ID查找正确的打卡项
+        checkin_item = None
+        for item in data["data"]["checkin_items"]:
+            if item["rule_id"] == rule_id:
+                checkin_item = item
+                break
+        
+        assert checkin_item is not None, f"未找到规则ID为 {rule_id} 的打卡项"
         assert checkin_item["status"] == "unchecked"
         assert checkin_item["checkin_time"] is None
         # 撤销后record_id应该保留（状态为已撤销）

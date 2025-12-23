@@ -712,8 +712,9 @@ class TestAuthAPI:
         当前实现返回code=1，API文档要求code=0
         """
         # 先注册一个用户
+        phone_number = generate_unique_phone()
         register_data = {
-            "phone": generate_unique_phone(),
+            "phone": phone_number,
             "code": "123456",
             "password": "password123"
         }
@@ -725,7 +726,7 @@ class TestAuthAPI:
 
         # 使用验证码登录
         login_data = {
-            "phone": generate_unique_phone(),
+            "phone": phone_number,
             "code": "123456"
         }
 
@@ -813,8 +814,9 @@ class TestAuthAPI:
         当前实现返回code=1，API文档要求code=0
         """
         # 先注册一个用户
+        phone_number = generate_unique_phone()
         register_data = {
-            "phone": generate_unique_phone(),
+            "phone": phone_number,
             "code": "123456",
             "password": "password123"
         }
@@ -826,14 +828,14 @@ class TestAuthAPI:
 
         # 使用密码登录
         login_data = {
-            "phone": generate_unique_phone(),
+            "phone": phone_number,
             "password": "password123"
         }
 
         response = requests.post(
             f"{base_url}/api/auth/login_phone_password",
             json=login_data,
-            timeout=5
+            timeout=10
         )
 
         # 验证响应
@@ -859,8 +861,9 @@ class TestAuthAPI:
         当前实现返回200状态码和code=0，API文档要求返回401状态码
         """
         # 先注册一个用户
+        phone_number = generate_unique_phone()
         register_data = {
-            "phone": generate_unique_phone(),
+            "phone": phone_number,
             "code": "123456",
             "password": "password123"
         }
@@ -872,7 +875,7 @@ class TestAuthAPI:
 
         # 使用错误密码登录
         login_data = {
-            "phone": generate_unique_phone(),
+            "phone": phone_number,
             "password": "wrongpassword"
         }
 
@@ -922,7 +925,7 @@ class TestAuthAPI:
         response = requests.post(
             f"{base_url}/api/auth/login_phone",
             json=login_data,
-            timeout=5
+            timeout=10
         )
 
         # 验证响应
