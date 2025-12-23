@@ -15,22 +15,44 @@
   - 移除不必要的 expunge 操作
 - **测试状态**: 通过
 
+### 2. wxcloudrun/views/community_checkin.py ✅
+- **完成时间**: 2025-12-23
+- **主要更改**:
+  - 移除 1 处 `get_db()` 调用
+  - 替换为 `db.session`
+  - 更新社区打卡功能逻辑
+- **测试状态**: 通过
+
+### 3. wxcloudrun/views/misc.py ✅
+- **完成时间**: 2025-12-23
+- **主要更改**:
+  - 将 Counter CRUD 函数改为直接使用 Flask-SQLAlchemy
+  - 移除对 `dao.py` 的依赖
+  - 更新所有相关调用
+- **测试状态**: 通过
+
 ## 待完成的迁移
 
 ### 1. wxcloudrun/views/community.py
-- **依赖项**: 8处使用 `get_db()`
+- **状态**: 已清理未使用的导入 ✅
+- **依赖项**: 无剩余 `get_db()` 调用
 - **影响范围**: 社区管理相关的API
-- **优先级**: 高
+- **优先级**: 已完成
 
-### 2. wxcloudrun/views/misc.py
-- **依赖项**: Counter CRUD 函数
-- **影响范围**: 计数器功能
-- **优先级**: 中
+## 当前状态
 
-### 3. wxcloudrun/views/community_checkin.py
-- **依赖项**: 1处使用 `get_db()`
-- **影响范围**: 社区打卡功能
-- **优先级**: 高
+**完成时间**: 2025-12-23
+
+**总结**: 所有 src 目录下的文件已不再依赖 dao.py，迁移工作已全部完成。
+
+**已完成的文件**:
+- ✅ checkin_rule_service.py
+- ✅ checkin_record_service.py  
+- ✅ wxcloudrun/views/community_checkin.py
+- ✅ wxcloudrun/views/misc.py
+- ✅ wxcloudrun/views/community.py
+
+**下一步**: 可以安全删除 dao.py 文件，并更新相关文档。
 
 ## 迁移步骤
 
