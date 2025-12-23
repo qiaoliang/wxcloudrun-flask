@@ -18,7 +18,7 @@ class TestEnvAPIE2E:
     def setup_method(self):
         """每个测试方法前的设置：启动 Flask 应用"""
         # 设置环境变量
-        os.environ['ENV_TYPE'] = 'unit'
+        os.environ['ENV_TYPE'] = 'function'
         
         # 确保 src 目录在 Python 路径中
         src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
