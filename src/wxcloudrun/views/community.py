@@ -1430,7 +1430,7 @@ def create_community_new():
             return make_err_response({}, '社区描述不能超过200个字符')
 
         # 使用CommunityService创建社区
-        community_dict = CommunityService.create_community(
+        community = CommunityService.create_community(
             name=name,
             description=description,
             creator_id=user_id,
@@ -1441,13 +1441,13 @@ def create_community_new():
         )
 
         app_logger.info(
-            f'创建社区成功: {name} (ID: {community_dict["community_id"]})')
+            f'创建社区成功: {name} (ID: {community.community_id})')
         return make_succ_response({
-            'community_id': str(community_dict['community_id']),
-            'name': community_dict['name'],
-            'location': community_dict['location'],
+            'community_id': str(community.community_id),
+            'name': community.name,
+            'location': community.location,
             'status': 'active',
-            'created_at': community_dict['created_at'].isoformat() if community_dict['created_at'] else None
+            'created_at': community.created_at.isoformat() if community.created_at else None
         })
 
     except ValueError as e:
