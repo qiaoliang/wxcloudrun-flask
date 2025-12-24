@@ -17,6 +17,15 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from flask import Flask
 from database.flask_models import db, User, Community, CheckinRule, CheckinRecord, UserAuditLog
 
+# 导入测试数据生成器
+from wxcloudrun.test_data_generator import (
+    generate_unique_phone_number,
+    generate_unique_openid,
+    generate_unique_nickname,
+    generate_unique_username
+)
+from hashlib import sha256
+
 
 @pytest.fixture(scope='function')
 def test_session(test_app):
@@ -32,8 +41,11 @@ def test_session(test_app):
 def test_user(test_session):
     """创建测试用户"""
     user = User(
-        wechat_openid="test_openid_123",
-        nickname="测试用户",
+        wechat_openid=generate_unique_openid("13900008000", "test_user"),
+        phone_number=generate_unique_phone_number("test_user"),
+        phone_hash=sha256(f"default_secret:{generate_unique_phone_number('test_user')}".encode('utf-8')).hexdigest(),
+        nickname=generate_unique_nickname("test_user"),
+        name=generate_unique_username("test_user"),
         role=1,
         status=1
     )
@@ -69,7 +81,8 @@ def test_rule(test_session, test_user):
 def test_community(test_session):
     """创建测试社区"""
     community = Community(
-        name="测试社区",
+        name=f"community_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
+        description="单元测试社区",
         status=1
     )
     test_session.add(community)
@@ -81,14 +94,68 @@ def test_community(test_session):
 def test_superuser(test_session):
     """创建超级管理员用户"""
     user = User(
-        wechat_openid="super_admin_test",
-        nickname="超级管理员",
+        wechat_openid=generate_unique_openid("13900008001", "test_superuser"),
+        phone_number=generate_unique_phone_number("test_superuser"),
+        phone_hash=sha256(f"default_secret:{generate_unique_phone_number('test_superuser')}".encode('utf-8')).hexdigest(),
+        nickname=generate_unique_nickname("test_superuser"),
+        name=generate_unique_username("test_superuser"),
         role=4,
         status=1
     )
     test_session.add(user)
     test_session.commit()
     return user
+
+
+def create_test_user(test_session, role=1, test_context="test_user"):
+    """
+    创建测试用户的通用函数
+    
+    Args:
+        test_session: 数据库会话
+        role: 用户角色，默认为1（普通用户）
+        test_context: 测试上下文，用于生成唯一数据
+        
+    Returns:
+        创建的用户对象
+    """
+    phone = generate_unique_phone_number(test_context)
+    user = User(
+        wechat_openid=generate_unique_openid(phone, test_context),
+        phone_number=phone,
+        phone_hash=sha256(f"default_secret:{phone}".encode('utf-8')).hexdigest(),
+        nickname=generate_unique_nickname(test_context),
+        name=generate_unique_username(test_context),
+        role=role,
+        status=1
+    )
+    test_session.add(user)
+    test_session.commit()
+    return user
+
+
+def create_test_community(test_session, name_suffix=None):
+    """
+    创建测试社区的通用函数
+    
+    Args:
+        test_session: 数据库会话
+        name_suffix: 名称后缀，如果为None则使用时间戳
+        
+    Returns:
+        创建的社区对象
+    """
+    if name_suffix is None:
+        name_suffix = datetime.now().strftime('%Y%m%d_%H%M%S')
+    
+    community = Community(
+        name=f"community_{name_suffix}",
+        description=f"单元测试社区_{name_suffix}",
+        status=1
+    )
+    test_session.add(community)
+    test_session.commit()
+    return community
 
 
 # 为了向后兼容，保留原有的test_app fixture
