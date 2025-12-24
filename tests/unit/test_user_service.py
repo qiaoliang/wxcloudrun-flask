@@ -570,10 +570,11 @@ class TestUserService:
         测试部分更新用户信息（只更新部分字段）
         """
         # Arrange - 创建用户
+        original_avatar_url = TEST_CONSTANTS.generate_avatar_url("original_user")
         original_user = User(
             wechat_openid="test_openid_partial",
             nickname="原始昵称",
-            avatar_url=TEST_CONSTANTS.generate_avatar_url("original_user")
+            avatar_url=original_avatar_url
         )
         # Note: create_user 会将 name 设置为与 nickname 相同
         created_user = UserService.create_user(original_user)
@@ -592,7 +593,7 @@ class TestUserService:
             user_id=created_user.user_id).first()
         assert updated_user is not None
         assert updated_user.nickname == "这是我的新昵称"  # 已更新
-        assert updated_user.avatar_url == "https://example.com/original.jpg"  # 未更新
+        assert updated_user.avatar_url == original_avatar_url  # 未更新
         assert updated_user.name == "原始昵称"  # 未更新
 
     def test_update_user_by_id_with_none_values(self, test_session):
@@ -600,10 +601,11 @@ class TestUserService:
         测试传入 None 值时不更新对应字段
         """
         # Arrange - 创建用户
+        original_avatar_url = TEST_CONSTANTS.generate_avatar_url("original_user")
         original_user = User(
             wechat_openid="test_openid_none",
             nickname="原始昵称",
-            avatar_url=TEST_CONSTANTS.generate_avatar_url("original_user")
+            avatar_url=original_avatar_url
         )
         created_user = UserService.create_user(original_user)
 
@@ -622,7 +624,7 @@ class TestUserService:
             user_id=created_user.user_id).first()
         assert updated_user is not None
         assert updated_user.nickname == "更新后的昵称"  # 已更新
-        assert updated_user.avatar_url == "https://example.com/original.jpg"  # 未被 None 覆盖
+        assert updated_user.avatar_url == original_avatar_url  # 未被 None 覆盖
 
     def test_query_user_by_refresh_token_success(self, test_session):
         """
