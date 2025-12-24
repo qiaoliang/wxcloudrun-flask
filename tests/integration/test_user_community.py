@@ -13,7 +13,7 @@ src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 sys.path.insert(0, src_path)
 
 from database.flask_models import User, Community
-from tests.conftest import IntegrationTestBase
+from .conftest import IntegrationTestBase
 
 
 class TestUserIntegration(IntegrationTestBase):

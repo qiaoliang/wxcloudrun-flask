@@ -14,7 +14,7 @@ sys.path.insert(0, src_path)
 
 from database.flask_models import User, Community
 from error_code import INVALID_CAPTCHA
-from tests.conftest import IntegrationTestBase
+from .conftest import IntegrationTestBase
 
 
 class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
