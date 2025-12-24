@@ -568,7 +568,11 @@ def login_phone_code():
         _audit(user.user_id, 'login_phone_code', {'phone': phone})
         current_app.logger.info('=== 手机号验证码登录接口执行完成 ===')
         
-        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+        # 使用统一的响应格式，包含完整的用户信息
+        response_data = _format_user_login_response(
+            user, token, refresh_token, is_new_user=False
+        )
+        return make_succ_response(response_data)
     except Exception as e:
         current_app.logger.error(f'验证码登录失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')
@@ -643,7 +647,12 @@ def login_phone_password():
         _audit(user.user_id, 'login_phone_password', {'phone': phone})
         
         current_app.logger.info('=== 手机号密码登录接口执行完成 ===')
-        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+        
+        # 使用统一的响应格式，包含完整的用户信息
+        response_data = _format_user_login_response(
+            user, token, refresh_token, is_new_user=False
+        )
+        return make_succ_response(response_data)
     except Exception as e:
         current_app.logger.error(f'密码登录失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')
@@ -735,7 +744,12 @@ def login_phone():
         _audit(user.user_id, 'login_phone', {'phone': phone})
         
         current_app.logger.info('=== 手机号登录接口执行完成 ===')
-        return make_succ_response({'token': token, 'refresh_token': refresh_token, 'user_id': user.user_id})
+        
+        # 使用统一的响应格式，包含完整的用户信息
+        response_data = _format_user_login_response(
+            user, token, refresh_token, is_new_user=False
+        )
+        return make_succ_response(response_data)
     except Exception as e:
         current_app.logger.error(f'手机号登录失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')
