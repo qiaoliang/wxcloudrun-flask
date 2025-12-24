@@ -7,7 +7,7 @@ import logging
 import jwt
 from flask import request, current_app
 from wxcloudrun.user_service import UserService
-from wxcloudrun.response import make_err_response
+from app.shared.response import make_err_response
 from config_manager import get_token_secret
 
 app_logger = logging.getLogger('log')

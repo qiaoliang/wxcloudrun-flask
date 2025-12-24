@@ -53,12 +53,12 @@ def require_community_staff_member():
             from flask import request
             community_id = request.view_args.get('community_id') or request.json.get('community_id')
             if not community_id:
-                from wxcloudrun.response import make_err_response
+                from app.shared.response import make_err_response
                 return make_err_response('缺少社区ID参数')
             
             # 验证权限
             if not CommunityService.has_community_permission(user_id, community_id):
-                from wxcloudrun.response import make_err_response
+                from app.shared.response import make_err_response
                 return make_err_response('无权限访问该社区功能')
             
             return f(decoded, *args, **kwargs)
@@ -85,12 +85,12 @@ def require_community_membership():
             from flask import request
             community_id = request.view_args.get('community_id') or request.json.get('community_id')
             if not community_id:
-                from wxcloudrun.response import make_err_response
+                from app.shared.response import make_err_response
                 return make_err_response('缺少社区ID参数')
             
             # 验证社区成员关系
             if not CommunityService.verify_user_community_access(user_id, community_id):
-                from wxcloudrun.response import make_err_response
+                from app.shared.response import make_err_response
                 return make_err_response('无权限访问该社区')
             
             return f(decoded, *args, **kwargs)

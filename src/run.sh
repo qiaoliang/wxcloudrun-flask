@@ -4,11 +4,11 @@
 # ========================
 
 # 注意：这是一个过渡性的入口脚本，为了保持向后兼容性而存在。
-# 真正的主程序已经移动到 src/main.py 中。
+# 真正的主程序已经移动到 src/run.py 中。
 
 # 建议：
-# - 开发时请直接使用 src/main.py
-# - 构建生产环境时请使用 src/main.py
+# - 开发时请直接使用 src/run.py
+# - 构建生产环境时请使用 src/run.py
 # - 此脚本仅用于临时过渡，未来可能会被移除
 
 # 检查是否提供了所有必需参数
@@ -44,7 +44,7 @@ export IP="$2"
 export PORT="$3"
 echo "[INFO] 设置环境变量 ENV_TYPE=$ENV_TYPE IP=$IP PORT=$PORT"
 
-echo "[INFO] 使用过渡性入口脚本，真正的主程序在 src/main.py"
+echo "[INFO] 使用过渡性入口脚本，真正的主程序在 src/run.py"
 
 # 清理可能占用端口的进程
 echo "[INFO] 正在清理端口 8000-9999 上的进程..."
@@ -58,13 +58,13 @@ fi
 if [[ "$VIRTUAL_ENV" != "" ]]; then
     # 已经在虚拟环境中，直接运行
     # 传递参数顺序：IP地址 端口号 (环境类型已通过环境变量传递)
-    python main.py "$2" "$3"
+    python run.py "$2" "$3"
 else
     # 不在虚拟环境中，尝试激活本地虚拟环境
     if [[ -f "../venv_py312/bin/activate" ]]; then
         source ../venv_py312/bin/activate
         # 传递参数顺序：IP地址 端口号 (环境类型已通过环境变量传递)
-        python main.py "$2" "$3"
+        python run.py "$2" "$3"
     else
         echo "[ERROR] 未检测到虚拟环境，请先激活虚拟环境或安装依赖"
         exit 1

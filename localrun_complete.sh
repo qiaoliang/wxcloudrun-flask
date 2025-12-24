@@ -50,4 +50,4 @@ fi
 
 # 启动应用
 echo "正在启动应用..."
-ENV_TYPE=function python3.12 main.py 0.0.0.0 9999
+ENV_TYPE=function python3.12 run.py 0.0.0.0 9999
