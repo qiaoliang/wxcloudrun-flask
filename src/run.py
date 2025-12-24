@@ -48,7 +48,9 @@ migration_logger.propagate = False
 
 # 在导入应用之前检查 ENV_TYPE
 env_type = os.getenv('ENV_TYPE')
-migration_logger.info(f'启动时检查 ENV_TYPE: {env_type}')
+# 只在主进程中记录此日志，避免 Flask 重启时重复
+if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+    migration_logger.info(f'启动时检查 ENV_TYPE: {env_type}')
 
 if env_type is None or env_type == '':
     migration_logger.error("错误: ENV_TYPE 环境变量未设置！")

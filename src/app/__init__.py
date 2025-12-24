@@ -114,7 +114,9 @@ def register_blueprints(app):
     app.register_blueprint(user_checkin_bp, url_prefix='/api')
     app.register_blueprint(misc_bp, url_prefix='/api')
     
-    app.logger.info("所有蓝图已成功注册")
+    # 只在主进程中记录此日志，避免 Flask 重启时重复
+    if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+        app.logger.info("所有蓝图已成功注册")
 
 
 def register_error_handlers(app):
@@ -143,13 +145,15 @@ def start_background_tasks(app):
     """启动后台任务"""
     import config_manager
     if not config_manager.is_unit_environment():
-        app.logger.info(f"app.debug={app.debug}")
+        # 只在主进程中记录此日志，避免 Flask 重启时重复
+        if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
+            app.logger.info(f"app.debug={app.debug}")
         try:
             if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
                 app.logger.info(f"# 启动后台的打卡扫描检测服务")
                 # 导入并启动后台任务
                 from wxcloudrun.background_tasks import start_missing_check_service
-                start_missing_check_service()
+                start_missing_check_service(app)
         except Exception as e:
             app.logger.error(f"启动后台missing服务失败: {str(e)}")
     else:

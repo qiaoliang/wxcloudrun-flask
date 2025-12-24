@@ -102,13 +102,9 @@ def _run_loop():
             time_module.sleep(interval_seconds)
 
 
-def start_missing_check_service():
+def start_missing_check_service(app):
     """启动缺失检查服务"""
     try:
-        # 获取当前应用实例
-        from flask import current_app
-        app = current_app._get_current_object()
-        
         # 创建后台线程
         t = threading.Thread(target=_run_loop_with_context, daemon=True, args=(app,))
         t.start()
