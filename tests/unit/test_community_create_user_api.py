@@ -83,7 +83,7 @@ class TestCommunityCreateUserAPILogic:
         # 有效的手机号
         valid_phones = [
             '13800138000',
-            '13912345678',
+            generate_unique_phone_number('api_test'),
             '15098765432',
             '17612345678',
             '19987654321'

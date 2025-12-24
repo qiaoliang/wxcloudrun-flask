@@ -14,6 +14,9 @@ from unittest.mock import patch
 src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
 sys.path.insert(0, src_path)
 
+# 导入测试常量
+from .test_constants import TEST_CONSTANTS
+
 
 class TestBase:
     """测试基类，封装Flask-SQLAlchemy测试上下文管理"""
@@ -101,7 +104,7 @@ class TestBase:
     @staticmethod
     def generate_phone_hash(phone_number):
         """生成手机号哈希"""
-        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_secret = TEST_CONSTANTS.PHONE_ENC_SECRET
         return sha256(f"{phone_secret}:{phone_number}".encode('utf-8')).hexdigest()
     
     @staticmethod
@@ -141,10 +144,10 @@ class TestBase:
             'phone_hash': cls.generate_phone_hash(phone_number),
             'nickname': nickname,
             'name': username,  # 用户名使用uname_前缀，昵称使用nickname_前缀
-            'avatar_url': 'https://example.com/avatar.jpg',
+            'avatar_url': TEST_CONSTANTS.generate_avatar_url(phone_number),
             'role': role,
             'status': 1,
-            'password_salt': f'test_salt_{suffix}',
+            'password_salt': TEST_CONSTANTS.generate_password_salt(),
         }
         default_data.update(kwargs)
         
@@ -184,13 +187,21 @@ class TestBase:
     
     # ==================== API 测试工具 ====================
     
-    def get_jwt_token(self, phone_number='13900000000', password='Firefox0820'):
+    def get_jwt_token(self, phone_number=None, password=None):
         """获取JWT token的标准方法"""
+        if phone_number is None:
+            # 使用数据生成器生成唯一手机号
+            from wxcloudrun.test_data_generator import generate_unique_phone_number
+            phone_number = generate_unique_phone_number('get_jwt_token')
+        
+        if password is None:
+            password = TEST_CONSTANTS.DEFAULT_PASSWORD
+        
         client = self.get_test_client()
         
         login_data = {
             'phone': phone_number,
-            'code': '123456',  # 测试验证码
+            'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE,  # 测试验证码
             'password': password
         }
         
@@ -203,7 +214,7 @@ class TestBase:
         assert data['code'] == 1
         return data['data']['token']
     
-    def make_authenticated_request(self, method, endpoint, data=None, phone_number='13900000000', password='Firefox0820'):
+    def make_authenticated_request(self, method, endpoint, data=None, phone_number=None, password=None):
         """发送认证请求的通用方法"""
         client = self.get_test_client()
         token = self.get_jwt_token(phone_number, password)
@@ -295,11 +306,15 @@ class IntegrationTestBase(TestBase):
             cls.db.create_all()
     
     @classmethod
-    def create_standard_test_user(cls, role=1, phone_number=None, password='Firefox0820', open_id=None, test_context=None):
+    def create_standard_test_user(cls, role=1, phone_number=None, password=None, open_id=None, test_context=None):
         """创建标准测试用户（自动生成唯一手机号码）"""
         from hashlib import sha256
         import sys
         import os
+        
+        # 使用默认密码如果没有提供
+        if password is None:
+            password = TEST_CONSTANTS.DEFAULT_PASSWORD
         
         # 添加src路径以导入测试数据生成器
         src_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src')
@@ -313,7 +328,7 @@ class IntegrationTestBase(TestBase):
             phone_number = generate_unique_phone_number(test_context or 'create_standard_test_user')
         
         # 设置phone_secret以匹配UserService中的哈希算法
-        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_secret = TEST_CONSTANTS.PHONE_ENC_SECRET
         phone_hash = sha256(f"{phone_secret}:{phone_number}".encode('utf-8')).hexdigest()
         
         # 如果没有指定open_id，生成唯一的
@@ -324,6 +339,10 @@ class IntegrationTestBase(TestBase):
         nickname = generate_unique_nickname(test_context or 'create_standard_test_user')
         username = generate_unique_username(test_context or 'create_standard_test_user')
         
+        # 生成密码盐和哈希
+        password_salt = TEST_CONSTANTS.generate_password_salt()
+        password_hash = sha256(f"{password}:{password_salt}".encode('utf-8')).hexdigest()
+        
         # 使用现有的create_test_user方法，但传递所有必需的参数
         return cls.create_test_user(
             wechat_openid=open_id,
@@ -333,8 +352,8 @@ class IntegrationTestBase(TestBase):
             name=username,  # 用户名使用uname_前缀
             role=role,
             status=1,
-            password_salt='test_salt',
-            password_hash=sha256(f"{password}:test_salt".encode('utf-8')).hexdigest()
+            password_salt=password_salt,
+            password_hash=password_hash
         )
     
     def create_standard_test_community(self, creator_role=1):
@@ -364,7 +383,7 @@ class IntegrationTestBase(TestBase):
         with cls.app.app_context():
             # 检查超级管理员是否已存在
             existing_admin = cls.db.session.query(User).filter_by(
-                phone_number='13900007997'
+                phone_number=TEST_CONSTANTS.SUPER_ADMIN_PHONE
             ).first()
             
             if existing_admin:
@@ -372,22 +391,22 @@ class IntegrationTestBase(TestBase):
                 return existing_admin
             
             # 创建新的超级管理员
-            salt = secrets.token_hex(8)
-            password_hash = sha256(f"Firefox0820:{salt}".encode('utf-8')).hexdigest()
+            salt = TEST_CONSTANTS.generate_password_salt()
+            password_hash = sha256(f"{TEST_CONSTANTS.DEFAULT_PASSWORD}:{salt}".encode('utf-8')).hexdigest()
             
             # 使用与auth.py相同的手机号哈希方法
-            phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-            phone_hash = sha256(f"{phone_secret}:13900007997".encode('utf-8')).hexdigest()
+            phone_secret = TEST_CONSTANTS.PHONE_ENC_SECRET
+            phone_hash = sha256(f"{phone_secret}:{TEST_CONSTANTS.SUPER_ADMIN_PHONE}".encode('utf-8')).hexdigest()
             
             super_admin = User(
                 wechat_openid=f"super_admin_{secrets.token_hex(16)}",
-                phone_number='13900007997',
+                phone_number=TEST_CONSTANTS.SUPER_ADMIN_PHONE,
                 phone_hash=phone_hash,
-                nickname='系统超级管理员',
-                name='系统超级管理员',
+                nickname=TEST_CONSTANTS.SUPER_ADMIN_NICKNAME,
+                name=TEST_CONSTANTS.SUPER_ADMIN_NAME,
                 password_hash=password_hash,
                 password_salt=salt,
-                role=4,  # 超级管理员角色
+                role=TEST_CONSTANTS.SUPER_ADMIN_ROLE,  # 超级管理员角色
                 status=1,  # 正常状态
                 verification_status=2,  # 已通过验证
                 _is_community_worker=True

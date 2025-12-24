@@ -14,6 +14,7 @@ sys.path.insert(0, src_path)
 
 from database.flask_models import User, Community
 from .conftest import IntegrationTestBase
+from test_constants import TEST_CONSTANTS
 
 
 class TestCommunityCreateIntegration(IntegrationTestBase):
@@ -116,7 +117,7 @@ class TestCommunityCreateIntegration(IntegrationTestBase):
         community_data = {
             'name': '包含avatar参数的社区',
             'description': '测试avatar_url参数被正确忽略',
-            'avatar_url': 'https://example.com/avatar.jpg'  # 这个参数应该被忽略
+            'avatar_url': TEST_CONSTANTS.generate_avatar_url('test_user')  # 这个参数应该被忽略
         }
         
         # 发送创建社区请求（使用超级管理员权限）

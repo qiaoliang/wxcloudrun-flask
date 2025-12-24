@@ -17,13 +17,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from flask import Flask
 from database.flask_models import db, User, Community, CheckinRule, CheckinRecord, UserAuditLog
 
-# 导入测试数据生成器
+# 导入测试数据生成器和常量
 from wxcloudrun.test_data_generator import (
     generate_unique_phone_number,
     generate_unique_openid,
     generate_unique_nickname,
     generate_unique_username
 )
+# 添加当前目录到路径以导入test_constants
+sys.path.insert(0, os.path.dirname(__file__))
+from test_constants import TEST_CONSTANTS
 from hashlib import sha256
 
 
@@ -40,14 +43,16 @@ def test_session(test_app):
 @pytest.fixture(scope='function')
 def test_user(test_session):
     """创建测试用户"""
+    phone_number = generate_unique_phone_number("test_user")
     user = User(
-        wechat_openid=generate_unique_openid("13900008000", "test_user"),
-        phone_number=generate_unique_phone_number("test_user"),
-        phone_hash=sha256(f"default_secret:{generate_unique_phone_number('test_user')}".encode('utf-8')).hexdigest(),
+        wechat_openid=generate_unique_openid(phone_number, "test_user"),
+        phone_number=phone_number,
+        phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest(),
         nickname=generate_unique_nickname("test_user"),
         name=generate_unique_username("test_user"),
         role=1,
-        status=1
+        status=1,
+        avatar_url=TEST_CONSTANTS.generate_avatar_url(phone_number)
     )
     test_session.add(user)
     test_session.commit()
@@ -92,15 +97,17 @@ def test_community(test_session):
 
 @pytest.fixture(scope='function')
 def test_superuser(test_session):
-    """创建超级管理员用户"""
+    """创建测试超级用户"""
+    phone_number = generate_unique_phone_number("test_superuser")
     user = User(
-        wechat_openid=generate_unique_openid("13900008001", "test_superuser"),
-        phone_number=generate_unique_phone_number("test_superuser"),
-        phone_hash=sha256(f"default_secret:{generate_unique_phone_number('test_superuser')}".encode('utf-8')).hexdigest(),
+        wechat_openid=generate_unique_openid(phone_number, "test_superuser"),
+        phone_number=phone_number,
+        phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest(),
         nickname=generate_unique_nickname("test_superuser"),
         name=generate_unique_username("test_superuser"),
         role=4,
-        status=1
+        status=1,
+        avatar_url=TEST_CONSTANTS.generate_avatar_url(phone_number)
     )
     test_session.add(user)
     test_session.commit()
@@ -123,11 +130,12 @@ def create_test_user(test_session, role=1, test_context="test_user"):
     user = User(
         wechat_openid=generate_unique_openid(phone, test_context),
         phone_number=phone,
-        phone_hash=sha256(f"default_secret:{phone}".encode('utf-8')).hexdigest(),
+        phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone}".encode('utf-8')).hexdigest(),
         nickname=generate_unique_nickname(test_context),
         name=generate_unique_username(test_context),
         role=role,
-        status=1
+        status=1,
+        avatar_url=TEST_CONSTANTS.generate_avatar_url(phone)
     )
     test_session.add(user)
     test_session.commit()
@@ -148,9 +156,10 @@ def create_test_community(test_session, name_suffix=None):
     if name_suffix is None:
         name_suffix = datetime.now().strftime('%Y%m%d_%H%M%S')
     
+    community_name = TEST_CONSTANTS.generate_community_name(name_suffix)
     community = Community(
-        name=f"community_{name_suffix}",
-        description=f"单元测试社区_{name_suffix}",
+        name=community_name,
+        description=TEST_CONSTANTS.generate_community_description(community_name),
         status=1
     )
     test_session.add(community)

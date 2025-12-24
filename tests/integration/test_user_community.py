@@ -14,6 +14,7 @@ sys.path.insert(0, src_path)
 
 from database.flask_models import User, Community
 from .conftest import IntegrationTestBase
+from test_constants import TEST_CONSTANTS
 
 
 class TestUserIntegration(IntegrationTestBase):
@@ -51,7 +52,7 @@ class TestUserIntegration(IntegrationTestBase):
             'GET', 
             '/api/user/profile',
             phone_number=self.test_user.phone_number,
-            password='Firefox0820'
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         print(f'响应状态码: {response.status_code}')
@@ -94,7 +95,7 @@ class TestUserIntegration(IntegrationTestBase):
         # 准备更新数据
         update_data = {
             'nickname': '更新后的昵称',
-            'avatar_url': 'https://example.com/new_avatar.jpg'
+            'avatar_url': TEST_CONSTANTS.generate_avatar_url('new_user')
         }
         
         # 发送请求
@@ -103,7 +104,7 @@ class TestUserIntegration(IntegrationTestBase):
             '/api/user/profile',
             data=update_data,
             phone_number=phone_number,
-            password='Firefox0820'
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         # 验证响应
@@ -123,7 +124,7 @@ class TestUserIntegration(IntegrationTestBase):
             'GET',
             '/api/user/community',
             phone_number='13900007997',
-            password='Firefox0820'
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         data = self.assert_api_success(response)
         
@@ -137,7 +138,7 @@ class TestUserIntegration(IntegrationTestBase):
         #     '/api/user/switch-community',
         #     data=switch_data,
         #     phone_number='13900007997',
-        #     password='Firefox0820'
+        #     password=TEST_CONSTANTS.DEFAULT_PASSWORD
         # )
         # data = self.assert_api_success(response)
 
@@ -170,7 +171,7 @@ class TestCommunityIntegration(IntegrationTestBase):
         """测试创建社区"""
         # 创建社区管理员用户
         with self.app.app_context():
-            admin_user = self.create_standard_test_user(role=4, phone_number='13900007998')
+            admin_user = self.create_standard_test_user(role=4, phone_number=generate_unique_phone_number('admin_test'))
         
         # 使用认证请求工具
         community_data = {
@@ -182,8 +183,8 @@ class TestCommunityIntegration(IntegrationTestBase):
             'POST',
             '/api/community/create',
             data=community_data,
-            phone_number='13900007998',  # 使用创建用户时的手机号
-            password='Firefox0820'
+            phone_number=generate_unique_phone_number('admin_test'),  # 使用创建用户时的手机号
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         # 验证响应
@@ -198,7 +199,7 @@ class TestCommunityIntegration(IntegrationTestBase):
             'GET',
             '/api/communities',
             phone_number='13900007997',  # 使用测试用户的手机号
-            password='Firefox0820'
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         # 验证响应
@@ -211,7 +212,7 @@ class TestCommunityIntegration(IntegrationTestBase):
         with self.app.app_context():
             # 从数据库重新查询社区对象以确保它绑定到当前会话
             test_community = self.db.session.get(Community, self.test_community_id)
-            super_admin_user = self.create_standard_test_user(role=4, phone_number='13900007999')
+            super_admin_user = self.create_standard_test_user(role=4, phone_number=generate_unique_phone_number('super_admin_test'))
             # 建立用户-社区关系
             super_admin_user.community_id = test_community.community_id
             self.db.session.commit()
@@ -219,8 +220,8 @@ class TestCommunityIntegration(IntegrationTestBase):
         response = self.make_authenticated_request(
             'GET', 
             '/api/user/profile',
-            phone_number='13900007999',
-            password='Firefox0820'
+            phone_number=generate_unique_phone_number('super_admin_test'),
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         data = self.assert_api_success(response, expected_data_keys=['role', 'role_name'])
@@ -229,7 +230,7 @@ class TestCommunityIntegration(IntegrationTestBase):
         
         # 测试社区主管权限 (role=3)
         with self.app.app_context():
-            community_manager_user = self.create_standard_test_user(role=3, phone_number='13900007996')
+            community_manager_user = self.create_standard_test_user(role=3, phone_number=generate_unique_phone_number('manager_test'))
             # 建立用户-社区关系
             test_community = self.db.session.get(Community, self.test_community_id)
             community_manager_user.community_id = test_community.community_id
@@ -238,8 +239,8 @@ class TestCommunityIntegration(IntegrationTestBase):
         response = self.make_authenticated_request(
             'GET', 
             '/api/user/profile',
-            phone_number='13900007996',
-            password='Firefox0820'
+            phone_number=generate_unique_phone_number('manager_test'),
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         data = self.assert_api_success(response, expected_data_keys=['role', 'role_name'])
@@ -248,7 +249,7 @@ class TestCommunityIntegration(IntegrationTestBase):
         
         # 测试社区专员权限 (role=2)
         with self.app.app_context():
-            community_staff_user = self.create_standard_test_user(role=2, phone_number='13900007995')
+            community_staff_user = self.create_standard_test_user(role=2, phone_number=generate_unique_phone_number('staff_test'))
             # 建立用户-社区关系
             test_community = self.db.session.get(Community, self.test_community_id)
             community_staff_user.community_id = test_community.community_id
@@ -257,8 +258,8 @@ class TestCommunityIntegration(IntegrationTestBase):
         response = self.make_authenticated_request(
             'GET', 
             '/api/user/profile',
-            phone_number='13900007995',
-            password='Firefox0820'
+            phone_number=generate_unique_phone_number('staff_test'),
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         data = self.assert_api_success(response, expected_data_keys=['role', 'role_name'])
@@ -267,7 +268,7 @@ class TestCommunityIntegration(IntegrationTestBase):
         
         # 测试普通用户权限 (role=1)
         with self.app.app_context():
-            normal_user = self.create_standard_test_user(role=1, phone_number='13900008000')
+            normal_user = self.create_standard_test_user(role=1, phone_number=generate_unique_phone_number('normal_user_test'))
             # 建立用户-社区关系
             test_community = self.db.session.get(Community, self.test_community_id)
             normal_user.community_id = test_community.community_id
@@ -276,8 +277,8 @@ class TestCommunityIntegration(IntegrationTestBase):
         response = self.make_authenticated_request(
             'GET', 
             '/api/user/profile',
-            phone_number='13900008000',
-            password='Firefox0820'
+            phone_number=generate_unique_phone_number('normal_user_test'),
+            password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
         data = self.assert_api_success(response, expected_data_keys=['role', 'role_name'])

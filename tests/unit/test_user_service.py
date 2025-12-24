@@ -7,6 +7,7 @@ from unittest.mock import patch, MagicMock
 from sqlalchemy.exc import OperationalError
 from database.flask_models import User, UserAuditLog
 from wxcloudrun.user_service import UserService
+from test_constants import TEST_CONSTANTS
 
 from wxcloudrun.user_service import phone_hash, pwd_hash
 
@@ -23,7 +24,7 @@ class TestUserService:
         new_user = User(
             wechat_openid="test_openid_new",
             nickname="微信新用户",
-            avatar_url="https://example.com/1.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("test_openid_new")
         )
 
         # Act - 执行被测试的方法
@@ -218,7 +219,7 @@ class TestUserService:
         new_user = User(
             wechat_openid="test_openid_exists",
             nickname="已存在的微信用户",
-            avatar_url="https://example.com/1.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("test_user")
         )
         UserService.create_user(new_user)
 
@@ -261,7 +262,7 @@ class TestUserService:
         new_user = User(
             wechat_openid="test_openid_for_id",
             nickname="用于ID测试的用户",
-            avatar_url="https://example.com/1.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("test_user")
         )
         created_user = UserService.create_user(new_user)
 
@@ -300,7 +301,7 @@ class TestUserService:
         wechat_user = User(
             wechat_openid="openid_1",
             nickname="微信用户",
-            avatar_url="https://example.com/1.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("test_user")
         )
         created_wechat_user = UserService.create_user(wechat_user)
 
@@ -406,7 +407,7 @@ class TestUserService:
         wechat_user = User(
             wechat_openid="wechat_openid_test",
             nickname="微信用户",
-            avatar_url="https://example.com/1.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("test_user")
         )
         created_user = UserService.create_user(wechat_user)
 
@@ -463,7 +464,7 @@ class TestUserService:
         original_user = User(
             wechat_openid="test_openid_update",
             nickname="原始昵称",
-            avatar_url="https://example.com/original.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("original_user")
         )
         created_user = UserService.create_user(original_user)
 
@@ -572,7 +573,7 @@ class TestUserService:
         original_user = User(
             wechat_openid="test_openid_partial",
             nickname="原始昵称",
-            avatar_url="https://example.com/original.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("original_user")
         )
         # Note: create_user 会将 name 设置为与 nickname 相同
         created_user = UserService.create_user(original_user)
@@ -602,7 +603,7 @@ class TestUserService:
         original_user = User(
             wechat_openid="test_openid_none",
             nickname="原始昵称",
-            avatar_url="https://example.com/original.jpg"
+            avatar_url=TEST_CONSTANTS.generate_avatar_url("original_user")
         )
         created_user = UserService.create_user(original_user)
 

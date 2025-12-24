@@ -15,6 +15,7 @@ sys.path.insert(0, src_path)
 from database.flask_models import User, Community
 from error_code import INVALID_CAPTCHA
 from .conftest import IntegrationTestBase
+from test_constants import TEST_CONSTANTS
 
 
 class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
@@ -68,9 +69,9 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         client = self.get_test_client()
 
         login_data = {
-            'phone': '13900007997',
-            'code': '123456',  # 测试验证码
-            'password': 'Firefox0820'
+            'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE,
+            'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE,  # 测试验证码
+            'password': TEST_CONSTANTS.DEFAULT_PASSWORD
         }
 
         # 发送登录请求
@@ -120,22 +121,22 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         error_cases = [
             {
                 'name': '错误验证码',
-                'data': {'phone': '13900007997', 'code': '999999', 'password': 'Firefox0820'},
+                'data': {'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE, 'code': TEST_CONSTANTS.INVALID_VERIFICATION_CODE, 'password': TEST_CONSTANTS.DEFAULT_PASSWORD},
                 'expected_msg_key': 'INVALID_CAPTCHA'
             },
             {
                 'name': '错误密码',
-                'data': {'phone': '13900007997', 'code': '123456', 'password': 'wrong_password'},
+                'data': {'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE, 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE, 'password': 'wrong_test_password'},
                 'expected_msg_key': '密码不正确'
             },
             {
                 'name': '缺少参数',
-                'data': {'phone': '13900007997', 'code': '123456'},  # 缺少password
+                'data': {'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE, 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE},  # 缺少password
                 'expected_msg_key': '缺少phone、code或password参数'
             },
             {
                 'name': '用户不存在',
-                'data': {'phone': '19900007997', 'code': '123456', 'password': 'Firefox0820'},
+                'data': {'phone': '19900007997', 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE, 'password': TEST_CONSTANTS.DEFAULT_PASSWORD},
                 'expected_msg_key': '账号不存在，请先注册'
             }
         ]
@@ -163,9 +164,9 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         client = self.get_test_client()
 
         login_data = {
-            'phone': '13900007997',
-            'code': '123456',
-            'password': 'Firefox0820'
+            'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE,
+            'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE,
+            'password': TEST_CONSTANTS.DEFAULT_PASSWORD
         }
 
         # 执行多次登录，验证响应一致性
@@ -200,9 +201,9 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         client = self.get_test_client()
 
         login_data = {
-            'phone': '13900007997',
-            'code': '123456',
-            'password': 'Firefox0820'
+            'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE,
+            'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE,
+            'password': TEST_CONSTANTS.DEFAULT_PASSWORD
         }
 
         response = client.post('/api/auth/login_phone',
