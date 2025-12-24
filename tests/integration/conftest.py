@@ -286,11 +286,7 @@ class IntegrationTestBase(TestBase):
         if password is None:
             password = TEST_CONSTANTS.DEFAULT_PASSWORD
         
-        # 添加src路径以导入测试数据生成器
-        src_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src')
-        if src_path not in sys.path:
-            sys.path.insert(0, src_path)
-        
+        # 导入测试数据生成器（从测试目录）
         from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname, generate_unique_username
         
         # 如果没有指定手机号码，生成唯一的
@@ -312,6 +308,10 @@ class IntegrationTestBase(TestBase):
         # 生成密码盐和哈希
         password_salt = TEST_CONSTANTS.generate_password_salt()
         password_hash = sha256(f"{password}:{password_salt}".encode('utf-8')).hexdigest()
+        
+        # 生成phone_hash（与UserService中的算法保持一致）
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(f"{phone_secret}:{phone_number}".encode('utf-8')).hexdigest()
         
         # 使用现有的create_test_user方法，但传递所有必需的参数
         return cls.create_test_user(
@@ -344,7 +344,7 @@ class IntegrationTestBase(TestBase):
         - 昵称: 系统超级管理员
         
         Returns:
-            User: 超级管理员用户对象
+            dict: 超级管理员信息字典，包含user_id, phone_number等关键字段
         """
         from database.flask_models import User
         from hashlib import sha256
@@ -358,14 +358,21 @@ class IntegrationTestBase(TestBase):
             
             if existing_admin:
                 cls.db.session.refresh(existing_admin)  # 确保获取最新数据
-                return existing_admin
+                return {
+                    'user_id': existing_admin.user_id,
+                    'phone_number': existing_admin.phone_number,
+                    'nickname': existing_admin.nickname,
+                    'name': existing_admin.name,
+                    'role': existing_admin.role,
+                    'wechat_openid': existing_admin.wechat_openid
+                }
             
             # 创建新的超级管理员
             salt = TEST_CONSTANTS.generate_password_salt()
             password_hash = sha256(f"{TEST_CONSTANTS.DEFAULT_PASSWORD}:{salt}".encode('utf-8')).hexdigest()
             
-            # 使用与auth.py相同的手机号哈希方法
-            phone_secret = TEST_CONSTANTS.PHONE_ENC_SECRET
+            # 使用与auth.py完全相同的手机号哈希方法
+            phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
             phone_hash = sha256(f"{phone_secret}:{TEST_CONSTANTS.SUPER_ADMIN_PHONE}".encode('utf-8')).hexdigest()
             
             super_admin = User(
@@ -385,7 +392,14 @@ class IntegrationTestBase(TestBase):
             cls.db.session.add(super_admin)
             cls.db.session.commit()
             
-            return super_admin
+            return {
+                'user_id': super_admin.user_id,
+                'phone_number': super_admin.phone_number,
+                'nickname': super_admin.nickname,
+                'name': super_admin.name,
+                'role': super_admin.role,
+                'wechat_openid': super_admin.wechat_openid
+            }
 
 
 @pytest.fixture(scope="class")

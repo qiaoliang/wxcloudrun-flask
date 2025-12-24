@@ -921,6 +921,15 @@ def create_community():
         current_app.logger.info(f'创建社区成功: community_id={community.community_id}, name={name}')
         return make_succ_response({
             'community_id': community.community_id,
+            'name': community.name,
+            'description': community.description,
+            'creator_id': community.creator_id,
+            'manager_id': community.manager_id,
+            'location': community.location,
+            'location_lat': community.location_lat,
+            'location_lon': community.location_lon,
+            'status': community.status,
+            'created_at': community.created_at.isoformat() if community.created_at else None,
             'message': '创建成功'
         })
 

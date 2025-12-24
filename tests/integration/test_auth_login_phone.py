@@ -69,7 +69,7 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         client = self.get_test_client()
 
         login_data = {
-            'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE,
+            'phone': self.test_user.phone_number,  # 使用测试中实际创建的用户手机号
             'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE,  # 测试验证码
             'password': TEST_CONSTANTS.DEFAULT_PASSWORD
         }
@@ -121,17 +121,17 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         error_cases = [
             {
                 'name': '错误验证码',
-                'data': {'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE, 'code': TEST_CONSTANTS.INVALID_VERIFICATION_CODE, 'password': TEST_CONSTANTS.DEFAULT_PASSWORD},
+                'data': {'phone': self.test_user.phone_number, 'code': TEST_CONSTANTS.INVALID_VERIFICATION_CODE, 'password': TEST_CONSTANTS.DEFAULT_PASSWORD},
                 'expected_msg_key': 'INVALID_CAPTCHA'
             },
             {
                 'name': '错误密码',
-                'data': {'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE, 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE, 'password': 'wrong_test_password'},
+                'data': {'phone': self.test_user.phone_number, 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE, 'password': 'wrong_test_password'},
                 'expected_msg_key': '密码不正确'
             },
             {
                 'name': '缺少参数',
-                'data': {'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE, 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE},  # 缺少password
+                'data': {'phone': self.test_user.phone_number, 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE},  # 缺少password
                 'expected_msg_key': '缺少phone、code或password参数'
             },
             {
@@ -164,7 +164,7 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         client = self.get_test_client()
 
         login_data = {
-            'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE,
+            'phone': self.test_user.phone_number,
             'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE,
             'password': TEST_CONSTANTS.DEFAULT_PASSWORD
         }
@@ -201,7 +201,7 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         client = self.get_test_client()
 
         login_data = {
-            'phone': TEST_CONSTANTS.SUPER_ADMIN_PHONE,
+            'phone': self.test_user.phone_number,
             'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE,
             'password': TEST_CONSTANTS.DEFAULT_PASSWORD
         }

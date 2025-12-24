@@ -8,13 +8,12 @@ from test_utils import RolePermissionTester, TestUserFactory
 from test_constants import TEST_CONSTANTS
 
 
-class TestRolePermissionsOptimized:
+class TestRolePermissionsOptimized(IntegrationTestBase):
     """优化的角色权限测试类"""
 
     @classmethod
     def setup_class(cls):
         """类级别的设置"""
-        from tests.integration.conftest import IntegrationTestBase
         super().setup_class()
         cls.role_permissions = {
             1: ("普通用户", "普通用户"),
