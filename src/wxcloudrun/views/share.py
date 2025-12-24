@@ -10,16 +10,12 @@ from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
-from database import get_database
-from database.flask_models import ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
+from database.flask_models import db, ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
 from wxcloudrun.decorators import login_required
 from wxcloudrun.utils.auth import verify_token
 import secrets
 
 app_logger = logging.getLogger('log')
-
-# 获取数据库实例
-db = get_database()
 
 
 @app.route('/api/share/checkin/create', methods=['POST'])
@@ -49,15 +45,14 @@ def create_share_checkin_link(decoded):
         token = secrets.token_urlsafe(16)
         expires_at = datetime.now() + timedelta(hours=expire_hours)
 
-        with db.get_session() as session:
-            link = ShareLink(
-                token=token,
-                solo_user_id=user.user_id,
-                rule_id=rule.rule_id,
-                expires_at=expires_at
-            )
-            session.add(link)
-            session.commit()
+        link = ShareLink(
+            token=token,
+            solo_user_id=user.user_id,
+            rule_id=rule.rule_id,
+            expires_at=expires_at
+        )
+        db.session.add(link)
+        db.session.commit()
 
         # 构造URL（PC/移动端），以及小程序内路径
         base = request.host_url.rstrip('/')
@@ -96,16 +91,15 @@ def resolve_share_checkin_link(decoded):
 
         # 访问日志记录
         try:
-            with db.get_session() as session:
-                lg = ShareLinkAccessLog(
-                    token=token,
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent'),
-                    supervisor_user_id=UserService.query_user_by_openid(
-                        decoded.get('openid')).user_id
-                )
-                session.add(lg)
-                session.commit()
+            lg = ShareLinkAccessLog(
+                token=token,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent'),
+                supervisor_user_id=UserService.query_user_by_openid(
+                    decoded.get('openid')).user_id
+            )
+            db.session.add(lg)
+            db.session.commit()
         except Exception:
             pass
 
@@ -116,20 +110,19 @@ def resolve_share_checkin_link(decoded):
                 decoded.get('openid')).user_id,
             rule_id=link.rule_id
         ).first()
-        with db.get_session() as session:
-            if not relation:
-                relation = SupervisionRuleRelation(
-                    solo_user_id=link.solo_user_id,
-                    supervisor_user_id=UserService.query_user_by_openid(
-                        decoded.get('openid')).user_id,
-                    rule_id=link.rule_id,
-                    status=2
-                )
-                session.add(relation)
-            else:
-                relation.status = 2
-                relation.updated_at = datetime.now()
-            session.commit()
+        if not relation:
+            relation = SupervisionRuleRelation(
+                solo_user_id=link.solo_user_id,
+                supervisor_user_id=UserService.query_user_by_openid(
+                    decoded.get('openid')).user_id,
+                rule_id=link.rule_id,
+                status=2
+            )
+            db.session.add(relation)
+        else:
+            relation.status = 2
+            relation.updated_at = datetime.now()
+        db.session.commit()
 
         rule = CheckinRuleService.query_rule_by_id(link.rule_id)
         rule_data = {
@@ -170,14 +163,13 @@ def share_checkin_page():
 
         # 访问日志
         try:
-            with db.get_session() as session:
-                lg = ShareLinkAccessLog(
-                    token=token,
-                    ip_address=request.remote_addr,
-                    user_agent=request.headers.get('User-Agent')
-                )
-                session.add(lg)
-                session.commit()
+            lg = ShareLinkAccessLog(
+                token=token,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent')
+            )
+            db.session.add(lg)
+            db.session.commit()
         except Exception:
             pass
 
@@ -194,24 +186,23 @@ def share_checkin_page():
                     # 建立监督关系
                     supervisor_user = UserService.query_user_by_openid(
                         decoded.get('openid'))
-                    with db.get_session() as session:
-                        relation = session.query(SupervisionRuleRelation).filter_by(
+                    relation = db.session.query(SupervisionRuleRelation).filter_by(
+                        solo_user_id=link.solo_user_id,
+                        supervisor_user_id=supervisor_user.user_id,
+                        rule_id=link.rule_id
+                    ).first()
+                    if not relation:
+                        relation = SupervisionRuleRelation(
                             solo_user_id=link.solo_user_id,
                             supervisor_user_id=supervisor_user.user_id,
-                            rule_id=link.rule_id
-                        ).first()
-                        if not relation:
-                            relation = SupervisionRuleRelation(
-                                solo_user_id=link.solo_user_id,
-                                supervisor_user_id=supervisor_user.user_id,
-                                rule_id=link.rule_id,
-                                status=2
-                            )
-                            session.add(relation)
-                        else:
-                            relation.status = 2
-                            relation.updated_at = datetime.now()
-                        session.commit()
+                            rule_id=link.rule_id,
+                            status=2
+                        )
+                        db.session.add(relation)
+                    else:
+                        relation.status = 2
+                        relation.updated_at = datetime.now()
+                    db.session.commit()
                 rule = CheckinRuleService.query_rule_by_id(link.rule_id)
                 return make_succ_response({
                     'message': '解析成功',

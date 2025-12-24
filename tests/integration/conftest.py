@@ -28,7 +28,7 @@ def create_app_for_testing():
         db_core.create_tables()
         
         # 创建初始数据
-        create_super_admin_and_default_community(db_core)
+        create_super_admin_and_default_community()
     
     return application
 

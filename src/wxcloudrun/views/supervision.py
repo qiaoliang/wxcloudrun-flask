@@ -11,14 +11,10 @@ from wxcloudrun.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
-from database import get_database
-from database.flask_models import SupervisionRuleRelation, CheckinRecord
+from database.flask_models import db, SupervisionRuleRelation, CheckinRecord
 from wxcloudrun.decorators import login_required
 
 app_logger = logging.getLogger('log')
-
-# 获取数据库实例
-db = get_database()
 
 
 @app.route('/api/rules/supervision/invite', methods=['POST'])
@@ -69,15 +65,14 @@ def invite_supervisor(decoded):
             ).first()
 
             if not existing_relation:
-                with db.get_session() as session:
-                    new_relation = SupervisionRuleRelation(
-                        solo_user_id=user.user_id,
-                        supervisor_user_id=target_user.user_id,
-                        rule_id=None,  # 表示监督所有规则
-                        status=1  # 待同意
-                    )
-                    session.add(new_relation)
-                    session.commit()
+                new_relation = SupervisionRuleRelation(
+                    solo_user_id=user.user_id,
+                    supervisor_user_id=target_user.user_id,
+                    rule_id=None,  # 表示监督所有规则
+                    status=1  # 待同意
+                )
+                db.session.add(new_relation)
+                db.session.commit()
         else:  # 监督特定规则
             for rule_id in rule_ids:
                 # 检查是否已存在监督关系
@@ -95,9 +90,9 @@ def invite_supervisor(decoded):
                         rule_id=rule_id,
                         status=1  # 待同意
                     )
-                    session.add(new_relation)
+                    db.session.add(new_relation)
 
-        session.commit()
+        db.session.commit()
 
         response_data = {
             'message': '邀请发送成功'
@@ -141,7 +136,7 @@ def invite_supervisor_link(decoded):
                     invite_token=token,
                     invite_expires_at=expires_at
                 )
-                session.add(rel)
+                db.session.add(rel)
                 created_relations.append(rel)
         else:
             rel = SupervisionRuleRelation(
@@ -152,10 +147,10 @@ def invite_supervisor_link(decoded):
                 invite_token=token,
                 invite_expires_at=expires_at
             )
-            session.add(rel)
+            db.session.add(rel)
             created_relations.append(rel)
 
-        session.commit()
+        db.session.commit()
 
         response_data = {
             'invite_token': token,
@@ -198,7 +193,7 @@ def resolve_invite_link(decoded):
 
         relation.supervisor_user_id = user.user_id
         relation.updated_at = datetime.now()
-        session.commit()
+        db.session.commit()
 
         response_data = {
             'relation_id': relation.relation_id,
@@ -311,7 +306,7 @@ def accept_supervision_invitation(decoded):
         # 更新状态为已同意
         relation.status = 2  # 已同意
         relation.updated_at = datetime.now()
-        session.commit()
+        db.session.commit()
 
         response_data = {
             'message': '接受邀请成功'
@@ -355,7 +350,7 @@ def reject_supervision_invitation(decoded):
         # 更新状态为已拒绝
         relation.status = 3  # 已拒绝
         relation.updated_at = datetime.now()
-        session.commit()
+        db.session.commit()
 
         response_data = {
             'message': '拒绝邀请成功'

@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from flask import request
 from wxcloudrun import app
 from wxcloudrun.response import make_succ_response, make_err_response
-from database.flask_models import VerificationCode
+from database.flask_models import db, VerificationCode
 from wxcloudrun.sms_service import create_sms_provider, generate_code
 from wxcloudrun.utils.validators import _verify_sms_code, _code_expiry_minutes
 from config_manager import should_use_real_sms
@@ -50,19 +50,16 @@ def sms_send_code():
         code_hash = _hash_code(normalized_phone, code, salt)
         
         expires_at = now + timedelta(minutes=_code_expiry_minutes())
-        from flask import current_app
-        db_core = current_app.db_core
-        with db_core.get_session() as session:
-            if not vc:
-                vc = VerificationCode(phone_number=normalized_phone, purpose=purpose, code_hash=code_hash,
-                                      salt=salt, expires_at=expires_at, last_sent_at=now)
-                session.add(vc)
-            else:
-                vc.code_hash = code_hash
-                vc.salt = salt
-                vc.expires_at = expires_at
-                vc.last_sent_at = now
-            session.commit()
+        if not vc:
+            vc = VerificationCode(phone_number=normalized_phone, purpose=purpose, code_hash=code_hash,
+                                  salt=salt, expires_at=expires_at, last_sent_at=now)
+            db.session.add(vc)
+        else:
+            vc.code_hash = code_hash
+            vc.salt = salt
+            vc.expires_at = expires_at
+            vc.last_sent_at = now
+        db.session.commit()
         
         provider = create_sms_provider()
         provider.send(phone, f"验证码: {code}，{_code_expiry_minutes()}分钟内有效")

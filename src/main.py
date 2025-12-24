@@ -97,20 +97,10 @@ def main():
     # 2. 初始化数据库并绑定到 Flask
     migration_logger.info("正在初始化数据库并绑定到 Flask 应用...")
     with flask_app.app_context():
-        # 导入数据库核心
-        from database import get_database
+        # 数据库核心已迁移到 Flask-SQLAlchemy，不再需要 DatabaseCore
 
-        # 获取数据库核心实例（使用环境配置）
-        # 在 unit 环境下使用 'test' 模式以确保使用相同的内存数据库
-        if env_type in ['unit']:
-            db_core = get_database('test')
-        else:
-            db_core = get_database('standalone')
-        db_core.initialize()
-        migration_logger.info("数据库核心初始化成功")
-
-        # 将 db_core 保存到 app 中供后续使用
-        flask_app.db_core = db_core
+        # 数据库核心已迁移到 Flask-SQLAlchemy，无需额外初始化
+        migration_logger.info("Flask-SQLAlchemy 数据库已就绪")
 
         # 3. 执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
         # 同时避免在Flask调试器重启时重复执行迁移
@@ -155,7 +145,7 @@ def main():
         
         if should_initialize:
             # 创建超级管理员和默认社区
-            create_super_admin_and_default_community(db_core)
+            create_super_admin_and_default_community()
             app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
         else:
             app.logger.info("跳过超级管理员和默认社区注入")
