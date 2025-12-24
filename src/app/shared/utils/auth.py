@@ -289,12 +289,15 @@ def generate_jwt_token(user, expires_hours=2):
             - error_response: 错误响应对象，如果成功则为 None
     """
     import datetime
+    import time
+    import random
 
-    # 构建 token payload
+    # 构建 token payload，添加jti确保唯一性
     token_payload = {
         'openid': user.wechat_openid,
         'user_id': user.user_id,
-        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=expires_hours)
+        'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=expires_hours),
+        'jti': f"{int(time.time())}_{random.randint(1000, 9999)}"  # JWT ID for uniqueness
     }
     current_app.logger.info(f'JWT token payload: {token_payload}')
 
