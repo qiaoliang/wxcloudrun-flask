@@ -14,6 +14,7 @@
 | **用户管理域** | [API_user.md](API_user.md) | 用户信息管理、用户搜索、账号绑定 |
 | **社区管理域** | [API_community.md](API_community.md) | 社区CRUD、工作人员管理、申请处理 |
 | **打卡功能域** | [API_checkin.md](API_checkin.md) | 打卡规则管理、打卡记录、历史查询 |
+| **用户打卡域** | [API_user_checkin.md](API_user_checkin.md) | 用户个人打卡规则、今日计划、统计信息 |
 | **短信服务域** | [API_sms.md](API_sms.md) | 验证码发送和验证 |
 | **监督功能域** | [API_supervision.md](API_supervision.md) | 监督关系管理、监督邀请、监督记录 |
 | **分享功能域** | [API_share.md](API_share.md) | 分享链接创建、解析和页面渲染 |
@@ -87,7 +88,12 @@ Authorization: Bearer <token>
    - 执行打卡: `POST /api/checkin`
    - 打卡规则管理: `GET/POST/PUT/DELETE /api/checkin/rules`
 
-5. **监督功能**
+5. **用户打卡功能**
+   - 今日打卡计划: `GET /api/user-checkin/today-plan`
+   - 用户打卡规则: `GET /api/user-checkin/rules`
+   - 打卡统计: `GET /api/user-checkin/statistics`
+
+6. **监督功能**
    - 邀请监督者: `POST /api/rules/supervision/invite`
    - 获取监督邀请: `GET /api/rules/supervision/invitations`
    - 获取监督记录: `GET /api/rules/supervision/records`
@@ -162,6 +168,8 @@ make e2e
 - 更新文档以反映 Blueprint 模块化架构
 - 源代码路径从 wxcloudrun/views 迁移到 app/modules
 - 更新贡献指南以匹配新的架构
+- 新增用户打卡功能域 API 文档 (API_user_checkin.md)
+- 更新 API 路径以反映修复后的 Blueprint 路由结构
 
 ### 2025-12-19
 - 初始版本，按功能域梳理所有 API 接口
