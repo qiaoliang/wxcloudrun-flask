@@ -52,225 +52,31 @@ setup:
 	@echo "环境设置完成"
 
 # 运行集成测试
-test-integration: setup
-	@echo "运行集成测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python -m pytest tests/integration/ -v -s; \
-	else \
-		python -m pytest tests/integration/ -v; \
-	fi
 
-# 运行所有集成测试（it = integration tests）
-it: setup
-	@echo "=== 运行所有集成测试用例 ==="
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python -m pytest tests/integration/ -v -s; \
-	else \
-		python -m pytest tests/integration/ -v; \
-	fi
-	@echo "✓ 所有集成测试完成"
+# 智能测试命令
+.PHONY: test-smart test-parallel test-unit-new test-integration-new test-all-new
 
-# 运行单个集成测试文件
-test-registration: setup
-	@echo "运行注册流程测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/test_registration_flow.py -v
+# 智能测试（根据规模自动选择配置）
+test-smart:
+	@echo "=== 智能测试执行 ==="
+	@source venv_py312/bin/activate && python smart_test_runner.py tests/
 
-test-account-merge: setup
-	@echo "运行账号合并测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/test_account_merging.py -v
+# 强制并行测试
+test-parallel:
+	@echo "=== 并行测试执行 ==="
+	@source venv_py312/bin/activate && python smart_test_runner.py tests/ -p --max-workers 4
 
-test-login-response: setup
-	@echo "运行登录响应测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/test_unified_login_response.py -v
+# 单元测试
+test-unit-new:
+	@echo "=== 单元测试 ==="
+	@source venv_py312/bin/activate && python smart_test_runner.py tests/unit/
 
-test-migration: setup
-	@echo "运行数据库迁移测试..."
-	@source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_alembic_migration.py -v -s; \
-	else \
-		PYTHONPATH="$(pwd)/src:$PYTHONPATH" python -m pytest tests/integration/test_alembic_migration.py -v; \
-	fi
+# 集成测试
+test-integration-new:
+	@echo "=== 集成测试 ==="
+	@source venv_py312/bin/activate && python smart_test_runner.py tests/integration/
 
-test-migration-method: setup
-	@if [ -z "$(METHOD)" ]; then \
-		echo "请指定测试方法，例如: make test-migration-method METHOD=test_complete_migration_path"; \
-		exit 1; \
-	fi
-	@echo "运行迁移测试方法: $(METHOD)"
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/test_database_migration.py -k $(METHOD) -v
-
-test-migration-performance: setup
-	@echo "运行迁移性能测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/test_database_migration.py::TestDatabaseMigration::test_migration_performance -v -s
-
-# 运行单元测试
-ut: setup
-	@echo "运行单元测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python -m pytest tests/unit/ -v -s; \
-	else \
-		python -m pytest tests/unit/ -v; \
-	fi
-
-# 运行单个单元测试
-ut-s: setup
-	@if [ -z "$(TEST)" ]; then \
-		echo "请指定测试文件、测试类或测试函数，例如:"; \
-		echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py"; \
-		echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService"; \
-		echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService::test_create_rule"; \
-		exit 1; \
-	fi
-	@echo "=== 运行单个单元测试用例 ==="
-	@echo "测试: $(TEST)"
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python -m pytest $(TEST) -v -s; \
-	else \
-		python -m pytest $(TEST) -v; \
-	fi
-	@echo "✓ 单个单元测试完成"
-
-# 运行单个集成测试用例 (its = integration test single)
-its: setup
-	@if [ -z "$(TEST)" ]; then \
-		echo "请指定集成测试文件、测试类或测试函数，例如:"; \
-		echo "  make its TEST=tests/integration/test_user_integration.py"; \
-		echo "  make its TEST=tests/integration/test_user_integration.py::TestUserIntegration"; \
-		echo "  make its TEST=tests/integration/test_user_integration.py::TestUserIntegration::test_user_creation_and_isolation"; \
-		exit 1; \
-	fi
-	@echo "=== 运行单个集成测试用例 ==="
-	@echo "测试: $(TEST)"
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python -m pytest $(TEST) -v -s; \
-	else \
-		python -m pytest $(TEST) -v; \
-	fi
-	@echo "✓ 单个集成测试完成"
-
-# 运行所有测试
-test-all: setup
-	@echo "运行所有测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/ -v
-
-# 生成测试覆盖率报告
-test-coverage: setup
-	@echo "生成测试覆盖率报告..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/ --cov=src --cov-report=html --cov-report=term
-
-# 清理测试文件
-clean:
-	@echo "清理测试文件..."
-	@find . -type d -name "__pycache__" -exec rm -rf {} + 2>/dev/null || true
-	@find . -type f -name "*.pyc" -delete 2>/dev/null || true
-	@rm -rf .pytest_cache 2>/dev/null || true
-	@rm -rf htmlcov 2>/dev/null || true
-	@echo "清理完成"
-
-# 仅运行失败的测试（如果之前有失败）
-test-failed: setup
-	@echo "运行之前失败的测试..."
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/ --lf -v
-
-# 运行特定测试类
-test-class: setup
-	@if [ -z "$(CLASS)" ]; then \
-		echo "请指定测试类，例如: make test-class CLASS=TestAccountMerging"; \
-		exit 1; \
-	fi
-	@echo "运行测试类: $(CLASS)"
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/ -k $(CLASS) -v
-
-# 运行特定测试方法
-test-method: setup
-	@if [ -z "$(METHOD)" ]; then \
-		echo "请指定测试方法，例如: make test-method METHOD=test_account_merge_functionality"; \
-		exit 1; \
-	fi
-	@echo "运行测试方法: $(METHOD)"
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/integration/ -k $(METHOD) -v
-
-# 运行E2E测试
-e2e: setup
-	@echo "=== 运行E2E测试 ==="
-	@echo "清理数据库和迁移脚本..."
-	@rm -f src/data/*.db 2>/dev/null || true
-	@rm -f src/alembic/versions/*.py 2>/dev/null || true
-	@echo "注意: 每个测试函数将启动独立的 Flask 进程，使用内存数据库"
-	@# 运行E2E测试
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest tests/e2e/ -v
-	@echo "✓ E2E测试完成"
-
-# 运行单个E2E测试用例
-e2e-single: setup
-	@if [ -z "$(TEST)" ]; then \
-		echo "请指定测试文件或测试函数，例如:"; \
-		echo "  make e2e-single TEST=test_multi_community_role_e2e.py"; \
-		echo "  make e2e-single TEST=test_multi_community_role_e2e.py::TestMultiCommunityRole::test_user_can_join_multiple_communities"; \
-		exit 1; \
-	fi
-	@echo "=== 运行单个E2E测试用例 ==="
-	@echo "清理数据库和迁移脚本..."
-	@rm -f src/data/*.db 2>/dev/null || true
-	@rm -f src/alembic/versions/*.py 2>/dev/null || true
-	@echo "测试: $(TEST)"
-	@echo "注意: 测试将启动独立的 Flask 进程，使用内存数据库"
-	@export PYTHONPATH="$(pwd)/src:$PYTHONPATH"; \
-	source venv_py312/bin/activate && \
-	python -m pytest $(TEST) -v
-	@echo "✓ 单个E2E测试完成"
-
-# API契约验证相关命令
-.PHONY: validate-contract generate-contract-report verify-api-fixes
-
-validate-contract:
-	@echo "=== 验证API契约一致性 ==="
-	@cd .. && python scripts/validate-api-contract.py --contract backend/api-contract/openapi.yaml --backend backend --frontend frontend --output api-contract-validation-report.md
-	@echo "✓ API契约验证完成"
-
-generate-contract-report:
-	@echo "=== 生成API不一致性报告 ==="
-	@cd .. && python scripts/generate-contract-report.py --project-root . --output api-inconsistency-report.md
-	@echo "✓ API不一致性报告生成完成"
-
-verify-api-fixes:
-	@echo "=== 验证API修复效果 ==="
-	@cd .. && python scripts/verify-api-fixes.py
-	@echo "✓ API修复验证完成"
-
-contract-ci: validate-contract verify-api-fixes
-	@echo "=== API契约CI验证 ==="
-	@echo "✓ 所有API契约检查通过"
+# 快速测试（单个文件）
+test-quick:
+	@echo "=== 快速测试 ==="
+	@source venv_py312/bin/activate && python smart_test_runner.py tests/unit/test_user_search_phone_hash.py
