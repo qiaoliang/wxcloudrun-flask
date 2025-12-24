@@ -21,6 +21,7 @@ class TestBase:
         """类级别的设置，创建应用实例"""
         # 设置测试环境
         os.environ['ENV_TYPE'] = 'unit'
+        os.environ['SECRET_KEY'] = 'test_secret_key_for_session'
         
         # 导入并创建Flask应用
         from app import create_app

@@ -58,6 +58,10 @@ def create_app(config_name=None):
     db_config = get_database_config()
     app.config['DATABASE_CONFIG'] = db_config
     
+    # 配置session支持
+    if not app.config.get('SECRET_KEY'):
+        app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key')
+    
     # 4. 初始化扩展
     db.init_app(app)
     
