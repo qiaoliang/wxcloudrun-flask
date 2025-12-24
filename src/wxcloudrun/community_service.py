@@ -1007,7 +1007,7 @@ class CommunityService:
             bool: 是否属于该社区
         """
         try:
-            user = db.session.query(User).get(user_id)
+            user = db.session.get(User, user_id)
             if not user:
                 logger.warning(f"用户不存在: user_id={user_id}")
                 return False

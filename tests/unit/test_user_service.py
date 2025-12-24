@@ -8,7 +8,7 @@ from sqlalchemy.exc import OperationalError
 from database.flask_models import User, UserAuditLog
 from wxcloudrun.user_service import UserService
 
-from hashutil import phone_hash, pwd_hash
+from wxcloudrun.user_service import phone_hash, pwd_hash
 
 
 class TestUserService:

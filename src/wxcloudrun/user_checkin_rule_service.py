@@ -244,8 +244,17 @@ class UserCheckinRuleService:
             # 按计划时间排序
             today_plan.sort(key=lambda x: x['planned_time'] or '')
 
+            # 返回与checkin_rule_service.py相同格式的数据结构
+            result = {
+                'date': datetime.now().strftime('%Y-%m-%d'),
+                'total_items': len(today_plan),
+                'completed_items': len([item for item in today_plan if item.get('status') == 'completed']),
+                'pending_items': len([item for item in today_plan if item.get('status') != 'completed']),
+                'items': today_plan
+            }
+
             logger.info(f"获取用户今日计划成功: 用户ID={user_id}, 事项数量={len(today_plan)}")
-            return today_plan
+            return result
 
         except SQLAlchemyError as e:
             logger.error(f"获取用户今日计划失败: {str(e)}")

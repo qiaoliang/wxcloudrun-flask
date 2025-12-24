@@ -20,13 +20,16 @@
       "phone_number": "手机号",
       "nickname": "用户昵称",
       "avatar_url": "头像URL",
-      "role": "用户角色",
+      "role": 4,
+      "role_name": "超级系统管理员",
       "community_id": 1,
-      "status": "用户状态",
-      "is_community_worker": false
+      "status": "用户状态"
     }
   }
   ```
+- **字段说明**:
+  - `role`: 数字角色值 (1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员)
+  - `role_name`: 中文角色名称 (普通用户, 社区专员, 社区主管, 超级系统管理员)
 
 - **端点**: `POST /api/user/profile`
 - **描述**: 更新用户信息

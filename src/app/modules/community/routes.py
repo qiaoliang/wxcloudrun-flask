@@ -53,7 +53,7 @@ def _format_community_info(community, include_admin_count=False):
     # 获取创建者信息
     creator = None
     if community.creator_id:
-        creator_user = User.query.get(community.creator_id)
+        creator_user = db.session.get(User, community.creator_id)
         if creator_user:
             creator = {
                 'user_id': creator_user.user_id,
@@ -98,7 +98,7 @@ def get_communities():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     # 检查权限
     error = _check_super_admin_permission(user)
@@ -437,14 +437,14 @@ def get_user_community():
     current_app.logger.info(f'用户ID: {user_id}')
 
     try:
-        user = User.query.get(user_id)
+        user = db.session.get(User, user_id)
         if not user:
             return make_err_response({}, '用户不存在')
 
         if not user.community_id:
             return make_err_response({}, '用户未加入社区')
 
-        community = Community.query.get(user.community_id)
+        community = db.session.get(Community, user.community_id)
         if not community:
             return make_err_response({}, '社区不存在')
 
@@ -888,7 +888,7 @@ def create_community():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     # 检查权限
     if not user or user.role < 3:  # 社区管理员及以上

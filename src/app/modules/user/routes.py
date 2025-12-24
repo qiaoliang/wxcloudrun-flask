@@ -138,7 +138,8 @@ def user_profile():
                 'nickname': user.nickname,
                 'name': user.name,
                 'avatar_url': user.avatar_url,
-                'role': user.role_name,
+                'role': user.role,  # 数字角色值 (1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员)
+                'role_name': user.role_name,  # 中文角色名称
                 'community_id': user.community_id,
                 'community_name': user.community.name if user.community else None,
                 'status': user.status
@@ -195,7 +196,7 @@ def user_profile():
 
 @user_bp.route('/user/search', methods=['GET'])
 @login_required
-def search_users():
+def search_users(decoded):
     """
     用户搜索接口
     支持按手机号、昵称搜索用户
