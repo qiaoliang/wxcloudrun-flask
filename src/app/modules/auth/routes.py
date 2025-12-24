@@ -22,6 +22,7 @@ from database.flask_models import User
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
 from config_manager import get_token_secret
 from const_default import DEFAULT_COMMUNITY_NAME
+from error_code import INVALID_CAPTCHA
 
 app_logger = logging.getLogger('log')
 
@@ -330,12 +331,12 @@ def refresh_token():
 
         # 从数据库中查找用户信息
         user = UserService.query_user_by_refresh_token(refresh_token)
-        
+
         # Add more debugging info
         if not user:
             current_app.logger.warning(f'未找到用户，refresh_token: {refresh_token[:20]}...')
             return make_err_response({}, '无效的refresh_token')
-        
+
         current_app.logger.info(f'找到用户，用户ID: {user.user_id}')
         current_app.logger.info(f'数据库中存储的refresh_token: {user.refresh_token[:20] if user.refresh_token else None}...')
         current_app.logger.info(f'请求中的refresh_token: {refresh_token[:20]}...')
@@ -435,7 +436,7 @@ def register_phone():
         normalized_phone = normalize_phone_number(phone)
 
         if not _verify_sms_code(normalized_phone, 'register', code):
-            return make_err_response({}, '验证码无效或已过期')
+            return make_err_response({}, 'INVALID_CAPTCHA')
         if password:
             pwd = str(password)
             if len(pwd) < 8 or (not any(c.isalpha() for c in pwd)) or (not any(c.isdigit() for c in pwd)):
@@ -499,7 +500,7 @@ def login_phone_code():
         phone = params.get('phone')
         code = params.get('code')
         current_app.logger.info(f'登录请求参数 - phone: {phone}, code: {code}')
-        
+
         if not phone or not code:
             current_app.logger.warning('登录请求缺少phone或code参数')
             return make_err_response({}, '缺少phone或code参数')
@@ -513,42 +514,42 @@ def login_phone_code():
         login_valid = _verify_sms_code(normalized_phone, 'login', code)
         register_valid = _verify_sms_code(normalized_phone, 'register', code)
         current_app.logger.info(f'SMS验证结果 - login_valid: {login_valid}, register_valid: {register_valid}')
-        
+
         if not login_valid and not register_valid:
             current_app.logger.warning(f'SMS验证码验证失败 - phone: {normalized_phone}, code: {code}')
-            return make_err_response({}, '验证码无效或已过期')
-        
+            return make_err_response({}, 'INVALID_CAPTCHA')
+
         current_app.logger.info('SMS验证码验证通过，开始查询用户...')
-        
+
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(
             f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
         current_app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
-        
+
         # 数据库查询 - 添加执行时间监控
         import time
-        
+
         try:
             current_app.logger.info('开始执行UserService.query_user_by_phone_hash...')
             start_time = time.time()
             user = UserService.query_user_by_phone_hash(phone_hash)
             query_time = time.time() - start_time
             current_app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
-            
+
             # 检查查询时间是否异常长
             if query_time > 3.0:
                 current_app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
-                
+
         except Exception as db_error:
             current_app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
             return make_err_response({}, '数据库查询失败')
-            
+
         if not user:
             current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
             return make_err_response({}, '用户不存在')
-            
+
         current_app.logger.info(f'找到用户 - user_id: {user.user_id}, nickname: {user.nickname}')
-        
+
         if not user.nickname:
             current_app.logger.info('用户昵称为空，生成默认昵称...')
             user.nickname = _gen_phone_nickname()
@@ -561,13 +562,13 @@ def login_phone_code():
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
-        
+
         current_app.logger.info('保存refresh token到数据库...')
         UserService.update_user_by_id(user)
-        
+
         _audit(user.user_id, 'login_phone_code', {'phone': phone})
         current_app.logger.info('=== 手机号验证码登录接口执行完成 ===')
-        
+
         # 使用统一的响应格式，包含完整的用户信息
         response_data = _format_user_login_response(
             user, token, refresh_token, is_new_user=False
@@ -586,7 +587,7 @@ def login_phone_password():
         phone = params.get('phone')
         password = params.get('password')
         current_app.logger.info(f'登录请求参数 - phone: {phone}, password: {"*" * len(password) if password else "None"}')
-        
+
         if not phone or not password:
             current_app.logger.warning('登录请求缺少phone或password参数')
             return make_err_response({}, '缺少phone或password参数')
@@ -608,11 +609,11 @@ def login_phone_password():
             user = UserService.query_user_by_phone_hash(phone_hash)
             query_time = time.time() - start_time
             current_app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
-            
+
             # 检查查询时间是否异常长
             if query_time > 3.0:
                 current_app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
-                
+
         except Exception as db_error:
             current_app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
             return make_err_response({}, '数据库查询失败')
@@ -628,7 +629,7 @@ def login_phone_password():
         if pwd_hash != user.password_hash:
             current_app.logger.warning(f'密码验证失败 - user_id: {user.user_id}')
             return make_err_response({}, '密码不正确')
-        
+
         current_app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
@@ -641,13 +642,13 @@ def login_phone_password():
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
-        
+
         current_app.logger.info('保存refresh token到数据库...')
         UserService.update_user_by_id(user)
         _audit(user.user_id, 'login_phone_password', {'phone': phone})
-        
+
         current_app.logger.info('=== 手机号密码登录接口执行完成 ===')
-        
+
         # 使用统一的响应格式，包含完整的用户信息
         response_data = _format_user_login_response(
             user, token, refresh_token, is_new_user=False
@@ -686,7 +687,7 @@ def login_phone():
         code_valid = _verify_sms_code(normalized_phone, 'login', code) or _verify_sms_code(normalized_phone, 'register', code)
         if not code_valid:
             current_app.logger.warning(f'验证码验证失败 - phone: {normalized_phone}, code: {code}')
-            return make_err_response({}, '验证码无效或已过期')
+            return make_err_response({}, 'INVALID_CAPTCHA')
         current_app.logger.info('验证码验证通过')
 
         # 查找用户
@@ -703,11 +704,11 @@ def login_phone():
             user = UserService.query_user_by_phone_hash(phone_hash)
             query_time = time.time() - start_time
             current_app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
-            
+
             # 检查查询时间是否异常长
             if query_time > 3.0:
                 current_app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
-                
+
         except Exception as db_error:
             current_app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
             return make_err_response({}, '数据库查询失败')
@@ -725,7 +726,7 @@ def login_phone():
         if pwd_hash != user.password_hash:
             current_app.logger.warning(f'密码验证失败 - user_id: {user.user_id}')
             return make_err_response({}, '密码不正确')
-        
+
         current_app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
         if not user.nickname:
             user.nickname = _gen_phone_nickname()
@@ -738,13 +739,13 @@ def login_phone():
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
-        
+
         current_app.logger.info('保存refresh token到数据库...')
         UserService.update_user_by_id(user)
         _audit(user.user_id, 'login_phone', {'phone': phone})
-        
+
         current_app.logger.info('=== 手机号登录接口执行完成 ===')
-        
+
         # 使用统一的响应格式，包含完整的用户信息
         response_data = _format_user_login_response(
             user, token, refresh_token, is_new_user=False

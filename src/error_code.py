@@ -1,0 +1,1 @@
+INVALID_CAPTCHA = '验证码无效或已过期'

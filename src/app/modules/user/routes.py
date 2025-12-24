@@ -16,6 +16,7 @@ from app.shared.utils.auth import verify_token
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code, normalize_phone_number
 from app.shared.decorators import login_required
 from config_manager import get_token_secret
+from error_code import INVALID_CAPTCHA
 
 app_logger = logging.getLogger('log')
 
@@ -61,19 +62,19 @@ def _merge_accounts_by_time(account1, account2):
     if migrate_info['wechat_openid'] and not primary.wechat_openid:
         primary.wechat_openid = migrate_info['wechat_openid']
         current_app.logger.info(f'迁移微信openid到主账号: {migrate_info["wechat_openid"][:20]}...')
-    
+
     if migrate_info['phone_number'] and not primary.phone_number:
         primary.phone_number = migrate_info['phone_number']
         current_app.logger.info(f'迁移手机号到主账号: {migrate_info["phone_number"]}')
-    
+
     if migrate_info['nickname'] and migrate_info['nickname'] != primary.nickname:
         primary.nickname = migrate_info['nickname']
         current_app.logger.info(f'更新昵称: {migrate_info["nickname"]}')
-    
+
     if migrate_info['avatar_url'] and migrate_info['avatar_url'] != primary.avatar_url:
         primary.avatar_url = migrate_info['avatar_url']
         current_app.logger.info(f'更新头像: {migrate_info["avatar_url"][:30]}...')
-    
+
     if migrate_info['name'] and migrate_info['name'] != primary.name:
         primary.name = migrate_info['name']
         current_app.logger.info(f'更新姓名: {migrate_info["name"]}')
@@ -87,7 +88,7 @@ def _merge_accounts_by_time(account1, account2):
             supervised_user_id=primary.user_id,
             rule_id=relation.rule_id
         ).first()
-        
+
         if not existing:
             relation.supervised_user_id = primary.user_id
             current_app.logger.info(f'迁移监督关系: {relation.supervisor_user_id} -> {primary.user_id}')
@@ -97,10 +98,10 @@ def _merge_accounts_by_time(account1, account2):
 
     # 删除次要账号
     db.session.delete(secondary)
-    
+
     # 保存主账号更改
     db.session.commit()
-    
+
     current_app.logger.info(f'账号合并完成，保留账号ID: {primary.user_id}')
     return primary
 
@@ -219,7 +220,7 @@ def search_users():
             normalized_phone = keyword
             if len(normalized_phone) >= 7:
                 normalized_phone = normalized_phone[:3] + '****' + normalized_phone[-4:]
-            
+
             result = UserService.search_users_by_phone(normalized_phone, page, per_page)
         elif search_type == 'nickname':
             result = UserService.search_users_by_nickname(keyword, page, per_page)
@@ -290,7 +291,7 @@ def bind_phone():
 
         # 验证短信验证码
         if not _verify_sms_code(normalized_phone, 'bind_phone', code):
-            return make_err_response({}, '验证码无效或已过期')
+            return make_err_response({}, 'INVALID_CAPTCHA')
 
         user_id = decoded.get('user_id')
         user = UserService.query_user_by_id(user_id)
@@ -300,7 +301,7 @@ def bind_phone():
         # 检查手机号是否已被绑定
         phone_hash = _calculate_phone_hash(normalized_phone)
         existing_user = UserService.query_user_by_phone_hash(phone_hash)
-        
+
         if existing_user and existing_user.user_id != user_id:
             # 检查是否是同一用户的不同账号（微信账号和手机号账号）
             if existing_user.wechat_openid and user.wechat_openid:
@@ -310,14 +311,14 @@ def bind_phone():
                 # 合并账号
                 current_app.logger.info(f'检测到同一用户的不同账号，开始合并: {user_id} 和 {existing_user.user_id}')
                 merged_user = _merge_accounts_by_time(user, existing_user)
-                
+
                 # 记录审计日志
                 _audit(merged_user.user_id, 'bind_phone_merge', {
                     'phone': normalized_phone,
                     'merged_user_id': existing_user.user_id,
                     'primary_user_id': user_id
                 })
-                
+
                 return make_succ_response({
                     'message': '手机号绑定成功，已合并账号',
                     'user_id': merged_user.user_id
@@ -378,7 +379,7 @@ def bind_wechat():
 
         # 检查openid是否已被绑定
         existing_user = UserService.query_user_by_openid(openid)
-        
+
         if existing_user and existing_user.user_id != user_id:
             # 检查是否是同一用户的不同账号（微信账号和手机号账号）
             if existing_user.phone_number and user.phone_number:
@@ -388,14 +389,14 @@ def bind_wechat():
                 # 合并账号
                 current_app.logger.info(f'检测到同一用户的不同账号，开始合并: {user_id} 和 {existing_user.user_id}')
                 merged_user = _merge_accounts_by_time(user, existing_user)
-                
+
                 # 记录审计日志
                 _audit(merged_user.user_id, 'bind_wechat_merge', {
                     'openid': openid,
                     'merged_user_id': existing_user.user_id,
                     'primary_user_id': user_id
                 })
-                
+
                 return make_succ_response({
                     'message': '微信账号绑定成功，已合并账号',
                     'user_id': merged_user.user_id
@@ -403,16 +404,16 @@ def bind_wechat():
 
         # 绑定微信账号
         user.wechat_openid = openid
-        
+
         # 更新用户信息（如果提供了新的头像或昵称）
         nickname = params.get('nickname')
         avatar_url = params.get('avatar_url')
-        
+
         if nickname and nickname.strip():
             user.nickname = nickname.strip()[:50]  # 限制长度
         if avatar_url and avatar_url.startswith(('http://', 'https://')):
             user.avatar_url = avatar_url
-            
+
         UserService.update_user_by_id(user)
 
         # 记录审计日志
