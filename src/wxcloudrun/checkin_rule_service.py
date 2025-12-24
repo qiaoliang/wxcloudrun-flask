@@ -341,17 +341,23 @@ class CheckinRuleService:
     @staticmethod
     def _get_rule_attr(rule, attr_name):
         """
-        通用方法：获取规则属性，支持CheckinRule、CommunityCheckinRule和字典格式
+        通用方法：获取规则属性，支持CheckinRule、CommunityCheckinRule、字典和列表格式
 
         Args:
-            rule: 规则对象（CheckinRule、CommunityCheckinRule或字典）
+            rule: 规则对象（CheckinRule、CommunityCheckinRule、字典或列表）
             attr_name: 属性名
 
         Returns:
             属性值
         """
+        # 处理列表格式的规则数据
+        if isinstance(rule, list):
+            # 如果是列表，返回None或默认值，因为列表没有命名的属性
+            logger.warning(f"尝试从列表对象获取属性 '{attr_name}'，但列表对象不支持属性访问")
+            return None
+
         # 处理字典格式的规则数据
-        if isinstance(rule, dict):
+        elif isinstance(rule, dict):
             # 字典格式直接返回键值
             if attr_name == 'rule_id':
                 # 社区规则字典中使用community_rule_id作为rule_id
