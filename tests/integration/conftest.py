@@ -121,7 +121,7 @@ class TestBase:
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
         
-        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname, generate_unique_username
         
         # 如果没有指定手机号码，生成唯一的
         if phone_number is None:
@@ -133,13 +133,14 @@ class TestBase:
         # 生成唯一的标识符
         open_id = generate_unique_openid(phone_number, test_context or 'create_test_user')
         nickname = generate_unique_nickname(test_context or 'create_test_user')
+        username = generate_unique_username(test_context or 'create_test_user')
         
         default_data = {
             'wechat_openid': open_id,
             'phone_number': phone_number,
             'phone_hash': cls.generate_phone_hash(phone_number),
             'nickname': nickname,
-            'name': nickname,
+            'name': username,  # 用户名使用uname_前缀，昵称使用nickname_前缀
             'avatar_url': 'https://example.com/avatar.jpg',
             'role': role,
             'status': 1,
@@ -305,7 +306,7 @@ class IntegrationTestBase(TestBase):
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
         
-        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname, generate_unique_username
         
         # 如果没有指定手机号码，生成唯一的
         if phone_number is None:
@@ -319,8 +320,9 @@ class IntegrationTestBase(TestBase):
         if not open_id:
             open_id = generate_unique_openid(phone_number, test_context or 'create_standard_test_user')
         
-        # 生成唯一的昵称
+        # 生成唯一的昵称和用户名
         nickname = generate_unique_nickname(test_context or 'create_standard_test_user')
+        username = generate_unique_username(test_context or 'create_standard_test_user')
         
         # 使用现有的create_test_user方法，但传递所有必需的参数
         return cls.create_test_user(
@@ -328,7 +330,7 @@ class IntegrationTestBase(TestBase):
             phone_number=phone_number,
             phone_hash=phone_hash,
             nickname=nickname,
-            name=nickname,
+            name=username,  # 用户名使用uname_前缀
             role=role,
             status=1,
             password_salt='test_salt',

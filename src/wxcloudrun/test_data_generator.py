@@ -115,7 +115,27 @@ class TestDataManager:
         thread_id = threading.current_thread().ident
         context_suffix = test_context[:8] if test_context else 'unknown'
         
-        return f"测试用户_{context_suffix}_{thread_id}_{counter}"
+        return f"nickname_{context_suffix}_{thread_id}_{counter}"
+    
+    def generate_unique_username(self, test_context: Optional[str] = None) -> str:
+        """
+        生成唯一的用户名
+        
+        Args:
+            test_context: 测试上下文信息
+            
+        Returns:
+            唯一的用户名字符串
+        """
+        with self._phone_counter_lock:
+            # 使用共享计数器确保唯一性
+            counter = self._phone_counter
+            self._phone_counter += 1
+        
+        thread_id = threading.current_thread().ident
+        context_suffix = test_context[:8] if test_context else 'unknown'
+        
+        return f"uname_{context_suffix}_{thread_id}_{counter}"
     
     def get_allocation_info(self) -> Dict[str, Any]:
         """
@@ -190,6 +210,19 @@ def generate_unique_nickname(test_context: Optional[str] = None) -> str:
         唯一的昵称
     """
     return _test_data_manager.generate_unique_nickname(test_context)
+
+
+def generate_unique_username(test_context: Optional[str] = None) -> str:
+    """
+    生成唯一用户名的便捷函数
+    
+    Args:
+        test_context: 测试上下文
+        
+    Returns:
+        唯一的用户名
+    """
+    return _test_data_manager.generate_unique_username(test_context)
 
 
 if __name__ == "__main__":

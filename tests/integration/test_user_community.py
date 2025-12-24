@@ -50,7 +50,7 @@ class TestUserIntegration(IntegrationTestBase):
         response = self.make_authenticated_request(
             'GET', 
             '/api/user/profile',
-            phone_number='13900007997',
+            phone_number=self.test_user.phone_number,
             password='Firefox0820'
         )
         
@@ -59,7 +59,7 @@ class TestUserIntegration(IntegrationTestBase):
         
         # 使用标准成功断言，验证新的数据结构
         data = self.assert_api_success(response, expected_data_keys=['nickname', 'role', 'role_name'])
-        assert data['data']['nickname'] == '测试用户'  # 来自test_auth_login_phone.py的用户
+        assert data['data']['nickname'] == original_nickname  # 使用动态生成的昵称
         assert 'role' in data['data'], "响应数据中缺少role字段"
         assert 'role_name' in data['data'], "响应数据中缺少role_name字段"
         
@@ -87,6 +87,9 @@ class TestUserIntegration(IntegrationTestBase):
             test_user = self.db.session.get(User, self.test_user_id)
             with client.session_transaction() as sess:
                 sess['user_openid'] = test_user.wechat_openid
+            # 在应用上下文中获取手机号码避免DetachedInstanceError
+            phone_number = test_user.phone_number
+            original_nickname = test_user.nickname
         
         # 准备更新数据
         update_data = {
@@ -99,7 +102,7 @@ class TestUserIntegration(IntegrationTestBase):
             'POST',
             '/api/user/profile',
             data=update_data,
-            phone_number='13900007997',
+            phone_number=phone_number,
             password='Firefox0820'
         )
         
