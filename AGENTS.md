@@ -63,7 +63,7 @@ backend/
 │   │   ├── core.py            # 数据库核心（已迁移）
 │   │   └── initialization.py  # 数据库初始化
 │   ├── alembic/           # 数据库迁移脚本
-│   └── main.py            # 原应用入口（已弃用，使用 wxcloudrun/__init__.py）
+│   └── run.py             # 标准应用入口（使用 app.create_app()）
 ├── tests/                 # 测试目录
 │   ├── unit/             # 单元测试
 │   ├── integration/      # 集成测试
@@ -122,7 +122,7 @@ pip install -r requirements-test.txt  # 测试依赖
 # 方式2：手动启动（使用新的应用工厂）
 cd src
 ENV_TYPE=function python3.12 -c "
-from wxcloudrun import app
+from app import create_app
 app.run(host='0.0.0.0', port=9999, debug=True)
 "
 

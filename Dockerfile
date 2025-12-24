@@ -1,36 +1,92 @@
-# 测试环境 Dockerfile
-FROM python:3.12-slim
+# SafeGuard 统一 Dockerfile
+# 支持多环境构建：function、uat、prod
+# 使用多阶段构建 + 构建参数
+
+# ================================
+# 基础构建阶段
+# ================================
+FROM python:3.12-slim as base
 
 # 设置工作目录
 WORKDIR /app
 
-# 只复制依赖文件，利用 Docker 缓存层
+# 安装系统依赖
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# 设置Python路径
+ENV PYTHONPATH=/app
+ENV PATH=/root/.local/bin:$PATH
+
+# ================================
+# 依赖安装阶段
+# ================================
+FROM base as dependencies
+
+# 只复制依赖文件，利用Docker缓存层
 COPY requirements.txt ./
 
-# 安装 Python 依赖到用户目录（与 localrun.sh 一致）
+# 安装Python依赖到用户目录
 RUN pip install --user -r requirements.txt
 
-# 复制 src 目录内容到 /app（src 目录映射为 /app）
+# ================================
+# 应用构建阶段
+# ================================
+FROM base as app-build
+
+# 复制依赖安装结果
+COPY --from=dependencies /root/.local /root/.local
+
+# 复制src目录内容到/app
 COPY src/ ./
 
 # 创建必要的目录并设置权限
 RUN mkdir -p /app/data /app/alembic/versions /app/logs && \
     chmod 755 /app/data /app/logs /app/alembic/versions
 
-# 暴露端口（与 localrun.sh 一致）
-EXPOSE 8080
-
-# 设置环境变量（使用 prod 环境配置）
-ENV ENV_TYPE=prod
-ENV PYTHONPATH=/app
-ENV PATH=/root/.local/bin:$PATH
-
 # 确保启动脚本有执行权限
 RUN chmod +x /app/docker-pre-start.sh
 
-
-# 运行脚本
+# 运行预启动脚本
 RUN /app/docker-pre-start.sh
 
-# 启动容器（使用新的标准入口 run.py）
-CMD ["python3", "run.py", "0.0.0.0", "8080"]
+# ================================
+# 运行时阶段
+# ================================
+FROM app-build as runtime
+
+# 构建参数 - 默认为生产环境
+ARG ENV_TYPE=prod
+ARG EXPOSE_PORT=8080
+
+# 设置环境变量
+ENV ENV_TYPE=${ENV_TYPE}
+
+# 暴露端口
+EXPOSE ${EXPOSE_PORT}
+
+# 启动容器
+CMD ["python3", "run.py", "0.0.0.0", "${EXPOSE_PORT}"]
+
+# ================================
+# 环境特定构建目标
+# ================================
+
+# Function 环境
+FROM runtime as function
+ARG EXPOSE_PORT=9999
+ENV ENV_TYPE=function
+EXPOSE ${EXPOSE_PORT}
+
+# UAT 环境  
+FROM runtime as uat
+ARG EXPOSE_PORT=8081
+ENV ENV_TYPE=uat
+EXPOSE ${EXPOSE_PORT}
+
+# 生产环境
+FROM runtime as production
+ARG EXPOSE_PORT=8080
+ENV ENV_TYPE=prod
+EXPOSE ${EXPOSE_PORT}
