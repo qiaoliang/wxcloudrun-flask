@@ -33,8 +33,24 @@
 │     ├── static            // 存放应用程序的靜态文件，如图片等
 │     └── wxcloudrun        // 存放应用程序的 Service 类文件
 │         ├── templates
-│         ├── utils
-│         └── views         // 存放应用程序的 Route 和 Controller 类文件
+│         └── utils
+│     └── app               // Flask 应用工厂和 Blueprint 模块
+│         ├── modules       // Blueprint 模块（按功能域组织）
+│         │   ├── auth       // 认证模块
+│         │   ├── user       // 用户管理模块
+│         │   ├── community  // 社区管理模块
+│         │   ├── checkin    // 打卡模块
+│         │   ├── supervision // 监督模块
+│         │   ├── sms        // 短信服务模块
+│         │   ├── share      // 分享功能模块
+│         │   ├── events     // 事件管理模块
+│         │   ├── community_checkin // 社区打卡模块
+│         │   ├── user_checkin     // 用户打卡模块
+│         │   └── misc       // 杂项功能模块
+│         └── shared         // 共享组件
+│             ├── response   // 统一响应格式
+│             ├── decorators # 装饰器
+│             └── utils      # 工具函数
 ├── tests           // 存放自动化测试
 │     ├── e2e               // 存放 end-to-end 自动化测试用例文件
 │     ├── integration       // 存放 integration 自动化测试用例文件

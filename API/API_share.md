@@ -133,6 +133,6 @@
 4. **重复关系处理**: 如果监督关系已存在，更新状态为已同意
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/share.py`
+- `backend/src/app/modules/share/routes.py`
 - `backend/src/wxcloudrun/user_service.py`
 - `backend/src/wxcloudrun/dao.py`

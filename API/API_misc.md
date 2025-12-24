@@ -154,6 +154,6 @@
 5. 检测外部系统状态
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/misc.py`
+- `backend/src/app/modules/misc/routes.py`
 - `backend/src/config_manager.py`
 - `backend/src/wxcloudrun/dao.py`

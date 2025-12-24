@@ -165,6 +165,6 @@
 - 禁用次要账号
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/user.py`
+- `backend/src/app/modules/user/routes.py`
 - `backend/src/wxcloudrun/user_service.py`
 - `backend/src/wxcloudrun/decorators.py`

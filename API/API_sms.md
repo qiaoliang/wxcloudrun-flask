@@ -89,7 +89,7 @@ is_valid = _verify_sms_code(phone, purpose, code)
 ```
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/sms.py`
+- `backend/src/app/modules/sms/routes.py`
 - `backend/src/wxcloudrun/sms_service.py`
 - `backend/src/wxcloudrun/utils/validators.py`
 - `backend/src/config_manager.py`

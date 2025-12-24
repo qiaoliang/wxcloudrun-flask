@@ -131,23 +131,21 @@ flowchart TD
     P -->|成功| R[记录迁移成功并返回 True]
 ```
 
-## 数据库核心初始化流程 (database/core.py)
+## Flask-SQLAlchemy 数据库初始化流程
 
 ```mermaid
 flowchart TD
-    A[创建 DatabaseCore 实例] --> B[设置模式: test/standalone/flask]
-    B --> C[调用 initialize方法]
+    A[应用工厂创建 Flask 应用] --> B[初始化 Flask-SQLAlchemy 扩展]
+    B --> C[配置数据库 URI]
 
-    C --> D{模式类型}
-    D -->|test| E[使用内存数据库: sqlite:///:memory:]
-    D -->|standalone| F[从配置获取数据库 URI]
-    D -->|flask| G[等待外部注入]
+    C --> D{环境类型}
+    D -->|unit| E[使用内存数据库进行测试]
+    D -->|function/uat/prod| F[使用 SQLite 文件数据库]
 
-    E --> H[创建引擎和会话工厂]
-    F --> H
-    G --> I[绑定到 SQLAlchemy]
-
-    H --> J{是否为 Flask 模式?}
+    E --> G[自动创建数据库表]
+    F --> H[执行 Alembic 数据库迁移]
+    G --> I[数据库初始化完成]
+    H --> I
     J -->|否| K[自动创建表]
     J -->|是| L[等待外部调用 create_tables]
 
@@ -188,23 +186,22 @@ flowchart TD
 
 ```mermaid
 sequenceDiagram
-    participant Main as main.py
-    participant Wx as wxcloudrun
-    participant DB as DatabaseCore
+    participant Main as run.py
+    participant App as Flask 应用工厂
+    participant DB as Flask-SQLAlchemy
     participant Mig as alembic_migration
     participant CS as CommunityService
 
-    Main->>Wx: 导入模块
-    Wx->>Wx: 初始化 Flask 应用
-    Wx->>Wx: 导入模型和视图
+    Main->>App: create_app()
+    App->>App: 初始化扩展
+    App->>DB: 初始化 SQLAlchemy
+    App->>App: 注册 Blueprint
 
-    Main->>Main: 创建 Flask 应用
-    Main->>DB: 获取数据库核心实例
-    Main->>DB: 初始化数据库
-    DB-->>Main: 返回初始化状态
+    Main->>Main: 创建 Flask 应用实例
+    Main->>Mig: 执行数据库迁移（如需要）
 
     alt 非 unit 环境
-        Main->>Mig: 执行数据库迁移
+        Main->>CS: 初始化超级管理员和默认社区
         Mig-->>Main: 返回迁移结果
     end
 

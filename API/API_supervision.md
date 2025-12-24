@@ -248,6 +248,6 @@
 - 监督者只能查看自己有权限监督的规则和用户的打卡记录
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/supervision.py`
+- `backend/src/app/modules/supervision/routes.py`
 - `backend/src/wxcloudrun/user_service.py`
 - `backend/src/wxcloudrun/dao.py`

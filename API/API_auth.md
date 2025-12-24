@@ -135,6 +135,6 @@
 - `USER_NOT_FOUND`: 用户不存在
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/auth.py`
+- `backend/src/app/modules/auth/routes.py`
 - `backend/src/wxcloudrun/utils/auth.py`
 - `backend/src/wxcloudrun/user_service.py`

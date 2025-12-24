@@ -334,6 +334,6 @@
 - **普通用户 (role=1)**: 仅可访问所属社区
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/community.py`
+- `backend/src/app/modules/community/routes.py`
 - `backend/src/wxcloudrun/community_service.py`
 - `backend/src/wxcloudrun/community_staff_service.py`

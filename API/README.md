@@ -151,11 +151,17 @@ make e2e
 ## 相关资源
 
 - **项目指南**: [../AGENTS.md](../AGENTS.md)
-- **源代码**: [../src/wxcloudrun/views/](../src/wxcloudrun/views/)
+- **源代码**: [../src/app/modules/](../src/app/modules/) (Blueprint 架构)
+- **业务服务**: [../src/wxcloudrun/](../src/wxcloudrun/) (服务层)
 - **测试目录**: [../tests/](../tests/)
 - **部署脚本**: [../scripts/](../scripts/)
 
 ## 更新日志
+
+### 2025-12-24
+- 更新文档以反映 Blueprint 模块化架构
+- 源代码路径从 wxcloudrun/views 迁移到 app/modules
+- 更新贡献指南以匹配新的架构
 
 ### 2025-12-19
 - 初始版本，按功能域梳理所有 API 接口
@@ -166,8 +172,9 @@ make e2e
 
 如需更新 API 文档，请遵循以下步骤：
 
-1. 修改对应的源代码文件（`backend/src/wxcloudrun/views/*.py`）
-2. 更新对应的 API 文档文件（`backend/API/API_*.md`）
+1. 修改对应的 Blueprint 路由文件（`backend/src/app/modules/*/routes.py`）
+2. 更新对应的业务服务文件（`backend/src/wxcloudrun/*_service.py`）
+3. 更新对应的 API 文档文件（`backend/API/API_*.md`）
 3. 确保文档格式符合规范
 4. 更新本 README 文件中的相关部分
 

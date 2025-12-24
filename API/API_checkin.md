@@ -266,6 +266,6 @@
 - 例如：65 (0b1000001) 表示周一和周日
 
 ## 相关文件
-- `backend/src/wxcloudrun/views/checkin.py`
+- `backend/src/app/modules/checkin/routes.py`
 - `backend/src/wxcloudrun/checkin_rule_service.py`
 - `backend/src/wxcloudrun/checkin_record_service.py`
