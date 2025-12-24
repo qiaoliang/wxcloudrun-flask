@@ -29,13 +29,8 @@ def normalize_phone_number(phone):
 
     return phone
 
-app_logger = logging.getLogger('log')
-
-
 def _hash_code(phone, code, salt):
-    """
-    生成验证码哈希值
-    """
+    """生成验证码哈希值"""
     return sha256(f"{phone}:{code}:{salt}".encode('utf-8')).hexdigest()
 
 

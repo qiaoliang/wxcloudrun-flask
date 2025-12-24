@@ -1,7 +1,7 @@
 import os
 import threading
 import time as time_module
-from datetime import datetime, date, time, timedelta
+from datetime import datetime, time, timedelta
 
 from flask import current_app
 from database.flask_models import CheckinRule, CheckinRecord, User
