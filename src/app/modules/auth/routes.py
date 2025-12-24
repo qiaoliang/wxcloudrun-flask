@@ -21,7 +21,7 @@ from wxcloudrun.user_service import UserService
 from database.flask_models import User
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
 from config_manager import get_token_secret
-from const_default import DEFUALT_COMMUNITY_NAME
+from const_default import DEFAULT_COMMUNITY_NAME
 
 app_logger = logging.getLogger('log')
 
@@ -173,7 +173,7 @@ def login_wechat():
             # 自动分配到默认社区
             try:
                 from wxcloudrun.community_service import CommunityService
-                CommunityService.assign_user_to_community(user, DEFUALT_COMMUNITY_NAME)
+                CommunityService.assign_user_to_community(user, DEFAULT_COMMUNITY_NAME)
                 current_app.logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
             except Exception as e:
                 current_app.logger.error(f'自动分配社区失败: {str(e)}', exc_info=True)
@@ -217,9 +217,9 @@ def login_wechat():
                     current_app.logger.info(f'用户无社区信息，自动分配到默认社区，用户ID: {user.user_id}')
                     try:
                         from wxcloudrun.community_service import CommunityService
-                        CommunityService.assign_user_to_community(user, DEFUALT_COMMUNITY_NAME)
+                        CommunityService.assign_user_to_community(user, DEFAULT_COMMUNITY_NAME)
                         updated = True
-                        current_app.logger.info(f'用户已成功分配到默认社区: {DEFUALT_COMMUNITY_NAME}')
+                        current_app.logger.info(f'用户已成功分配到默认社区: {DEFAULT_COMMUNITY_NAME}')
                     except Exception as community_error:
                         current_app.logger.error(f'分配用户到默认社区失败: {str(community_error)}', exc_info=True)
                         # 不影响登录流程，只记录错误
@@ -468,7 +468,7 @@ def register_phone():
         # 自动分配到默认社区
         try:
             from wxcloudrun.community_service import CommunityService
-            CommunityService.assign_user_to_community(user, DEFUALT_COMMUNITY_NAME)
+            CommunityService.assign_user_to_community(user, DEFAULT_COMMUNITY_NAME)
             current_app.logger.info(f'手机注册用户已自动分配到默认社区，用户ID: {user.user_id}')
         except Exception as e:
             current_app.logger.error(f'手机注册用户自动分配社区失败: {str(e)}', exc_info=True)

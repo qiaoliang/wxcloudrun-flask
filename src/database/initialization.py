@@ -9,7 +9,7 @@ import os
 from hashlib import sha256
 from database.flask_models import User, Community, CommunityStaff, db
 
-from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID,BLACKHOUSE_COMMUNITY_NAME
+from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,BLACKHOUSE_COMMUNITY_NAME
 
 
 def create_super_admin_and_default_community():

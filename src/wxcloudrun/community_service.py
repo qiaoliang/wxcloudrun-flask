@@ -9,7 +9,7 @@ import json
 from datetime import datetime
 from hashlib import sha256
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog
-from const_default import DEFUALT_COMMUNITY_NAME,DEFUALT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
+from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
 logger = logging.getLogger('CommunityService')
 
 
@@ -658,7 +658,7 @@ class CommunityService:
         moved_to = None
 
         # 获取特殊社区ID
-        anka_family = db.session.query(Community).filter_by(name=DEFUALT_COMMUNITY_NAME).first()
+        anka_family = db.session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
         blackhouse = db.session.query(Community).filter_by(name=DEFAULT_BLACK_ROOM_NAME).first()
 
         # 如果从"黑屋"社区移除，不能删除用户
@@ -666,7 +666,7 @@ class CommunityService:
             raise ValueError("不能从黑屋社区删除用户")
 
         # 如果从"安卡大家庭"移除,移入"黑屋"
-        elif community.name == DEFUALT_COMMUNITY_NAME and blackhouse:
+        elif community.name == DEFAULT_COMMUNITY_NAME and blackhouse:
             # 对于安卡大家庭，不检查用户是否在该社区，直接移入黑屋
             # 检查是否已在黑屋
             if target_user.community_id != blackhouse.community_id:
@@ -675,7 +675,7 @@ class CommunityService:
                 moved_to = DEFAULT_BLACK_ROOM_NAME
 
         # 如果从普通社区移除
-        elif community.name not in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
+        elif community.name not in [DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
             # 检查用户是否在该社区（普通社区需要这个检查）
             if target_user.community_id != community_id:
                 raise ValueError("用户不在该社区")
@@ -689,7 +689,7 @@ class CommunityService:
                     User.community_id.isnot(None)
                 )
             ).join(Community).filter(
-                Community.name.notin_([DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME])
+                Community.name.notin_([DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME])
             ).count()
 
             # 如果不属于任何其他普通社区,移入"安卡大家庭"
@@ -698,7 +698,7 @@ class CommunityService:
                 if target_user.community_id != anka_family.community_id:
                     target_user.community_id = anka_family.community_id
                     target_user.community_joined_at = datetime.now()
-                    moved_to = DEFUALT_COMMUNITY_NAME
+                    moved_to = DEFAULT_COMMUNITY_NAME
             else:
                 # 如果用户属于其他普通社区，则清空社区信息
                 target_user.community_id = None
@@ -719,7 +719,7 @@ class CommunityService:
             raise ValueError("社区不存在")
 
         # 特殊社区不能删除
-        if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
+        if community.name in [DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
             raise ValueError("特殊社区不能删除")
 
         # 检查社区状态
@@ -750,7 +750,7 @@ class CommunityService:
             raise ValueError("社区不存在")
 
         # 特殊社区不能停用
-        if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
+        if community.name in [DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
             raise ValueError("特殊社区不能停用")
 
         # 更新状态

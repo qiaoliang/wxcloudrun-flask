@@ -14,7 +14,7 @@ from app.shared.utils.auth import verify_token, require_community_staff, get_cur
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
-from const_default import DEFUALT_COMMUNITY_NAME, DEFUALT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_NAME, DEFAULT_BLACK_ROOM_ID
+from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_NAME, DEFAULT_BLACK_ROOM_ID
 from wxcloudrun.utils.validators import _audit, _hash_code
 
 app_logger = logging.getLogger('log')

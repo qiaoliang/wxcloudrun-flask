@@ -266,10 +266,10 @@ class UserService:
                 }
 
             # 构建查询 - 只从安卡大家庭搜索
-            from const_default import DEFUALT_COMMUNITY_ID
+            from const_default import DEFAULT_COMMUNITY_ID
             from sqlalchemy import or_
 
-            query = User.query.filter(User.community_id == DEFUALT_COMMUNITY_ID)
+            query = User.query.filter(User.community_id == DEFAULT_COMMUNITY_ID)
 
             # 关键词搜索（昵称或手机号）
             query = query.filter(
