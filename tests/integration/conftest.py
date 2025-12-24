@@ -110,22 +110,36 @@ class TestBase:
         return sha256(f"{password}:{salt}".encode('utf-8')).hexdigest()
     
     @classmethod
-    def create_test_user(cls, phone_number=None, role=1, suffix=None, **kwargs):
+    def create_test_user(cls, phone_number=None, role=1, suffix=None, test_context=None, **kwargs):
         """创建测试用户的增强方法"""
         from database.flask_models import User
+        import sys
+        import os
         
+        # 添加src路径以导入测试数据生成器
+        src_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+        
+        # 如果没有指定手机号码，生成唯一的
         if phone_number is None:
-            phone_number = f'1390000{suffix or "0000"}'
+            phone_number = generate_unique_phone_number(test_context or 'create_test_user')
         
         if suffix is None:
             suffix = str(role) + phone_number[-4:]
         
+        # 生成唯一的标识符
+        open_id = generate_unique_openid(phone_number, test_context or 'create_test_user')
+        nickname = generate_unique_nickname(test_context or 'create_test_user')
+        
         default_data = {
-            'wechat_openid': f'test_openid_{suffix}',
+            'wechat_openid': open_id,
             'phone_number': phone_number,
             'phone_hash': cls.generate_phone_hash(phone_number),
-            'nickname': f'测试用户_{suffix}',
-            'name': f'测试用户_{suffix}',
+            'nickname': nickname,
+            'name': nickname,
             'avatar_url': 'https://example.com/avatar.jpg',
             'role': role,
             'status': 1,
@@ -280,25 +294,41 @@ class IntegrationTestBase(TestBase):
             cls.db.create_all()
     
     @classmethod
-    def create_standard_test_user(cls, role=1, phone_number='13900007997', password='Firefox0820', open_id=None):
-        """创建标准测试用户（与test_auth_login_phone.py兼容）"""
+    def create_standard_test_user(cls, role=1, phone_number=None, password='Firefox0820', open_id=None, test_context=None):
+        """创建标准测试用户（自动生成唯一手机号码）"""
         from hashlib import sha256
+        import sys
+        import os
+        
+        # 添加src路径以导入测试数据生成器
+        src_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src')
+        if src_path not in sys.path:
+            sys.path.insert(0, src_path)
+        
+        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+        
+        # 如果没有指定手机号码，生成唯一的
+        if phone_number is None:
+            phone_number = generate_unique_phone_number(test_context or 'create_standard_test_user')
         
         # 设置phone_secret以匹配UserService中的哈希算法
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
         phone_hash = sha256(f"{phone_secret}:{phone_number}".encode('utf-8')).hexdigest()
         
-        # 如果没有指定open_id，使用基于phone_number的唯一ID
+        # 如果没有指定open_id，生成唯一的
         if not open_id:
-            open_id = f'test_snapshot_final_user_{phone_number[-4:]}'
+            open_id = generate_unique_openid(phone_number, test_context or 'create_standard_test_user')
+        
+        # 生成唯一的昵称
+        nickname = generate_unique_nickname(test_context or 'create_standard_test_user')
         
         # 使用现有的create_test_user方法，但传递所有必需的参数
         return cls.create_test_user(
             wechat_openid=open_id,
             phone_number=phone_number,
             phone_hash=phone_hash,
-            nickname='测试用户',
-            name='测试用户',
+            nickname=nickname,
+            name=nickname,
             role=role,
             status=1,
             password_salt='test_salt',
