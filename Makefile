@@ -51,7 +51,58 @@ setup:
 	pip install -r requirements-test.txt
 	@echo "环境设置完成"
 
-# 运行集成测试
+# 运行单元测试（使用智能配置）
+ut: setup
+	@echo "运行单元测试..."
+	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python smart_test_runner.py tests/unit/ -v; \
+	else \
+		python smart_test_runner.py tests/unit/; \
+	fi
+
+# 运行单个单元测试
+ut-s: setup
+	@if [ -z "$(TEST)" ]; then \
+		echo "错误: 请指定测试文件或测试用例，例如: make ut-s TEST=tests/unit/test_user_service.py"; \
+		exit 1; \
+	fi
+	@echo "运行单个单元测试: $(TEST)"
+	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python smart_test_runner.py $(TEST) -v; \
+	else \
+		python smart_test_runner.py $(TEST); \
+	fi
+
+# 运行集成测试（使用智能配置）
+it: setup
+	@echo "=== 运行所有集成测试用例 ==="
+	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python smart_test_runner.py tests/integration/ -v; \
+	else \
+		python smart_test_runner.py tests/integration/; \
+	fi
+	@echo "✓ 所有集成测试完成"
+
+# 运行单个集成测试
+its: setup
+	@if [ -z "$(TEST)" ]; then \
+		echo "错误: 请指定测试文件或测试用例，例如: make its TEST=tests/integration/test_user_integration.py"; \
+		exit 1; \
+	fi
+	@echo "运行单个集成测试: $(TEST)"
+	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	if [ "$(VERBOSE)" = "1" ]; then \
+		python smart_test_runner.py $(TEST) -v; \
+	else \
+		python smart_test_runner.py $(TEST); \
+	fi
 
 # 智能测试命令
 .PHONY: test-smart test-parallel test-unit-new test-integration-new test-all-new

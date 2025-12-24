@@ -81,7 +81,17 @@ def run_tests_with_smart_config(test_path, verbose=False, force_parallel=False, 
     
     try:
         # 执行测试
-        result = subprocess.run(cmd, env=env)
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True)
+        
+        # 输出错误信息
+        if result.returncode != 0:
+            if result.stdout:
+                print("STDOUT:")
+                print(result.stdout)
+            if result.stderr:
+                print("STDERR:")
+                print(result.stderr)
+        
         return result.returncode == 0
         
     except KeyboardInterrupt:
