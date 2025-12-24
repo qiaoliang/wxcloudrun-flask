@@ -26,7 +26,7 @@ from const_default import DEFAULT_COMMUNITY_NAME
 app_logger = logging.getLogger('log')
 
 
-@auth_bp.route('/login_wechat', methods=['POST'])
+@auth_bp.route('/auth/login_wechat', methods=['POST'])
 def login_wechat():
     """
     微信登录接口，通过code获取用户信息并返回token
@@ -307,7 +307,7 @@ def login_wechat():
             return make_err_response({}, '登录成功但响应构造失败')
 
 
-@auth_bp.route('/refresh_token', methods=['POST'])
+@auth_bp.route('/auth/refresh_token', methods=['POST'])
 def refresh_token():
     """
     刷新token接口，使用refresh token获取新的access token
@@ -387,7 +387,7 @@ def refresh_token():
         return make_err_response({}, f'刷新Token失败: {str(e)}')
 
 
-@auth_bp.route('/logout', methods=['POST'])
+@auth_bp.route('/auth/logout', methods=['POST'])
 def logout():
     """
     用户登出接口，清除refresh token
@@ -419,7 +419,7 @@ def logout():
         return make_err_response({}, f'登出失败: {str(e)}')
 
 
-@auth_bp.route('/register_phone', methods=['POST'])
+@auth_bp.route('/auth/register_phone', methods=['POST'])
 def register_phone():
     try:
         params = request.get_json() or {}
@@ -491,7 +491,7 @@ def register_phone():
         return make_err_response({}, f'注册失败: {str(e)}')
 
 
-@auth_bp.route('/login_phone_code', methods=['POST'])
+@auth_bp.route('/auth/login_phone_code', methods=['POST'])
 def login_phone_code():
     current_app.logger.info('=== 开始执行手机号验证码登录接口 ===')
     try:
@@ -574,7 +574,7 @@ def login_phone_code():
         return make_err_response({}, f'登录失败: {str(e)}')
 
 
-@auth_bp.route('/login_phone_password', methods=['POST'])
+@auth_bp.route('/auth/login_phone_password', methods=['POST'])
 def login_phone_password():
     current_app.logger.info('=== 开始执行手机号密码登录接口 ===')
     try:
@@ -649,7 +649,7 @@ def login_phone_password():
         return make_err_response({}, f'登录失败: {str(e)}')
 
 
-@auth_bp.route('/login_phone', methods=['POST'])
+@auth_bp.route('/auth/login_phone', methods=['POST'])
 def login_phone():
     """
     手机号登录：需要同时验证验证码和密码
