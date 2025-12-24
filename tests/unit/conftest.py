@@ -24,8 +24,8 @@ from wxcloudrun.test_data_generator import (
     generate_unique_nickname,
     generate_unique_username
 )
-# 添加当前目录到路径以导入test_constants
-sys.path.insert(0, os.path.dirname(__file__))
+# 添加上级目录到路径以导入test_constants
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from test_constants import TEST_CONSTANTS
 from hashlib import sha256
 
@@ -114,57 +114,9 @@ def test_superuser(test_session):
     return user
 
 
-def create_test_user(test_session, role=1, test_context="test_user"):
-    """
-    创建测试用户的通用函数
-    
-    Args:
-        test_session: 数据库会话
-        role: 用户角色，默认为1（普通用户）
-        test_context: 测试上下文，用于生成唯一数据
-        
-    Returns:
-        创建的用户对象
-    """
-    phone = generate_unique_phone_number(test_context)
-    user = User(
-        wechat_openid=generate_unique_openid(phone, test_context),
-        phone_number=phone,
-        phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone}".encode('utf-8')).hexdigest(),
-        nickname=generate_unique_nickname(test_context),
-        name=generate_unique_username(test_context),
-        role=role,
-        status=1,
-        avatar_url=TEST_CONSTANTS.generate_avatar_url(phone)
-    )
-    test_session.add(user)
-    test_session.commit()
-    return user
-
-
-def create_test_community(test_session, name_suffix=None):
-    """
-    创建测试社区的通用函数
-    
-    Args:
-        test_session: 数据库会话
-        name_suffix: 名称后缀，如果为None则使用时间戳
-        
-    Returns:
-        创建的社区对象
-    """
-    if name_suffix is None:
-        name_suffix = datetime.now().strftime('%Y%m%d_%H%M%S')
-    
-    community_name = TEST_CONSTANTS.generate_community_name(name_suffix)
-    community = Community(
-        name=community_name,
-        description=TEST_CONSTANTS.generate_community_description(community_name),
-        status=1
-    )
-    test_session.add(community)
-    test_session.commit()
-    return community
+# 导入统一的测试工具
+sys.path.insert(0, os.path.dirname(__file__))
+from test_utils import create_test_user, create_test_community
 
 
 # 为了向后兼容，保留原有的test_app fixture

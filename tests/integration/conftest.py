@@ -15,7 +15,9 @@ src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 sys.path.insert(0, src_path)
 
 # 导入测试常量
-from .test_constants import TEST_CONSTANTS
+# 添加上级目录到路径以导入test_constants
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from test_constants import TEST_CONSTANTS
 
 
 class TestBase:
@@ -114,53 +116,17 @@ class TestBase:
     
     @classmethod
     def create_test_user(cls, phone_number=None, role=1, suffix=None, test_context=None, **kwargs):
-        """创建测试用户的增强方法"""
-        from database.flask_models import User
-        import sys
-        import os
+        """创建测试用户的增强方法（向后兼容）"""
+        # 导入统一的测试工具
+        from test_utils import TestUserFactory
         
-        # 添加src路径以导入测试数据生成器
-        src_path = os.path.join(os.path.dirname(__file__), '..', '..', 'src')
-        if src_path not in sys.path:
-            sys.path.insert(0, src_path)
-        
-        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname, generate_unique_username
-        
-        # 如果没有指定手机号码，生成唯一的
-        if phone_number is None:
-            phone_number = generate_unique_phone_number(test_context or 'create_test_user')
-        
-        if suffix is None:
-            suffix = str(role) + phone_number[-4:]
-        
-        # 生成唯一的标识符
-        open_id = generate_unique_openid(phone_number, test_context or 'create_test_user')
-        nickname = generate_unique_nickname(test_context or 'create_test_user')
-        username = generate_unique_username(test_context or 'create_test_user')
-        
-        default_data = {
-            'wechat_openid': open_id,
-            'phone_number': phone_number,
-            'phone_hash': cls.generate_phone_hash(phone_number),
-            'nickname': nickname,
-            'name': username,  # 用户名使用uname_前缀，昵称使用nickname_前缀
-            'avatar_url': TEST_CONSTANTS.generate_avatar_url(phone_number),
-            'role': role,
-            'status': 1,
-            'password_salt': TEST_CONSTANTS.generate_password_salt(),
-        }
-        default_data.update(kwargs)
-        
-        # 设置密码哈希
-        if 'password' in default_data:
-            default_data['password_hash'] = cls.generate_password_hash(
-                default_data.pop('password'), default_data['password_salt']
-            )
-        
-        user = User(**default_data)
-        cls.db.session.add(user)
-        cls.db.session.commit()
-        return user
+        return TestUserFactory.create_user(
+            session=cls.db.session,
+            role=role,
+            phone_number=phone_number,
+            test_context=test_context,
+            **kwargs
+        )
     
     @classmethod
     def create_test_community(cls, name=None, creator=None, **kwargs):
