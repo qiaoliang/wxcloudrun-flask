@@ -19,6 +19,10 @@ sys.path.insert(0, src_path)
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 from test_constants import TEST_CONSTANTS
 
+# 添加当前目录到路径以导入test_data_generator
+sys.path.insert(0, os.path.dirname(__file__))
+from test_data_generator import generate_unique_phone_number
+
 
 class TestBase:
     """测试基类，封装Flask-SQLAlchemy测试上下文管理"""
@@ -157,7 +161,7 @@ class TestBase:
         """获取JWT token的标准方法"""
         if phone_number is None:
             # 使用数据生成器生成唯一手机号
-            from wxcloudrun.test_data_generator import generate_unique_phone_number
+            from test_data_generator import generate_unique_phone_number
             phone_number = generate_unique_phone_number('get_jwt_token')
         
         if password is None:
@@ -287,7 +291,7 @@ class IntegrationTestBase(TestBase):
         if src_path not in sys.path:
             sys.path.insert(0, src_path)
         
-        from wxcloudrun.test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname, generate_unique_username
+        from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname, generate_unique_username
         
         # 如果没有指定手机号码，生成唯一的
         if phone_number is None:

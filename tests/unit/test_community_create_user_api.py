@@ -15,8 +15,9 @@ sys.path.insert(0, project_root)
 from database.flask_models import User, Community
 from const_default import DEFAULT_COMMUNITY_NAME
 
-# 导入测试数据生成器
-from wxcloudrun.test_data_generator import generate_unique_phone_number
+# 添加测试目录到路径以导入test_data_generator
+sys.path.insert(0, os.path.dirname(__file__))
+from test_data_generator import generate_unique_phone_number
 
 
 class TestCommunityCreateUserAPILogic:

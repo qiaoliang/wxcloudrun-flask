@@ -17,8 +17,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from flask import Flask
 from database.flask_models import db, User, Community, CheckinRule, CheckinRecord, UserAuditLog
 
-# 导入测试数据生成器和常量
-from wxcloudrun.test_data_generator import (
+# 添加上级目录到路径以导入test_data_generator
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from test_data_generator import (
     generate_unique_phone_number,
     generate_unique_openid,
     generate_unique_nickname,

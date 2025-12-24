@@ -9,17 +9,16 @@ import pytest
 from typing import Optional, Dict, Any
 from hashlib import sha256
 
-# 添加src路径以导入数据生成器
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
-from wxcloudrun.test_data_generator import (
+# 导入测试常量
+from test_constants import TEST_CONSTANTS
+
+# 导入测试数据生成器
+from test_data_generator import (
     generate_unique_phone_number,
     generate_unique_openid,
     generate_unique_nickname,
     generate_unique_username
 )
-
-# 导入测试常量
-from test_constants import TEST_CONSTANTS
 
 
 class TestUserFactory:
