@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # 改进的启动脚本，自动处理数据库迁移
 
+kill $(lsof -ti:8888-9999) 2>/dev/null || true
+
 # 激活虚拟环境
 source venv_py312/bin/activate
 
