@@ -13,7 +13,7 @@ from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 logger = logging.getLogger('UserCheckinView')
 
 
-@user_checkin_bp.route('/rules', methods=['GET'])
+@user_checkin_bp.route('/user-checkin/rules', methods=['GET'])
 def get_user_all_rules():
     """
     获取用户所有打卡规则（个人规则 + 社区规则）
@@ -77,7 +77,7 @@ def get_user_all_rules():
         return make_err_response({}, f'获取规则失败: {str(e)}')
 
 
-@user_checkin_bp.route('/today-plan', methods=['GET'])
+@user_checkin_bp.route('/user-checkin/today-plan', methods=['GET'])
 def get_user_today_plan():
     """
     获取用户今日打卡计划
@@ -132,7 +132,7 @@ def get_user_today_plan():
         return make_err_response({}, f'获取今日计划失败: {str(e)}')
 
 
-@user_checkin_bp.route('/rules/<int:rule_id>', methods=['GET'])
+@user_checkin_bp.route('/user-checkin/rules/<int:rule_id>', methods=['GET'])
 def get_user_rule_detail(rule_id):
     """
     获取用户打卡规则详情
@@ -182,7 +182,7 @@ def get_user_rule_detail(rule_id):
         return make_err_response({}, f'获取规则详情失败: {str(e)}')
 
 
-@user_checkin_bp.route('/statistics', methods=['GET'])
+@user_checkin_bp.route('/user-checkin/statistics', methods=['GET'])
 def get_user_checkin_statistics():
     """
     获取用户打卡统计信息
@@ -241,7 +241,7 @@ def get_user_checkin_statistics():
         return make_err_response({}, f'获取统计信息失败: {str(e)}')
 
 
-@user_checkin_bp.route('/rules/source-info', methods=['POST'])
+@user_checkin_bp.route('/user-checkin/rules/source-info', methods=['POST'])
 def get_rules_source_info():
     """
     批量获取规则来源信息
