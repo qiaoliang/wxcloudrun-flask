@@ -17,7 +17,7 @@ from config_manager import should_use_real_sms
 app_logger = logging.getLogger('log')
 
 
-@sms_bp.route('/send_code', methods=['POST'])
+@sms_bp.route('/sms/send_code', methods=['POST'])
 def sms_send_code():
     try:
         params = request.get_json() or {}
