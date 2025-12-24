@@ -59,8 +59,10 @@ class TestUserFactory:
         password_salt = TEST_CONSTANTS.generate_password_salt()
         password_hash = sha256(f"{password}:{password_salt}".encode('utf-8')).hexdigest()
         
-        # 生成手机哈希
-        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        # 生成手机哈希（与登录API保持一致）
+        import os
+        phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+        phone_hash = sha256(f"{phone_secret}:{phone_number}".encode('utf-8')).hexdigest()
         
         # 构建用户数据
         user_data = {
@@ -163,7 +165,15 @@ class RolePermissionTester:
                 user.community_id = community_id
                 test_instance.db.session.commit()
             
-            return user
+            # 返回用户信息字典而不是对象，避免DetachedInstanceError
+            return {
+                'user_id': user.user_id,
+                'phone_number': user.phone_number,
+                'nickname': user.nickname,
+                'name': user.name,
+                'role': user.role,
+                'community_id': user.community_id
+            }
     
     @staticmethod
     def test_user_permissions(test_instance, user, expected_role: int, expected_role_name: str):
@@ -172,14 +182,17 @@ class RolePermissionTester:
         
         Args:
             test_instance: 测试实例
-            user: 用户对象
+            user: 用户对象或用户信息字典
             expected_role: 期望的角色值
             expected_role_name: 期望的角色名称
         """
+        # 支持用户对象或用户字典
+        phone_number = user.phone_number if hasattr(user, 'phone_number') else user['phone_number']
+        
         response = test_instance.make_authenticated_request(
             'GET',
             '/api/user/profile',
-            phone_number=user.phone_number,
+            phone_number=phone_number,
             password=TEST_CONSTANTS.DEFAULT_PASSWORD
         )
         
