@@ -1053,65 +1053,65 @@ def remove_community_staff():
             return make_err_response({}, '缺少必要参数')
 
         # Using Flask-SQLAlchemy db.session
-            # 检查社区是否存在
-            community = db.session.query(Community).get(community_id)
-            if not community:
-                return make_err_response({}, '社区不存在')
+        # 检查社区是否存在
+        community = db.session.query(Community).get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
 
-            # 权限检查: super_admin 或 community_staff（主管或专员）
-            if user.role != 4:  # 不是super_admin
-                staff_record = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    user_id=user_id
-                ).first()
-                if not staff_record:
-                    return make_err_response({}, '权限不足，需要社区工作人员权限')
+        # 权限检查: super_admin 或 community_staff（主管或专员）
+        if user.role != 4:  # 不是super_admin
+            staff_record = db.session.query(CommunityStaff).filter_by(
+                community_id=community_id,
+                user_id=user_id
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足，需要社区工作人员权限')
 
-                # 检查要移除的工作人员记录
-                target_staff = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    user_id=target_user_id
-                ).first()
-
-                if not target_staff:
-                    return make_err_response({}, '工作人员不存在')
-
-                # 权限细化检查：
-                # 1. 专员不能移除主管
-                if staff_record.role == 'staff' and target_staff.role == 'manager':
-                    return make_err_response({}, '专员不能移除主管，需要主管权限')
-
-                # 2. 不能移除自己（除非是超级管理员）
-                if target_user_id == user_id:
-                    return make_err_response({}, '不能移除自己，请联系其他管理员操作')
-
-            # 查找工作人员记录（如果上面已经查过，这里再查一次确保存在）
-            staff = db.session.query(CommunityStaff).filter_by(
+            # 检查要移除的工作人员记录
+            target_staff = db.session.query(CommunityStaff).filter_by(
                 community_id=community_id,
                 user_id=target_user_id
             ).first()
 
-            if not staff:
+            if not target_staff:
                 return make_err_response({}, '工作人员不存在')
 
-            # 记录审计日志
-            audit_log = UserAuditLog(
-                user_id=user_id,
-                action="remove_community_staff",
-                detail=f"从社区{community_id}移除工作人员{target_user_id}（角色：{staff.role}）"
-            )
-            db.session.add(audit_log)
+            # 权限细化检查：
+            # 1. 专员不能移除主管
+            if staff_record.role == 'staff' and target_staff.role == 'manager':
+                return make_err_response({}, '专员不能移除主管，需要主管权限')
 
-            # 删除记录
-            session.delete(staff)
-            db.session.commit()
+            # 2. 不能移除自己（除非是超级管理员）
+            if target_user_id == user_id:
+                return make_err_response({}, '不能移除自己，请联系其他管理员操作')
 
-            app_logger.info(f'移除工作人员成功: 社区{community_id}, 用户{target_user_id}, 角色{staff.role}')
-            return make_succ_response({
-                'message': f'成功移除工作人员',
-                'removed_user_id': str(target_user_id),
-                'removed_role': staff.role
-            })
+        # 查找工作人员记录（如果上面已经查过，这里再查一次确保存在）
+        staff = db.session.query(CommunityStaff).filter_by(
+            community_id=community_id,
+            user_id=target_user_id
+        ).first()
+
+        if not staff:
+            return make_err_response({}, '工作人员不存在')
+
+        # 记录审计日志
+        audit_log = UserAuditLog(
+            user_id=user_id,
+            action="remove_community_staff",
+            detail=f"从社区{community_id}移除工作人员{target_user_id}（角色：{staff.role}）"
+        )
+        db.session.add(audit_log)
+
+        # 删除记录
+        db.session.delete(staff)
+        db.session.commit()
+
+        app_logger.info(f'移除工作人员成功: 社区{community_id}, 用户{target_user_id}, 角色{staff.role}')
+        return make_succ_response({
+            'message': f'成功移除工作人员',
+            'removed_user_id': str(target_user_id),
+            'removed_role': staff.role
+        })
 
     except Exception as e:
         app_logger.error(f'移除社区工作人员失败: {str(e)}', exc_info=True)
@@ -1260,54 +1260,54 @@ def add_community_users():
             return make_err_response({}, '最多只能添加50个用户')
 
         # Using Flask-SQLAlchemy db.session
-            # 检查社区是否存在
-            community = db.session.query(Community).get(community_id)
-            if not community:
-                return make_err_response({}, '社区不存在')
+        # 检查社区是否存在
+        community = db.session.query(Community).get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
 
-            # 权限检查: super_admin, community_manager 或 community_staff
-            if user.role != 4:  # 不是super_admin
-                staff_record = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    user_id=user_id
-                ).first()
-                if not staff_record:
-                    return make_err_response({}, '权限不足')
+        # 权限检查: super_admin, community_manager 或 community_staff
+        if user.role != 4:  # 不是super_admin
+            staff_record = db.session.query(CommunityStaff).filter_by(
+                community_id=community_id,
+                user_id=user_id
+            ).first()
+            if not staff_record:
+                return make_err_response({}, '权限不足')
 
-            added_count = 0
-            failed = []
+        added_count = 0
+        failed = []
 
-            for uid in user_ids:
-                try:
-                    # 检查用户是否存在
-                    target_user = db.session.query(User).get(uid)
-                    if not target_user:
-                        failed.append({'user_id': uid, 'reason': '用户不存在'})
-                        continue
+        for uid in user_ids:
+            try:
+                # 检查用户是否存在
+                target_user = db.session.query(User).get(uid)
+                if not target_user:
+                    failed.append({'user_id': uid, 'reason': '用户不存在'})
+                    continue
 
-                    # 检查是否已在社区
-                    if target_user.community_id == community_id:
-                        failed.append({'user_id': uid, 'reason': '用户已在社区'})
-                        continue
+                # 检查是否已在社区
+                if target_user.community_id == community_id:
+                    failed.append({'user_id': uid, 'reason': '用户已在社区'})
+                    continue
 
-                    # 更新用户社区信息
-                    target_user.community_id = community_id
-                    target_user.community_joined_at = datetime.now()
-                    added_count += 1
+                # 更新用户社区信息
+                target_user.community_id = community_id
+                target_user.community_joined_at = datetime.now()
+                added_count += 1
 
-                except Exception as e:
-                    app_logger.error(f'添加用户失败 user_id={uid}: {str(e)}')
-                    failed.append({'user_id': uid, 'reason': str(e)})
+            except Exception as e:
+                app_logger.error(f'添加用户失败 user_id={uid}: {str(e)}')
+                failed.append({'user_id': uid, 'reason': str(e)})
 
-            db.session.commit()
+        db.session.commit()
 
-            if added_count == 0:
-                return make_err_response({'added_count': added_count, 'failed': failed}, '添加失败')
+        if added_count == 0:
+            return make_err_response({'added_count': added_count, 'failed': failed}, '添加失败')
 
-            return make_succ_response({
-                'added_count': added_count,
-                'failed': failed
-            })
+        return make_succ_response({
+            'added_count': added_count,
+            'failed': failed
+        })
 
     except Exception as e:
         app_logger.error(f'添加社区用户失败: {str(e)}', exc_info=True)
@@ -1476,78 +1476,78 @@ def update_community_new():
             return make_err_response({}, '缺少社区ID')
 
         # Using Flask-SQLAlchemy db.session
-            # 查找社区
-            community = db.session.query(Community).get(community_id)
-            if not community:
-                return make_err_response({}, '社区不存在')
+        # 查找社区
+        community = db.session.query(Community).get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
 
-            # 更新字段
-            if 'name' in data:
-                name = data['name'].strip()
-                if not name:
-                    return make_err_response({}, '社区名称不能为空')
-                if len(name) < 2 or len(name) > 50:
-                    return make_err_response({}, '社区名称长度必须在2-50个字符之间')
+        # 更新字段
+        if 'name' in data:
+            name = data['name'].strip()
+            if not name:
+                return make_err_response({}, '社区名称不能为空')
+            if len(name) < 2 or len(name) > 50:
+                return make_err_response({}, '社区名称长度必须在2-50个字符之间')
 
-                # 检查名称是否与其他社区重复
-                existing = db.session.query(Community).filter(
-                    Community.name == name,
-                    Community.community_id != community_id
+            # 检查名称是否与其他社区重复
+            existing = db.session.query(Community).filter(
+                Community.name == name,
+                Community.community_id != community_id
+            ).first()
+            if existing:
+                return make_err_response({}, '社区名称已存在')
+
+            community.name = name
+
+        if 'location' in data:
+            community.location = data['location'].strip()
+
+        if 'location_lat' in data:
+            community.location_lat = data['location_lat']
+
+        if 'location_lon' in data:
+            community.location_lon = data['location_lon']
+
+        if 'description' in data:
+            desc = data['description'].strip()
+            if desc and len(desc) > 200:
+                return make_err_response({}, '社区描述不能超过200个字符')
+            community.description = desc
+
+        # 如果更新了主管
+        if 'manager_id' in data:
+            from database.flask_models import CommunityStaff
+            new_manager_id = data['manager_id']
+
+            if new_manager_id:
+                # 检查新主管是否存在
+                new_manager = db.session.query(User).get(new_manager_id)
+                if not new_manager:
+                    return make_err_response({}, '指定的主管不存在')
+
+                # 移除旧主管
+                old_manager = db.session.query(CommunityStaff).filter_by(
+                    community_id=community_id,
+                    role='manager'
                 ).first()
-                if existing:
-                    return make_err_response({}, '社区名称已存在')
+                if old_manager:
+                    db.session.delete(old_manager)
 
-                community.name = name
+                # 添加新主管
+                new_staff = CommunityStaff(
+                    community_id=community_id,
+                    user_id=new_manager_id,
+                    role='manager'
+                )
+                db.session.add(new_staff)
 
-            if 'location' in data:
-                community.location = data['location'].strip()
+        db.session.commit()
 
-            if 'location_lat' in data:
-                community.location_lat = data['location_lat']
-
-            if 'location_lon' in data:
-                community.location_lon = data['location_lon']
-
-            if 'description' in data:
-                desc = data['description'].strip()
-                if desc and len(desc) > 200:
-                    return make_err_response({}, '社区描述不能超过200个字符')
-                community.description = desc
-
-            # 如果更新了主管
-            if 'manager_id' in data:
-                from database.flask_models import CommunityStaff
-                new_manager_id = data['manager_id']
-
-                if new_manager_id:
-                    # 检查新主管是否存在
-                    new_manager = db.session.query(User).get(new_manager_id)
-                    if not new_manager:
-                        return make_err_response({}, '指定的主管不存在')
-
-                    # 移除旧主管
-                    old_manager = db.session.query(CommunityStaff).filter_by(
-                        community_id=community_id,
-                        role='manager'
-                    ).first()
-                    if old_manager:
-                        session.delete(old_manager)
-
-                    # 添加新主管
-                    new_staff = CommunityStaff(
-                        community_id=community_id,
-                        user_id=new_manager_id,
-                        role='manager'
-                    )
-                    db.session.add(new_staff)
-
-            db.session.commit()
-
-            app_logger.info(f'更新社区成功: {community.name} (ID: {community_id})')
-            return make_succ_response({
-                'community_id': str(community_id),
-                'updated_at': community.updated_at.isoformat() if community.updated_at else None
-            })
+        app_logger.info(f'更新社区成功: {community.name} (ID: {community_id})')
+        return make_succ_response({
+            'community_id': str(community_id),
+            'updated_at': community.updated_at.isoformat() if community.updated_at else None
+        })
 
     except Exception as e:
         app_logger.error(f'更新社区失败: {str(e)}', exc_info=True)
@@ -1587,24 +1587,24 @@ def toggle_community_status_new():
             return make_err_response({}, '状态参数错误，必须是active或inactive')
 
         # Using Flask-SQLAlchemy db.session
-            # 查找社区
-            community = db.session.query(Community).get(community_id)
-            if not community:
-                return make_err_response({}, '社区不存在')
+        # 查找社区
+        community = db.session.query(Community).get(community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
 
-            # 特殊社区不能停用
-            if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
-                return make_err_response({}, '特殊社区不能停用')
+        # 特殊社区不能停用
+        if community.name in [DEFUALT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
+            return make_err_response({}, '特殊社区不能停用')
 
-            # 更新状态
-            community.status = 1 if status == 'active' else 2
-            db.session.commit()
+        # 更新状态
+        community.status = 1 if status == 'active' else 2
+        db.session.commit()
 
-            app_logger.info(f'切换社区状态成功: {community.name} -> {status}')
-            return make_succ_response({
-                'community_id': str(community_id),
-                'status': status
-            })
+        app_logger.info(f'切换社区状态成功: {community.name} -> {status}')
+        return make_succ_response({
+            'community_id': str(community_id),
+            'status': status
+        })
 
     except Exception as e:
         app_logger.error(f'切换社区状态失败: {str(e)}', exc_info=True)
@@ -2038,34 +2038,34 @@ def _verify_community_access(user_id, community_id):
 
     try:
         # Using Flask-SQLAlchemy db.session
-            # 查询用户
-            user = db.session.query(User).get(user_id)
-            if not user:
-                return False, "用户不存在"
+        # 查询用户
+        user = db.session.query(User).get(user_id)
+        if not user:
+            return False, "用户不存在"
 
-            # 检查用户状态
-            if hasattr(user, 'status') and user.status != 1:  # 假设1表示启用状态
-                return False, "用户账户已禁用"
+        # 检查用户状态
+        if hasattr(user, 'status') and user.status != 1:  # 假设1表示启用状态
+            return False, "用户账户已禁用"
 
-            # 超级管理员
-            if user.role == 4:
-                return True, None
+        # 超级管理员
+        if user.role == 4:
+            return True, None
 
-            # 社区工作人员
-            if user.role == 3:
-                staff = db.session.query(CommunityStaff).filter(
-                    CommunityStaff.user_id == user_id,
-                    CommunityStaff.community_id == community_id
-                ).first()
-                if staff:
-                    # 检查社区状态
-                    community = db.session.query(Community).get(community_id)
-                    if community and community.status == 1:  # 只允许访问启用的社区
-                        return True, None
-                    else:
-                        return False, "社区已禁用或不存在"
+        # 社区工作人员
+        if user.role == 3:
+            staff = db.session.query(CommunityStaff).filter(
+                CommunityStaff.user_id == user_id,
+                CommunityStaff.community_id == community_id
+            ).first()
+            if staff:
+                # 检查社区状态
+                community = db.session.query(Community).get(community_id)
+                if community and community.status == 1:  # 只允许访问启用的社区
+                    return True, None
+                else:
+                    return False, "社区已禁用或不存在"
 
-            return False, "权限不足，需要社区工作人员或超级管理员权限"
+        return False, "权限不足，需要社区工作人员或超级管理员权限"
     except Exception as e:
         app_logger.error(f"权限验证失败: {str(e)}", exc_info=True)
         return False, "权限验证失败"
