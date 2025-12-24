@@ -387,7 +387,7 @@ def refresh_token():
         return make_err_response({}, f'刷新Token失败: {str(e)}')
 
 
-@auth_bp.route('/auth/logout', methods=['POST'])
+@auth_bp.route('/logout', methods=['POST'])
 def logout():
     """
     用户登出接口，清除refresh token
