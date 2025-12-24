@@ -6,6 +6,9 @@
 import logging
 import os
 import json
+import secrets
+import time
+import threading
 from datetime import datetime
 from hashlib import sha256
 from sqlalchemy.exc import OperationalError
@@ -13,7 +16,35 @@ from sqlalchemy.orm import joinedload
 
 # 导入Flask-SQLAlchemy模型和实例
 from database.flask_models import db, User, UserAuditLog
-from hashutil import pwd_hash, phone_hash, sms_code_hash, PWD_SALT, PHONE_SALT, random_str
+
+# 全局计数器，用于生成唯一的测试手机号
+_phone_counter = 0
+_phone_counter_lock = threading.Lock()
+
+# 超级管理员手机号，需要避免生成这个号码
+SUPER_ADMIN_PHONE = '13900007997'
+
+# 哈希相关常量
+PWD_SALT = secrets.token_hex(8)
+PHONE_SALT = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+
+# 哈希函数
+def pwd_hash(pwd):
+    return sha256(f"{pwd}:{PWD_SALT}".encode('utf-8')).hexdigest()
+
+def phone_hash(phone_number):
+    return sha256(f"{PHONE_SALT}:{phone_number}".encode('utf-8')).hexdigest()
+
+def sms_code_hash(phone, code, salt):
+    """生成验证码哈希值"""
+    return sha256(f"{phone}:{code}:{salt}".encode('utf-8')).hexdigest()
+
+def random_str(length):
+    """生成随机字符串"""
+    length = length if length < 16 else 16
+    timestamp = str(int(time.time() * 1000000))
+    result = f"{timestamp}"
+    return result[:length]
 
 logger = logging.getLogger('UserService')
 
