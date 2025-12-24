@@ -83,7 +83,8 @@ def test_community_rule_disable_enable(test_session):
     assert community_rules[0]['status_label'] == '停用'
     
     # 4. 验证停用的规则不出现在今日打卡计划中
-    today_plan = UserCheckinRuleService.get_today_checkin_plan(user_id)
+    today_plan_result = UserCheckinRuleService.get_today_checkin_plan(user_id)
+    today_plan = today_plan_result.get('items', []) if isinstance(today_plan_result, dict) else []
     community_plan_items = [item for item in today_plan if item.get('rule_source') == 'community']
     assert len(community_plan_items) == 0
     
@@ -98,7 +99,8 @@ def test_community_rule_disable_enable(test_session):
     assert community_rules[0]['status_label'] == '启用'
     
     # 7. 验证启用的规则重新出现在今日打卡计划中
-    today_plan = UserCheckinRuleService.get_today_checkin_plan(user_id)
+    today_plan_result = UserCheckinRuleService.get_today_checkin_plan(user_id)
+    today_plan = today_plan_result.get('items', []) if isinstance(today_plan_result, dict) else []
     community_plan_items = [item for item in today_plan if item.get('rule_source') == 'community']
     assert len(community_plan_items) == 1
 

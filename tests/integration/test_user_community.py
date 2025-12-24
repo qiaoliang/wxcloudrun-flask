@@ -106,11 +106,10 @@ class TestUserIntegration(IntegrationTestBase):
         # 验证响应
         data = self.assert_api_success(response)
         
-        # 验证数据库中的更新
-        updated_user = self.db.session.get(
-            'User', self.test_user_id
-        )
-        assert updated_user.nickname == '更新后的昵称'
+        # 验证数据库中的更新 - 需要在应用上下文中执行
+        with self.app.app_context():
+            updated_user = self.db.session.get(User, self.test_user_id)
+            assert updated_user.nickname == '更新后的昵称'
     
     def test_user_community_management(self):
         """测试用户社区管理功能"""
@@ -245,16 +244,17 @@ class TestCommunityIntegration(IntegrationTestBase):
         assert data['data']['role_name'] == '社区主管', f"社区主管role_name应该是'社区主管'，实际是: {data['data']['role_name']}"
         
         # 测试社区专员权限 (role=2)
-        community_staff_user = self.create_standard_test_user(role=2, phone_number='13900007999')
         with self.app.app_context():
+            community_staff_user = self.create_standard_test_user(role=2, phone_number='13900007995')
             # 建立用户-社区关系
-            community_staff_user.community_id = self.test_community.community_id
+            test_community = self.db.session.get(Community, self.test_community_id)
+            community_staff_user.community_id = test_community.community_id
             self.db.session.commit()
         
         response = self.make_authenticated_request(
             'GET', 
             '/api/user/profile',
-            phone_number='13900007999',
+            phone_number='13900007995',
             password='Firefox0820'
         )
         
@@ -263,10 +263,11 @@ class TestCommunityIntegration(IntegrationTestBase):
         assert data['data']['role_name'] == '社区专员', f"社区专员role_name应该是'社区专员'，实际是: {data['data']['role_name']}"
         
         # 测试普通用户权限 (role=1)
-        normal_user = self.create_standard_test_user(role=1, phone_number='13900008000')
         with self.app.app_context():
+            normal_user = self.create_standard_test_user(role=1, phone_number='13900008000')
             # 建立用户-社区关系
-            normal_user.community_id = self.test_community.community_id
+            test_community = self.db.session.get(Community, self.test_community_id)
+            normal_user.community_id = test_community.community_id
             self.db.session.commit()
         
         response = self.make_authenticated_request(

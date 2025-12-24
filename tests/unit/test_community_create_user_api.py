@@ -13,7 +13,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.insert(0, project_root)
 
 from database.flask_models import User, Community
-from const_default import DEFUALT_COMMUNITY_NAME
+from const_default import DEFAULT_COMMUNITY_NAME
 
 
 class TestCommunityCreateUserAPILogic:
@@ -54,7 +54,7 @@ class TestCommunityCreateUserAPILogic:
         # 创建多个社区
         communities_data = [
             {'name': '普通社区1', 'is_default': False},
-            {'name': DEFUALT_COMMUNITY_NAME, 'is_default': True},
+            {'name': DEFAULT_COMMUNITY_NAME, 'is_default': True},
             {'name': '普通社区2', 'is_default': False},
         ]
         
@@ -71,11 +71,11 @@ class TestCommunityCreateUserAPILogic:
         
         # 查找默认社区
         default_community = test_session.query(Community).filter_by(
-            name=DEFUALT_COMMUNITY_NAME
+            name=DEFAULT_COMMUNITY_NAME
         ).first()
         
         assert default_community is not None
-        assert default_community.name == DEFUALT_COMMUNITY_NAME
+        assert default_community.name == DEFAULT_COMMUNITY_NAME
         assert default_community.is_default is True
 
     def test_phone_validation_regex(self):

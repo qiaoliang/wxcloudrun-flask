@@ -12,9 +12,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # from wxcloudrun import app
 # from database import get_database
-from database import initialize_for_test
-
-db = initialize_for_test()
 
 from database.flask_models import CheckinRule, CheckinRecord, User, Community
 # from wxcloudrun.dao import delete_checkin_rule_by_id, query_checkin_rule_by_id, query_checkin_rules_by_user_id

@@ -13,7 +13,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.insert(0, project_root)
 
 from database.flask_models import User
-from database import initialize_for_test
+# from database import initialize_for_test
 from hashlib import sha256
 import os
 
@@ -32,7 +32,7 @@ def _calculate_phone_hash(phone):
         f"{phone_secret}{phone}".encode('utf-8')
     ).hexdigest()
 
-db = initialize_for_test()
+# db = initialize_for_test()  # 已移除，使用现代 fixture 模式
 
 
 class TestUserSearchByPhoneHash:

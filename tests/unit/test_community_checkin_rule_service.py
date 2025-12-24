@@ -8,17 +8,18 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.insert(0, project_root)
 
 from database.flask_models import User, Community, CommunityCheckinRule
-from const_default import DEFUALT_COMMUNITY_NAME, DEFUALT_COMMUNITY_ID
+from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 from wxcloudrun.community_service import CommunityService
 from wxcloudrun.user_service import UserService
-from wxcloudrun.utils.strutil import random_str, uuid_str
+from wxcloudrun.user_service import random_str
+import uuid as uuid_str
 
 
 class TestCommunityCheckinRulesService:
 
     def _create_community_with_manager(self, test_session, manager_id):
-        comm_name, description = f"comm_name_{uuid_str(8)}", f"comm_desc_{uuid_str(12)}"
+        comm_name, description = f"comm_name_{uuid_str.uuid4().hex[:8]}", f"comm_desc_{uuid_str.uuid4().hex[:12]}"
         comm = CommunityService.create_community(comm_name, description, manager_id, None, None, manager_id, None, None)
         test_session.commit()
         return comm
@@ -26,9 +27,9 @@ class TestCommunityCheckinRulesService:
     def _create_a_user(self, test_session):
         # Arrange - 创建一个用户（直接使用数据库，绕过UserService的默认设置）
         new_user = User(
-            wechat_openid=f"test_openid{uuid_str(8)}",
-            nickname=f"微信新用户_{uuid_str(8)}",
-            avatar_url=f"https://{uuid_str(8)}.example.com/1.jpg",
+            wechat_openid=f"test_openid{uuid_str.uuid4().hex[:8]}",
+            nickname=f"微信新用户_{uuid_str.uuid4().hex[:8]}",
+            avatar_url=f"https://{uuid_str.uuid4().hex[:8]}.example.com/1.jpg",
             role=4,  # 超级管理员
             status=1
         )
@@ -40,7 +41,7 @@ class TestCommunityCheckinRulesService:
     def _create_a_community_rule(self, comm_id, user_id, test_session):
         result = CommunityCheckinRuleService.create_community_rule(
             rule_data={
-                'rule_name': f'默认签到规则_{uuid_str(8)}',
+                'rule_name': f'默认签到规则_{uuid_str.uuid4().hex[:8]}',
                 'community_id': comm_id,
                 'start_time': '08:00:00',
                 'end_time': '18:00:00',
