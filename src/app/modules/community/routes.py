@@ -901,7 +901,6 @@ def create_community():
 
         name = params.get('name', '').strip()
         description = params.get('description', '').strip()
-        avatar_url = params.get('avatar_url', '')
 
         if not name:
             return make_err_response({}, '社区名称不能为空')
@@ -910,7 +909,6 @@ def create_community():
         community = CommunityService.create_community(
             name=name,
             description=description,
-            avatar_url=avatar_url,
             creator_id=user_id
         )
 

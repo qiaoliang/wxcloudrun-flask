@@ -266,7 +266,15 @@ alembic downgrade -1
 
 ### 测试命令
 
+**重要说明**：所有后台测试必须在 `backend/` 目录中运行，因为：
+- 虚拟环境位于 `backend/venv_py312/`
+- 配置文件和数据库文件相对于 `backend/` 目录
+- Python 模块路径基于 `backend/src/` 目录
+
 ```bash
+# 确保在backend目录中
+cd backend
+
 # 设置测试环境（首次运行）
 make setup
 

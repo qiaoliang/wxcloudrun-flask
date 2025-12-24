@@ -344,6 +344,59 @@ class IntegrationTestBase(TestBase):
             name=f'标准测试社区_{creator_role}',
             creator=creator
         )
+    
+    @classmethod 
+    def create_or_get_super_admin(cls, test_context=None):
+        """创建或获取超级管理员（确保系统中只有一个超级管理员）
+        
+        超级管理员特征：
+        - role=4 (超级系统管理员)
+        - 手机号: 13900007997 (固定)
+        - 昵称: 系统超级管理员
+        
+        Returns:
+            User: 超级管理员用户对象
+        """
+        from database.flask_models import User
+        from hashlib import sha256
+        import secrets
+        
+        with cls.app.app_context():
+            # 检查超级管理员是否已存在
+            existing_admin = cls.db.session.query(User).filter_by(
+                phone_number='13900007997'
+            ).first()
+            
+            if existing_admin:
+                cls.db.session.refresh(existing_admin)  # 确保获取最新数据
+                return existing_admin
+            
+            # 创建新的超级管理员
+            salt = secrets.token_hex(8)
+            password_hash = sha256(f"Firefox0820:{salt}".encode('utf-8')).hexdigest()
+            
+            # 使用与auth.py相同的手机号哈希方法
+            phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+            phone_hash = sha256(f"{phone_secret}:13900007997".encode('utf-8')).hexdigest()
+            
+            super_admin = User(
+                wechat_openid=f"super_admin_{secrets.token_hex(16)}",
+                phone_number='13900007997',
+                phone_hash=phone_hash,
+                nickname='系统超级管理员',
+                name='系统超级管理员',
+                password_hash=password_hash,
+                password_salt=salt,
+                role=4,  # 超级管理员角色
+                status=1,  # 正常状态
+                verification_status=2,  # 已通过验证
+                _is_community_worker=True
+            )
+            
+            cls.db.session.add(super_admin)
+            cls.db.session.commit()
+            
+            return super_admin
 
 
 @pytest.fixture(scope="class")
