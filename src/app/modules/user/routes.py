@@ -13,7 +13,7 @@ from app.shared import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, SupervisionRuleRelation
 from app.shared.utils.auth import verify_token
-from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code
+from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code, normalize_phone_number
 from app.shared.decorators import login_required
 from config_manager import get_token_secret
 
@@ -105,7 +105,7 @@ def _merge_accounts_by_time(account1, account2):
     return primary
 
 
-@user_bp.route('/profile', methods=['GET', 'POST'])
+@user_bp.route('/user/profile', methods=['GET', 'POST'])
 def user_profile():
     """
     用户信息获取和更新接口
@@ -125,7 +125,7 @@ def user_profile():
     if request.method == 'GET':
         # 获取用户信息
         try:
-            user = UserService.get_user_by_id(user_id)
+            user = UserService.query_user_by_id(user_id)
             if not user:
                 return make_err_response({}, '用户不存在')
 
@@ -157,7 +157,7 @@ def user_profile():
             if not params:
                 return make_err_response({}, '缺少请求参数')
 
-            user = UserService.get_user_by_id(user_id)
+            user = UserService.query_user_by_id(user_id)
             if not user:
                 return make_err_response({}, '用户不存在')
 
@@ -192,7 +192,7 @@ def user_profile():
             return make_err_response({}, '更新用户信息失败')
 
 
-@user_bp.route('/search', methods=['GET'])
+@user_bp.route('/user/search', methods=['GET'])
 @login_required
 def search_users():
     """
@@ -262,7 +262,7 @@ def search_users():
         return make_err_response({}, '搜索失败')
 
 
-@user_bp.route('/bind_phone', methods=['POST'])
+@user_bp.route('/user/bind_phone', methods=['POST'])
 def bind_phone():
     """
     绑定手机号接口
@@ -293,7 +293,7 @@ def bind_phone():
             return make_err_response({}, '验证码无效或已过期')
 
         user_id = decoded.get('user_id')
-        user = UserService.get_user_by_id(user_id)
+        user = UserService.query_user_by_id(user_id)
         if not user:
             return make_err_response({}, '用户不存在')
 
@@ -338,7 +338,7 @@ def bind_phone():
         return make_err_response({}, '绑定失败')
 
 
-@user_bp.route('/bind_wechat', methods=['POST'])
+@user_bp.route('/user/bind_wechat', methods=['POST'])
 def bind_wechat():
     """
     绑定微信账号接口
@@ -360,7 +360,7 @@ def bind_wechat():
             return make_err_response({}, '缺少code参数')
 
         user_id = decoded.get('user_id')
-        user = UserService.get_user_by_id(user_id)
+        user = UserService.query_user_by_id(user_id)
         if not user:
             return make_err_response({}, '用户不存在')
 
@@ -426,7 +426,7 @@ def bind_wechat():
         return make_err_response({}, '绑定失败')
 
 
-@user_bp.route('/community/verify', methods=['POST'])
+@user_bp.route('/user/community/verify', methods=['POST'])
 def verify_community():
     """
     验证用户是否属于指定社区
@@ -448,7 +448,7 @@ def verify_community():
             return make_err_response({}, '缺少社区ID')
 
         user_id = decoded.get('user_id')
-        user = UserService.get_user_by_id(user_id)
+        user = UserService.query_user_by_id(user_id)
         if not user:
             return make_err_response({}, '用户不存在')
 

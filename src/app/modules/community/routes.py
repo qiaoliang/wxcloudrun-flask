@@ -14,6 +14,7 @@ from app.shared.utils.auth import verify_token, require_community_staff, get_cur
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
+from wxcloudrun.user_service import UserService
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_NAME, DEFAULT_BLACK_ROOM_ID
 from wxcloudrun.utils.validators import _audit, _hash_code
 
@@ -76,7 +77,6 @@ def _format_community_info(community, include_admin_count=False):
         'community_id': community.community_id,
         'name': community.name,
         'description': community.description,
-        'avatar_url': community.avatar_url,
         'creator_id': community.creator_id,
         'creator': creator,
         'status': community.status,
@@ -1260,7 +1260,7 @@ def search_ankafamily_users():
         return make_err_response({}, '搜索失败')
 
 
-@community_bp.route('/communities/manage/list', methods=['GET'])
+@community_bp.route('/community/communities/manage/list', methods=['GET'])
 def get_manageable_communities():
     """获取可管理的社区列表"""
     current_app.logger.info('=== 开始获取可管理的社区列表 ===')
@@ -1274,8 +1274,13 @@ def get_manageable_communities():
     current_app.logger.info(f'用户ID: {user_id}')
 
     try:
+        # 获取用户对象
+        user = UserService.query_user_by_id(user_id)
+        if not user:
+            return make_err_response({}, '用户不存在')
+        
         # 获取可管理的社区列表
-        communities = CommunityService.get_manageable_communities(user_id)
+        communities, total = CommunityService.get_manageable_communities(user)
         
         # 格式化社区信息
         communities_data = []
