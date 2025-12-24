@@ -416,14 +416,135 @@ make setup
    - 使用相对导入处理模块内部依赖
    - 从 `app.shared` 导入共享组件
 
+## API 契约管理
+
+### 概述
+SafeGuard 项目采用 OpenAPI 3.0 规范进行 API 契约管理，确保前后端 API 接口的一致性和可维护性。通过系统化的契约管理机制，预防 API 不一致问题的发生。
+
+### 契约文件结构
+```
+backend/
+├── api-contract/
+│   ├── openapi.yaml         # OpenAPI 3.0 契约文件
+│   ├── schemas/            # 数据模型定义
+│   └── examples/           # 请求/响应示例
+```
+
+### API 契约管理主方法
+
+#### 1. 契约定义规范
+- **路径命名规范**：统一使用 `/api/{module}/{resource}` 格式
+- **HTTP 方法规范**：严格按照 RESTful 原则使用 GET/POST/PUT/DELETE
+- **响应格式规范**：统一使用 `{code, msg, data}` 格式
+- **错误处理规范**：统一错误码和错误消息格式
+
+#### 2. 契约验证流程
+```bash
+# 验证 API 契约一致性
+make validate-api-contract
+
+# 生成不一致性报告
+make generate-contract-report
+
+# 验证修复效果
+make verify-api-fixes
+```
+
+#### 3. 开发流程集成
+- **API 设计阶段**：先在 OpenAPI 契约中定义接口
+- **后端实现**：严格按照契约实现路由和业务逻辑
+- **前端集成**：使用契约生成的 SDK 或直接调用契约定义的接口
+- **测试验证**：运行契约验证确保实现与定义一致
+
+#### 4. CI/CD 集成
+- **自动化验证**：每次提交自动运行契约验证
+- **报告生成**：自动生成不一致性报告
+- **质量门禁**：契约验证失败阻止合并
+
+#### 5. 版本管理策略
+- **主版本**：不兼容的 API 变更
+- **次版本**：向后兼容的功能新增
+- **修订版本**：向后兼容的问题修正
+
+### 常用命令
+
+#### 契约验证命令
+```bash
+# 完整契约验证
+python scripts/validate-api-contract.py \
+  --contract api-contract/openapi.yaml \
+  --backend src \
+  --frontend ../frontend/src
+
+# 生成修复报告
+python scripts/generate-contract-report.py \
+  --project-root . \
+  --output api-report.md
+
+# 验证修复效果
+python scripts/verify-api-fixes.py
+```
+
+#### Makefile 集成命令
+```bash
+# API 契约相关命令
+make validate-api-contract    # 验证 API 契约
+make generate-contract-report # 生成不一致性报告
+make verify-api-fixes        # 验证修复效果
+make update-api-docs         # 更新 API 文档
+```
+
+### 契约文件维护
+
+#### 添加新 API
+1. 在 `api-contract/openapi.yaml` 中定义新的路径和操作
+2. 添加相应的请求/响应模式定义
+3. 更新 API 文档（`API/` 目录下的 Markdown 文件）
+4. 运行契约验证确保定义正确
+
+#### 修改现有 API
+1. 先评估是否影响向后兼容性
+2. 更新 OpenAPI 契约定义
+3. 更新对应的实现代码
+4. 运行完整的契约验证流程
+
+#### API 版本升级
+1. 在契约中定义新的版本路径
+2. 保持旧版本 API 的兼容性
+3. 逐步迁移客户端到新版本
+4. 在适当时机废弃旧版本
+
+### 错误处理和调试
+
+#### 常见不一致问题
+- **路径不匹配**：前端调用路径与后端实现路径不一致
+- **方法不匹配**：HTTP 方法使用不当
+- **参数不匹配**：请求参数名称或类型不一致
+- **响应格式不匹配**：响应数据结构不一致
+
+#### 调试工具
+- **契约验证报告**：详细列出所有不一致问题
+- **修复验证工具**：验证修复效果
+- **API 文档对比**：对比契约文档和实际实现
+
+### 最佳实践
+
+1. **契约先行**：先定义契约，再实现功能
+2. **自动化验证**：将契约验证集成到开发流程
+3. **文档同步**：保持 API 文档与契约同步更新
+4. **版本管理**：合理使用 API 版本控制
+5. **团队协作**：前后端开发人员共同维护契约
+
 ## 联系和支持
 
 - **项目文档**：查看 `docs/` 目录
 - **API 文档**：查看 `API/` 目录
+- **API 契约**：查看 `api-contract/` 目录
 - **问题反馈**：通过项目 Issue 系统反馈问题
 
 ---
 
 *最后更新：2025-12-24*
-*版本：SafeGuard Backend v2.0 (Blueprint 架构)*
+*版本：SafeGuard Backend v2.0 (Blueprint 架构 + API 契约管理)*
 *架构更新：完成 Flask Blueprint 模块化重构，共 11 个功能模块，84 个 API 路由*
+*契约管理：建立完整的 API 契约管理机制，解决前后端 API 不一致问题*
