@@ -122,7 +122,7 @@ def get_user_today_plan():
 
     try:
         # 调用服务层获取今日打卡计划
-        plan = UserCheckinRuleService.get_user_today_plan(user_id)
+        plan = UserCheckinRuleService.get_today_checkin_plan(user_id)
 
         current_app.logger.info(f'成功获取用户 {user_id} 的今日打卡计划，共 {plan.get("total_items", 0)} 项')
         return make_succ_response(plan)
