@@ -32,5 +32,5 @@ RUN chmod +x /app/docker-pre-start.sh
 # 运行脚本
 RUN /app/docker-pre-start.sh
 
-# 启动容器（main.py 现在在 /app 下）
-CMD ["python3", "main.py", "0.0.0.0", "8080"]
+# 启动容器（使用新的标准入口 run.py）
+CMD ["python3", "run.py", "0.0.0.0", "8080"]

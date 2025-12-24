@@ -1,4 +1,9 @@
-# 创建应用实例
+#!/usr/bin/env python3
+"""
+SafeGuard 后端应用主入口
+使用标准的 Flask 应用工厂模式启动应用
+"""
+
 import sys
 import os
 import logging
@@ -6,8 +11,8 @@ import logging
 # 添加当前目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-# 导入初始化函数
-from database.initialization import create_super_admin_and_default_community
+# 导入应用工厂
+from app import create_app
 
 # 配置迁移日志
 import datetime
@@ -41,22 +46,19 @@ migration_logger.addHandler(console_handler)
 # 关闭传播以避免与根日志器重复处理
 migration_logger.propagate = False
 
-# 在导入 wxcloudrun 之前检查 ENV_TYPE
+# 在导入应用之前检查 ENV_TYPE
 env_type = os.getenv('ENV_TYPE')
 migration_logger.info(f'启动时检查 ENV_TYPE: {env_type}')
 
 if env_type is None or env_type == '':
     migration_logger.error("错误: ENV_TYPE 环境变量未设置！")
     migration_logger.error("请设置 ENV_TYPE 环境变量后重新启动应用:")
-    migration_logger.error("  - 开发环境: ENV_TYPE=func")
+    migration_logger.error("  - 开发环境: ENV_TYPE=function")
     migration_logger.error("  - 单元测试: ENV_TYPE=unit")
     migration_logger.error("  - UAT环境: ENV_TYPE=uat")
     migration_logger.error("  - 生产环境: ENV_TYPE=prod")
     migration_logger.error("启动失败，请配置环境变量。")
     sys.exit(1)
-
-# 导入应用工厂
-from app import create_app
 
 
 def run_migration():
@@ -74,14 +76,11 @@ def run_migration():
         return False
 
 
-
-
-
 def main():
     """主程序入口"""
     # 1. 使用应用工厂创建 Flask 应用实例
     flask_app = create_app()
-    
+
     # 获取环境类型
     env_type = os.getenv('ENV_TYPE', 'unit')
 
@@ -89,23 +88,16 @@ def main():
     is_flask_restart = os.environ.get('WERKZEUG_RUN_MAIN') == 'true'
     is_debug_mode = flask_app.debug
 
-    # 2. 初始化数据库并绑定到 Flask
-    migration_logger.info("正在初始化数据库并绑定到 Flask 应用...")
+    # 2. 数据库迁移和应用初始化
     with flask_app.app_context():
-        # 数据库核心已迁移到 Flask-SQLAlchemy，不再需要 DatabaseCore
-
-        # 数据库核心已迁移到 Flask-SQLAlchemy，无需额外初始化
-        migration_logger.info("Flask-SQLAlchemy 数据库已就绪")
-
         # 3. 执行数据库迁移（unit 环境使用内存数据库，跳过迁移）
-        # 同时避免在Flask调试器重启时重复执行迁移
         if env_type in ['unit']:
             migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
             migration_success = True
             
             # 在 unit 环境下，需要手动创建 Flask-SQLAlchemy 的表
             migration_logger.info("在 unit 环境下创建 Flask-SQLAlchemy 表")
-            from database.flask_models import db
+            from app.extensions import db
             db.create_all()
             migration_logger.info("Flask-SQLAlchemy 表创建完成")
         elif is_debug_mode and not is_flask_restart:
@@ -126,26 +118,25 @@ def main():
                 migration_logger.error("数据库迁移失败，程序退出")
                 sys.exit(1)
         
-        # 在function环境下总是执行初始化，其他环境根据调试模式决定
+        # 4. 初始化超级管理员和默认社区
         should_initialize = False
         
         if env_type == 'function':
             # function环境总是执行初始化
             should_initialize = True
-            app.logger.info("function环境：总是执行超级管理员和默认社区初始化")
+            flask_app.logger.info("function环境：总是执行超级管理员和默认社区初始化")
         elif env_type not in ['unit'] and (not is_debug_mode or not is_flask_restart):
             # 其他非unit环境，在非调试模式或调试模式的主进程中执行
             should_initialize = True
-            app.logger.info("开始注入超级管理员和默认社区.....")
+            flask_app.logger.info("开始注入超级管理员和默认社区.....")
         
         if should_initialize:
             # 创建超级管理员和默认社区
+            from database.initialization import create_super_admin_and_default_community
             create_super_admin_and_default_community()
-            app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
+            flask_app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
         else:
-            app.logger.info("跳过超级管理员和默认社区注入")
-
-    # 4. 默认社区初始化已在数据库迁移完成后自动执行
+            flask_app.logger.info("跳过超级管理员和默认社区注入")
 
     # 5. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
@@ -153,6 +144,5 @@ def main():
     flask_app.run(host=host, port=port)
 
 
-# 根据环境变量决定是否启动Flask Web服务
 if __name__ == '__main__':
     main()

@@ -74,7 +74,10 @@ def create_app(config_name=None):
     # 7. 注册错误处理器
     register_error_handlers(app)
     
-    # 8. 在 unit 环境下初始化默认数据
+    # 8. 启动后台任务（非unit环境）
+    start_background_tasks(app)
+    
+    # 9. 在 unit 环境下初始化默认数据
     import config_manager
     if config_manager.is_unit_environment():
         with app.app_context():
@@ -134,3 +137,20 @@ def register_error_handlers(app):
     @app.errorhandler(403)
     def forbidden(e):
         return make_err_response({}, '禁止访问'), 403
+
+
+def start_background_tasks(app):
+    """启动后台任务"""
+    import config_manager
+    if not config_manager.is_unit_environment():
+        app.logger.info(f"app.debug={app.debug}")
+        try:
+            if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
+                app.logger.info(f"# 启动后台的打卡扫描检测服务")
+                # 导入并启动后台任务
+                from wxcloudrun.background_tasks import start_missing_check_service
+                start_missing_check_service()
+        except Exception as e:
+            app.logger.error(f"启动后台missing服务失败: {str(e)}")
+    else:
+        app.logger.info("unit 环境下不启动后台服务")

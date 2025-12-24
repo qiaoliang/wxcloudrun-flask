@@ -27,7 +27,7 @@ fi
 # 启动应用
 echo "🌟 正在启动 SafeGuard 应用..."
 echo "📍 访问地址: http://localhost:9999"
-echo "📍 环境配置: http://localhost:9999/env"
+echo "📍 环境配置: http://localhost:9999/api/env"
 echo "⏳ 等待服务启动..."
 echo ""
-ENV_TYPE=function python3.12 main.py 0.0.0.0 9999
+ENV_TYPE=function python3.12 run.py 0.0.0.0 9999

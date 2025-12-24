@@ -103,13 +103,16 @@ def _run_loop():
 
 
 def start_missing_check_service():
+    """启动缺失检查服务"""
     try:
-        # 创建应用上下文
-        from wxcloudrun import app
-        with app.app_context():
-            t = threading.Thread(target=_run_loop_with_context, daemon=True, args=(app,))
-            t.start()
-            app.logger.info("[missing-mark] 后台服务线程已启动")
+        # 获取当前应用实例
+        from flask import current_app
+        app = current_app._get_current_object()
+        
+        # 创建后台线程
+        t = threading.Thread(target=_run_loop_with_context, daemon=True, args=(app,))
+        t.start()
+        app.logger.info("[missing-mark] 后台服务线程已启动")
     except Exception as e:
         app.logger.error(f"[missing-mark] 启动后台服务失败: {str(e)}")
 
