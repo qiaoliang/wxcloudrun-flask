@@ -1510,3 +1510,74 @@ def switch_user_community():
     except Exception as e:
         current_app.logger.error(f'切换用户社区失败: {str(e)}', exc_info=True)
         return make_err_response({}, '切换失败')
+
+
+@community_bp.route('/communities/ankafamily/users/search', methods=['GET'])
+def search_ankafamily_users():
+    """从安卡大家庭搜索用户（用于添加用户到其他社区）"""
+    current_app.logger.info('=== 开始从安卡大家庭搜索用户 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'搜索用户ID: {user_id}')
+
+    try:
+        # 获取查询参数
+        keyword = request.args.get('keyword', '').strip()
+        page = int(request.args.get('page', 1))
+        per_page = min(int(request.args.get('per_page', 20)), 100)
+
+        if not keyword:
+            return make_err_response({}, '搜索关键词不能为空')
+
+        current_app.logger.info(f'安卡家庭用户搜索参数: keyword={keyword}, page={page}, per_page={per_page}')
+
+        # 获取安卡大家庭社区ID（假设ID为1）
+        from const_default import DEFAULT_COMMUNITY_ID
+        ankafamily_community_id = DEFAULT_COMMUNITY_ID
+
+        # 检查用户是否有权限从安卡大家庭搜索用户
+        if not CommunityService.has_community_permission(user_id, ankafamily_community_id):
+            return make_err_response({}, '无权限从安卡大家庭搜索用户')
+
+        # 执行搜索
+        result = CommunityService.get_community_users(
+            ankafamily_community_id, page, per_page, None, keyword
+        )
+
+        # 格式化用户信息，包含社区信息
+        users_data = []
+        for user in result.get('users', []):
+            user_data = {
+                'user_id': user.user_id,
+                'wechat_openid': user.wechat_openid,
+                'phone_number': user.phone_number,
+                'nickname': user.nickname,
+                'name': user.name,
+                'avatar_url': user.avatar_url,
+                'role': user.role_name,
+                'status': user.status,
+                'community_id': user.community_id,
+                'is_staff': user.community_id == ankafamily_community_id and user.role >= 2,
+                'created_at': user.created_at.isoformat() if user.created_at else None
+            }
+            users_data.append(user_data)
+
+        response_data = {
+            'users': users_data,
+            'total': result.get('total', 0),
+            'page': page,
+            'per_page': per_page,
+            'has_next': len(users_data) == per_page
+        }
+
+        current_app.logger.info(f'安卡家庭用户搜索成功: 找到 {len(users_data)} 个用户')
+        return make_succ_response(response_data)
+
+    except Exception as e:
+        current_app.logger.error(f'安卡家庭用户搜索失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '搜索失败')

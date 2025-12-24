@@ -252,3 +252,25 @@ e2e-single: setup
 	source venv_py312/bin/activate && \
 	python -m pytest $(TEST) -v
 	@echo "✓ 单个E2E测试完成"
+
+# API契约验证相关命令
+.PHONY: validate-contract generate-contract-report verify-api-fixes
+
+validate-contract:
+	@echo "=== 验证API契约一致性 ==="
+	@cd .. && python scripts/validate-api-contract.py --contract backend/api-contract/openapi.yaml --backend backend --frontend frontend --output api-contract-validation-report.md
+	@echo "✓ API契约验证完成"
+
+generate-contract-report:
+	@echo "=== 生成API不一致性报告 ==="
+	@cd .. && python scripts/generate-contract-report.py --project-root . --output api-inconsistency-report.md
+	@echo "✓ API不一致性报告生成完成"
+
+verify-api-fixes:
+	@echo "=== 验证API修复效果 ==="
+	@cd .. && python scripts/verify-api-fixes.py
+	@echo "✓ API修复验证完成"
+
+contract-ci: validate-contract verify-api-fixes
+	@echo "=== API契约CI验证 ==="
+	@echo "✓ 所有API契约检查通过"
