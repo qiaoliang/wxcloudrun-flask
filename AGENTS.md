@@ -53,17 +53,19 @@ backend/
 │   │       ├── response.py # 统一响应格式
 │   │       ├── decorators.py # 装饰器
 │   │       └── utils/     # 工具函数
-│   ├── wxcloudrun/        # 核心业务逻辑（兼容层）
-│   │   ├── views/         # 原 API 视图层（已迁移到 Blueprint）
+│   ├── wxcloudrun/        # 核心业务逻辑（业务服务层）
 │   │   ├── utils/         # 工具函数
 │   │   ├── *_service.py   # 业务服务层
-│   │   └── __init__.py    # 应用入口（使用应用工厂）
+│   │   ├── background_tasks.py # 后台任务
+│   │   └── wxchat_api.py  # 微信API接口
 │   ├── database/          # 数据库相关
 │   │   ├── flask_models.py    # Flask-SQLAlchemy 模型
 │   │   ├── core.py            # 数据库核心（已迁移）
 │   │   └── initialization.py  # 数据库初始化
 │   ├── alembic/           # 数据库迁移脚本
-│   └── run.py             # 标准应用入口（使用 app.create_app()）
+│   ├── run.py             # 标准应用入口（使用 app.create_app()）
+│   ├── config.py          # 配置文件
+│   └── config_manager.py  # 配置管理器
 ├── tests/                 # 测试目录
 │   ├── unit/             # 单元测试
 │   ├── integration/      # 集成测试
@@ -71,6 +73,7 @@ backend/
 ├── API/                  # API 文档
 ├── scripts/              # 构建和部署脚本
 ├── docs/                 # 项目文档
+├── Makefile              # 测试和构建命令
 └── venv_py312/          # Python 虚拟环境
 ```
 
@@ -119,17 +122,28 @@ pip install -r requirements-test.txt  # 测试依赖
 # 方式1：使用本地运行脚本（推荐）
 ./localrun.sh
 
-# 方式2：手动启动（使用新的应用工厂）
+# 方式2：手动启动（使用应用工厂）
+cd src
+ENV_TYPE=function python3.12 run.py 0.0.0.0 9999
+
+# 方式3：使用Flask应用工厂直接启动
 cd src
 ENV_TYPE=function python3.12 -c "
 from app import create_app
+app = create_app()
 app.run(host='0.0.0.0', port=9999, debug=True)
 "
-
-# 方式3：直接运行 wxcloudrun 模块
-cd src
-ENV_TYPE=function python3.12 -m wxcloudrun 0.0.0.0 9999
 ```
+
+### 应用启动流程
+`src/run.py` 作为标准应用入口，提供完整的启动流程：
+
+1. **环境检查**：验证 `ENV_TYPE` 环境变量已设置
+2. **应用创建**：使用应用工厂 `create_app()` 创建 Flask 实例
+3. **数据库迁移**：根据环境类型自动执行数据库迁移
+4. **数据初始化**：在非测试环境自动创建超级管理员和默认社区
+5. **后台任务**：在非 unit 环境启动后台打卡检测服务
+6. **服务启动**：启动 Flask 开发服务器
 
 服务启动后访问：
 - API 服务：http://localhost:9999
@@ -210,6 +224,7 @@ make ut
 
 # 运行集成测试
 make test-integration
+make it  # 运行所有集成测试用例的简写
 
 # 运行端到端测试
 make e2e
@@ -218,11 +233,21 @@ make e2e
 make ut-s TEST=tests/unit/test_user_service.py
 make its TEST=tests/integration/test_user_integration.py
 
+# 运行特定测试类或方法
+make test-class CLASS=TestAccountMerging
+make test-method METHOD=test_account_merge_functionality
+
+# 运行数据库迁移测试
+make test-migration
+
 # 生成测试覆盖率报告
 make test-coverage
 
 # 清理测试文件
 make clean
+
+# 运行之前失败的测试
+make test-failed
 ```
 
 ### 测试环境说明
@@ -266,16 +291,18 @@ Authorization: Bearer <token>
 1. **应用工厂** (`src/app/__init__.py`)：创建和配置 Flask 应用实例
 2. **蓝图模块** (`src/app/modules/`)：按功能域组织的模块化路由
 3. **共享组件** (`src/app/shared/`)：跨模块共享的工具和响应格式
-4. **服务层** (`src/wxcloudrun/*_service.py`)：业务逻辑实现
+4. **业务服务层** (`src/wxcloudrun/*_service.py`)：业务逻辑实现
 5. **模型层** (`src/database/flask_models.py`)：Flask-SQLAlchemy 数据模型
 6. **工具层** (`src/wxcloudrun/utils/`)：通用工具函数
+7. **应用入口** (`src/run.py`)：标准应用启动入口，集成数据库迁移和初始化
 
 ### Blueprint 开发规范
 1. **模块组织**：每个功能域一个 Blueprint，包含 `__init__.py` 和 `routes.py`
-2. **路由定义**：使用 `@bp.route()` 装饰器，统一 `/api` 前缀
+2. **路由定义**：使用 `@{module}_bp.route()` 装饰器，应用注册时统一添加 `/api` 前缀
 3. **导入规范**：使用 `current_app` 替代全局 `app` 变量
 4. **共享组件**：从 `app.shared` 导入响应格式和装饰器
 5. **避免循环导入**：在 `__init__.py` 中先定义 Blueprint，再导入 routes
+6. **蓝图前缀**：每个 Blueprint 可定义自己的模块级前缀（如 `/auth`, `/user`），最终路径为 `/api/{module_prefix}/{route}`
 
 ### 数据库约定
 1. 使用 Flask-SQLAlchemy 进行数据库操作
@@ -300,7 +327,8 @@ Authorization: Bearer <token>
 1. 新功能开发时，在对应的 Blueprint 模块中添加路由
 2. 使用 `current_app` 访问应用实例，而非全局变量
 3. 共享的工具函数和装饰器放在 `app/shared/` 目录
-4. 业务逻辑仍在 `wxcloudrun/*_service.py` 中实现
+4. 业务逻辑在 `wxcloudrun/*_service.py` 中实现
+5. 应用启动通过 `src/run.py` 统一管理，包含数据库迁移和初始化流程
 
 **部署优势**
 - 模块化架构便于独立测试和部署
@@ -362,6 +390,16 @@ make setup
 | `scripts/removedb.sh` | 删除数据库文件 |
 | `scripts/clean_e2e_test_env.sh` | 清理 E2E 测试环境 |
 
+### Makefile 命令
+项目使用 Makefile 管理测试和构建流程：
+
+- **测试管理**：`make setup`, `make test-all`, `make clean`
+- **单元测试**：`make ut`, `make ut-s TEST=<test_file>`
+- **集成测试**：`make test-integration`, `make it`, `make its TEST=<test_file>`
+- **E2E测试**：`make e2e`, `make e2e-single TEST=<test_file>`
+- **迁移测试**：`make test-migration`, `make test-migration-performance`
+- **覆盖率报告**：`make test-coverage`
+
 ## 贡献指南
 
 1. **代码规范**：遵循现有代码风格，使用类型注解
@@ -388,4 +426,4 @@ make setup
 
 *最后更新：2025-12-24*
 *版本：SafeGuard Backend v2.0 (Blueprint 架构)*
-*架构更新：完成 Flask Blueprint 模块化重构，共 11 个功能模块，83 个 API 路由*
+*架构更新：完成 Flask Blueprint 模块化重构，共 11 个功能模块，84 个 API 路由*
