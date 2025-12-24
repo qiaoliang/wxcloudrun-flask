@@ -117,6 +117,12 @@ def main():
         if env_type in ['unit']:
             migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
             migration_success = True
+            
+            # 在 unit 环境下，需要手动创建 Flask-SQLAlchemy 的表
+            migration_logger.info("在 unit 环境下创建 Flask-SQLAlchemy 表")
+            from database.flask_models import db
+            db.create_all()
+            migration_logger.info("Flask-SQLAlchemy 表创建完成")
         elif is_debug_mode and not is_flask_restart:
             # 调试模式下的第一次启动（主进程）
             migration_logger.info("调试模式主进程：执行数据库迁移")
