@@ -7,9 +7,9 @@ import logging
 import re
 from flask import request
 from wxcloudrun import app
-from wxcloudrun.response import make_succ_response, make_err_response
-from wxcloudrun.decorators import login_required
-from wxcloudrun.utils.auth import verify_token, require_community_staff, get_current_user
+from app.shared.response import make_succ_response, make_err_response
+from app.shared.decorators import login_required
+from app.shared.utils.auth import verify_token, require_community_staff, get_current_user
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
@@ -1900,7 +1900,7 @@ def search_ankafamily_users(decoded):
 @require_community_staff()
 def get_manageable_communities():
     """获取当前用户可管理的社区列表（默认7个）"""
-    from wxcloudrun.utils.auth import get_current_user
+    from app.shared.utils.auth import get_current_user
 
     app_logger.info('=== 开始获取可管理社区列表 ===')
 

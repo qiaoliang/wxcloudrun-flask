@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, date, timedelta
 from flask import request
 from wxcloudrun import app
-from wxcloudrun.response import make_succ_response, make_err_response
+from app.shared.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService

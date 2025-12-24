@@ -7,12 +7,12 @@ import logging
 from datetime import datetime, timedelta
 from flask import request, Response
 from wxcloudrun import app
-from wxcloudrun.response import make_succ_response, make_err_response
+from app.shared.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from database.flask_models import db, ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
-from wxcloudrun.decorators import login_required
-from wxcloudrun.utils.auth import verify_token
+from app.shared.decorators import login_required
+from app.shared.utils.auth import verify_token
 import secrets
 
 app_logger = logging.getLogger('log')

@@ -7,7 +7,7 @@ from flask import request
 from wxcloudrun import app
 from wxcloudrun.decorators import login_required
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
-from wxcloudrun.response import make_succ_response, make_err_response
+from app.shared.response import make_succ_response, make_err_response
 
 logger = logging.getLogger('UserCheckinView')
 

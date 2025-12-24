@@ -7,7 +7,7 @@ import logging
 import jwt
 from flask import request, current_app
 from wxcloudrun.user_service import UserService
-from wxcloudrun.response import make_err_response
+from app.shared.response import make_err_response
 from config_manager import get_token_secret
 
 app_logger = logging.getLogger('log')
@@ -24,7 +24,7 @@ def verify_token():
         else:
             params = {}  # GET请求通常没有请求体
     except Exception as e:
-        current_current_app.logger.warning(f'解析请求JSON失败: {str(e)}')
+        current_app.logger.warning(f'解析请求JSON失败: {str(e)}')
         params = {}
 
     # 验证token

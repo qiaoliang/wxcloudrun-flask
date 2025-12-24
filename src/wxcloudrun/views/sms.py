@@ -8,7 +8,7 @@ import os
 from datetime import datetime, timedelta
 from flask import request
 from wxcloudrun import app
-from wxcloudrun.response import make_succ_response, make_err_response
+from app.shared.response import make_succ_response, make_err_response
 from database.flask_models import db, VerificationCode
 from wxcloudrun.sms_service import create_sms_provider, generate_code
 from wxcloudrun.utils.validators import _verify_sms_code, _code_expiry_minutes

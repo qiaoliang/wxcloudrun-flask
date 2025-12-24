@@ -55,13 +55,13 @@ if env_type is None or env_type == '':
     migration_logger.error("启动失败，请配置环境变量。")
     sys.exit(1)
 
-# 现在可以安全地导入 wxcloudrun
-from wxcloudrun import app
+# 导入应用工厂
+from app import create_app as create_flask_app
 
 
 def create_app():
-    """创建并配置 Flask 应用"""
-    return app
+    """创建并配置 Flask 应用（兼容性包装）"""
+    return create_flask_app()
 
 
 def run_migration():

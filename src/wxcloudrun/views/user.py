@@ -9,10 +9,10 @@ import datetime
 import jwt
 from flask import request
 from wxcloudrun import app
-from wxcloudrun.response import make_succ_response, make_err_response
+from app.shared.response import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, SupervisionRuleRelation
-from wxcloudrun.utils.auth import verify_token
+from app.shared.utils.auth import verify_token
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code
 
 

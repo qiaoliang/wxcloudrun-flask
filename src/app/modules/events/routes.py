@@ -1,18 +1,15 @@
 """
-社区事件相关API接口
+事件管理模块路由
 """
 import logging
-from flask import Blueprint, request, jsonify
-
-from wxcloudrun.decorators import require_token, require_community_staff_member, require_community_membership
-from app.shared.response import make_succ_response, make_err_response
+from flask import request
+from . import events_bp
+from app.shared import make_succ_response, make_err_response
+from app.shared.decorators import require_token, require_community_staff_member, require_community_membership
 from wxcloudrun.community_event_service import CommunityEventService
 from wxcloudrun.community_service import CommunityService
 
 logger = logging.getLogger(__name__)
-
-# 创建蓝图
-events_bp = Blueprint('events', __name__)
 
 
 @events_bp.route('/events', methods=['POST'])
@@ -173,8 +170,3 @@ def get_community_stats(community_id):
     except Exception as e:
         logger.error(f"获取社区统计API异常: {str(e)}")
         return make_err_response('服务器内部错误')
-
-
-def register_events_blueprint(app):
-    """注册事件蓝图到Flask应用"""
-    app.register_blueprint(events_bp, url_prefix='/api')

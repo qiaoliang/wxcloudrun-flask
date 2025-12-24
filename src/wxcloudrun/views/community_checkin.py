@@ -7,7 +7,7 @@ from flask import request, g
 from wxcloudrun import app
 from wxcloudrun.decorators import login_required
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from wxcloudrun.response import make_succ_response, make_err_response
+from app.shared.response import make_succ_response, make_err_response
 
 logger = logging.getLogger('CommunityCheckinView')
 

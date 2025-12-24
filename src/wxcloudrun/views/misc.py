@@ -7,7 +7,7 @@ import logging
 from datetime import datetime
 from flask import render_template, request, Response
 from wxcloudrun import app
-from wxcloudrun.response import make_succ_response, make_err_response, make_succ_empty_response
+from app.shared.response import make_succ_response, make_err_response, make_succ_empty_response
 from database.flask_models import Counters, db
 from config_manager import analyze_all_configs, detect_external_systems_status
 

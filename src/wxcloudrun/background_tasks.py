@@ -3,7 +3,7 @@ import threading
 import time as time_module
 from datetime import datetime, date, time, timedelta
 
-from wxcloudrun import app
+from flask import current_app
 from database.flask_models import CheckinRule, CheckinRecord, User
 from wxcloudrun.checkin_record_service import CheckinRecordService
 
@@ -41,7 +41,7 @@ def _process_missed_for_today(now):
     except Exception as e:
         # 如果数据库表不存在，跳过本次检查
         if "no such table" in str(e).lower():
-            app.logger.warning(f"[missing-mark] 数据库表尚未创建，跳过检查。如果此日志仅出现一次，属于正常状态。")
+            current_app.logger.warning(f"[missing-mark] 数据库表尚未创建，跳过检查。如果此日志仅出现一次，属于正常状态。")
             return
         else:
             # 其他错误继续抛出
@@ -75,11 +75,11 @@ def _process_missed_for_today(now):
                 planned_time=planned_dt,
                 status=0
             )
-            app.logger.info(
+            current_app.logger.info(
                 f"[missing-mark] 用户 {rule.user_id} 规则 {rule.rule_id} 标记为miss，计划时间 {planned_dt}"  # 更新字段名
             )
         except Exception as e:
-            app.logger.error(
+            current_app.logger.error(
                 f"[missing-mark] 处理规则 {rule.rule_id} 时出错: {str(e)}", exc_info=True
             )
 
@@ -87,26 +87,35 @@ def _process_missed_for_today(now):
 def _run_loop():
     interval_minutes = int(os.getenv('MISS_CHECK_INTERVAL_MINUTES', '5'))
     interval_seconds = max(1, interval_minutes * 60)
-    app.logger.info(
+    current_app.logger.info(
         f"[missing-mark] 后台服务启动，检查间隔 {interval_minutes} 分钟"
     )
 
     while True:
         try:
-            with app.app_context():
+            with current_app.app_context():
                 now = datetime.now()
                 _process_missed_for_today(now)
         except Exception as e:
-            app.logger.error(f"[missing-mark] 后台服务循环错误: {str(e)}", exc_info=True)
+            current_app.logger.error(f"[missing-mark] 后台服务循环错误: {str(e)}", exc_info=True)
         finally:
             time_module.sleep(interval_seconds)
 
 
 def start_missing_check_service():
     try:
-        t = threading.Thread(target=_run_loop, daemon=True)
-        t.start()
-        app.logger.info("[missing-mark] 后台服务线程已启动")
+        # 创建应用上下文
+        from wxcloudrun import app
+        with app.app_context():
+            t = threading.Thread(target=_run_loop_with_context, daemon=True, args=(app,))
+            t.start()
+            app.logger.info("[missing-mark] 后台服务线程已启动")
     except Exception as e:
         app.logger.error(f"[missing-mark] 启动后台服务失败: {str(e)}")
+
+
+def _run_loop_with_context(app):
+    """在线程中运行循环，保持应用上下文"""
+    with app.app_context():
+        _run_loop()
 

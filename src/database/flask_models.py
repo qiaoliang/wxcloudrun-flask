@@ -3,11 +3,8 @@ Flask-SQLAlchemy模型定义
 从纯SQLAlchemy迁移到Flask-SQLAlchemy
 """
 from datetime import datetime
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float, CheckConstraint, UniqueConstraint, Index
-
-# 创建SQLAlchemy实例
-db = SQLAlchemy()
+from app.extensions import db
 
 class User(db.Model):
     """用户表 - Flask-SQLAlchemy版本"""

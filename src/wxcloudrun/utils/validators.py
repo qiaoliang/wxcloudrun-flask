@@ -7,7 +7,7 @@ import os
 import logging
 from datetime import datetime, timedelta
 from hashlib import sha256
-from wxcloudrun import app
+from flask import current_app
 from database.flask_models import VerificationCode, UserAuditLog, db
 
 
@@ -65,7 +65,7 @@ def _verify_sms_code(phone, purpose, code):
     # 在 mock 环境下（should_use_real_sms() 返回 False），进行基本验证
     from config_manager import should_use_real_sms
     if not should_use_real_sms():
-        app.logger.info(f"[Mock SMS] 验证验证码 - phone: {phone}, purpose: {purpose}, code: {code}, ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
+        current_app.logger.info(f"[Mock SMS] 验证验证码 - phone: {phone}, purpose: {purpose}, code: {code}, ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
         
         # 定义明确的测试验证码
         valid_test_codes = ["123456", "000000", "111111", "222222", "333333", "444444", "555555", "666666", "777777", "888888"]
@@ -73,14 +73,14 @@ def _verify_sms_code(phone, purpose, code):
         invalid_codes = ["12345", "1234567", "abcdef", "", " ", "null", "@#$%^&", "999999"]
         
         if code in valid_test_codes:
-            app.logger.info(f"[Mock SMS] 验证码 '{code}' 是有效的测试验证码")
+            current_app.logger.info(f"[Mock SMS] 验证码 '{code}' 是有效的测试验证码")
             return True
         elif code in invalid_codes:
-            app.logger.info(f"[Mock SMS] 验证码 '{code}' 被识别为无效")
+            current_app.logger.info(f"[Mock SMS] 验证码 '{code}' 被识别为无效")
             return False
         else:
             # 对于其他验证码，在测试环境下也认为是有效的（保持向后兼容）
-            app.logger.info(f"[Mock SMS] 验证码 '{code}' 是未知验证码，在测试环境下视为有效")
+            current_app.logger.info(f"[Mock SMS] 验证码 '{code}' 是未知验证码，在测试环境下视为有效")
             return True
 
     vc = VerificationCode.query.filter_by(

@@ -4,6 +4,12 @@
 
 SafeGuard 是一个基于 Flask 的微信小程序后端服务，提供用户管理、社区管理、打卡监督等功能。项目采用现代化的 Python 3.12 技术栈，支持多环境部署和完整的测试体系。
 
+**架构特点**：
+- 采用 Flask Blueprint 模块化架构，实现 100% 路由模块化
+- 使用应用工厂模式，统一扩展管理和配置
+- 11 个功能模块独立管理，便于开发和维护
+- 符合 Flask 最佳实践，具备高可扩展性和可维护性
+
 ### 核心功能
 - **用户认证管理**：支持微信登录、手机号注册、Token 管理
 - **社区管理**：社区创建、成员管理、权限控制
@@ -12,7 +18,7 @@ SafeGuard 是一个基于 Flask 的微信小程序后端服务，提供用户管
 - **分享功能**：打卡记录分享链接生成和解析
 
 ### 技术栈
-- **后端框架**：Flask 3.1.2
+- **后端框架**：Flask 3.1.2 + Blueprint 模块化架构
 - **数据库**：SQLAlchemy 2.0.16 + Flask-SQLAlchemy 3.0.5
 - **数据库迁移**：Alembic 1.13.1
 - **认证**：JWT (PyJWT 2.4.0)
@@ -20,22 +26,44 @@ SafeGuard 是一个基于 Flask 的微信小程序后端服务，提供用户管
 - **API 文档**：Markdown 格式的 API 文档（位于 `API/` 目录）
 - **测试框架**：pytest
 - **容器化**：Docker
+- **应用架构**：Flask Application Factory 模式
+- **模块化设计**：11 个功能模块 Blueprint
 
 ## 项目结构
 
 ```
 backend/
 ├── src/                    # 源代码目录
-│   ├── wxcloudrun/        # 核心业务逻辑
-│   │   ├── views/         # API 视图层
+│   ├── app/               # Flask 应用工厂和模块化架构
+│   │   ├── __init__.py    # 应用工厂，创建和配置 Flask 应用
+│   │   ├── extensions.py  # Flask 扩展管理（SQLAlchemy 等）
+│   │   ├── modules/       # Blueprint 模块（11个功能模块）
+│   │   │   ├── auth/      # 认证模块
+│   │   │   ├── user/      # 用户管理模块
+│   │   │   ├── community/ # 社区管理模块
+│   │   │   ├── checkin/   # 打卡模块
+│   │   │   ├── supervision/ # 监督模块
+│   │   │   ├── sms/       # 短信服务模块
+│   │   │   ├── share/     # 分享功能模块
+│   │   │   ├── events/    # 事件管理模块
+│   │   │   ├── community_checkin/ # 社区打卡模块
+│   │   │   ├── user_checkin/     # 用户打卡模块
+│   │   │   └── misc/      # 杂项功能模块
+│   │   └── shared/        # 共享组件
+│   │       ├── response.py # 统一响应格式
+│   │       ├── decorators.py # 装饰器
+│   │       └── utils/     # 工具函数
+│   ├── wxcloudrun/        # 核心业务逻辑（兼容层）
+│   │   ├── views/         # 原 API 视图层（已迁移到 Blueprint）
 │   │   ├── utils/         # 工具函数
-│   │   └── *.py           # 服务层
+│   │   ├── *_service.py   # 业务服务层
+│   │   └── __init__.py    # 应用入口（使用应用工厂）
 │   ├── database/          # 数据库相关
-│   │   ├── flask_models.py    # SQLAlchemy 模型
+│   │   ├── flask_models.py    # Flask-SQLAlchemy 模型
 │   │   ├── core.py            # 数据库核心（已迁移）
 │   │   └── initialization.py  # 数据库初始化
 │   ├── alembic/           # 数据库迁移脚本
-│   └── main.py            # 应用入口
+│   └── main.py            # 原应用入口（已弃用，使用 wxcloudrun/__init__.py）
 ├── tests/                 # 测试目录
 │   ├── unit/             # 单元测试
 │   ├── integration/      # 集成测试
@@ -91,14 +119,21 @@ pip install -r requirements-test.txt  # 测试依赖
 # 方式1：使用本地运行脚本（推荐）
 ./localrun.sh
 
-# 方式2：手动启动
+# 方式2：手动启动（使用新的应用工厂）
 cd src
-ENV_TYPE=function python3.12 main.py 0.0.0.0 9999
+ENV_TYPE=function python3.12 -c "
+from wxcloudrun import app
+app.run(host='0.0.0.0', port=9999, debug=True)
+"
+
+# 方式3：直接运行 wxcloudrun 模块
+cd src
+ENV_TYPE=function python3.12 -m wxcloudrun 0.0.0.0 9999
 ```
 
 服务启动后访问：
 - API 服务：http://localhost:9999
-- 环境配置查看器：http://localhost:9999/env
+- 环境配置查看器：http://localhost:9999/api/env
 
 ### 3. 数据库迁移
 
@@ -228,16 +263,49 @@ Authorization: Bearer <token>
 ## 开发约定
 
 ### 代码结构
-1. **视图层** (`src/wxcloudrun/views/`)：处理 HTTP 请求，调用服务层
-2. **服务层** (`src/wxcloudrun/*_service.py`)：业务逻辑实现
-3. **模型层** (`src/database/flask_models.py`)：SQLAlchemy 数据模型
-4. **工具层** (`src/wxcloudrun/utils/`)：通用工具函数
+1. **应用工厂** (`src/app/__init__.py`)：创建和配置 Flask 应用实例
+2. **蓝图模块** (`src/app/modules/`)：按功能域组织的模块化路由
+3. **共享组件** (`src/app/shared/`)：跨模块共享的工具和响应格式
+4. **服务层** (`src/wxcloudrun/*_service.py`)：业务逻辑实现
+5. **模型层** (`src/database/flask_models.py`)：Flask-SQLAlchemy 数据模型
+6. **工具层** (`src/wxcloudrun/utils/`)：通用工具函数
+
+### Blueprint 开发规范
+1. **模块组织**：每个功能域一个 Blueprint，包含 `__init__.py` 和 `routes.py`
+2. **路由定义**：使用 `@bp.route()` 装饰器，统一 `/api` 前缀
+3. **导入规范**：使用 `current_app` 替代全局 `app` 变量
+4. **共享组件**：从 `app.shared` 导入响应格式和装饰器
+5. **避免循环导入**：在 `__init__.py` 中先定义 Blueprint，再导入 routes
 
 ### 数据库约定
 1. 使用 Flask-SQLAlchemy 进行数据库操作
 2. 所有模型继承自 `db.Model`
 3. 使用 Alembic 进行数据库迁移管理
 4. 软删除使用 `is_deleted` 字段标记
+
+### Blueprint 架构说明
+项目采用 Flask Blueprint 模块化架构，具有以下特点：
+
+**模块组织**
+- 11 个功能模块，每个模块独立管理自己的路由和业务逻辑
+- 统一的 `/api` 前缀，所有 API 端点都以此开头
+- 模块间通过共享组件进行通信，避免耦合
+
+**扩展管理**
+- 所有 Flask 扩展在 `app/extensions.py` 中统一管理
+- 使用应用工厂模式，确保扩展正确初始化
+- 避免循环导入问题，保持代码清晰
+
+**开发流程**
+1. 新功能开发时，在对应的 Blueprint 模块中添加路由
+2. 使用 `current_app` 访问应用实例，而非全局变量
+3. 共享的工具函数和装饰器放在 `app/shared/` 目录
+4. 业务逻辑仍在 `wxcloudrun/*_service.py` 中实现
+
+**部署优势**
+- 模块化架构便于独立测试和部署
+- 清晰的依赖关系，降低维护成本
+- 符合 Flask 最佳实践，便于团队协作
 
 ### 错误处理
 1. HTTP 状态码统一返回 200
@@ -300,6 +368,15 @@ make setup
 2. **测试要求**：新功能必须包含单元测试和集成测试
 3. **文档更新**：修改 API 后需要更新对应的 API 文档
 4. **提交信息**：使用清晰的提交信息，说明修改内容和原因
+5. **Blueprint 开发**：
+   - 新功能应该在对应的 Blueprint 模块中开发
+   - 遵循模块化设计原则，避免跨模块直接调用
+   - 使用 `current_app` 而非全局 `app` 变量
+   - 共享组件放在 `app/shared/` 目录
+6. **导入规范**：
+   - 避免循环导入，Blueprint 定义要在路由导入之前
+   - 使用相对导入处理模块内部依赖
+   - 从 `app.shared` 导入共享组件
 
 ## 联系和支持
 
@@ -310,4 +387,5 @@ make setup
 ---
 
 *最后更新：2025-12-24*
-*版本：SafeGuard Backend v1.0*
+*版本：SafeGuard Backend v2.0 (Blueprint 架构)*
+*架构更新：完成 Flask Blueprint 模块化重构，共 11 个功能模块，83 个 API 路由*
