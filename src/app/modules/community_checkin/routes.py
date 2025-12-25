@@ -273,7 +273,7 @@ def get_community_checkin_rule(decoded, rule_id):
         )
 
         current_app.logger.info(f'成功获取社区打卡规则详情，规则ID: {rule.get("community_rule_id")}')
-        return make_succ_response(rule)
+        return make_succ_response({'rule': rule})
 
     except Exception as e:
         current_app.logger.error(f'获取社区打卡规则详情失败: {str(e)}', exc_info=True)
