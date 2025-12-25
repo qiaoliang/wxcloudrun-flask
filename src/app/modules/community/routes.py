@@ -78,6 +78,7 @@ def _format_community_info(community, include_admin_count=False):
     manager_count = 0
     staff_count = 0
     worker_count = 0
+    user_count = 0  # 普通成员数量（不包括工作人员）
     if include_admin_count:
         manager_count = CommunityStaff.query.filter_by(
             community_id=community.community_id,
@@ -89,6 +90,21 @@ def _format_community_info(community, include_admin_count=False):
             role='staff'  # 社区专员
         ).count()
         worker_count = manager_count + staff_count  # 工作人员总数 = 主管 + 专员
+        
+        # 获取所有工作人员的用户ID列表
+        staff_user_ids = [s.user_id for s in CommunityStaff.query.filter_by(
+            community_id=community.community_id
+        ).all()]
+        
+        # 统计普通成员（不包括工作人员）
+        if staff_user_ids:
+            user_count = db.session.query(User).filter(
+                User.community_id == community.community_id,
+                User.user_id.notin_(staff_user_ids)
+            ).count()
+        else:
+            # 如果没有工作人员，统计所有社区用户
+            user_count = db.session.query(User).filter_by(community_id=community.community_id).count()
 
     return {
         'community_id': community.community_id,
@@ -108,7 +124,8 @@ def _format_community_info(community, include_admin_count=False):
         'updated_at': community.updated_at.isoformat() if community.updated_at else None,
         'manager_count': manager_count,  # 主管数量
         'worker_count': worker_count,  # 工作人员总数（主管+专员）
-        'staff_count': staff_count  # 专员数量（不包括主管）
+        'staff_count': staff_count,  # 专员数量（不包括主管）
+        'user_count': user_count  # 普通成员数量（不包括工作人员）
     }
 
 
@@ -1586,6 +1603,7 @@ def get_community_detail(community_id):
             'stats': {
                 'staff_count': community_data.get('staff_count', 0),  # 专员数量
                 'worker_count': community_data.get('worker_count', 0),  # 工作人员总数
+                'user_count': community_data.get('user_count', 0),  # 普通成员数量（不包括工作人员）
                 'manager_count': community_data.get('manager_count', 0),  # 主管数量
                 'support_count': event_stats.get('support_count', 0) if event_stats.get('success') else 0,
                 'active_events': event_stats.get('active_events', 0) if event_stats.get('success') else 0,

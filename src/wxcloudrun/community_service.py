@@ -578,13 +578,23 @@ class CommunityService:
 
     @staticmethod
     def get_community_members(community_id, page=1, page_size=20):
-        """获取社区成员列表"""
-        from database.flask_models import CheckinRecord
+        """获取社区成员列表（只返回普通成员，不包括工作人员）"""
+        from database.flask_models import CheckinRecord, CommunityStaff
         from datetime import date
 
-        # 分页查询社区成员 - 使用User表查询
+        # 获取该社区所有工作人员的用户ID列表
+        staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
+            community_id=community_id
+        ).all()]
+
+        # 分页查询社区成员 - 使用User表查询，排除工作人员
         offset = (page - 1) * page_size
         query = db.session.query(User).filter_by(community_id=community_id)
+        
+        # 排除工作人员
+        if staff_user_ids:
+            query = query.filter(User.user_id.notin_(staff_user_ids))
+        
         total = query.count()
         members = query.order_by(User.community_joined_at.desc()).offset(offset).limit(page_size).all()
 
