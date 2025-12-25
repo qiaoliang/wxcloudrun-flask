@@ -802,9 +802,39 @@ class CommunityService:
     def get_manageable_communities(user, page=1, per_page=7):
         """获取用户可管理的社区列表"""
         from database.flask_models import CommunityStaff
+        from const_default import DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID
 
         if user.role == 4:  # 超级管理员
             query = db.session.query(Community).filter_by(status=1)  # 只显示启用状态
+            
+            # 确保特殊社区（安卡大家庭和黑屋）包含在结果中
+            # 获取特殊社区
+            special_communities = db.session.query(Community).filter(
+                Community.community_id.in_([DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID]),
+                Community.status == 1
+            ).all()
+            
+            # 获取特殊社区ID列表
+            special_community_ids = [c.community_id for c in special_communities]
+            
+            # 如果特殊社区没有被包含在正常查询中，需要确保它们出现在结果中
+            all_communities = query.all()
+            existing_ids = [c.community_id for c in all_communities]
+            
+            # 添加缺失的特殊社区
+            for special_community in special_communities:
+                if special_community.community_id not in existing_ids:
+                    all_communities.append(special_community)
+            
+            # 按创建时间排序
+            all_communities.sort(key=lambda x: x.created_at, reverse=True)
+            
+            # 手动分页
+            total = len(all_communities)
+            offset = (page - 1) * per_page
+            communities = all_communities[offset:offset + per_page]
+            
+            return communities, total
         else:
             # 获取用户作为工作人员的社区
             staff_communities = db.session.query(CommunityStaff).filter_by(
@@ -820,12 +850,12 @@ class CommunityService:
                 Community.status == 1  # 启用状态
             )
 
-        # 分页查询
-        total = query.count()
-        offset = (page - 1) * per_page
-        communities = query.order_by(Community.created_at.desc()).offset(offset).limit(per_page).all()
+            # 分页查询
+            total = query.count()
+            offset = (page - 1) * per_page
+            communities = query.order_by(Community.created_at.desc()).offset(offset).limit(per_page).all()
 
-        return communities, total
+            return communities, total
 
     @staticmethod
     def search_communities_with_permission(user, keyword):
