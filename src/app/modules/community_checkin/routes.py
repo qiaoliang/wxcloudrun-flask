@@ -85,7 +85,7 @@ def create_community_checkin_rule(decoded):
             return make_err_response({}, '缺少请求参数')
 
         # 验证必要参数
-        required_fields = ['title', 'checkin_time', 'repeat_days']
+        required_fields = ['rule_name']
         for field in required_fields:
             if field not in params:
                 return make_err_response({}, f'缺少必要参数: {field}')
