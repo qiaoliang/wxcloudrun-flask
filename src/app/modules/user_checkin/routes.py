@@ -13,7 +13,7 @@ from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 logger = logging.getLogger('UserCheckinView')
 
 
-@user_checkin_bp.route('/user-checkin/rules', methods=['GET'])
+@user_checkin_bp.route('/user-checkin/rules', methods=['GET', 'DELETE'])
 def get_user_all_rules():
     """
     获取用户所有打卡规则（个人规则 + 社区规则）
@@ -65,6 +65,33 @@ def get_user_all_rules():
     user_id = decoded.get('user_id')
     current_app.logger.info(f'用户ID: {user_id}')
 
+    # 处理 DELETE 方法（删除个人规则）
+    if request.method == 'DELETE':
+        params = request.get_json()
+        if not params:
+            return make_err_response({}, '缺少请求参数')
+
+        rule_id = params.get('rule_id')
+        rule_source = params.get('rule_source')
+
+        if not rule_id:
+            return make_err_response({}, '缺少规则ID参数')
+
+        # 只允许删除个人规则
+        if rule_source == 'community':
+            return make_err_response({}, '不允许删除社区规则')
+
+        try:
+            # 调用 CheckinRuleService 删除个人规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            response_data = CheckinRuleService.delete_rule(int(rule_id), user_id)
+            current_app.logger.info(f'用户 {user_id} 成功删除个人打卡规则')
+            return make_succ_response(response_data)
+        except Exception as e:
+            current_app.logger.error(f'删除个人打卡规则失败: {str(e)}', exc_info=True)
+            return make_err_response({}, f'删除规则失败: {str(e)}')
+
+    # 处理 GET 方法（获取所有规则）
     try:
         # 调用服务层获取用户所有规则
         rules = UserCheckinRuleService.get_user_all_rules(user_id)

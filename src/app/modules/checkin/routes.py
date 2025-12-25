@@ -14,6 +14,7 @@ from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
 from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only, format_time
+from database.flask_models import db
 
 app_logger = logging.getLogger('log')
 
@@ -56,10 +57,10 @@ def get_today_checkin_items():
         return error_response
 
     # 参数验证
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = db.session.get(User, user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -88,10 +89,11 @@ def perform_checkin():
         return error_response
 
     # 参数验证
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    from database.flask_models import User
+    user = db.session.get(User, user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     # 获取请求参数
@@ -146,10 +148,11 @@ def report_miss_checkin():
         return error_response
 
     # 参数验证
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    from database.flask_models import User
+    user = db.session.get(User, user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     # 获取请求参数
@@ -204,10 +207,11 @@ def cancel_checkin():
         return error_response
 
     # 参数验证
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    from database.flask_models import User
+    user = db.session.get(User, user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     # 获取请求参数
@@ -251,10 +255,10 @@ def get_checkin_history():
         return error_response
 
     # 参数验证
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = db.session.get(User, user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     # 获取查询参数
@@ -308,10 +312,11 @@ def manage_checkin_rules():
         return error_response
 
     # 参数验证
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    from database.flask_models import User
+    user = db.session.get(User, user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     method = request.method

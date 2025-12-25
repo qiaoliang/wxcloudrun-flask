@@ -18,7 +18,7 @@ from database.flask_models import db, SupervisionRuleRelation, CheckinRecord
 app_logger = logging.getLogger('log')
 
 
-@supervision_bp.route('/invite', methods=['POST'])
+@supervision_bp.route('/supervision/invite', methods=['POST'])
 @login_required
 def invite_supervisor(decoded):
     """
@@ -99,7 +99,7 @@ def invite_supervisor(decoded):
         return make_err_response({}, f'邀请失败: {str(e)}')
 
 
-@supervision_bp.route('/invite_link', methods=['POST'])
+@supervision_bp.route('/supervision/invite_link', methods=['POST'])
 @login_required
 def create_invite_link(decoded):
     """
@@ -145,7 +145,7 @@ def create_invite_link(decoded):
         return make_err_response({}, f'创建邀请链接失败: {str(e)}')
 
 
-@supervision_bp.route('/invite/resolve', methods=['GET'])
+@supervision_bp.route('/supervision/invite/resolve', methods=['GET'])
 def resolve_invite_link():
     """
     解析监督邀请链接接口
@@ -174,7 +174,7 @@ def resolve_invite_link():
         return make_err_response({}, f'解析邀请链接失败: {str(e)}')
 
 
-@supervision_bp.route('/invitations', methods=['GET'])
+@supervision_bp.route('/supervision/invitations', methods=['GET'])
 @login_required
 def get_supervision_invitations(decoded):
     """
@@ -222,7 +222,7 @@ def get_supervision_invitations(decoded):
         return make_err_response({}, f'获取邀请列表失败: {str(e)}')
 
 
-@supervision_bp.route('/accept', methods=['POST'])
+@supervision_bp.route('/supervision/accept', methods=['POST'])
 @login_required
 def accept_supervision(decoded):
     """
@@ -251,7 +251,7 @@ def accept_supervision(decoded):
         return make_err_response({}, f'接受邀请失败: {str(e)}')
 
 
-@supervision_bp.route('/reject', methods=['POST'])
+@supervision_bp.route('/supervision/reject', methods=['POST'])
 @login_required
 def reject_supervision(decoded):
     """
@@ -282,7 +282,7 @@ def reject_supervision(decoded):
         return make_err_response({}, f'拒绝邀请失败: {str(e)}')
 
 
-@supervision_bp.route('/my_supervised', methods=['GET'])
+@supervision_bp.route('/supervision/my_supervised', methods=['GET'])
 @login_required
 def get_my_supervised_users(decoded):
     """
@@ -326,7 +326,7 @@ def get_my_supervised_users(decoded):
         return make_err_response({}, f'获取监督用户列表失败: {str(e)}')
 
 
-@supervision_bp.route('/my_guardians', methods=['GET'])
+@supervision_bp.route('/supervision/my_guardians', methods=['GET'])
 @login_required
 def get_my_guardians(decoded):
     """
@@ -370,7 +370,7 @@ def get_my_guardians(decoded):
         return make_err_response({}, f'获取监督者列表失败: {str(e)}')
 
 
-@supervision_bp.route('/records', methods=['GET'])
+@supervision_bp.route('/supervision/records', methods=['GET'])
 @login_required
 def get_supervision_records(decoded):
     """
