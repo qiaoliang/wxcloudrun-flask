@@ -80,6 +80,8 @@ def _format_community_info(community, include_admin_count=False):
         'creator_id': community.creator_id,
         'creator': creator,
         'status': community.status,
+        'is_default': community.is_default,
+        'is_blackhouse': community.is_blackhouse,
         'created_at': community.created_at.isoformat() if community.created_at else None,
         'updated_at': community.updated_at.isoformat() if community.updated_at else None,
         'admin_count': admin_count,
@@ -477,7 +479,7 @@ def get_managed_communities():
 
     try:
         # 获取用户可管理的社区
-        communities = CommunityService.get_user_managed_communities(user.user_id)
+        communities, _ = CommunityService.get_manageable_communities(user)
         
         # 格式化社区信息
         communities_data = []
