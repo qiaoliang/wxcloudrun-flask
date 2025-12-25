@@ -139,7 +139,7 @@ def get_community_list():
 
     try:
         # 获取用户可见的社区列表
-        communities = CommunityService.get_user_visible_communities(user_id)
+        communities = CommunityService.get_available_communities()
         
         # 格式化社区信息
         communities_data = []

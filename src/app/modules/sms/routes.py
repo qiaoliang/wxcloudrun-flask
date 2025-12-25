@@ -53,7 +53,6 @@ def sms_send_code():
             vc.salt = salt
             vc.expires_at = now + timedelta(minutes=_code_expiry_minutes())
             vc.last_sent_at = now
-            vc.attempts = 0
         else:
             # 创建新记录
             vc = VerificationCode(
@@ -62,8 +61,7 @@ def sms_send_code():
                 code_hash=code_hash,
                 salt=salt,
                 expires_at=now + timedelta(minutes=_code_expiry_minutes()),
-                last_sent_at=now,
-                attempts=0
+                last_sent_at=now
             )
             db.session.add(vc)
         
