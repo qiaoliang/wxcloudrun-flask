@@ -430,6 +430,41 @@ class CommunityService:
         return community
 
     @staticmethod
+    def update_community(community_id, params, user_id):
+        """
+        更新社区信息（适配器方法，用于路由调用）
+        
+        Args:
+            community_id: 社区ID
+            params: 更新参数字典
+            user_id: 操作用户ID（用于审计）
+            
+        Returns:
+            bool: 更新是否成功
+        """
+        try:
+            # 从params中提取字段
+            name = params.get('name')
+            description = params.get('description')
+            location = params.get('location')
+            status = params.get('status')
+            
+            # 调用现有的update_community_info方法
+            community = CommunityService.update_community_info(
+                community_id=community_id,
+                name=name,
+                description=description,
+                location=location,
+                status=status
+            )
+            
+            return community is not None
+            
+        except Exception as e:
+            logger.error(f"更新社区失败: {str(e)}")
+            return False
+
+    @staticmethod
     def get_community_staff_list(community_id, role_filter='all', sort_by='time'):
         """获取社区工作人员列表"""
         from database.flask_models import CommunityStaff
