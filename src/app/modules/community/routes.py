@@ -182,29 +182,30 @@ def get_community_users(community_id):
         role_filter = request.args.get('role')  # 可选的角色过滤
 
         # 获取社区用户
-        result = CommunityService.get_community_users(
-            community_id, page, per_page, role_filter
+        members_data, total = CommunityService.get_community_members(
+            community_id, page, per_page
         )
 
         # 格式化用户信息
         users_data = []
-        for user in result.get('users', []):
+        for user in members_data:
             user_data = {
-                'user_id': user.user_id,
-                'wechat_openid': user.wechat_openid,
-                'phone_number': user.phone_number,
-                'nickname': user.nickname,
-                'name': user.name,
-                'avatar_url': user.avatar_url,
-                'role': user.role_name,
-                'status': user.status,
-                'created_at': user.created_at.isoformat() if user.created_at else None
+                'user_id': int(user['user_id']),
+                'wechat_openid': '',  # get_community_members不返回此字段
+                'phone_number': user.get('phone_number', ''),
+                'nickname': user.get('nickname', ''),
+                'name': user.get('nickname', ''),  # 使用nickname作为name
+                'avatar_url': user.get('avatar_url', ''),
+                'role': '普通用户',  # 固定值，因为这些是普通用户
+                'status': 1,  # 固定值
+                'created_at': user.get('join_time'),  # 使用join_time作为created_at
+                'verification_status': 1  # 假设都已验证
             }
             users_data.append(user_data)
 
         response_data = {
             'users': users_data,
-            'total': result.get('total', 0),
+            'total': total,
             'page': page,
             'per_page': per_page,
             'has_next': len(users_data) == per_page
