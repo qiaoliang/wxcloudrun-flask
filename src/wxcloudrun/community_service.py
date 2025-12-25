@@ -834,6 +834,38 @@ class CommunityService:
         return result
 
     @staticmethod
+    def search_users_excluding_blackroom(keyword, page=1, per_page=20):
+        """搜索用户（排除黑名单房间）"""
+        from database.flask_models import CommunityStaff
+
+        # 获取黑名单房间ID
+        blackroom_community = db.session.query(Community).filter_by(name=DEFAULT_BLACK_ROOM_NAME).first()
+        blackroom_community_id = blackroom_community.community_id if blackroom_community else None
+
+        # 搜索用户 (按昵称或手机号)
+        users_query = db.session.query(User).filter(
+            (User.nickname.like(f'%{keyword}%')) |
+            (User.phone_number.like(f'%{keyword}%'))
+        )
+
+        # 排除黑名单房间的用户
+        if blackroom_community_id:
+            users_query = users_query.filter(User.community_id != blackroom_community_id)
+
+        # 分页
+        total = users_query.count()
+        offset = (page - 1) * per_page
+        users = users_query.offset(offset).limit(per_page).all()
+
+        return {
+            'users': users,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'pages': (total + per_page - 1) // per_page if per_page > 0 else 0
+        }
+
+    @staticmethod
     def get_manageable_communities(user, page=1, per_page=7):
         """获取用户可管理的社区列表"""
         from database.flask_models import CommunityStaff
