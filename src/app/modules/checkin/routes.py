@@ -18,6 +18,31 @@ from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only, format_t
 app_logger = logging.getLogger('log')
 
 
+def _rule_to_dict(rule):
+    """
+    将规则对象转换为字典
+    :param rule: CheckinRule 对象
+    :return: 字典格式的规则数据
+    """
+    return {
+        'rule_id': rule.rule_id,
+        'user_id': rule.user_id,
+        'community_id': rule.community_id,
+        'rule_type': rule.rule_type,
+        'rule_name': rule.rule_name,
+        'icon_url': rule.icon_url,
+        'frequency_type': rule.frequency_type,
+        'time_slot_type': rule.time_slot_type,
+        'custom_time': rule.custom_time,
+        'week_days': rule.week_days,
+        'custom_start_date': rule.custom_start_date,
+        'custom_end_date': rule.custom_end_date,
+        'status': rule.status,
+        'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M:%S') if rule.created_at else None,
+        'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M:%S') if rule.updated_at else None
+    }
+
+
 @checkin_bp.route('/today', methods=['GET'])
 def get_today_checkin_items():
     """
@@ -298,11 +323,15 @@ def manage_checkin_rules():
             rule_id = request.args.get('rule_id')
             if rule_id:
                 # 查询单个规则
-                response_data = CheckinRuleService.get_rule_by_id(user.user_id, int(rule_id))
+                rule = CheckinRuleService.query_rule_by_id(int(rule_id))
+                if not rule:
+                    return make_err_response({}, '规则不存在')
+                response_data = _rule_to_dict(rule)
             else:
                 # 查询所有规则
-                response_data = CheckinRuleService.get_user_rules(user.user_id)
-            
+                rules = CheckinRuleService.query_rules_by_user_id(user.user_id)
+                response_data = {'rules': [_rule_to_dict(r) for r in rules]}
+
             current_app.logger.info(f'用户 {user.user_id} 成功查询打卡规则')
             return make_succ_response(response_data)
 
@@ -312,15 +341,23 @@ def manage_checkin_rules():
             if not params:
                 return make_err_response({}, '缺少请求参数')
 
-            # 验证必要参数
-            required_fields = ['title', 'checkin_time', 'repeat_days']
-            for field in required_fields:
-                if field not in params:
-                    return make_err_response({}, f'缺少必要参数: {field}')
+            # 支持新旧两种参数格式
+            # 新格式：rule_name, frequency_type, time_slot_type, week_days, custom_time
+            # 旧格式：title, checkin_time, repeat_days（向后兼容）
+            if 'rule_name' in params:
+                # 新格式验证
+                if not params.get('rule_name'):
+                    return make_err_response({}, '规则名称不能为空')
+            else:
+                # 旧格式验证（向后兼容）
+                required_fields = ['title', 'checkin_time', 'repeat_days']
+                for field in required_fields:
+                    if field not in params:
+                        return make_err_response({}, f'缺少必要参数: {field}')
 
-            response_data = CheckinRuleService.create_rule(user.user_id, params)
+            rule = CheckinRuleService.create_rule(user.user_id, params)
             current_app.logger.info(f'用户 {user.user_id} 成功创建打卡规则')
-            return make_succ_response(response_data)
+            return make_succ_response({'rule': _rule_to_dict(rule)})
 
         elif method == 'PUT':
             # 更新打卡规则
@@ -328,13 +365,15 @@ def manage_checkin_rules():
             if not params:
                 return make_err_response({}, '缺少请求参数')
 
+            # 支持新旧两种参数格式
+            # 新格式：rule_id 作为路径参数或body参数
             rule_id = params.get('rule_id')
             if not rule_id:
                 return make_err_response({}, '缺少规则ID参数')
 
-            response_data = CheckinRuleService.update_rule(user.user_id, rule_id, params)
+            rule = CheckinRuleService.update_rule(user.user_id, rule_id, params)
             current_app.logger.info(f'用户 {user.user_id} 成功更新打卡规则')
-            return make_succ_response(response_data)
+            return make_succ_response({'rule': _rule_to_dict(rule)})
 
         elif method == 'DELETE':
             # 删除打卡规则
