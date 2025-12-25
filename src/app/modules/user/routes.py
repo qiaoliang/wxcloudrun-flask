@@ -200,6 +200,7 @@ def search_users(decoded):
     """
     用户搜索接口
     支持按手机号、昵称搜索用户
+    支持社区过滤，用于添加专员时排除当前社区工作人员
     """
     current_app.logger.info('=== 开始执行用户搜索接口 ===')
 
@@ -209,52 +210,59 @@ def search_users(decoded):
         search_type = request.args.get('type', 'all')  # all, phone, nickname
         page = int(request.args.get('page', 1))
         per_page = min(int(request.args.get('per_page', 20)), 100)  # 限制最大100条
+        community_id = request.args.get('community_id')  # 社区ID过滤参数
+
+        if community_id:
+            try:
+                community_id = int(community_id)
+            except ValueError:
+                return make_err_response({}, '社区ID格式错误')
 
         if not keyword:
             return make_err_response({}, '搜索关键词不能为空')
 
-        current_app.logger.info(f'搜索参数: keyword={keyword}, type={search_type}, page={page}, per_page={per_page}')
+        current_app.logger.info(f'搜索参数: keyword={keyword}, type={search_type}, page={page}, per_page={per_page}, community_id={community_id}')
 
         # 执行搜索
         if search_type == 'phone':
-            # 标准化手机号格式
-            normalized_phone = keyword
-            if len(normalized_phone) >= 7:
-                normalized_phone = normalized_phone[:3] + '****' + normalized_phone[-4:]
-
-            result = UserService.search_users_by_phone(normalized_phone, page, per_page)
+            # 按手机号搜索，不进行脱敏处理
+            result = UserService.search_users_by_phone(keyword, page, per_page)
         elif search_type == 'nickname':
+            # 按昵称搜索
             result = UserService.search_users_by_nickname(keyword, page, per_page)
         else:
-            # 全局搜索
-            result = UserService.search_users(keyword, page, per_page)
+            # 全局搜索（支持社区过滤）
+            result = UserService.search_users(keyword, page, per_page, community_id)
 
-        current_app.logger.info(f'搜索结果: 找到 {result["total"]} 条记录')
+        total_count = result.get('pagination', {}).get('total', 0)
+        current_app.logger.info(f'搜索结果: 找到 {total_count} 条记录')
 
         # 构造返回数据
         users = []
         for user in result.get('users', []):
             user_data = {
-                'user_id': user.user_id,
-                'wechat_openid': user.wechat_openid,
-                'phone_number': user.phone_number,
-                'nickname': user.nickname,
-                'name': user.name,
-                'avatar_url': user.avatar_url,
-                'role': user.role_name,
-                'community_id': user.community_id,
-                'community_name': user.community.name if user.community else None,
-                'status': user.status,
-                'created_at': user.created_at.isoformat() if user.created_at else None
+                'user_id': user.get('user_id'),
+                'wechat_openid': user.get('wechat_openid'),
+                'phone_number': user.get('phone_number'),
+                'nickname': user.get('nickname'),
+                'name': user.get('name'),
+                'avatar_url': user.get('avatar_url'),
+                'role': user.get('role'),
+                'community_id': user.get('community_id'),
+                'status': user.get('status'),
+                'created_at': user.get('created_at'),
+                # 添加社区工作人员状态标识
+                'is_current_community_staff': user.get('is_current_community_staff', False),
+                'is_current_community_manager': user.get('is_current_community_manager', False),
+                'is_other_community_manager': user.get('is_other_community_manager', False),
+                'is_staff': user.get('is_staff', False)
             }
             users.append(user_data)
 
+        pagination = result.get('pagination', {})
         response_data = {
             'users': users,
-            'total': result.get('total', 0),
-            'page': page,
-            'per_page': per_page,
-            'has_next': len(users) == per_page
+            'pagination': pagination
         }
 
         return make_succ_response(response_data)

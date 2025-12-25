@@ -356,3 +356,267 @@ class UserService:
         except Exception as e:
             logger.error(f'从安卡大家庭搜索用户失败: {str(e)}', exc_info=True)
             raise
+
+    @staticmethod
+    def search_users(keyword, page=1, per_page=20, community_id=None):
+        """
+        搜索用户（全局搜索，支持社区过滤）
+        
+        Args:
+            keyword (str): 搜索关键词
+            page (int): 页码，默认1
+            per_page (int): 每页数量，默认20，最大100
+            community_id (int): 社区ID过滤，用于排除当前社区工作人员
+            
+        Returns:
+            dict: 包含用户列表和分页信息的字典
+        """
+        try:
+            # 参数验证
+            if page < 1:
+                page = 1
+            if per_page < 1:
+                per_page = 20
+            elif per_page > 100:
+                per_page = 100
+
+            # 如果关键词为空，返回空结果
+            if not keyword or len(keyword) < 1:
+                return {
+                    'users': [],
+                    'pagination': {
+                        'page': page,
+                        'per_page': per_page,
+                        'total': 0,
+                        'has_more': False
+                    }
+                }
+
+            # 构建基础查询
+            from database.flask_models import CommunityStaff
+            from sqlalchemy import or_
+            
+            query = User.query.filter(
+                or_(
+                    User.nickname.ilike(f'%{keyword}%'),
+                    User.phone_number.ilike(f'%{keyword}%')
+                )
+            )
+
+            # 角色过滤：排除超级管理员 (role=4)
+            query = query.filter(User.role != 4)
+
+            total_count = query.count()
+
+            # 分页查询
+            offset = (page - 1) * per_page
+            users = (query.order_by(User.created_at.desc())
+                    .offset(offset)
+                    .limit(per_page)
+                    .all())
+
+            # 格式化响应数据
+            result = []
+            for u in users:
+                # 检查是否是当前社区的工作人员
+                is_current_community_staff = False
+                current_community_manager = False
+                other_community_manager = False
+                
+                if community_id:
+                    current_community_staff = db.session.query(CommunityStaff).filter_by(
+                        community_id=community_id, 
+                        user_id=u.user_id,
+                        role='staff'
+                    ).first() is not None
+                    
+                    current_community_manager = db.session.query(CommunityStaff).filter_by(
+                        community_id=community_id, 
+                        user_id=u.user_id,
+                        role='manager'
+                    ).first() is not None
+
+                # 检查是否是其他社区的管理员
+                other_community_manager = db.session.query(CommunityStaff).filter_by(
+                    user_id=u.user_id,
+                    role='manager'
+                ).filter(CommunityStaff.community_id != community_id).first() is not None
+
+                user_data = {
+                    'user_id': str(u.user_id),
+                    'wechat_openid': u.wechat_openid,
+                    'phone_number': u.phone_number,
+                    'nickname': u.nickname or '未设置昵称',
+                    'name': u.name,
+                    'avatar_url': u.avatar_url,
+                    'role': u.role,
+                    'community_id': str(u.community_id) if u.community_id else None,
+                    'status': u.status,
+                    'created_at': u.created_at.isoformat() if u.created_at else None,
+                    'is_current_community_staff': is_current_community_staff,
+                    'is_current_community_manager': current_community_manager,
+                    'is_other_community_manager': other_community_manager,
+                    'is_staff': db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                }
+
+                result.append(user_data)
+
+            has_more = (page * per_page) < total_count
+
+            logger.info(f'搜索用户成功: 关键词-{keyword}, 第{page}页, 每页{per_page}条, 共{total_count}人, 本次返回{len(result)}人')
+
+            return {
+                'users': result,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_count,
+                    'has_more': has_more
+                }
+            }
+
+        except Exception as e:
+            logger.error(f'搜索用户失败: {str(e)}', exc_info=True)
+            raise
+
+    @staticmethod
+    def search_users_by_phone(normalized_phone, page=1, per_page=20):
+        """
+        按手机号搜索用户
+        
+        Args:
+            normalized_phone (str): 标准化的手机号
+            page (int): 页码，默认1
+            per_page (int): 每页数量，默认20，最大100
+            
+        Returns:
+            dict: 包含用户列表和分页信息的字典
+        """
+        try:
+            # 参数验证
+            if page < 1:
+                page = 1
+            if per_page < 1:
+                per_page = 20
+            elif per_page > 100:
+                per_page = 100
+
+            # 搜索用户
+            query = User.query.filter(
+                User.phone_number.ilike(f'%{normalized_phone}%')
+            ).filter(User.role != 4)  # 排除超级管理员
+
+            total_count = query.count()
+
+            # 分页查询
+            offset = (page - 1) * per_page
+            users = (query.order_by(User.created_at.desc())
+                    .offset(offset)
+                    .limit(per_page)
+                    .all())
+
+            # 格式化响应数据
+            result = []
+            for u in users:
+                user_data = {
+                    'user_id': str(u.user_id),
+                    'wechat_openid': u.wechat_openid,
+                    'phone_number': u.phone_number,
+                    'nickname': u.nickname or '未设置昵称',
+                    'name': u.name,
+                    'avatar_url': u.avatar_url,
+                    'role': u.role,
+                    'community_id': str(u.community_id) if u.community_id else None,
+                    'status': u.status,
+                    'created_at': u.created_at.isoformat() if u.created_at else None,
+                    'is_staff': db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                }
+
+                result.append(user_data)
+
+            has_more = (page * per_page) < total_count
+
+            return {
+                'users': result,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_count,
+                    'has_more': has_more
+                }
+            }
+
+        except Exception as e:
+            logger.error(f'按手机号搜索用户失败: {str(e)}', exc_info=True)
+            raise
+
+    @staticmethod
+    def search_users_by_nickname(keyword, page=1, per_page=20):
+        """
+        按昵称搜索用户
+        
+        Args:
+            keyword (str): 搜索关键词
+            page (int): 页码，默认1
+            per_page (int): 每页数量，默认20，最大100
+            
+        Returns:
+            dict: 包含用户列表和分页信息的字典
+        """
+        try:
+            # 参数验证
+            if page < 1:
+                page = 1
+            if per_page < 1:
+                per_page = 20
+            elif per_page > 100:
+                per_page = 100
+
+            # 搜索用户
+            query = User.query.filter(
+                User.nickname.ilike(f'%{keyword}%')
+            ).filter(User.role != 4)  # 排除超级管理员
+
+            total_count = query.count()
+
+            # 分页查询
+            offset = (page - 1) * per_page
+            users = (query.order_by(User.created_at.desc())
+                    .offset(offset)
+                    .limit(per_page)
+                    .all())
+
+            # 格式化响应数据
+            result = []
+            for u in users:
+                user_data = {
+                    'user_id': str(u.user_id),
+                    'wechat_openid': u.wechat_openid,
+                    'phone_number': u.phone_number,
+                    'nickname': u.nickname or '未设置昵称',
+                    'name': u.name,
+                    'avatar_url': u.avatar_url,
+                    'role': u.role,
+                    'community_id': str(u.community_id) if u.community_id else None,
+                    'status': u.status,
+                    'created_at': u.created_at.isoformat() if u.created_at else None,
+                    'is_staff': db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                }
+
+                result.append(user_data)
+
+            has_more = (page * per_page) < total_count
+
+            return {
+                'users': result,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total': total_count,
+                    'has_more': has_more
+                }
+            }
+
+        except Exception as e:
+            logger.error(f'按昵称搜索用户失败: {str(e)}', exc_info=True)
+            raise
