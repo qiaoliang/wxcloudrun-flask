@@ -265,14 +265,14 @@ class UserService:
         return new_user
 
     @staticmethod
-    def search_ankafamily_users(keyword, page=1, limit=20):
+    def search_ankafamily_users(keyword, page=1, per_page=20):
         """
         从安卡大家庭搜索用户
 
         Args:
             keyword (str): 搜索关键词（昵称或手机号）
             page (int): 页码，默认1
-            limit (int): 每页数量，默认20，最大100
+            per_page (int): 每页数量，默认20，最大100
 
         Returns:
             dict: 包含用户列表和分页信息的字典
@@ -281,8 +281,10 @@ class UserService:
             # 参数验证
             if page < 1:
                 page = 1
-            if limit < 1 or limit > 100:
-                limit = 20
+            if per_page < 1:
+                per_page = 20
+            elif per_page > 100:
+                per_page = 100
 
             # 如果关键词为空，返回空结果
             if not keyword or len(keyword) < 1:
@@ -290,7 +292,7 @@ class UserService:
                     'users': [],
                     'pagination': {
                         'page': page,
-                        'limit': limit,
+                        'per_page': per_page,
                         'total': 0,
                         'has_more': False
                     }
@@ -314,35 +316,40 @@ class UserService:
             total_count = query.count()
 
             # 分页查询
-            offset = (page - 1) * limit
+            offset = (page - 1) * per_page
             users = (query.order_by(User.created_at.desc())
                     .offset(offset)
-                    .limit(limit)
+                    .limit(per_page)
                     .all())
 
             # 格式化响应数据
             result = []
             for u in users:
+                # 检查是否已是任何社区的工作人员
+                from database.flask_models import CommunityStaff
+                is_staff = db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                
                 user_data = {
                     'user_id': str(u.user_id),
                     'nickname': u.nickname or '未设置昵称',
                     'avatar_url': u.avatar_url,
                     'phone_number': u.phone_number or '未设置手机号',
                     'community_id': str(u.community_id) if u.community_id else None,
-                    'created_at': u.created_at.isoformat() if u.created_at else None
+                    'created_at': u.created_at.isoformat() if u.created_at else None,
+                    'is_staff': is_staff
                 }
 
                 result.append(user_data)
 
-            logger.info(f'从安卡大家庭搜索用户成功: 关键词-{keyword}, 第{page}页, 共{total_count}人, 本次返回{len(result)}人')
+            logger.info(f'从安卡大家庭搜索用户成功: 关键词-{keyword}, 第{page}页, 每页{per_page}条, 共{total_count}人, 本次返回{len(result)}人')
 
             return {
                 'users': result,
                 'pagination': {
                     'page': page,
-                    'limit': limit,
+                    'per_page': per_page,
                     'total': total_count,
-                    'has_more': (page * limit) < total_count
+                    'has_more': (page * per_page) < total_count
                 }
             }
 

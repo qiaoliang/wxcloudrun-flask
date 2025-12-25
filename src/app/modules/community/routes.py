@@ -1236,31 +1236,31 @@ def search_ankafamily_users():
         current_app.logger.info(f'搜索参数: keyword={keyword}, page={page}, per_page={per_page}')
 
         # 执行搜索
-        result = CommunityService.search_ankafamily_users(keyword, page, per_page)
+        result = UserService.search_ankafamily_users(keyword, page, per_page)
 
-        current_app.logger.info(f'搜索结果: 找到 {result["total"]} 条记录')
+        current_app.logger.info(f'搜索结果: 找到 {result["pagination"]["total"]} 条记录')
 
         # 构造返回数据
         users = []
         for user in result.get('users', []):
             user_data = {
-                'user_id': user.user_id,
-                'wechat_openid': user.wechat_openid,
-                'phone_number': user.phone_number,
-                'nickname': user.nickname,
-                'name': user.name,
-                'avatar_url': user.avatar_url,
-                'role': user.role_name,
-                'community_id': user.community_id,
-                'community_name': user.community.name if user.community else None,
-                'status': user.status,
-                'created_at': user.created_at.isoformat() if user.created_at else None
+                'user_id': user.get('user_id'),
+                'wechat_openid': user.get('wechat_openid'),
+                'phone_number': user.get('phone_number'),
+                'nickname': user.get('nickname'),
+                'name': user.get('name'),
+                'avatar_url': user.get('avatar_url'),
+                'role': user.get('role'),
+                'community_id': user.get('community_id'),
+                'community_name': None,  # 需要额外查询获取社区名称
+                'status': user.get('status'),
+                'created_at': user.get('created_at')
             }
             users.append(user_data)
 
         response_data = {
             'users': users,
-            'total': result.get('total', 0),
+            'total': result.get('pagination', {}).get('total', 0),
             'page': page,
             'per_page': per_page,
             'has_next': len(users) == per_page
