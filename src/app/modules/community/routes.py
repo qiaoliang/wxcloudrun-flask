@@ -1097,7 +1097,17 @@ def search_users():
         # 获取搜索参数
         keyword = request.args.get('keyword', '').strip()
         search_type = request.args.get('type', 'all')  # all, phone, nickname
-        page = int(request.args.get('page', 1))
+        
+        # 安全地解析page参数
+        page_str = request.args.get('page', '1')
+        try:
+            page = int(page_str)
+            if page < 1:
+                page = 1
+        except (ValueError, TypeError):
+            current_app.logger.error(f'无效的page参数: {page_str}')
+            return make_err_response({}, 'page参数必须是正整数')
+            
         per_page = min(int(request.args.get('per_page', 20)), 100)
 
         if not keyword:
@@ -1165,7 +1175,17 @@ def search_users_excluding_blackroom():
     try:
         # 获取搜索参数
         keyword = request.args.get('keyword', '').strip()
-        page = int(request.args.get('page', 1))
+        
+        # 安全地解析page参数
+        page_str = request.args.get('page', '1')
+        try:
+            page = int(page_str)
+            if page < 1:
+                page = 1
+        except (ValueError, TypeError):
+            current_app.logger.error(f'无效的page参数: {page_str}')
+            return make_err_response({}, 'page参数必须是正整数')
+            
         per_page = min(int(request.args.get('per_page', 20)), 100)
 
         if not keyword:
