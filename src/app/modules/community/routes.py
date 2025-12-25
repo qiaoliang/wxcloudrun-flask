@@ -616,16 +616,22 @@ def get_community_staff_list_enhanced():
     try:
         # GET请求应该从查询参数获取，而不是JSON body
         community_id = request.args.get('community_id')
+        role = request.args.get('role', 'all')  # 默认返回所有角色
         
         if not community_id:
             return make_err_response({}, '缺少社区ID')
+
+        # 验证role参数
+        valid_roles = ['all', 'manager', 'staff']
+        if role not in valid_roles:
+            return make_err_response({}, f'无效的角色参数，支持的角色: {valid_roles}')
 
         # 检查权限
         if not CommunityService.has_community_permission(user_id, community_id):
             return make_err_response({}, '无权限访问该社区')
 
-        # 获取社区工作人员
-        staff_list = CommunityStaffService.get_community_staff(community_id)
+        # 获取社区工作人员，传递role参数进行过滤
+        staff_list = CommunityStaffService.get_community_staff(community_id, role=role if role != 'all' else None)
         
         # 格式化工作人员信息
         staff_data = []
