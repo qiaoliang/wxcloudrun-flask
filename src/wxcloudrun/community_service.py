@@ -153,7 +153,7 @@ class CommunityService:
         return True
 
     @staticmethod
-    def get_communities_with_filters(filters=None, page=1, limit=20):
+    def get_communities_with_filters(filters=None, page=1, per_page=20):
         """根据筛选条件获取社区列表"""
         query = db.session.query(Community)
 
@@ -164,8 +164,8 @@ class CommunityService:
                 query = query.filter(Community.status == filters['status'])
 
         # 分页
-        offset = (page - 1) * limit
-        communities = query.offset(offset).limit(limit).all()
+        offset = (page - 1) * per_page
+        communities = query.offset(offset).limit(per_page).all()
         total = query.count()
 
         return communities, total
@@ -630,7 +630,7 @@ class CommunityService:
         return members_data, total
 
     @staticmethod
-    def add_users_to_community(community_id, user_ids):
+    def add_users_to_community(community_id, user_ids, operator_id=None):
         """批量添加用户到社区"""
         from datetime import datetime
 
