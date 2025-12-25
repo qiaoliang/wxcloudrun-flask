@@ -591,8 +591,8 @@ def get_community_staff_list_enhanced():
     current_app.logger.info(f'用户ID: {user_id}')
 
     try:
-        params = request.get_json() or {}
-        community_id = params.get('community_id')
+        # GET请求应该从查询参数获取，而不是JSON body
+        community_id = request.args.get('community_id')
         
         if not community_id:
             return make_err_response({}, '缺少社区ID')
@@ -602,7 +602,7 @@ def get_community_staff_list_enhanced():
             return make_err_response({}, '无权限访问该社区')
 
         # 获取社区工作人员
-        staff_list = CommunityStaffService.get_community_staff_enhanced(community_id)
+        staff_list = CommunityStaffService.get_community_staff(community_id)
         
         # 格式化工作人员信息
         staff_data = []
@@ -610,16 +610,15 @@ def get_community_staff_list_enhanced():
             user = User.query.get(staff.user_id)
             if user:
                 staff_info = {
-                    'staff_id': staff.staff_id,
+                    'staff_id': staff.id,
                     'user_id': user.user_id,
                     'wechat_openid': user.wechat_openid,
                     'phone_number': user.phone_number,
                     'nickname': user.nickname,
                     'name': user.name,
                     'avatar_url': user.avatar_url,
-                    'role': staff.role_name,
-                    'created_at': staff.created_at.isoformat() if staff.created_at else None,
-                    'last_active_at': user.last_active_at.isoformat() if user.last_active_at else None
+                    'role': staff.role,
+                    'created_at': staff.added_at.isoformat() if staff.added_at else None
                 }
                 staff_data.append(staff_info)
 
