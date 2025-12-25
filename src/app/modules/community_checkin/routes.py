@@ -91,8 +91,8 @@ def create_community_checkin_rule(decoded):
                 return make_err_response({}, f'缺少必要参数: {field}')
 
         # 调用服务层创建规则
-        rule = CommunityCheckinRuleService.create_rule(
-            community_id, user_id, params
+        rule = CommunityCheckinRuleService.create_community_rule(
+            params, community_id, user_id
         )
 
         current_app.logger.info(f'成功创建社区打卡规则，规则ID: {rule.rule_id}')
