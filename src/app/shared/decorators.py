@@ -51,7 +51,9 @@ def require_community_staff_member():
             
             # 从请求中获取community_id
             from flask import request
-            community_id = request.view_args.get('community_id') or request.json.get('community_id')
+            community_id = (request.view_args.get('community_id') or 
+                          request.args.get('community_id') or 
+                          request.json.get('community_id') if request.is_json else None)
             if not community_id:
                 from app.shared.response import make_err_response
                 return make_err_response('缺少社区ID参数')
