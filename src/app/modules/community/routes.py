@@ -14,6 +14,7 @@ from app.shared.utils.auth import verify_token, require_community_staff, get_cur
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
+from wxcloudrun.community_event_service import CommunityEventService
 from wxcloudrun.user_service import UserService
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_NAME, DEFAULT_BLACK_ROOM_ID
 from wxcloudrun.utils.validators import _audit, _hash_code
@@ -1418,11 +1419,22 @@ def get_community_detail(community_id):
         community_data = _format_community_info(community, include_admin_count=True)
 
         # 获取社区统计信息
-        stats = CommunityService.get_community_stats(community_id)
-        community_data.update(stats)
+        event_stats = CommunityEventService.get_community_stats(community_id)
+        
+        # 构建响应数据结构
+        response_data = {
+            'community': community_data,
+            'stats': {
+                'staff_count': community_data.get('admin_count', 0),  # 使用已有的管理员数量
+                'user_count': community_data.get('user_count', 0),
+                'support_count': event_stats.get('support_count', 0) if event_stats.get('success') else 0,
+                'active_events': event_stats.get('active_events', 0) if event_stats.get('success') else 0,
+                'checkin_rate': 0  # TODO: 计算打卡率
+            }
+        }
 
         current_app.logger.info(f'获取社区详情成功: community_id={community_id}')
-        return make_succ_response(community_data)
+        return make_succ_response(response_data)
 
     except Exception as e:
         current_app.logger.error(f'获取社区详情失败: {str(e)}', exc_info=True)
@@ -1519,4 +1531,7 @@ def switch_user_community():
     except Exception as e:
         current_app.logger.error(f'切换用户社区失败: {str(e)}', exc_info=True)
         return make_err_response({}, '切换失败')
+
+
+
 
