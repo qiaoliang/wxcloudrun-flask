@@ -7,6 +7,7 @@ import logging
 from datetime import datetime, date, time
 from sqlalchemy.exc import OperationalError
 from database.flask_models import CheckinRule, CheckinRecord, db
+from wxcloudrun.utils.timeutil import parse_time_only, parse_date_only
 
 logger = logging.getLogger('CheckinRuleService')
 
@@ -85,6 +86,17 @@ class CheckinRuleService:
             if end_date < start_date:
                 raise ValueError('结束日期不能早于开始日期')
 
+        # 解析时间字段（在数据库会话外部进行，不依赖数据库）
+        custom_time_str = rule_data.get('custom_time')
+        custom_time = parse_time_only(custom_time_str) if custom_time_str else None
+
+        # 解析日期字段
+        custom_start_date_str = rule_data.get('custom_start_date')
+        custom_start_date = parse_date_only(custom_start_date_str) if custom_start_date_str else None
+
+        custom_end_date_str = rule_data.get('custom_end_date')
+        custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
+
         try:
             # 创建规则实体
             new_rule = CheckinRule(
@@ -95,10 +107,10 @@ class CheckinRuleService:
                 icon_url=rule_data.get('icon_url', ''),
                 frequency_type=frequency_type,
                 time_slot_type=rule_data.get('time_slot_type', 4),
-                custom_time=rule_data.get('custom_time'),
+                custom_time=custom_time,
                 week_days=rule_data.get('week_days', 127),
-                custom_start_date=rule_data.get('custom_start_date'),
-                custom_end_date=rule_data.get('custom_end_date'),
+                custom_start_date=custom_start_date,
+                custom_end_date=custom_end_date,
                 status=rule_data.get('status', 1)
             )
 
@@ -145,6 +157,20 @@ class CheckinRuleService:
                 if rule.user_id != user_id:  # 更新字段名
                     raise ValueError('无权限修改此打卡规则')
 
+                # 解析时间字段
+                if 'custom_time' in rule_data:
+                    custom_time_str = rule_data['custom_time']
+                    rule.custom_time = parse_time_only(custom_time_str) if custom_time_str else None
+
+                # 解析日期字段
+                if 'custom_start_date' in rule_data:
+                    custom_start_date_str = rule_data['custom_start_date']
+                    rule.custom_start_date = parse_date_only(custom_start_date_str) if custom_start_date_str else None
+
+                if 'custom_end_date' in rule_data:
+                    custom_end_date_str = rule_data['custom_end_date']
+                    rule.custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
+
                 # 更新字段
                 if 'rule_name' in rule_data:
                     rule.rule_name = rule_data['rule_name']
@@ -154,14 +180,8 @@ class CheckinRuleService:
                     rule.frequency_type = rule_data['frequency_type']
                 if 'time_slot_type' in rule_data:
                     rule.time_slot_type = rule_data['time_slot_type']
-                if 'custom_time' in rule_data:
-                    rule.custom_time = rule_data['custom_time']
                 if 'week_days' in rule_data:
                     rule.week_days = rule_data['week_days']
-                if 'custom_start_date' in rule_data:
-                    rule.custom_start_date = rule_data['custom_start_date']
-                if 'custom_end_date' in rule_data:
-                    rule.custom_end_date = rule_data['custom_end_date']
                 if 'status' in rule_data:
                     rule.status = rule_data['status']
 
@@ -191,6 +211,20 @@ class CheckinRuleService:
                 if rule.user_id != user_id:  # 更新字段名
                     raise ValueError('无权限修改此打卡规则')
 
+                # 解析时间字段
+                if 'custom_time' in rule_data:
+                    custom_time_str = rule_data['custom_time']
+                    rule.custom_time = parse_time_only(custom_time_str) if custom_time_str else None
+
+                # 解析日期字段
+                if 'custom_start_date' in rule_data:
+                    custom_start_date_str = rule_data['custom_start_date']
+                    rule.custom_start_date = parse_date_only(custom_start_date_str) if custom_start_date_str else None
+
+                if 'custom_end_date' in rule_data:
+                    custom_end_date_str = rule_data['custom_end_date']
+                    rule.custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
+
                 # 更新字段
                 if 'rule_name' in rule_data:
                     rule.rule_name = rule_data['rule_name']
@@ -200,14 +234,8 @@ class CheckinRuleService:
                     rule.frequency_type = rule_data['frequency_type']
                 if 'time_slot_type' in rule_data:
                     rule.time_slot_type = rule_data['time_slot_type']
-                if 'custom_time' in rule_data:
-                    rule.custom_time = rule_data['custom_time']
                 if 'week_days' in rule_data:
                     rule.week_days = rule_data['week_days']
-                if 'custom_start_date' in rule_data:
-                    rule.custom_start_date = rule_data['custom_start_date']
-                if 'custom_end_date' in rule_data:
-                    rule.custom_end_date = rule_data['custom_end_date']
                 if 'status' in rule_data:
                     rule.status = rule_data['status']
 

@@ -74,6 +74,7 @@ class UserCheckinRuleService:
 
             # 获取个人规则（在社区规则后显示）
             personal_rules = CheckinRuleService.query_rules_by_user_id(user_id)
+            logger.info(f"获取个人规则: 用户ID={user_id}, 规则数量={len(personal_rules)}")
             for rule in personal_rules:
                 rule_dict = rule.to_dict()
                 rule_dict['rule_source'] = 'personal'
@@ -84,7 +85,7 @@ class UserCheckinRuleService:
                 all_rules.append(rule_dict)
 
             logger.info(f"获取用户所有规则成功: 用户ID={user_id}, 规则总数={len(all_rules)}")
-            return all_rules
+            return {'rules': all_rules}
 
         except SQLAlchemyError as e:
             logger.error(f"获取用户所有规则失败: {str(e)}")

@@ -33,17 +33,17 @@ def _rule_to_dict(rule):
         'icon_url': rule.icon_url,
         'frequency_type': rule.frequency_type,
         'time_slot_type': rule.time_slot_type,
-        'custom_time': rule.custom_time,
+        'custom_time': rule.custom_time.isoformat() if rule.custom_time else None,
         'week_days': rule.week_days,
-        'custom_start_date': rule.custom_start_date,
-        'custom_end_date': rule.custom_end_date,
+        'custom_start_date': rule.custom_start_date.isoformat() if rule.custom_start_date else None,
+        'custom_end_date': rule.custom_end_date.isoformat() if rule.custom_end_date else None,
         'status': rule.status,
         'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M:%S') if rule.created_at else None,
         'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M:%S') if rule.updated_at else None
     }
 
 
-@checkin_bp.route('/today', methods=['GET'])
+@checkin_bp.route('/checkin/today', methods=['GET'])
 def get_today_checkin_items():
     """
     获取用户今日打卡事项列表（Controller）
@@ -75,7 +75,7 @@ def get_today_checkin_items():
         return make_err_response({}, f'获取今日打卡事项失败: {str(e)}')
 
 
-@checkin_bp.route('', methods=['POST'])
+@checkin_bp.route('/checkin', methods=['POST'])
 def perform_checkin():
     """
     执行打卡操作（Controller）
@@ -133,7 +133,7 @@ def perform_checkin():
         return make_err_response({}, f'打卡失败: {str(e)}')
 
 
-@checkin_bp.route('/miss', methods=['POST'])
+@checkin_bp.route('/checkin/miss', methods=['POST'])
 def report_miss_checkin():
     """
     上报漏打卡（Controller）
@@ -191,7 +191,7 @@ def report_miss_checkin():
         return make_err_response({}, f'上报漏打卡失败: {str(e)}')
 
 
-@checkin_bp.route('/cancel', methods=['POST'])
+@checkin_bp.route('/checkin/cancel', methods=['POST'])
 def cancel_checkin():
     """
     取消打卡（Controller）
@@ -238,7 +238,7 @@ def cancel_checkin():
         return make_err_response({}, f'取消打卡失败: {str(e)}')
 
 
-@checkin_bp.route('/history', methods=['GET'])
+@checkin_bp.route('/checkin/history', methods=['GET'])
 def get_checkin_history():
     """
     获取打卡历史记录（Controller）
@@ -294,7 +294,7 @@ def get_checkin_history():
         return make_err_response({}, f'获取打卡历史记录失败: {str(e)}')
 
 
-@checkin_bp.route('/rules', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@checkin_bp.route('/checkin/rules', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def manage_checkin_rules():
     """
     打卡规则管理接口（Controller）
@@ -355,7 +355,7 @@ def manage_checkin_rules():
                     if field not in params:
                         return make_err_response({}, f'缺少必要参数: {field}')
 
-            rule = CheckinRuleService.create_rule(user.user_id, params)
+            rule = CheckinRuleService.create_rule(params, user.user_id)
             current_app.logger.info(f'用户 {user.user_id} 成功创建打卡规则')
             return make_succ_response({'rule': _rule_to_dict(rule)})
 
@@ -371,7 +371,7 @@ def manage_checkin_rules():
             if not rule_id:
                 return make_err_response({}, '缺少规则ID参数')
 
-            rule = CheckinRuleService.update_rule(user.user_id, rule_id, params)
+            rule = CheckinRuleService.update_rule(rule_id, params, user.user_id)
             current_app.logger.info(f'用户 {user.user_id} 成功更新打卡规则')
             return make_succ_response({'rule': _rule_to_dict(rule)})
 
@@ -381,7 +381,7 @@ def manage_checkin_rules():
             if not rule_id:
                 return make_err_response({}, '缺少规则ID参数')
 
-            response_data = CheckinRuleService.delete_rule(user.user_id, int(rule_id))
+            response_data = CheckinRuleService.delete_rule(int(rule_id), user.user_id)
             current_app.logger.info(f'用户 {user.user_id} 成功删除打卡规则')
             return make_succ_response(response_data)
 
