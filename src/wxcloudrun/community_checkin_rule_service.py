@@ -331,10 +331,10 @@ class CommunityCheckinRuleService:
 
         Args:
             community_id: 社区ID (可以是字符串或整数)
-            include_disabled: 是否包含已停用规则
+            include_disabled: 是否包含已停用规则（True=返回启用和停用，False=只返回启用）
 
         Returns:
-            list: 社区规则列表
+            list: 社区规则列表（始终排除已删除的规则）
 
         Raises:
             ValueError: 社区不存在或参数无效

@@ -39,23 +39,32 @@ def get_community_checkin_rules(decoded):
         page = int(request.args.get('page', 1))
         per_page = min(int(request.args.get('per_page', 20)), 100)
         status_filter = request.args.get('status')  # 可选的状态过滤
+        grouped = request.args.get('grouped', 'false').lower() == 'true'  # 是否返回分组数据
 
         # 调用服务层获取规则列表
-        # TODO: 当前服务方法不支持分页，需要后续添加分页支持
-        include_disabled = (status_filter == 'all')
-        rules = CommunityCheckinRuleService.get_community_rules(
-            community_id, include_disabled
-        )
-        
-        # 简单包装结果格式，保持与预期一致
-        result = {
-            'rules': rules,
-            'total': len(rules),
-            'page': page,
-            'per_page': per_page
-        }
+        if grouped:
+            # 返回按状态分组的规则（包括已删除的）
+            result = CommunityCheckinRuleService.get_all_community_rules_grouped(
+                community_id
+            )
+            current_app.logger.info(f'成功获取社区 {community_id} 的分组打卡规则，停用={len(result.get("disabled", []))}, 启用={len(result.get("enabled", []))}, 删除={len(result.get("deleted", []))}')
+        else:
+            # 返回扁平列表
+            # 默认返回所有未删除的规则（包括停用的），只有status='enabled'时才只返回启用状态的规则
+            include_disabled = (status_filter != 'enabled')
+            rules = CommunityCheckinRuleService.get_community_rules(
+                community_id, include_disabled
+            )
 
-        current_app.logger.info(f'成功获取社区 {community_id} 的打卡规则列表，共 {len(result.get("rules", []))} 条规则')
+            # 简单包装结果格式，保持与预期一致
+            result = {
+                'rules': rules,
+                'total': len(rules),
+                'page': page,
+                'per_page': per_page
+            }
+            current_app.logger.info(f'成功获取社区 {community_id} 的打卡规则列表，共 {len(result.get("rules", []))} 条规则')
+
         return make_succ_response(result)
 
     except Exception as e:
@@ -95,9 +104,9 @@ def create_community_checkin_rule(decoded):
             params, community_id, user_id
         )
 
-        current_app.logger.info(f'成功创建社区打卡规则，规则ID: {rule.rule_id}')
+        current_app.logger.info(f'成功创建社区打卡规则，规则ID: {rule.community_rule_id}')
         return make_succ_response({
-            'rule_id': rule.rule_id,
+            'rule_id': rule.community_rule_id,
             'message': '创建成功'
         })
 
@@ -116,7 +125,7 @@ def update_community_checkin_rule(decoded, rule_id):
 
     user_id = decoded.get('user_id')
     # 从规则ID获取 community_id
-    rule = CommunityCheckinRule.query.get(rule_id)
+    rule = db.session.get(CommunityCheckinRule, rule_id)
     if not rule:
         return make_err_response({}, '规则不存在')
     community_id = rule.community_id
@@ -128,13 +137,13 @@ def update_community_checkin_rule(decoded, rule_id):
             return make_err_response({}, '缺少请求参数')
 
         # 调用服务层更新规则
-        rule = CommunityCheckinRuleService.update_rule(
-            rule_id, community_id, user_id, params
+        rule = CommunityCheckinRuleService.update_community_rule(
+            rule_id, params, user_id
         )
 
-        current_app.logger.info(f'成功更新社区打卡规则，规则ID: {rule.rule_id}')
+        current_app.logger.info(f'成功更新社区打卡规则，规则ID: {rule.community_rule_id}')
         return make_succ_response({
-            'rule_id': rule.rule_id,
+            'rule_id': rule.community_rule_id,
             'message': '更新成功'
         })
 
@@ -153,20 +162,20 @@ def enable_community_checkin_rule(decoded, rule_id):
 
     user_id = decoded.get('user_id')
     # 从规则ID获取 community_id
-    rule = CommunityCheckinRule.query.get(rule_id)
+    rule = db.session.get(CommunityCheckinRule, rule_id)
     if not rule:
         return make_err_response({}, '规则不存在')
     community_id = rule.community_id
 
     try:
         # 调用服务层启用规则
-        rule = CommunityCheckinRuleService.enable_rule(
-            rule_id, community_id, user_id
+        rule = CommunityCheckinRuleService.enable_community_rule(
+            rule_id, user_id
         )
 
-        current_app.logger.info(f'成功启用社区打卡规则，规则ID: {rule.rule_id}')
+        current_app.logger.info(f'成功启用社区打卡规则，规则ID: {rule.get("community_rule_id")}')
         return make_succ_response({
-            'rule_id': rule.rule_id,
+            'rule_id': rule.get('community_rule_id'),
             'message': '启用成功'
         })
 
@@ -185,20 +194,20 @@ def disable_community_checkin_rule(decoded, rule_id):
 
     user_id = decoded.get('user_id')
     # 从规则ID获取 community_id
-    rule = CommunityCheckinRule.query.get(rule_id)
+    rule = db.session.get(CommunityCheckinRule, rule_id)
     if not rule:
         return make_err_response({}, '规则不存在')
     community_id = rule.community_id
 
     try:
         # 调用服务层禁用规则
-        rule = CommunityCheckinRuleService.disable_rule(
-            rule_id, community_id, user_id
+        rule = CommunityCheckinRuleService.disable_community_rule(
+            rule_id, user_id
         )
 
-        current_app.logger.info(f'成功禁用社区打卡规则，规则ID: {rule.rule_id}')
+        current_app.logger.info(f'成功禁用社区打卡规则，规则ID: {rule.get("community_rule_id")}')
         return make_succ_response({
-            'rule_id': rule.rule_id,
+            'rule_id': rule.get('community_rule_id'),
             'message': '禁用成功'
         })
 
@@ -217,15 +226,15 @@ def delete_community_checkin_rule(decoded, rule_id):
 
     user_id = decoded.get('user_id')
     # 从规则ID获取 community_id
-    rule = CommunityCheckinRule.query.get(rule_id)
+    rule = db.session.get(CommunityCheckinRule, rule_id)
     if not rule:
         return make_err_response({}, '规则不存在')
     community_id = rule.community_id
 
     try:
         # 调用服务层删除规则
-        success = CommunityCheckinRuleService.delete_rule(
-            rule_id, community_id, user_id
+        success = CommunityCheckinRuleService.delete_community_rule(
+            rule_id, user_id
         )
 
         if success:
@@ -252,18 +261,18 @@ def get_community_checkin_rule(decoded, rule_id):
 
     user_id = decoded.get('user_id')
     # 从规则ID获取 community_id
-    rule = CommunityCheckinRule.query.get(rule_id)
+    rule = db.session.get(CommunityCheckinRule, rule_id)
     if not rule:
         return make_err_response({}, '规则不存在')
     community_id = rule.community_id
 
     try:
         # 调用服务层获取规则详情
-        rule = CommunityCheckinRuleService.get_rule_by_id(
-            rule_id, community_id, user_id
+        rule = CommunityCheckinRuleService.get_rule_detail(
+            rule_id
         )
 
-        current_app.logger.info(f'成功获取社区打卡规则详情，规则ID: {rule.rule_id}')
+        current_app.logger.info(f'成功获取社区打卡规则详情，规则ID: {rule.get("community_rule_id")}')
         return make_succ_response(rule)
 
     except Exception as e:

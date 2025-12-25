@@ -360,7 +360,7 @@ def create_community_application():
             return make_err_response({}, '缺少社区ID')
 
         # 检查社区是否存在
-        community = Community.query.get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             return make_err_response({}, '社区不存在')
 
@@ -397,7 +397,7 @@ def approve_application(application_id):
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     try:
         CommunityService.process_application(
@@ -425,7 +425,7 @@ def reject_application(application_id):
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     try:
         params = request.get_json()
@@ -580,7 +580,7 @@ def get_community_staff_list():
         # 格式化工作人员信息
         staff_data = []
         for staff in staff_list:
-            user = User.query.get(staff.user_id)
+            user = db.session.get(User, staff.user_id)
             if user:
                 staff_info = {
                     'staff_id': staff.staff_id,
@@ -636,7 +636,7 @@ def get_community_staff_list_enhanced():
         # 格式化工作人员信息
         staff_data = []
         for staff in staff_list:
-            user = User.query.get(staff.user_id)
+            user = db.session.get(User, staff.user_id)
             if user:
                 staff_info = {
                     'staff_id': staff.id,
@@ -1137,7 +1137,7 @@ def toggle_community_status():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     # 检查权限
     if not user or user.role < 4:  # 只有超级管理员可以切换状态
@@ -1182,7 +1182,7 @@ def delete_community():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     # 检查权限
     if not user or user.role < 4:  # 只有超级管理员可以删除社区
@@ -1570,7 +1570,7 @@ def get_community_detail(community_id):
             return make_err_response({}, '无权限访问该社区')
 
         # 获取社区详情
-        community = Community.query.get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             return make_err_response({}, '社区不存在')
 

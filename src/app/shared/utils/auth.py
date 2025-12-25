@@ -6,6 +6,7 @@
 import logging
 import jwt
 from flask import request, current_app
+from database.flask_models import db, User
 from wxcloudrun.user_service import UserService
 from app.shared.response import make_err_response
 from config_manager import get_token_secret
@@ -108,7 +109,7 @@ def require_role(required_role):
 
             user_id = decoded.get('user_id')
             from database.flask_models import User
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
 
             if not user:
                 return make_err_response({}, '用户不存在')
@@ -149,7 +150,7 @@ def require_community_admin():
 
             user_id = decoded.get('user_id')
             from database.flask_models import User
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
 
             if not user:
                 return make_err_response({}, '用户不存在')
@@ -182,7 +183,7 @@ def require_community_staff():
 
             user_id = decoded.get('user_id')
             from database.flask_models import User
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
 
             if not user:
                 return make_err_response({}, '用户不存在')
@@ -215,7 +216,7 @@ def require_community_manager():
 
             user_id = decoded.get('user_id')
             from database.flask_models import User
-            user = User.query.get(user_id)
+            user = db.session.get(User, user_id)
 
             if not user:
                 return make_err_response({}, '用户不存在')
@@ -249,8 +250,7 @@ def check_community_permission(community_id):
         return error_response, None
 
     user_id = decoded.get('user_id')
-    from database.flask_models import User
-    user = User.query.get(user_id)
+    user = db.session.get(User, user_id)
 
     if not user:
         return make_err_response({}, '用户不存在'), None
@@ -271,8 +271,7 @@ def get_current_user():
         return None
 
     user_id = decoded.get('user_id')
-    from database.flask_models import User
-    return User.query.get(user_id)
+    return db.session.get(User, user_id)
 
 
 def generate_jwt_token(user, expires_hours=2):

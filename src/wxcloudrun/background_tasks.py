@@ -48,7 +48,7 @@ def _process_missed_for_today(now):
             raise e
     for rule in rules:
         try:
-            user = User.query.get(rule.user_id)  # 更新字段名
+            user = db.session.get(User, rule.user_id)  # 更新字段名
             if not user:
                 continue
             # 所有用户都可以有打卡规则，不需要特殊检查
