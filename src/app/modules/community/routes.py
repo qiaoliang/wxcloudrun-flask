@@ -63,17 +63,32 @@ def _format_community_info(community, include_admin_count=False):
                 'avatar_url': creator_user.avatar_url
             }
 
-    # 获取管理员数量
-    admin_count = 0
-    user_count = 0
+    # 获取主管信息
+    manager = None
+    if community.manager_id:
+        manager_user = db.session.get(User, community.manager_id)
+        if manager_user:
+            manager = {
+                'user_id': manager_user.user_id,
+                'nickname': manager_user.nickname,
+                'avatar_url': manager_user.avatar_url
+            }
+
+    # 获取工作人员数量统计
+    manager_count = 0
+    staff_count = 0
+    worker_count = 0
     if include_admin_count:
-        admin_count = CommunityStaff.query.filter_by(
+        manager_count = CommunityStaff.query.filter_by(
             community_id=community.community_id,
-            role=3  # 社区管理员
+            role='manager'  # 社区主管
         ).count()
-        user_count = CommunityStaff.query.filter_by(
-            community_id=community.community_id
+        # 只统计专员（不包括主管）
+        staff_count = CommunityStaff.query.filter_by(
+            community_id=community.community_id,
+            role='staff'  # 社区专员
         ).count()
+        worker_count = manager_count + staff_count  # 工作人员总数 = 主管 + 专员
 
     return {
         'community_id': community.community_id,
@@ -84,13 +99,16 @@ def _format_community_info(community, include_admin_count=False):
         'location_lon': community.location_lon,
         'creator_id': community.creator_id,
         'creator': creator,
+        'manager_id': community.manager_id,
+        'manager': manager,
         'status': community.status,
         'is_default': community.is_default,
         'is_blackhouse': community.is_blackhouse,
         'created_at': community.created_at.isoformat() if community.created_at else None,
         'updated_at': community.updated_at.isoformat() if community.updated_at else None,
-        'admin_count': admin_count,
-        'user_count': user_count
+        'manager_count': manager_count,  # 主管数量
+        'worker_count': worker_count,  # 工作人员总数（主管+专员）
+        'staff_count': staff_count  # 专员数量（不包括主管）
     }
 
 
@@ -1560,8 +1578,9 @@ def get_community_detail(community_id):
         response_data = {
             'community': community_data,
             'stats': {
-                'staff_count': community_data.get('admin_count', 0),  # 使用已有的管理员数量
-                'user_count': community_data.get('user_count', 0),
+                'staff_count': community_data.get('staff_count', 0),  # 专员数量
+                'worker_count': community_data.get('worker_count', 0),  # 工作人员总数
+                'manager_count': community_data.get('manager_count', 0),  # 主管数量
                 'support_count': event_stats.get('support_count', 0) if event_stats.get('success') else 0,
                 'active_events': event_stats.get('active_events', 0) if event_stats.get('success') else 0,
                 'checkin_rate': 0  # TODO: 计算打卡率

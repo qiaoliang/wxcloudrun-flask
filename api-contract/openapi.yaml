@@ -1,2303 +1,2330 @@
 openapi: 3.0.3
 info:
-  title: SafeGuard API
-  description: SafeGuard 微信小程序后端API服务
-  version: 1.0.0
-  contact:
-    name: SafeGuard Development Team
-    email: dev@safeguard.com
+    title: SafeGuard API
+    description: SafeGuard 微信小程序后端API服务
+    version: 1.0.0
+    contact:
+        name: SafeGuard Development Team
+        email: dev@safeguard.com
 
 servers:
-  - url: http://localhost:9999/api
-    description: 开发环境
-  - url: https://prod.safeguard.com/api
-    description: 生产环境
+    - url: http://localhost:9999/api
+      description: 开发环境
+    - url: https://prod.safeguard.com/api
+      description: 生产环境
 
 # 通用组件定义
 components:
-  schemas:
-    # 标准响应格式
-    StandardResponse:
-      type: object
-      properties:
-        code:
-          type: integer
-          description: 1-成功，0-失败
-          example: 1
-        msg:
-          type: string
-          description: 状态消息
-          example: "success"
-        data:
-          type: object
-          description: 响应数据
-          nullable: true
-    
-    # 错误响应
-    ErrorResponse:
-      type: object
-      properties:
-        code:
-          type: integer
-          example: 0
-        msg:
-          type: string
-          example: "error message"
-        data:
-          type: object
-          nullable: true
+    schemas:
+        # 标准响应格式
+        StandardResponse:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    description: 1-成功，0-失败
+                    example: 1
+                msg:
+                    type: string
+                    description: 状态消息
+                    example: "success"
+                data:
+                    type: object
+                    description: 响应数据
+                    nullable: true
 
-    # 用户信息
-    UserInfo:
-      type: object
-      properties:
-        user_id:
-          type: integer
-          description: 用户ID
-        nickname:
-          type: string
-          description: 昵称
-        avatar_url:
-          type: string
-          description: 头像URL
-        phone_number:
-          type: string
-          description: 手机号
-        wechat_openid:
-          type: string
-          description: 微信openid
-        community_id:
-          type: integer
-          description: 社区ID
-        role:
-          type: integer
-          description: 用户角色
-        status:
-          type: integer
-          description: 用户状态
+        # 错误响应
+        ErrorResponse:
+            type: object
+            properties:
+                code:
+                    type: integer
+                    example: 0
+                msg:
+                    type: string
+                    example: "error message"
+                data:
+                    type: object
+                    nullable: true
 
-    # 分页信息
-    PaginationInfo:
-      type: object
-      properties:
-        page:
-          type: integer
-          description: 当前页码
-        per_page:
-          type: integer
-          description: 每页数量
-        total:
-          type: integer
-          description: 总记录数
-        has_next:
-          type: boolean
-          description: 是否有下一页
+        # 用户信息
+        UserInfo:
+            type: object
+            properties:
+                user_id:
+                    type: integer
+                    description: 用户ID
+                nickname:
+                    type: string
+                    description: 昵称
+                avatar_url:
+                    type: string
+                    description: 头像URL
+                phone_number:
+                    type: string
+                    description: 手机号
+                wechat_openid:
+                    type: string
+                    description: 微信openid
+                community_id:
+                    type: integer
+                    description: 社区ID
+                role:
+                    type: integer
+                    description: 用户角色
+                status:
+                    type: integer
+                    description: 用户状态
 
-  # 认证方案
-  securitySchemes:
-    BearerAuth:
-      type: http
-      scheme: bearer
-      bearerFormat: JWT
+        # 分页信息
+        PaginationInfo:
+            type: object
+            properties:
+                page:
+                    type: integer
+                    description: 当前页码
+                per_page:
+                    type: integer
+                    description: 每页数量
+                total:
+                    type: integer
+                    description: 总记录数
+                has_next:
+                    type: boolean
+                    description: 是否有下一页
+
+    # 认证方案
+    securitySchemes:
+        BearerAuth:
+            type: http
+            scheme: bearer
+            bearerFormat: JWT
 
 # 全局安全要求
 security:
-  - BearerAuth: []
+    - BearerAuth: []
 
 # API路径定义
 paths:
-  # ==========================================
-  # 认证模块 (auth)
-  # ==========================================
-  /auth/login_wechat:
-    post:
-      tags:
-        - 认证模块
-      summary: 微信登录
-      description: 通过微信code进行用户登录
-      security: []  # 无需认证
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - code
-              properties:
-                code:
-                  type: string
-                  description: 微信登录code
-                nickname:
-                  type: string
-                  description: 用户昵称（可选）
-                avatar_url:
-                  type: string
-                  description: 用户头像URL（可选）
-      responses:
-        '200':
-          description: 登录成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          token:
-                            type: string
-                            description: JWT访问令牌
-                          refresh_token:
-                            type: string
-                            description: 刷新令牌
-                          user_id:
-                            type: integer
-                            description: 用户ID
-                          wechat_openid:
-                            type: string
-                            description: 微信openid
-                          phone_number:
-                            type: string
-                            description: 手机号
-                          login_type:
-                            type: string
-                            description: 登录类型
+    # ==========================================
+    # 认证模块 (auth)
+    # ==========================================
+    /auth/login_wechat:
+        post:
+            tags:
+                - 认证模块
+            summary: 微信登录
+            description: 通过微信code进行用户登录
+            security: [] # 无需认证
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - code
+                            properties:
+                                code:
+                                    type: string
+                                    description: 微信登录code
+                                nickname:
+                                    type: string
+                                    description: 用户昵称（可选）
+                                avatar_url:
+                                    type: string
+                                    description: 用户头像URL（可选）
+            responses:
+                "200":
+                    description: 登录成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  token:
+                                                      type: string
+                                                      description: JWT访问令牌
+                                                  refresh_token:
+                                                      type: string
+                                                      description: 刷新令牌
+                                                  user_id:
+                                                      type: integer
+                                                      description: 用户ID
+                                                  wechat_openid:
+                                                      type: string
+                                                      description: 微信openid
+                                                  phone_number:
+                                                      type: string
+                                                      description: 手机号
+                                                  login_type:
+                                                      type: string
+                                                      description: 登录类型
 
-  /auth/register_phone:
-    post:
-      tags:
-        - 认证模块
-      summary: 手机号注册
-      description: 使用手机号和验证码注册新用户
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - phone
-                - code
-              properties:
-                phone:
-                  type: string
-                  description: 手机号
-                code:
-                  type: string
-                  description: 验证码
-                nickname:
-                  type: string
-                  description: 昵称（可选）
-                avatar_url:
-                  type: string
-                  description: 头像URL（可选）
-                password:
-                  type: string
-                  description: 密码（可选）
-      responses:
-        '200':
-          description: 注册成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          token:
-                            type: string
-                          refresh_token:
-                            type: string
-                          user_id:
-                            type: integer
+    /auth/register_phone:
+        post:
+            tags:
+                - 认证模块
+            summary: 手机号注册
+            description: 使用手机号和验证码注册新用户
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - phone
+                                - code
+                            properties:
+                                phone:
+                                    type: string
+                                    description: 手机号
+                                code:
+                                    type: string
+                                    description: 验证码
+                                nickname:
+                                    type: string
+                                    description: 昵称（可选）
+                                avatar_url:
+                                    type: string
+                                    description: 头像URL（可选）
+                                password:
+                                    type: string
+                                    description: 密码（可选）
+            responses:
+                "200":
+                    description: 注册成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  token:
+                                                      type: string
+                                                  refresh_token:
+                                                      type: string
+                                                  user_id:
+                                                      type: integer
 
-  /auth/refresh_token:
-    post:
-      tags:
-        - 认证模块
-      summary: 刷新访问令牌
-      description: 使用刷新令牌获取新的访问令牌
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - refresh_token
-              properties:
-                refresh_token:
-                  type: string
-                  description: 刷新令牌
-      responses:
-        '200':
-          description: 刷新成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          token:
-                            type: string
-                          refresh_token:
-                            type: string
-                          expires_in:
-                            type: integer
-                            description: 令牌过期时间（秒）
+    /auth/refresh_token:
+        post:
+            tags:
+                - 认证模块
+            summary: 刷新访问令牌
+            description: 使用刷新令牌获取新的访问令牌
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - refresh_token
+                            properties:
+                                refresh_token:
+                                    type: string
+                                    description: 刷新令牌
+            responses:
+                "200":
+                    description: 刷新成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  token:
+                                                      type: string
+                                                  refresh_token:
+                                                      type: string
+                                                  expires_in:
+                                                      type: integer
+                                                      description: 令牌过期时间（秒）
 
-  # ==========================================
-  # 用户模块 (user)
-  # ==========================================
-  /user/profile:
-    get:
-      tags:
-        - 用户模块
-      summary: 获取用户信息
-      description: 获取当前登录用户的详细信息
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        $ref: '#/components/schemas/UserInfo'
-    
-    post:
-      tags:
-        - 用户模块
-      summary: 更新用户信息
-      description: 更新当前登录用户的信息
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nickname:
-                  type: string
-                  description: 昵称
-                name:
-                  type: string
-                  description: 真实姓名
-                avatar_url:
-                  type: string
-                  description: 头像URL
-      responses:
-        '200':
-          description: 更新成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
+    # ==========================================
+    # 用户模块 (user)
+    # ==========================================
+    /user/profile:
+        get:
+            tags:
+                - 用户模块
+            summary: 获取用户信息
+            description: 获取当前登录用户的详细信息
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              $ref: "#/components/schemas/UserInfo"
 
-  /user/search:
-    get:
-      tags:
-        - 用户模块
-      summary: 搜索用户
-      description: 根据关键词搜索用户
-      parameters:
-        - name: keyword
-          in: query
-          required: true
-          schema:
-            type: string
-          description: 搜索关键词
-        - name: type
-          in: query
-          schema:
-            type: string
-            enum: [all, phone, nickname]
-            default: all
-          description: 搜索类型
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-      responses:
-        '200':
-          description: 搜索成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          users:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/UserInfo'
-                          total:
-                            type: integer
-                          page:
-                            type: integer
-                          per_page:
-                            type: integer
-                          has_next:
-                            type: boolean
+        post:
+            tags:
+                - 用户模块
+            summary: 更新用户信息
+            description: 更新当前登录用户的信息
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                nickname:
+                                    type: string
+                                    description: 昵称
+                                name:
+                                    type: string
+                                    description: 真实姓名
+                                avatar_url:
+                                    type: string
+                                    description: 头像URL
+            responses:
+                "200":
+                    description: 更新成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
 
-  /user/bind_phone:
-    post:
-      tags:
-        - 用户模块
-      summary: 绑定手机号
-      description: 为当前用户绑定手机号
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - phone
-                - code
-              properties:
-                phone:
-                  type: string
-                  description: 手机号
-                code:
-                  type: string
-                  description: 验证码
-      responses:
-        '200':
-          description: 绑定成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
+    /user/search:
+        get:
+            tags:
+                - 用户模块
+            summary: 搜索用户
+            description: 根据关键词搜索用户
+            parameters:
+                - name: keyword
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+                  description: 搜索关键词
+                - name: type
+                  in: query
+                  schema:
+                      type: string
+                      enum: [all, phone, nickname]
+                      default: all
+                  description: 搜索类型
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+            responses:
+                "200":
+                    description: 搜索成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  users:
+                                                      type: array
+                                                      items:
+                                                          $ref: "#/components/schemas/UserInfo"
+                                                  total:
+                                                      type: integer
+                                                  page:
+                                                      type: integer
+                                                  per_page:
+                                                      type: integer
+                                                  has_next:
+                                                      type: boolean
 
-  # ==========================================
-  # 监督模块 (supervision) - 统一使用 /api/supervision/
-  # ==========================================
-  /supervision/invite:
-    post:
-      tags:
-        - 监督模块
-      summary: 邀请监督者
-      description: 邀请特定用户监督特定规则
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rule_ids
-                - target_openid
-              properties:
-                invite_type:
-                  type: string
-                  enum: [wechat, phone]
-                  default: wechat
-                  description: 邀请类型
-                rule_ids:
-                  type: array
-                  items:
-                    type: integer
-                  description: 要监督的规则ID列表
-                target_openid:
-                  type: string
-                  description: 被邀请用户的openid
-      responses:
-        '200':
-          description: 邀请发送成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          message:
-                            type: string
-                          relations_count:
-                            type: integer
+    /user/bind_phone:
+        post:
+            tags:
+                - 用户模块
+            summary: 绑定手机号
+            description: 为当前用户绑定手机号
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - phone
+                                - code
+                            properties:
+                                phone:
+                                    type: string
+                                    description: 手机号
+                                code:
+                                    type: string
+                                    description: 验证码
+            responses:
+                "200":
+                    description: 绑定成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
 
-  /supervision/invite_link:
-    post:
-      tags:
-        - 监督模块
-      summary: 创建监督邀请链接
-      description: 生成监督邀请链接（无需目标openid）
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rule_ids
-              properties:
-                rule_ids:
-                  type: array
-                  items:
-                    type: integer
-                  description: 要监督的规则ID列表
-                expire_hours:
-                  type: integer
-                  default: 24
-                  description: 链接过期时间（小时）
-      responses:
-        '200':
-          description: 创建成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          token:
-                            type: string
-                          url:
-                            type: string
-                          mini_path:
-                            type: string
-                          expire_at:
-                            type: string
-                            format: date-time
-
-  /supervision/invite/resolve:
-    get:
-      tags:
-        - 监督模块
-      summary: 解析监督邀请链接
-      description: 解析邀请链接，返回监督邀请信息
-      parameters:
-        - name: token
-          in: query
-          required: true
-          schema:
-            type: string
-          description: 邀请token
-      responses:
-        '200':
-          description: 解析成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          supervisor_id:
-                            type: integer
-                          supervisor_nickname:
-                            type: string
-                          rule_ids:
-                            type: array
-                            items:
-                              type: integer
-                          expires_at:
-                            type: string
-                            format: date-time
-
-  /supervision/invitations:
-    get:
-      tags:
-        - 监督模块
-      summary: 获取监督邀请列表
-      description: 获取当前用户的监督邀请列表
-      parameters:
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [pending, accepted, rejected]
-          description: 邀请状态筛选
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          invitations:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                invitation_id:
-                                  type: integer
-                                supervisor_id:
-                                  type: integer
-                                supervisor_nickname:
-                                  type: string
-                                supervised_id:
-                                  type: integer
-                                supervised_nickname:
-                                  type: string
+    # ==========================================
+    # 监督模块 (supervision) - 统一使用 /api/supervision/
+    # ==========================================
+    /supervision/invite:
+        post:
+            tags:
+                - 监督模块
+            summary: 邀请监督者
+            description: 邀请特定用户监督特定规则
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - rule_ids
+                                - target_openid
+                            properties:
+                                invite_type:
+                                    type: string
+                                    enum: [wechat, phone]
+                                    default: wechat
+                                    description: 邀请类型
                                 rule_ids:
-                                  type: array
-                                  items:
-                                    type: integer
-                                status:
-                                  type: string
-                                invited_at:
-                                  type: string
-                                  format: date-time
-                          total:
-                            type: integer
+                                    type: array
+                                    items:
+                                        type: integer
+                                    description: 要监督的规则ID列表
+                                target_openid:
+                                    type: string
+                                    description: 被邀请用户的openid
+            responses:
+                "200":
+                    description: 邀请发送成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  message:
+                                                      type: string
+                                                  relations_count:
+                                                      type: integer
 
-  /supervision/accept:
-    post:
-      tags:
-        - 监督模块
-      summary: 接受监督邀请
-      description: 接受监督邀请，建立监督关系
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - invitation_id
-              properties:
-                invitation_id:
-                  type: integer
-                  description: 邀请ID
-      responses:
-        '200':
-          description: 接受成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
-
-  /supervision/reject:
-    post:
-      tags:
-        - 监督模块
-      summary: 拒绝监督邀请
-      description: 拒绝监督邀请
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - invitation_id
-              properties:
-                invitation_id:
-                  type: integer
-                  description: 邀请ID
-                reason:
-                  type: string
-                  description: 拒绝原因
-      responses:
-        '200':
-          description: 拒绝成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
-
-  /supervision/my_supervised:
-    get:
-      tags:
-        - 监督模块
-      summary: 获取我监督的用户列表
-      description: 获取当前用户监督的所有用户列表
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          supervised_users:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                user_id:
-                                  type: integer
-                                nickname:
-                                  type: string
-                                avatar_url:
-                                  type: string
-                                supervision_count:
-                                  type: integer
-                                last_checkin:
-                                  type: string
-                                  format: date-time
-                                status:
-                                  type: string
-                          total:
-                            type: integer
-
-  /supervision/my_guardians:
-    get:
-      tags:
-        - 监督模块
-      summary: 获取我的监护人列表
-      description: 获取监督当前用户的所有监护人列表
-      parameters:
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          guardians:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                user_id:
-                                  type: integer
-                                nickname:
-                                  type: string
-                                avatar_url:
-                                  type: string
-                                supervision_count:
-                                  type: integer
-                                last_checkin:
-                                  type: string
-                                  format: date-time
-                                status:
-                                  type: string
-                          total:
-                            type: integer
-
-  /supervision/records:
-    get:
-      tags:
-        - 监督模块
-      summary: 获取监督记录
-      description: 获取被监督用户的打卡记录
-      parameters:
-        - name: supervised_user_id
-          in: query
-          required: true
-          schema:
-            type: integer
-          description: 被监督用户ID
-        - name: rule_id
-          in: query
-          schema:
-            type: integer
-          description: 规则ID（可选）
-        - name: start_date
-          in: query
-          schema:
-            type: string
-            format: date
-          description: 开始日期（YYYY-MM-DD）
-        - name: end_date
-          in: query
-          schema:
-            type: string
-            format: date
-          description: 结束日期（YYYY-MM-DD）
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          records:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                record_id:
-                                  type: integer
-                                supervisor_id:
-                                  type: integer
-                                supervisor_nickname:
-                                  type: string
-                                supervised_id:
-                                  type: integer
-                                supervised_nickname:
-                                  type: string
-                                rule_id:
-                                  type: integer
-                                rule_name:
-                                  type: string
-                                checkin_time:
-                                  type: string
-                                  format: date-time
-                                status:
-                                  type: string
-                                created_at:
-                                  type: string
-                                  format: date-time
-                          total:
-                            type: integer
-
-  # ==========================================
-  # 短信模块 (sms)
-  # ==========================================
-  /sms/send_code:
-    post:
-      tags:
-        - 短信模块
-      summary: 发送验证码
-      description: 向指定手机号发送验证码
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - phone
-              properties:
-                phone:
-                  type: string
-                  description: 手机号
-                purpose:
-                  type: string
-                  enum: [register, login, bind_phone]
-                  default: register
-                  description: 验证码用途
-      responses:
-        '200':
-          description: 发送成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          message:
-                            type: string
-                          code:
-                            type: string
-                            description: 验证码（仅测试环境返回）
-
-  # ==========================================
-  # 社区模块 (community)
-  # ==========================================
-  /community/list:
-    get:
-      tags:
-        - 社区模块
-      summary: 获取社区列表
-      description: 获取用户可见的社区列表
-      parameters:
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [all, active, inactive]
-            default: all
-          description: 状态筛选
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: page_size
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          communities:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                community_id:
-                                  type: integer
-                                name:
-                                  type: string
-                                description:
-                                  type: string
-                                creator_id:
-                                  type: integer
-                                status:
-                                  type: integer
-                                created_at:
-                                  type: string
-                                  format: date-time
-
-  /communities/{community_id}:
-    get:
-      tags:
-        - 社区模块
-      summary: 获取社区详情
-      description: 获取指定社区的详细信息
-      parameters:
-        - name: community_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 社区ID
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          community_id:
-                            type: integer
-                          name:
-                            type: string
-                          description:
-                            type: string
-                          creator:
+    /supervision/invite_link:
+        post:
+            tags:
+                - 监督模块
+            summary: 创建监督邀请链接
+            description: 生成监督邀请链接（无需目标openid）
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
                             type: object
+                            required:
+                                - rule_ids
                             properties:
-                              user_id:
-                                type: integer
-                              nickname:
-                                type: string
-                              avatar_url:
-                                type: string
-                          status:
-                            type: integer
-                          admin_count:
-                            type: integer
-                          user_count:
-                            type: integer
+                                rule_ids:
+                                    type: array
+                                    items:
+                                        type: integer
+                                    description: 要监督的规则ID列表
+                                expire_hours:
+                                    type: integer
+                                    default: 24
+                                    description: 链接过期时间（小时）
+            responses:
+                "200":
+                    description: 创建成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  token:
+                                                      type: string
+                                                  url:
+                                                      type: string
+                                                  mini_path:
+                                                      type: string
+                                                  expire_at:
+                                                      type: string
+                                                      format: date-time
 
-  /communities/{community_id}/users:
-    get:
-      tags:
-        - 社区模块
-      summary: 获取社区用户列表
-      description: 获取指定社区的用户列表
-      parameters:
-        - name: community_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 社区ID
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-        - name: role
-          in: query
-          schema:
-            type: string
-            enum: [all, manager, staff]
-            default: all
-          description: 角色筛选
-        - name: keyword
-          in: query
-          schema:
-            type: string
-          description: 搜索关键词
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          users:
-                            type: array
-                            items:
-                              $ref: '#/components/schemas/UserInfo'
-                          total:
-                            type: integer
-                          page:
-                            type: integer
-                          per_page:
-                            type: integer
-                          has_next:
-                            type: boolean
+    /supervision/invite/resolve:
+        get:
+            tags:
+                - 监督模块
+            summary: 解析监督邀请链接
+            description: 解析邀请链接，返回监督邀请信息
+            parameters:
+                - name: token
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+                  description: 邀请token
+            responses:
+                "200":
+                    description: 解析成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  supervisor_id:
+                                                      type: integer
+                                                  supervisor_nickname:
+                                                      type: string
+                                                  rule_ids:
+                                                      type: array
+                                                      items:
+                                                          type: integer
+                                                  expires_at:
+                                                      type: string
+                                                      format: date-time
 
-  /user/managed-communities:
-    get:
-      tags:
-        - 社区模块
-      summary: 获取用户管理的社区列表
-      description: 获取当前用户有管理权限的社区列表
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          communities:
-                            type: array
-                            items:
-                              type: object
-                              properties:
+    /supervision/invitations:
+        get:
+            tags:
+                - 监督模块
+            summary: 获取监督邀请列表
+            description: 获取当前用户的监督邀请列表
+            parameters:
+                - name: status
+                  in: query
+                  schema:
+                      type: string
+                      enum: [pending, accepted, rejected]
+                  description: 邀请状态筛选
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  invitations:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              invitation_id:
+                                                                  type: integer
+                                                              supervisor_id:
+                                                                  type: integer
+                                                              supervisor_nickname:
+                                                                  type: string
+                                                              supervised_id:
+                                                                  type: integer
+                                                              supervised_nickname:
+                                                                  type: string
+                                                              rule_ids:
+                                                                  type: array
+                                                                  items:
+                                                                      type: integer
+                                                              status:
+                                                                  type: string
+                                                              invited_at:
+                                                                  type: string
+                                                                  format: date-time
+                                                  total:
+                                                      type: integer
+
+    /supervision/accept:
+        post:
+            tags:
+                - 监督模块
+            summary: 接受监督邀请
+            description: 接受监督邀请，建立监督关系
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - invitation_id
+                            properties:
+                                invitation_id:
+                                    type: integer
+                                    description: 邀请ID
+            responses:
+                "200":
+                    description: 接受成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+    /supervision/reject:
+        post:
+            tags:
+                - 监督模块
+            summary: 拒绝监督邀请
+            description: 拒绝监督邀请
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - invitation_id
+                            properties:
+                                invitation_id:
+                                    type: integer
+                                    description: 邀请ID
+                                reason:
+                                    type: string
+                                    description: 拒绝原因
+            responses:
+                "200":
+                    description: 拒绝成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+    /supervision/my_supervised:
+        get:
+            tags:
+                - 监督模块
+            summary: 获取我监督的用户列表
+            description: 获取当前用户监督的所有用户列表
+            parameters:
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  supervised_users:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              user_id:
+                                                                  type: integer
+                                                              nickname:
+                                                                  type: string
+                                                              avatar_url:
+                                                                  type: string
+                                                              supervision_count:
+                                                                  type: integer
+                                                              last_checkin:
+                                                                  type: string
+                                                                  format: date-time
+                                                              status:
+                                                                  type: string
+                                                  total:
+                                                      type: integer
+
+    /supervision/my_guardians:
+        get:
+            tags:
+                - 监督模块
+            summary: 获取我的监护人列表
+            description: 获取监督当前用户的所有监护人列表
+            parameters:
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  guardians:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              user_id:
+                                                                  type: integer
+                                                              nickname:
+                                                                  type: string
+                                                              avatar_url:
+                                                                  type: string
+                                                              supervision_count:
+                                                                  type: integer
+                                                              last_checkin:
+                                                                  type: string
+                                                                  format: date-time
+                                                              status:
+                                                                  type: string
+                                                  total:
+                                                      type: integer
+
+    /supervision/records:
+        get:
+            tags:
+                - 监督模块
+            summary: 获取监督记录
+            description: 获取被监督用户的打卡记录
+            parameters:
+                - name: supervised_user_id
+                  in: query
+                  required: true
+                  schema:
+                      type: integer
+                  description: 被监督用户ID
+                - name: rule_id
+                  in: query
+                  schema:
+                      type: integer
+                  description: 规则ID（可选）
+                - name: start_date
+                  in: query
+                  schema:
+                      type: string
+                      format: date
+                  description: 开始日期（YYYY-MM-DD）
+                - name: end_date
+                  in: query
+                  schema:
+                      type: string
+                      format: date
+                  description: 结束日期（YYYY-MM-DD）
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  records:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              record_id:
+                                                                  type: integer
+                                                              supervisor_id:
+                                                                  type: integer
+                                                              supervisor_nickname:
+                                                                  type: string
+                                                              supervised_id:
+                                                                  type: integer
+                                                              supervised_nickname:
+                                                                  type: string
+                                                              rule_id:
+                                                                  type: integer
+                                                              rule_name:
+                                                                  type: string
+                                                              checkin_time:
+                                                                  type: string
+                                                                  format: date-time
+                                                              status:
+                                                                  type: string
+                                                              created_at:
+                                                                  type: string
+                                                                  format: date-time
+                                                  total:
+                                                      type: integer
+
+    # ==========================================
+    # 短信模块 (sms)
+    # ==========================================
+    /sms/send_code:
+        post:
+            tags:
+                - 短信模块
+            summary: 发送验证码
+            description: 向指定手机号发送验证码
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - phone
+                            properties:
+                                phone:
+                                    type: string
+                                    description: 手机号
+                                purpose:
+                                    type: string
+                                    enum: [register, login, bind_phone]
+                                    default: register
+                                    description: 验证码用途
+            responses:
+                "200":
+                    description: 发送成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  message:
+                                                      type: string
+                                                  code:
+                                                      type: string
+                                                      description: 验证码（仅测试环境返回）
+
+    # ==========================================
+    # 社区模块 (community)
+    # ==========================================
+    /community/list:
+        get:
+            tags:
+                - 社区模块
+            summary: 获取社区列表
+            description: 获取用户可见的社区列表
+            parameters:
+                - name: status
+                  in: query
+                  schema:
+                      type: string
+                      enum: [all, active, inactive]
+                      default: all
+                  description: 状态筛选
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: page_size
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  communities:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              community_id:
+                                                                  type: integer
+                                                              name:
+                                                                  type: string
+                                                              description:
+                                                                  type: string
+                                                              creator_id:
+                                                                  type: integer
+                                                              status:
+                                                                  type: integer
+                                                              created_at:
+                                                                  type: string
+                                                                  format: date-time
+
+    /communities/{community_id}:
+        get:
+            tags:
+                - 社区模块
+            summary: 获取社区详情
+            description: 获取指定社区的详细信息
+            parameters:
+                - name: community_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                  description: 社区ID
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  community_id:
+                                                      type: integer
+                                                  name:
+                                                      type: string
+                                                  description:
+                                                      type: string
+                                                  creator:
+                                                      type: object
+                                                      properties:
+                                                          user_id:
+                                                              type: integer
+                                                          nickname:
+                                                              type: string
+                                                          avatar_url:
+                                                              type: string
+                                                  status:
+                                                      type: integer
+                                                  manager_count:
+                                                      type: integer
+                                                      description: 主管数量
+                                                  worker_count:
+                                                      type: integer
+                                                      description: 工作人员总数（主管+专员）
+                                                  stats:
+                                                      type: object
+                                                      properties:
+                                                          staff_count:
+                                                              type: integer
+                                                              description: 专员数量
+                                                          worker_count:
+                                                              type: integer
+                                                              description: 工作人员总数（主管+专员）
+                                                          manager_count:
+                                                              type: integer
+                                                              description: 主管数量
+                                                          support_count:
+                                                              type: integer
+                                                              description: 应援数量
+                                                          active_events:
+                                                              type: integer
+                                                              description: 活跃事件数
+                                                          checkin_rate:
+                                                              type: number
+                                                              description: 打卡率
+
+    /communities/{community_id}/users:
+        get:
+            tags:
+                - 社区模块
+            summary: 获取社区用户列表
+            description: 获取指定社区的用户列表
+            parameters:
+                - name: community_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                  description: 社区ID
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+                - name: role
+                  in: query
+                  schema:
+                      type: string
+                      enum: [all, manager, staff]
+                      default: all
+                  description: 角色筛选
+                - name: keyword
+                  in: query
+                  schema:
+                      type: string
+                  description: 搜索关键词
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  users:
+                                                      type: array
+                                                      items:
+                                                          $ref: "#/components/schemas/UserInfo"
+                                                  total:
+                                                      type: integer
+                                                  page:
+                                                      type: integer
+                                                  per_page:
+                                                      type: integer
+                                                  has_next:
+                                                      type: boolean
+
+    /user/managed-communities:
+        get:
+            tags:
+                - 社区模块
+            summary: 获取用户管理的社区列表
+            description: 获取当前用户有管理权限的社区列表
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  communities:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              community_id:
+                                                                  type: integer
+                                                              name:
+                                                                  type: string
+                                                              description:
+                                                                  type: string
+                                                              status:
+                                                                  type: integer
+
+    /community/staff/list-enhanced:
+        get:
+            tags:
+                - 社区模块
+            summary: 获取社区工作人员列表（增强版）
+            description: 获取指定社区的详细工作人员列表
+            parameters:
+                - name: community_id
+                  in: query
+                  required: true
+                  schema:
+                      type: integer
+                  description: 社区ID
+                - name: role
+                  in: query
+                  schema:
+                      type: string
+                      enum: [all, manager, staff]
+                      default: all
+                  description: 角色筛选
+                - name: sort_by
+                  in: query
+                  schema:
+                      type: string
+                      enum: [name, role, time]
+                      default: name
+                  description: 排序方式
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  staff:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              staff_id:
+                                                                  type: integer
+                                                              user_id:
+                                                                  type: integer
+                                                              nickname:
+                                                                  type: string
+                                                              avatar_url:
+                                                                  type: string
+                                                              role:
+                                                                  type: string
+                                                              created_at:
+                                                                  type: string
+                                                                  format: date-time
+
+    /community/add-staff:
+        post:
+            tags:
+                - 社区模块
+            summary: 添加社区工作人员
+            description: 向社区添加工作人员
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - community_id
+                                - user_ids
+                                - role
+                            properties:
                                 community_id:
-                                  type: integer
-                                name:
-                                  type: string
-                                description:
-                                  type: string
-                                status:
-                                  type: integer
-
-  /community/staff/list-enhanced:
-    get:
-      tags:
-        - 社区模块
-      summary: 获取社区工作人员列表（增强版）
-      description: 获取指定社区的详细工作人员列表
-      parameters:
-        - name: community_id
-          in: query
-          required: true
-          schema:
-            type: integer
-          description: 社区ID
-        - name: role
-          in: query
-          schema:
-            type: string
-            enum: [all, manager, staff]
-            default: all
-          description: 角色筛选
-        - name: sort_by
-          in: query
-          schema:
-            type: string
-            enum: [name, role, time]
-            default: name
-          description: 排序方式
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          staff:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                staff_id:
-                                  type: integer
-                                user_id:
-                                  type: integer
-                                nickname:
-                                  type: string
-                                avatar_url:
-                                  type: string
+                                    type: integer
+                                    description: 社区ID
+                                user_ids:
+                                    type: array
+                                    items:
+                                        type: integer
+                                    description: 用户ID列表
                                 role:
-                                  type: string
-                                created_at:
-                                  type: string
-                                  format: date-time
+                                    type: string
+                                    enum: [manager, staff]
+                                    description: 角色
+            responses:
+                "200":
+                    description: 添加成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
 
-  /community/add-staff:
-    post:
-      tags:
-        - 社区模块
-      summary: 添加社区工作人员
-      description: 向社区添加工作人员
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - community_id
-                - user_ids
-                - role
-              properties:
-                community_id:
-                  type: integer
-                  description: 社区ID
-                user_ids:
-                  type: array
-                  items:
-                    type: integer
-                  description: 用户ID列表
-                role:
-                  type: string
-                  enum: [manager, staff]
-                  description: 角色
-      responses:
-        '200':
-          description: 添加成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
+    /community/remove-staff:
+        post:
+            tags:
+                - 社区模块
+            summary: 移除社区工作人员
+            description: 从社区移除工作人员
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - community_id
+                                - user_id
+                            properties:
+                                community_id:
+                                    type: integer
+                                    description: 社区ID
+                                user_id:
+                                    type: integer
+                                    description: 用户ID
+            responses:
+                "200":
+                    description: 移除成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
 
-  /community/remove-staff:
-    post:
-      tags:
-        - 社区模块
-      summary: 移除社区工作人员
-      description: 从社区移除工作人员
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - community_id
-                - user_id
-              properties:
-                community_id:
-                  type: integer
-                  description: 社区ID
-                user_id:
-                  type: integer
-                  description: 用户ID
-      responses:
-        '200':
-          description: 移除成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
+    # ==========================================
+    # 用户打卡模块 (user-checkin)
+    # ==========================================
+    /user-checkin/rules:
+        get:
+            tags:
+                - 用户打卡模块
+            summary: 获取用户所有打卡规则
+            description: 获取用户的所有打卡规则（个人规则+社区规则）
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: array
+                                              items:
+                                                  type: object
+                                                  properties:
+                                                      rule_id:
+                                                          type: integer
+                                                      community_rule_id:
+                                                          type: integer
+                                                      rule_name:
+                                                          type: string
+                                                      icon_url:
+                                                          type: string
+                                                      frequency_type:
+                                                          type: integer
+                                                      time_slot_type:
+                                                          type: integer
+                                                      custom_time:
+                                                          type: string
+                                                      rule_source:
+                                                          type: string
+                                                          enum:
+                                                              [
+                                                                  personal,
+                                                                  community,
+                                                              ]
+                                                      is_editable:
+                                                          type: boolean
+                                                      source_label:
+                                                          type: string
+                                                      community_name:
+                                                          type: string
+                                                      is_enabled:
+                                                          type: boolean
 
-  # ==========================================
-  # 用户打卡模块 (user-checkin)
-  # ==========================================
-  /user-checkin/rules:
-    get:
-      tags:
-        - 用户打卡模块
-      summary: 获取用户所有打卡规则
-      description: 获取用户的所有打卡规则（个人规则+社区规则）
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            rule_id:
-                              type: integer
-                            community_rule_id:
-                              type: integer
-                            rule_name:
-                              type: string
-                            icon_url:
-                              type: string
-                            frequency_type:
-                              type: integer
-                            time_slot_type:
-                              type: integer
-                            custom_time:
-                              type: string
-                            rule_source:
-                              type: string
-                              enum: [personal, community]
-                            is_editable:
-                              type: boolean
-                            source_label:
-                              type: string
-                            community_name:
-                              type: string
-                            is_enabled:
-                              type: boolean
+    /user-checkin/today-plan:
+        get:
+            tags:
+                - 用户打卡模块
+            summary: 获取用户今日打卡计划
+            description: 获取用户今天的打卡计划和完成状态
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  date:
+                                                      type: string
+                                                      format: date
+                                                  total_items:
+                                                      type: integer
+                                                  completed_items:
+                                                      type: integer
+                                                  pending_items:
+                                                      type: integer
+                                                  items:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              item_id:
+                                                                  type: integer
+                                                              rule_id:
+                                                                  type: integer
+                                                              community_rule_id:
+                                                                  type: integer
+                                                              rule_name:
+                                                                  type: string
+                                                              icon_url:
+                                                                  type: string
+                                                              checkin_time:
+                                                                  type: string
+                                                              is_completed:
+                                                                  type: boolean
+                                                              completed_at:
+                                                                  type: string
+                                                                  format: date-time
+                                                              rule_source:
+                                                                  type: string
+                                                              source_label:
+                                                                  type: string
+                                                              community_name:
+                                                                  type: string
 
-  /user-checkin/today-plan:
-    get:
-      tags:
-        - 用户打卡模块
-      summary: 获取用户今日打卡计划
-      description: 获取用户今天的打卡计划和完成状态
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          date:
-                            type: string
-                            format: date
-                          total_items:
-                            type: integer
-                          completed_items:
-                            type: integer
-                          pending_items:
-                            type: integer
-                          items:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                item_id:
-                                  type: integer
-                                rule_id:
-                                  type: integer
-                                community_rule_id:
-                                  type: integer
-                                rule_name:
-                                  type: string
-                                icon_url:
-                                  type: string
-                                checkin_time:
-                                  type: string
-                                is_completed:
-                                  type: boolean
-                                completed_at:
-                                  type: string
-                                  format: date-time
-                                rule_source:
-                                  type: string
-                                source_label:
-                                  type: string
-                                community_name:
-                                  type: string
-
-  /user-checkin/rules/{rule_id}:
-    get:
-      tags:
-        - 用户打卡模块
-      summary: 获取用户打卡规则详情
-      description: 获取指定打卡规则的详细信息
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 规则ID
-        - name: rule_source
-          in: query
-          schema:
-            type: string
-            enum: [personal, community]
-            default: personal
-          description: 规则来源
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          rule_name:
-                            type: string
-                          icon_url:
-                            type: string
-                          frequency_type:
-                            type: integer
-                          time_slot_type:
-                            type: integer
-                          custom_time:
-                            type: string
-                          rule_source:
-                            type: string
-                          is_editable:
-                            type: boolean
-                          source_label:
-                            type: string
-                          community_name:
-                            type: string
-                          is_enabled:
-                            type: boolean
-                          created_at:
-                            type: string
-                            format: date-time
-                          updated_at:
-                            type: string
-                            format: date-time
-
-  /user-checkin/statistics:
-    get:
-      tags:
-        - 用户打卡模块
-      summary: 获取用户打卡统计信息
-      description: 获取用户打卡的统计数据
-      parameters:
-        - name: period
-          in: query
-          schema:
-            type: string
-            enum: [week, month]
-            default: week
-          description: 统计周期
-        - name: start_date
-          in: query
-          schema:
-            type: string
-            format: date
-          description: 开始日期
-        - name: end_date
-          in: query
-          schema:
-            type: string
-            format: date
-          description: 结束日期
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          period:
-                            type: string
-                          total_days:
-                            type: integer
-                          checkin_days:
-                            type: integer
-                          checkin_rate:
-                            type: number
-                          total_rules:
-                            type: integer
-                          completed_checkins:
-                            type: integer
-                          missed_checkins:
-                            type: integer
-                          daily_stats:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                date:
-                                  type: string
-                                  format: date
-                                total_rules:
-                                  type: integer
-                                completed_rules:
-                                  type: integer
-                                missed_rules:
-                                  type: integer
-                                checkin_rate:
-                                  type: number
-
-  # ==========================================
-  # 打卡模块 (checkin)
-  # ==========================================
-  /checkin:
-    post:
-      tags:
-        - 打卡模块
-      summary: 执行打卡
-      description: 用户执行打卡操作
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rule_id
-                - checkin_time
-              properties:
-                rule_id:
-                  type: integer
+    /user-checkin/rules/{rule_id}:
+        get:
+            tags:
+                - 用户打卡模块
+            summary: 获取用户打卡规则详情
+            description: 获取指定打卡规则的详细信息
+            parameters:
+                - name: rule_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
                   description: 规则ID
-                checkin_time:
-                  type: string
-                  description: 打卡时间（HH:MM格式）
-                note:
-                  type: string
-                  description: 打卡备注
-      responses:
-        '200':
-          description: 打卡成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          record_id:
-                            type: integer
-                          checkin_time:
-                            type: string
-                          status:
-                            type: string
+                - name: rule_source
+                  in: query
+                  schema:
+                      type: string
+                      enum: [personal, community]
+                      default: personal
+                  description: 规则来源
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_id:
+                                                      type: integer
+                                                  rule_name:
+                                                      type: string
+                                                  icon_url:
+                                                      type: string
+                                                  frequency_type:
+                                                      type: integer
+                                                  time_slot_type:
+                                                      type: integer
+                                                  custom_time:
+                                                      type: string
+                                                  rule_source:
+                                                      type: string
+                                                  is_editable:
+                                                      type: boolean
+                                                  source_label:
+                                                      type: string
+                                                  community_name:
+                                                      type: string
+                                                  is_enabled:
+                                                      type: boolean
+                                                  created_at:
+                                                      type: string
+                                                      format: date-time
+                                                  updated_at:
+                                                      type: string
+                                                      format: date-time
 
-  /checkin/cancel:
-    post:
-      tags:
-        - 打卡模块
-      summary: 取消打卡
-      description: 取消已执行的打卡操作
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - record_id
-              properties:
-                record_id:
-                  type: integer
-                  description: 打卡记录ID
-                reason:
-                  type: string
-                  description: 取消原因
-      responses:
-        '200':
-          description: 取消成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
+    /user-checkin/statistics:
+        get:
+            tags:
+                - 用户打卡模块
+            summary: 获取用户打卡统计信息
+            description: 获取用户打卡的统计数据
+            parameters:
+                - name: period
+                  in: query
+                  schema:
+                      type: string
+                      enum: [week, month]
+                      default: week
+                  description: 统计周期
+                - name: start_date
+                  in: query
+                  schema:
+                      type: string
+                      format: date
+                  description: 开始日期
+                - name: end_date
+                  in: query
+                  schema:
+                      type: string
+                      format: date
+                  description: 结束日期
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  period:
+                                                      type: string
+                                                  total_days:
+                                                      type: integer
+                                                  checkin_days:
+                                                      type: integer
+                                                  checkin_rate:
+                                                      type: number
+                                                  total_rules:
+                                                      type: integer
+                                                  completed_checkins:
+                                                      type: integer
+                                                  missed_checkins:
+                                                      type: integer
+                                                  daily_stats:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              date:
+                                                                  type: string
+                                                                  format: date
+                                                              total_rules:
+                                                                  type: integer
+                                                              completed_rules:
+                                                                  type: integer
+                                                              missed_rules:
+                                                                  type: integer
+                                                              checkin_rate:
+                                                                  type: number
 
-  /checkin/history:
-    get:
-      tags:
-        - 打卡模块
-      summary: 获取打卡历史记录
-      description: 获取用户的打卡历史记录
-      parameters:
-        - name: start_date
-          in: query
-          schema:
-            type: string
-            format: date
-          description: 开始日期
-        - name: end_date
-          in: query
-          schema:
-            type: string
-            format: date
-          description: 结束日期
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          history:
-                            type: array
-                            items:
-                              type: object
-                              properties:
+    # ==========================================
+    # 打卡模块 (checkin)
+    # ==========================================
+    /checkin:
+        post:
+            tags:
+                - 打卡模块
+            summary: 执行打卡
+            description: 用户执行打卡操作
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - rule_id
+                                - checkin_time
+                            properties:
+                                rule_id:
+                                    type: integer
+                                    description: 规则ID
+                                checkin_time:
+                                    type: string
+                                    description: 打卡时间（HH:MM格式）
+                                note:
+                                    type: string
+                                    description: 打卡备注
+            responses:
+                "200":
+                    description: 打卡成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  record_id:
+                                                      type: integer
+                                                  checkin_time:
+                                                      type: string
+                                                  status:
+                                                      type: string
+
+    /checkin/cancel:
+        post:
+            tags:
+                - 打卡模块
+            summary: 取消打卡
+            description: 取消已执行的打卡操作
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - record_id
+                            properties:
                                 record_id:
-                                  type: integer
-                                rule_id:
-                                  type: integer
-                                rule_name:
-                                  type: string
-                                checkin_time:
-                                  type: string
-                                  format: date-time
-                                status:
-                                  type: string
-                                created_at:
-                                  type: string
-                                  format: date-time
-                          total:
-                            type: integer
-                          page:
-                            type: integer
-                          per_page:
-                            type: integer
-                          has_next:
-                            type: boolean
+                                    type: integer
+                                    description: 打卡记录ID
+                                reason:
+                                    type: string
+                                    description: 取消原因
+            responses:
+                "200":
+                    description: 取消成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
 
-  /checkin/rules:
-    get:
-      tags:
-        - 打卡模块
-      summary: 获取打卡规则列表
-      description: 获取用户的个人打卡规则列表
-      parameters:
-        - name: rule_id
-          in: query
-          schema:
-            type: integer
-          description: 规则ID（可选，获取单个规则）
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rules:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                rule_id:
-                                  type: integer
+    /checkin/history:
+        get:
+            tags:
+                - 打卡模块
+            summary: 获取打卡历史记录
+            description: 获取用户的打卡历史记录
+            parameters:
+                - name: start_date
+                  in: query
+                  schema:
+                      type: string
+                      format: date
+                  description: 开始日期
+                - name: end_date
+                  in: query
+                  schema:
+                      type: string
+                      format: date
+                  description: 结束日期
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  history:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              record_id:
+                                                                  type: integer
+                                                              rule_id:
+                                                                  type: integer
+                                                              rule_name:
+                                                                  type: string
+                                                              checkin_time:
+                                                                  type: string
+                                                                  format: date-time
+                                                              status:
+                                                                  type: string
+                                                              created_at:
+                                                                  type: string
+                                                                  format: date-time
+                                                  total:
+                                                      type: integer
+                                                  page:
+                                                      type: integer
+                                                  per_page:
+                                                      type: integer
+                                                  has_next:
+                                                      type: boolean
+
+    /checkin/rules:
+        get:
+            tags:
+                - 打卡模块
+            summary: 获取打卡规则列表
+            description: 获取用户的个人打卡规则列表
+            parameters:
+                - name: rule_id
+                  in: query
+                  schema:
+                      type: integer
+                  description: 规则ID（可选，获取单个规则）
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rules:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              rule_id:
+                                                                  type: integer
+                                                              title:
+                                                                  type: string
+                                                              description:
+                                                                  type: string
+                                                              checkin_time:
+                                                                  type: string
+                                                              repeat_days:
+                                                                  type: array
+                                                                  items:
+                                                                      type: integer
+                                                              is_enabled:
+                                                                  type: boolean
+
+        post:
+            tags:
+                - 打卡模块
+            summary: 创建打卡规则
+            description: 创建新的个人打卡规则
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - title
+                                - checkin_time
+                                - repeat_days
+                            properties:
                                 title:
-                                  type: string
+                                    type: string
+                                    description: 规则标题
                                 description:
-                                  type: string
+                                    type: string
+                                    description: 规则描述
                                 checkin_time:
-                                  type: string
+                                    type: string
+                                    description: 打卡时间
                                 repeat_days:
-                                  type: array
-                                  items:
+                                    type: array
+                                    items:
+                                        type: integer
+                                    description: 重复天数
+            responses:
+                "200":
+                    description: 创建成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_id:
+                                                      type: integer
+                                                  message:
+                                                      type: string
+
+        put:
+            tags:
+                - 打卡模块
+            summary: 更新打卡规则
+            description: 更新现有的个人打卡规则
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - rule_id
+                            properties:
+                                rule_id:
                                     type: integer
-                                is_enabled:
-                                  type: boolean
+                                    description: 规则ID
+                                title:
+                                    type: string
+                                    description: 规则标题
+                                description:
+                                    type: string
+                                    description: 规则描述
+                                checkin_time:
+                                    type: string
+                                    description: 打卡时间
+                                repeat_days:
+                                    type: array
+                                    items:
+                                        type: integer
+                                    description: 重复天数
+            responses:
+                "200":
+                    description: 更新成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
 
-    post:
-      tags:
-        - 打卡模块
-      summary: 创建打卡规则
-      description: 创建新的个人打卡规则
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - title
-                - checkin_time
-                - repeat_days
-              properties:
-                title:
-                  type: string
-                  description: 规则标题
-                description:
-                  type: string
-                  description: 规则描述
-                checkin_time:
-                  type: string
-                  description: 打卡时间
-                repeat_days:
-                  type: array
-                  items:
-                    type: integer
-                  description: 重复天数
-      responses:
-        '200':
-          description: 创建成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          message:
-                            type: string
-
-    put:
-      tags:
-        - 打卡模块
-      summary: 更新打卡规则
-      description: 更新现有的个人打卡规则
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rule_id
-              properties:
-                rule_id:
-                  type: integer
+        delete:
+            tags:
+                - 打卡模块
+            summary: 删除打卡规则
+            description: 删除个人打卡规则
+            parameters:
+                - name: rule_id
+                  in: query
+                  required: true
+                  schema:
+                      type: integer
                   description: 规则ID
-                title:
-                  type: string
-                  description: 规则标题
-                description:
-                  type: string
-                  description: 规则描述
-                checkin_time:
-                  type: string
-                  description: 打卡时间
-                repeat_days:
-                  type: array
-                  items:
-                    type: integer
-                  description: 重复天数
-      responses:
-        '200':
-          description: 更新成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
+            responses:
+                "200":
+                    description: 删除成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
 
-    delete:
-      tags:
-        - 打卡模块
-      summary: 删除打卡规则
-      description: 删除个人打卡规则
-      parameters:
-        - name: rule_id
-          in: query
-          required: true
-          schema:
-            type: integer
-          description: 规则ID
-      responses:
-        '200':
-          description: 删除成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
-
-  # ==========================================
-  # 社区打卡模块 (community-checkin)
-  # ==========================================
-  /community-checkin/rules:
-    get:
-      tags:
-        - 社区打卡模块
-      summary: 获取社区打卡规则列表
-      description: 获取指定社区的打卡规则列表
-      parameters:
-        - name: community_id
-          in: query
-          required: true
-          schema:
-            type: integer
-          description: 社区ID
-        - name: page
-          in: query
-          schema:
-            type: integer
-            default: 1
-          description: 页码
-        - name: per_page
-          in: query
-          schema:
-            type: integer
-            default: 20
-          description: 每页数量
-        - name: status
-          in: query
-          schema:
-            type: string
-            enum: [enabled, disabled, all]
-            default: all
-          description: 状态筛选
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rules:
-                            type: array
-                            items:
-                              type: object
-                              properties:
-                                community_rule_id:
-                                  type: integer
-                                rule_name:
-                                  type: string
-                                description:
-                                  type: string
-                                checkin_time:
-                                  type: string
-                                repeat_days:
-                                  type: array
-                                  items:
-                                    type: integer
-                                is_enabled:
-                                  type: boolean
-                                created_by_name:
-                                  type: string
-                          total:
-                            type: integer
-
-    post:
-      tags:
-        - 社区打卡模块
-      summary: 创建社区打卡规则
-      description: 为社区创建新的打卡规则
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - community_id
-                - title
-                - checkin_time
-                - repeat_days
-              properties:
-                community_id:
-                  type: integer
+    # ==========================================
+    # 社区打卡模块 (community-checkin)
+    # ==========================================
+    /community_checkin/rules:
+        get:
+            tags:
+                - 社区打卡模块
+            summary: 获取社区打卡规则列表
+            description: 获取指定社区的打卡规则列表
+            parameters:
+                - name: community_id
+                  in: query
+                  required: true
+                  schema:
+                      type: integer
                   description: 社区ID
-                title:
-                  type: string
-                  description: 规则标题
-                description:
-                  type: string
-                  description: 规则描述
-                checkin_time:
-                  type: string
-                  description: 打卡时间
-                repeat_days:
-                  type: array
-                  items:
-                    type: integer
-                  description: 重复天数
-      responses:
-        '200':
-          description: 创建成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          message:
-                            type: string
+                - name: page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 1
+                  description: 页码
+                - name: per_page
+                  in: query
+                  schema:
+                      type: integer
+                      default: 20
+                  description: 每页数量
+                - name: status
+                  in: query
+                  schema:
+                      type: string
+                      enum: [enabled, disabled, all]
+                      default: all
+                  description: 状态筛选
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rules:
+                                                      type: array
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              community_rule_id:
+                                                                  type: integer
+                                                              rule_name:
+                                                                  type: string
+                                                              description:
+                                                                  type: string
+                                                              checkin_time:
+                                                                  type: string
+                                                              repeat_days:
+                                                                  type: array
+                                                                  items:
+                                                                      type: integer
+                                                              is_enabled:
+                                                                  type: boolean
+                                                              created_by_name:
+                                                                  type: string
+                                                  total:
+                                                      type: integer
 
-  /community-checkin/rules/{rule_id}:
-    get:
-      tags:
-        - 社区打卡模块
-      summary: 获取社区打卡规则详情
-      description: 获取指定社区打卡规则的详细信息
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 规则ID
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          community_rule_id:
-                            type: integer
-                          rule_name:
-                            type: string
-                          description:
-                            type: string
-                          checkin_time:
-                            type: string
-                          repeat_days:
-                            type: array
-                            items:
-                              type: integer
-                          is_enabled:
-                            type: boolean
-                          created_by_name:
-                            type: string
-                          created_at:
-                            type: string
-                            format: date-time
-                          updated_at:
-                            type: string
-                            format: date-time
+        post:
+            tags:
+                - 社区打卡模块
+            summary: 创建社区打卡规则
+            description: 为社区创建新的打卡规则
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - community_id
+                                - title
+                                - checkin_time
+                                - repeat_days
+                            properties:
+                                community_id:
+                                    type: integer
+                                    description: 社区ID
+                                title:
+                                    type: string
+                                    description: 规则标题
+                                description:
+                                    type: string
+                                    description: 规则描述
+                                checkin_time:
+                                    type: string
+                                    description: 打卡时间
+                                repeat_days:
+                                    type: array
+                                    items:
+                                        type: integer
+                                    description: 重复天数
+            responses:
+                "200":
+                    description: 创建成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_id:
+                                                      type: integer
+                                                  message:
+                                                      type: string
 
-    put:
-      tags:
-        - 社区打卡模块
-      summary: 更新社区打卡规则
-      description: 更新现有的社区打卡规则
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 规则ID
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                title:
-                  type: string
-                  description: 规则标题
-                description:
-                  type: string
-                  description: 规则描述
-                checkin_time:
-                  type: string
-                  description: 打卡时间
-                repeat_days:
-                  type: array
-                  items:
-                    type: integer
-                  description: 重复天数
-      responses:
-        '200':
-          description: 更新成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          message:
-                            type: string
+    /community_checkin/rules/{rule_id}:
+        get:
+            tags:
+                - 社区打卡模块
+            summary: 获取社区打卡规则详情
+            description: 获取指定社区打卡规则的详细信息
+            parameters:
+                - name: rule_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                  description: 规则ID
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  community_rule_id:
+                                                      type: integer
+                                                  rule_name:
+                                                      type: string
+                                                  description:
+                                                      type: string
+                                                  checkin_time:
+                                                      type: string
+                                                  repeat_days:
+                                                      type: array
+                                                      items:
+                                                          type: integer
+                                                  is_enabled:
+                                                      type: boolean
+                                                  created_by_name:
+                                                      type: string
+                                                  created_at:
+                                                      type: string
+                                                      format: date-time
+                                                  updated_at:
+                                                      type: string
+                                                      format: date-time
 
-    delete:
-      tags:
-        - 社区打卡模块
-      summary: 删除社区打卡规则
-      description: 删除社区打卡规则
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 规则ID
-      responses:
-        '200':
-          description: 删除成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          message:
-                            type: string
-
-  /community-checkin/rules/{rule_id}/enable:
-    post:
-      tags:
-        - 社区打卡模块
-      summary: 启用社区打卡规则
-      description: 启用指定的社区打卡规则
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 规则ID
-      responses:
-        '200':
-          description: 启用成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          message:
-                            type: string
-
-  /community-checkin/rules/{rule_id}/disable:
-    post:
-      tags:
-        - 社区打卡模块
-      summary: 禁用社区打卡规则
-      description: 禁用指定的社区打卡规则
-      parameters:
-        - name: rule_id
-          in: path
-          required: true
-          schema:
-            type: integer
-          description: 规则ID
-      responses:
-        '200':
-          description: 禁用成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          message:
-                            type: string
-
-  # ==========================================
-  # 分享模块 (share)
-  # ==========================================
-  /share/checkin/create:
-    post:
-      tags:
-        - 分享模块
-      summary: 创建分享链接
-      description: 为打卡记录创建可分享的链接
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rule_id
-              properties:
-                rule_id:
-                  type: integer
-                  description: 打卡规则ID
-                expire_hours:
-                  type: integer
-                  default: 168
-                  description: 链接过期时间（小时）
-      responses:
-        '200':
-          description: 创建成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          token:
-                            type: string
-                          url:
-                            type: string
-                          mini_path:
-                            type: string
-                          expire_at:
-                            type: string
-                            format: date-time
-
-  /share/checkin/resolve:
-    get:
-      tags:
-        - 分享模块
-      summary: 解析分享链接
-      description: 解析分享链接，返回打卡规则信息
-      parameters:
-        - name: token
-          in: query
-          required: true
-          schema:
-            type: string
-          description: 分享token
-      responses:
-        '200':
-          description: 解析成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          rule_info:
+        put:
+            tags:
+                - 社区打卡模块
+            summary: 更新社区打卡规则
+            description: 更新现有的社区打卡规则
+            parameters:
+                - name: rule_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                  description: 规则ID
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
                             type: object
                             properties:
-                              rule_id:
-                                type: integer
-                              title:
-                                type: string
-                              description:
-                                type: string
-                              checkin_time:
-                                type: string
-                              repeat_days:
-                                type: array
-                                items:
-                                  type: integer
-                              is_enabled:
-                                type: boolean
-                          share_info:
+                                title:
+                                    type: string
+                                    description: 规则标题
+                                description:
+                                    type: string
+                                    description: 规则描述
+                                checkin_time:
+                                    type: string
+                                    description: 打卡时间
+                                repeat_days:
+                                    type: array
+                                    items:
+                                        type: integer
+                                    description: 重复天数
+            responses:
+                "200":
+                    description: 更新成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_id:
+                                                      type: integer
+                                                  message:
+                                                      type: string
+
+        delete:
+            tags:
+                - 社区打卡模块
+            summary: 删除社区打卡规则
+            description: 删除社区打卡规则
+            parameters:
+                - name: rule_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                  description: 规则ID
+            responses:
+                "200":
+                    description: 删除成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_id:
+                                                      type: integer
+                                                  message:
+                                                      type: string
+
+    /community_checkin/rules/{rule_id}/enable:
+        post:
+            tags:
+                - 社区打卡模块
+            summary: 启用社区打卡规则
+            description: 启用指定的社区打卡规则
+            parameters:
+                - name: rule_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                  description: 规则ID
+            responses:
+                "200":
+                    description: 启用成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_id:
+                                                      type: integer
+                                                  message:
+                                                      type: string
+
+    /community_checkin/rules/{rule_id}/disable:
+        post:
+            tags:
+                - 社区打卡模块
+            summary: 禁用社区打卡规则
+            description: 禁用指定的社区打卡规则
+            parameters:
+                - name: rule_id
+                  in: path
+                  required: true
+                  schema:
+                      type: integer
+                  description: 规则ID
+            responses:
+                "200":
+                    description: 禁用成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_id:
+                                                      type: integer
+                                                  message:
+                                                      type: string
+
+    # ==========================================
+    # 分享模块 (share)
+    # ==========================================
+    /share/checkin/create:
+        post:
+            tags:
+                - 分享模块
+            summary: 创建分享链接
+            description: 为打卡记录创建可分享的链接
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
                             type: object
+                            required:
+                                - rule_id
                             properties:
-                              share_user_id:
-                                type: integer
-                              share_user_nickname:
-                                type: string
-                              share_user_avatar:
-                                type: string
-                              created_at:
-                                type: string
-                                format: date-time
-                              expires_at:
-                                type: string
-                                format: date-time
-                              access_count:
-                                type: integer
+                                rule_id:
+                                    type: integer
+                                    description: 打卡规则ID
+                                expire_hours:
+                                    type: integer
+                                    default: 168
+                                    description: 链接过期时间（小时）
+            responses:
+                "200":
+                    description: 创建成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  token:
+                                                      type: string
+                                                  url:
+                                                      type: string
+                                                  mini_path:
+                                                      type: string
+                                                  expire_at:
+                                                      type: string
+                                                      format: date-time
 
-  # ==========================================
-  # 杂项模块 (misc)
-  # ==========================================
-  /count:
-    get:
-      tags:
-        - 杂项模块
-      summary: 获取计数器
-      description: 获取计数器信息
-      security: []
-      parameters:
-        - name: id
-          in: query
-          schema:
-            type: integer
-          description: 计数器ID（可选，不提供则返回所有）
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          id:
-                            type: integer
-                          count:
-                            type: integer
+    /share/checkin/resolve:
+        get:
+            tags:
+                - 分享模块
+            summary: 解析分享链接
+            description: 解析分享链接，返回打卡规则信息
+            parameters:
+                - name: token
+                  in: query
+                  required: true
+                  schema:
+                      type: string
+                  description: 分享token
+            responses:
+                "200":
+                    description: 解析成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  rule_info:
+                                                      type: object
+                                                      properties:
+                                                          rule_id:
+                                                              type: integer
+                                                          title:
+                                                              type: string
+                                                          description:
+                                                              type: string
+                                                          checkin_time:
+                                                              type: string
+                                                          repeat_days:
+                                                              type: array
+                                                              items:
+                                                                  type: integer
+                                                          is_enabled:
+                                                              type: boolean
+                                                  share_info:
+                                                      type: object
+                                                      properties:
+                                                          share_user_id:
+                                                              type: integer
+                                                          share_user_nickname:
+                                                              type: string
+                                                          share_user_avatar:
+                                                              type: string
+                                                          created_at:
+                                                              type: string
+                                                              format: date-time
+                                                          expires_at:
+                                                              type: string
+                                                              format: date-time
+                                                          access_count:
+                                                              type: integer
 
-    post:
-      tags:
-        - 杂项模块
-      summary: 计数器操作
-      description: 对计数器进行操作（增加、重置、获取、清除等）
-      security: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - action
-              properties:
-                action:
-                  type: string
-                  enum: [increment, reset, get, list, clear]
-                  description: 操作类型
-                counter_id:
-                  type: integer
-                  description: 计数器ID
-                id:
-                  type: integer
-                  description: 计数器ID（用于get操作）
-      responses:
-        '200':
-          description: 操作成功
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/StandardResponse'
+    # ==========================================
+    # 杂项模块 (misc)
+    # ==========================================
+    /count:
+        get:
+            tags:
+                - 杂项模块
+            summary: 获取计数器
+            description: 获取计数器信息
+            security: []
+            parameters:
+                - name: id
+                  in: query
+                  schema:
+                      type: integer
+                  description: 计数器ID（可选，不提供则返回所有）
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  id:
+                                                      type: integer
+                                                  count:
+                                                      type: integer
 
-  /get_envs:
-    get:
-      tags:
-        - 杂项模块
-      summary: 获取环境配置信息
-      description: 获取系统环境配置和外部系统状态
-      responses:
-        '200':
-          description: 获取成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                  - $ref: '#/components/schemas/StandardResponse'
-                  - type: object
-                    properties:
-                      data:
-                        type: object
-                        properties:
-                          config_status:
+        post:
+            tags:
+                - 杂项模块
+            summary: 计数器操作
+            description: 对计数器进行操作（增加、重置、获取、清除等）
+            security: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
                             type: object
-                          external_status:
-                            type: object
-                          timestamp:
-                            type: string
-                            format: date-time
+                            required:
+                                - action
+                            properties:
+                                action:
+                                    type: string
+                                    enum: [increment, reset, get, list, clear]
+                                    description: 操作类型
+                                counter_id:
+                                    type: integer
+                                    description: 计数器ID
+                                id:
+                                    type: integer
+                                    description: 计数器ID（用于get操作）
+            responses:
+                "200":
+                    description: 操作成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+    /get_envs:
+        get:
+            tags:
+                - 杂项模块
+            summary: 获取环境配置信息
+            description: 获取系统环境配置和外部系统状态
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  config_status:
+                                                      type: object
+                                                  external_status:
+                                                      type: object
+                                                  timestamp:
+                                                      type: string
+                                                      format: date-time
 
 # 标签分组
 tags:
-  - name: 认证模块
-    description: 用户认证、登录、注册相关接口
-  - name: 用户模块
-    description: 用户信息管理、搜索相关接口
-  - name: 监督模块
-    description: 监督关系管理相关接口
-  - name: 短信模块
-    description: 短信验证码相关接口
-  - name: 社区模块
-    description: 社区管理相关接口
-  - name: 用户打卡模块
-    description: 用户个人打卡规则和统计相关接口
-  - name: 打卡模块
-    description: 个人打卡操作和规则管理相关接口
-  - name: 社区打卡模块
-    description: 社区打卡规则管理相关接口
-  - name: 分享模块
-    description: 打卡分享相关接口
-  - name: 杂项模块
-    description: 系统辅助功能相关接口
+    - name: 认证模块
+      description: 用户认证、登录、注册相关接口
+    - name: 用户模块
+      description: 用户信息管理、搜索相关接口
+    - name: 监督模块
+      description: 监督关系管理相关接口
+    - name: 短信模块
+      description: 短信验证码相关接口
+    - name: 社区模块
+      description: 社区管理相关接口
+    - name: 用户打卡模块
+      description: 用户个人打卡规则和统计相关接口
+    - name: 打卡模块
+      description: 个人打卡操作和规则管理相关接口
+    - name: 社区打卡模块
+      description: 社区打卡规则管理相关接口
+    - name: 分享模块
+      description: 打卡分享相关接口
+    - name: 杂项模块
+      description: 系统辅助功能相关接口

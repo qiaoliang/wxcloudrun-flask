@@ -120,6 +120,7 @@ class CommunityStaffService:
         
         added_count = 0
         failed = []
+        skipped_count = 0  # 跟踪静默跳过的用户数量
         
         # 验证并处理用户ID
         processed_user_ids = []
@@ -165,7 +166,9 @@ class CommunityStaffService:
                 ).first()
                 
                 if existing_in_current_community:
-                    failed.append({'user_id': uid, 'reason': '用户已在当前社区任职'})
+                    # 静默跳过已任职用户，不计入失败
+                    logger.info(f'用户{uid}已在社区{community_id}任职，跳过添加')
+                    skipped_count += 1
                     continue
                 
                 # 添加工作人员
@@ -201,7 +204,23 @@ class CommunityStaffService:
                 failed.append({'user_id': uid, 'reason': str(e)})
         
         if added_count == 0:
-            raise ValueError('添加失败')
+            if failed:
+                # 有真正的失败，报错
+                error_details = "; ".join([f"用户{f['user_id']}: {f['reason']}" for f in failed])
+                raise ValueError(f'添加失败: {error_details}')
+            elif skipped_count > 0:
+                # 所有用户都已被任职，这是正常情况，返回成功
+                logger.info(f'所有{skipped_count}个用户都已在社区{community_id}任职，无需添加')
+                return {
+                    'success_count': 0,
+                    'failed': [],
+                    'added_users': [],
+                    'skipped_count': skipped_count,
+                    'message': '所有用户都已在社区任职'
+                }
+            else:
+                # 既没有成功也没有失败，也没有跳过，这是异常情况
+                raise ValueError('添加失败: 未知错误')
         
         # 提交事务
         db.session.commit()
@@ -209,7 +228,8 @@ class CommunityStaffService:
         return {
             'success_count': added_count,
             'failed': failed,
-            'added_users': added_users_info
+            'added_users': added_users_info,
+            'skipped_count': skipped_count
         }
 
     @staticmethod

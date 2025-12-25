@@ -124,7 +124,7 @@ class TestCommunityListAPI(IntegrationTestBase):
             community = communities[0]
             required_fields = [
                 'community_id', 'name', 'description', 'creator_id',
-                'status', 'created_at', 'updated_at', 'admin_count', 'user_count'
+                'status', 'created_at', 'updated_at', 'manager_count', 'worker_count'
             ]
             
             for field in required_fields:
@@ -136,8 +136,8 @@ class TestCommunityListAPI(IntegrationTestBase):
             assert isinstance(community['name'], str), "name 应该是字符串"
             assert isinstance(community['description'], str), "description 应该是字符串"
             assert isinstance(community['status'], int), "status 应该是整数"
-            assert isinstance(community['admin_count'], int), "admin_count 应该是整数"
-            assert isinstance(community['user_count'], int), "user_count 应该是整数"
+            assert isinstance(community['manager_count'], int), "manager_count 应该是整数"
+            assert isinstance(community['worker_count'], int), "worker_count 应该是整数"
             
             # 验证时间格式
             assert community['created_at'] is not None, "created_at 不能为空"
