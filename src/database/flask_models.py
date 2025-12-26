@@ -19,6 +19,10 @@ class User(db.Model):
     name = Column(db.String(100), comment='真实姓名')
     work_id = Column(db.String(50), comment='工号或身份证号')
     address = Column(db.String(200), comment='个人地址')
+    motto = Column(db.String(100), comment='座右铭')
+    emergency_contact_name = Column(db.String(20), comment='紧急联系人姓名')
+    emergency_contact_phone = Column(db.String(20), comment='紧急联系人电话')
+    emergency_contact_address = Column(db.String(100), comment='紧急联系人地址')
     password_hash = Column(db.String(128), comment='密码哈希')
     password_salt = Column(db.String(32), comment='密码盐')
     role = Column(db.Integer, nullable=False, comment='用户角色')
@@ -61,6 +65,20 @@ class User(db.Model):
     @property
     def status_name(self):
         return self.STATUS_MAPPING.get(self.status, '未知状态')
+
+    def set_password(self, password):
+        """设置密码"""
+        import hashlib
+        self.password_salt = hashlib.md5(str(hash(random())).encode()).hexdigest()[:32]
+        salted_password = password + self.password_salt
+        self.password_hash = hashlib.sha256(salted_password.encode()).hexdigest()
+
+    def verify_password(self, password):
+        """验证密码"""
+        if not self.password_hash or not self.password_salt:
+            return False
+        salted_password = password + self.password_salt
+        return self.password_hash == hashlib.sha256(salted_password.encode()).hexdigest()
 
 
 class Community(db.Model):

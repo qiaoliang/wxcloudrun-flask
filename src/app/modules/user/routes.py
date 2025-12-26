@@ -145,6 +145,10 @@ def user_profile():
                 'name': user.name,
                 'avatar_url': user.avatar_url,
                 'address': user.address,
+                'motto': user.motto,
+                'emergency_contact_name': user.emergency_contact_name,
+                'emergency_contact_phone': user.emergency_contact_phone,
+                'emergency_contact_address': user.emergency_contact_address,
                 'role': user.role,  # 数字角色值 (1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员)
                 'role_name': user.role_name,  # 中文角色名称
                 'community_id': user.community_id,
@@ -177,7 +181,8 @@ def user_profile():
                 return make_err_response({}, '用户不存在，请重新登录')
 
             # 更新允许的字段
-            update_fields = ['nickname', 'name', 'avatar_url', 'address']
+            update_fields = ['nickname', 'name', 'avatar_url', 'address', 'motto', 
+                           'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_address']
             updated = False
 
             for field in update_fields:
@@ -190,7 +195,8 @@ def user_profile():
                             current_app.logger.warning(f'昵称过长，截断处理: {params[field][:30]}... -> {nickname[:30]}...')
                         setattr(user, field, nickname)
                         updated = True
-                    elif field in ['name', 'avatar_url', 'address']:
+                    elif field in ['name', 'avatar_url', 'address', 'motto', 
+                                'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_address']:
                         setattr(user, field, params[field])
                         updated = True
 
@@ -205,6 +211,127 @@ def user_profile():
         except Exception as e:
             current_app.logger.error(f'更新用户信息失败: {str(e)}', exc_info=True)
             return make_err_response({}, '更新用户信息失败')
+
+
+@user_bp.route('/user/upload-avatar', methods=['POST'])
+@login_required
+def upload_avatar(decoded):
+    """
+    上传用户头像
+    """
+    current_app.logger.info('=== 开始执行上传头像接口 ===')
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        # 检查是否有文件上传
+        if 'avatar' not in request.files:
+            return make_err_response({}, '未上传文件')
+
+        file = request.files['avatar']
+        if file.filename == '':
+            return make_err_response({}, '未选择文件')
+
+        # 验证文件类型
+        allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
+        if not ('.' in file.filename and 
+                file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
+            return make_err_response({}, '不支持的文件格式')
+
+        # 验证文件大小（最大 5MB）
+        file.seek(0, os.SEEK_END)
+        file_size = file.tell()
+        file.seek(0)
+        if file_size > 5 * 1024 * 1024:
+            return make_err_response({}, '文件大小超过限制（最大 5MB）')
+
+        # 生成唯一文件名
+        import uuid
+        file_extension = file.filename.rsplit('.', 1)[1].lower()
+        filename = f"{uuid.uuid4().hex}.{file_extension}"
+        
+        # 确保上传目录存在
+        upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
+        os.makedirs(upload_dir, exist_ok=True)
+        
+        # 保存文件
+        file_path = os.path.join(upload_dir, filename)
+        file.save(file_path)
+        
+        # 生成访问 URL
+        avatar_url = f"/static/uploads/avatars/{filename}"
+        
+        # 更新用户头像
+        user = UserService.query_user_by_id(user_id)
+        if user:
+            user.avatar_url = avatar_url
+            UserService.update_user_by_id(user)
+            current_app.logger.info(f'用户头像更新成功: {user_id}')
+        else:
+            current_app.logger.warning(f'用户不存在: {user_id}')
+
+        return make_succ_response({
+            'avatar_url': avatar_url,
+            'message': '头像上传成功'
+        })
+
+    except Exception as e:
+        current_app.logger.error(f'上传头像失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '上传头像失败')
+
+
+@user_bp.route('/user/change-password', methods=['POST'])
+@login_required
+def change_password(decoded):
+    """
+    修改用户密码
+    """
+    current_app.logger.info('=== 开始执行修改密码接口 ===')
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        params = request.get_json()
+        if not params:
+            return make_err_response({}, '缺少请求参数')
+
+        old_password = params.get('old_password')
+        new_password = params.get('new_password')
+
+        # 验证参数
+        if not old_password or not new_password:
+            return make_err_response({}, '缺少必要参数')
+
+        # 验证密码长度
+        if len(new_password) < 6 or len(new_password) > 20:
+            return make_err_response({}, '新密码长度必须在 6-20 个字符之间')
+
+        # 获取用户
+        user = UserService.query_user_by_id(user_id)
+        if not user:
+            return make_err_response({}, '用户不存在')
+
+        # 验证旧密码
+        if not user.verify_password(old_password):
+            current_app.logger.warning(f'用户 {user_id} 原密码错误')
+            return make_err_response({}, '原密码错误')
+
+        # 验证新密码不能与旧密码相同
+        if old_password == new_password:
+            return make_err_response({}, '新密码不能与原密码相同')
+
+        # 更新密码
+        user.set_password(new_password)
+        UserService.update_user_by_id(user)
+        current_app.logger.info(f'用户密码修改成功: {user_id}')
+
+        return make_succ_response({'message': '密码修改成功'})
+
+    except Exception as e:
+        current_app.logger.error(f'修改密码失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '修改密码失败')
 
 
 @user_bp.route('/user/search', methods=['GET'])
