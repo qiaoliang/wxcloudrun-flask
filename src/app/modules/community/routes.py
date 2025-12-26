@@ -47,7 +47,7 @@ def _format_community_info(community, include_admin_count=False):
     
     Args:
         community: Community对象
-        include_admin_count: 是否包含管理员数量
+        include_worker_stats: 是否包含工作人员统计信息
     
     Returns:
         dict: 格式化后的社区信息
@@ -79,7 +79,7 @@ def _format_community_info(community, include_admin_count=False):
     staff_count = 0
     worker_count = 0
     user_count = 0  # 普通成员数量（不包括工作人员）
-    if include_admin_count:
+    if include_worker_stats:
         manager_count = CommunityStaff.query.filter_by(
             community_id=community.community_id,
             role='manager'  # 社区主管
@@ -155,7 +155,7 @@ def get_communities():
         # 格式化社区信息
         communities_data = []
         for community in communities:
-            community_data = _format_community_info(community, include_admin_count=True)
+            community_data = _format_community_info(community, include_worker_stats=True)
             communities_data.append(community_data)
 
         current_app.logger.info(f'获取社区列表成功，共 {len(communities_data)} 个社区')
@@ -186,7 +186,7 @@ def get_community_list():
         # 格式化社区信息（包含主管信息）
         communities_data = []
         for community in communities:
-            community_data = _format_community_info(community, include_admin_count=True)
+            community_data = _format_community_info(community, include_worker_stats=True)
             communities_data.append(community_data)
 
         current_app.logger.info(f'获取用户社区列表成功，共 {len(communities_data)} 个社区')
@@ -1592,7 +1592,7 @@ def get_community_detail(community_id):
             return make_err_response({}, '社区不存在')
 
         # 格式化社区信息
-        community_data = _format_community_info(community, include_admin_count=True)
+        community_data = _format_community_info(community, include_worker_stats=True)
 
         # 获取社区统计信息
         event_stats = CommunityEventService.get_community_stats(community_id)
