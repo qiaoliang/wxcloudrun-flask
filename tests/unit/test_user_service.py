@@ -185,7 +185,7 @@ class TestUserService:
         """
         # Arrange - 带+86前缀的手机号
         original_phone = "+8613912345678"
-        expected_masked_phone = "861****5678"  # 预期的脱敏号码（保留+86前缀）
+        expected_masked_phone = "139****5678"  # 预期的脱敏号码（前缀被移除）
         new_user = User(
             phone_number=original_phone
         )

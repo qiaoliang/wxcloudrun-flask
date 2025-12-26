@@ -14,10 +14,15 @@ from database.flask_models import VerificationCode, UserAuditLog, db
 def normalize_phone_number(phone):
     """
     标准化电话号码格式
-    - 确保是纯数字格式
+    - 移除 +86 前缀（仅支持中国手机号）
+    - 确保是11位纯数字格式
     """
     if not phone:
         return phone
+
+    # 移除 +86 前缀
+    if phone.startswith('+86'):
+        phone = phone[3:]
 
     # 移除所有非数字字符
     phone = ''.join(filter(str.isdigit, phone))
