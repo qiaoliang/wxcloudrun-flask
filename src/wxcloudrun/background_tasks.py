@@ -4,6 +4,7 @@ import time as time_module
 from datetime import datetime, time, timedelta
 
 from flask import current_app
+from app.extensions import db
 from database.flask_models import CheckinRule, CheckinRecord, User
 from wxcloudrun.checkin_record_service import CheckinRecordService
 
