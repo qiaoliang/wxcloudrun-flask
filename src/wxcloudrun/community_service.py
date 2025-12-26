@@ -401,7 +401,7 @@ class CommunityService:
         return community_dicts, total
 
     @staticmethod
-    def update_community_info(community_id, name=None, description=None, location=None, status=None):
+    def update_community_info(community_id, name=None, description=None, location=None, status=None, manager_id=None, location_lat=None, location_lon=None):
         """更新社区信息"""
         community = db.session.get(Community, community_id)
         if not community:

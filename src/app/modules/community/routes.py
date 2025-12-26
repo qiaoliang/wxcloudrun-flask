@@ -65,6 +65,7 @@ def _format_community_info(community, include_worker_stats=False):
 
     # 获取主管信息
     manager = None
+    current_app.logger.info(f'_format_community_info - 社区{community.community_id}的manager_id: {community.manager_id}')
     if community.manager_id:
         manager_user = db.session.get(User, community.manager_id)
         if manager_user:
@@ -73,6 +74,11 @@ def _format_community_info(community, include_worker_stats=False):
                 'nickname': manager_user.nickname,
                 'avatar_url': manager_user.avatar_url
             }
+            current_app.logger.info(f'_format_community_info - 成功获取主管信息: {manager}')
+        else:
+            current_app.logger.warning(f'_format_community_info - manager_id={community.manager_id}对应的用户不存在')
+    else:
+        current_app.logger.info(f'_format_community_info - 社区{community.community_id}未设置主管')
 
     # 获取工作人员数量统计
     manager_count = 0

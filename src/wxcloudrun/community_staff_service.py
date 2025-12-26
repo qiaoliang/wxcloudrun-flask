@@ -221,10 +221,25 @@ class CommunityStaffService:
             else:
                 # 既没有成功也没有失败，也没有跳过，这是异常情况
                 raise ValueError('添加失败: 未知错误')
-        
+
+        # Layer 4: 调试仪表 - 如果添加的是主管，更新Community表的manager_id字段
+        if role == 'manager' and added_count > 0:
+            # 获取添加的主管用户ID（只取第一个，因为前面已经验证只能添加一个）
+            manager_user_id = processed_user_ids[0]
+            logger.info(f'Layer 4调试仪表 - 准备更新社区{community_id}的主管ID为{manager_user_id}')
+            
+            # 更新Community表的manager_id字段
+            community = db.session.get(Community, community_id)
+            if community:
+                old_manager_id = community.manager_id
+                community.manager_id = manager_user_id
+                logger.info(f'Layer 4调试仪表 - 成功更新社区{community_id}的manager_id: {old_manager_id} -> {manager_user_id}')
+            else:
+                logger.error(f'Layer 4调试仪表 - 社区{community_id}不存在，无法更新manager_id')
+
         # 提交事务
         db.session.commit()
-        
+
         return {
             'success_count': added_count,
             'failed': failed,
@@ -279,35 +294,48 @@ class CommunityStaffService:
     def remove_staff(community_id, user_id, operator_id=None):
         """
         移除社区工作人员
-        
+
         Args:
             community_id (int): 社区ID
             user_id (int): 用户ID
             operator_id (int): 操作者ID
-            
+
         Returns:
             bool: 是否成功
         """
+        # Layer 1: 入口点验证 - 检查工作人员记录是否存在
         staff = db.session.query(CommunityStaff).filter_by(
             community_id=community_id,
             user_id=user_id
         ).first()
-        
+
         if not staff:
             raise ValueError("用户不是该社区的工作人员")
-        
+
+        # Layer 2: 业务逻辑验证 - 记录被移除工作人员的角色
+        removed_role = staff.role
+        logger.info(f'Layer 2验证 - 准备移除工作人员: 社区{community_id}, 用户{user_id}, 角色{removed_role}')
+
         db.session.delete(staff)
-        
+
+        # Layer 3: 环境守卫 - 如果移除的是主管，清理Community表的manager_id字段
+        if removed_role == 'manager':
+            logger.info(f'Layer 3环境守卫 - 移除的是主管，清理社区{community_id}的manager_id字段')
+            community = db.session.get(Community, community_id)
+            if community and community.manager_id == user_id:
+                community.manager_id = None
+                logger.info(f'Layer 3环境守卫 - 成功清理社区{community_id}的manager_id字段')
+
         # 记录审计日志
         audit_log = UserAuditLog(
             user_id=operator_id or user_id,
             action="remove_staff",
-            detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={user_id}"
+            detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}"
         )
         db.session.add(audit_log)
-        
+
         db.session.commit()
-        logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}")
+        logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}")
         return True
 
     @staticmethod
