@@ -66,17 +66,19 @@ def test_community_rule_disable_enable(test_session):
     rule_id = rule.community_rule_id
     
     # 1. 验证初始状态：规则启用且对用户可见
-    all_rules = UserCheckinRuleService.get_user_all_rules(user_id)
+    result = UserCheckinRuleService.get_user_all_rules(user_id)
+    all_rules = result.get('rules', [])
     community_rules = [r for r in all_rules if r['rule_source'] == 'community']
     assert len(community_rules) == 1
     assert community_rules[0]['is_active_for_user'] == True
     assert community_rules[0]['status_label'] == '启用'
-    
+
     # 2. 停用规则
     CommunityCheckinRuleService.disable_community_rule(rule_id, user_id)
-    
+
     # 3. 验证停用后状态：规则对用户仍可见但标记为停用
-    all_rules = UserCheckinRuleService.get_user_all_rules(user_id)
+    result = UserCheckinRuleService.get_user_all_rules(user_id)
+    all_rules = result.get('rules', [])
     community_rules = [r for r in all_rules if r['rule_source'] == 'community']
     assert len(community_rules) == 1
     assert community_rules[0]['is_active_for_user'] == False
@@ -90,14 +92,15 @@ def test_community_rule_disable_enable(test_session):
     
     # 5. 重新启用规则
     CommunityCheckinRuleService.enable_community_rule(rule_id, user_id)
-    
+
     # 6. 验证启用后状态：规则重新激活
-    all_rules = UserCheckinRuleService.get_user_all_rules(user_id)
+    result = UserCheckinRuleService.get_user_all_rules(user_id)
+    all_rules = result.get('rules', [])
     community_rules = [r for r in all_rules if r['rule_source'] == 'community']
     assert len(community_rules) == 1
     assert community_rules[0]['is_active_for_user'] == True
     assert community_rules[0]['status_label'] == '启用'
-    
+
     # 7. 验证启用的规则重新出现在今日打卡计划中
     today_plan_result = UserCheckinRuleService.get_today_checkin_plan(user_id)
     today_plan = today_plan_result.get('items', []) if isinstance(today_plan_result, dict) else []
@@ -163,9 +166,10 @@ def test_user_cannot_edit_disabled_rules(test_session):
     
     # 停用规则
     CommunityCheckinRuleService.disable_community_rule(rule_id, user_id)
-    
+
     # 验证用户不能编辑停用的规则
-    all_rules = UserCheckinRuleService.get_user_all_rules(user_id)
+    result = UserCheckinRuleService.get_user_all_rules(user_id)
+    all_rules = result.get('rules', [])
     community_rules = [r for r in all_rules if r['rule_source'] == 'community']
     assert len(community_rules) == 1
     assert community_rules[0]['is_editable'] == False
@@ -249,10 +253,11 @@ def test_multiple_users_see_same_rule_status(test_session):
     
     # 停用规则
     CommunityCheckinRuleService.disable_community_rule(rule_id, user_id)
-    
+
     # 验证两个用户都看到规则为停用状态
     for uid in [user_id, user2_id]:
-        all_rules = UserCheckinRuleService.get_user_all_rules(uid)
+        result = UserCheckinRuleService.get_user_all_rules(uid)
+        all_rules = result.get('rules', [])
         community_rules = [r for r in all_rules if r['rule_source'] == 'community']
         assert len(community_rules) == 1
         assert community_rules[0]['is_active_for_user'] == False

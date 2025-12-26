@@ -258,7 +258,8 @@ class TestUserCommunityRuleSwitching:
             )
 
             # 获取用户规则列表
-            rules_after_a = UserCheckinRuleService.get_user_all_rules(user_id)
+            result_a = UserCheckinRuleService.get_user_all_rules(user_id)
+            rules_after_a = result_a.get('rules', [])
 
             community_rules_a = [r for r in rules_after_a if r['rule_source'] == 'community']
             personal_rules_a = [r for r in rules_after_a if r['rule_source'] == 'personal']
@@ -276,7 +277,8 @@ class TestUserCommunityRuleSwitching:
             )
 
             # 再次获取用户规则列表
-            rules_after_b = UserCheckinRuleService.get_user_all_rules(user_id)
+            result_b = UserCheckinRuleService.get_user_all_rules(user_id)
+            rules_after_b = result_b.get('rules', [])
 
             community_rules_b = [r for r in rules_after_b if r['rule_source'] == 'community']
             personal_rules_b = [r for r in rules_after_b if r['rule_source'] == 'personal']
