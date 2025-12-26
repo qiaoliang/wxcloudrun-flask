@@ -173,7 +173,7 @@ class CommunityService:
     @staticmethod
     def process_application(application_id, approve, processor_id, rejection_reason=None):
         """处理社区申请"""
-        application = db.session.query(CommunityApplication).get(application_id)
+        application = db.session.get(CommunityApplication, application_id)
         if not application:
             raise ValueError("申请不存在")
 
@@ -187,7 +187,7 @@ class CommunityService:
             application.updated_at = datetime.now()
 
             # 将用户加入社区
-            user = db.session.query(User).get(application.user_id)
+            user = db.session.get(User, application.user_id)
             user.community_id = application.target_community_id
 
             # 同步社区打卡规则到用户
@@ -279,7 +279,7 @@ class CommunityService:
     @staticmethod
     def get_community_by_id(community_id):
         """根据ID获取社区"""
-        return db.session.query(Community).get(community_id)
+        return db.session.get(Community, community_id)
 
     @staticmethod
     def _community_to_dict(community):
@@ -403,7 +403,7 @@ class CommunityService:
     @staticmethod
     def update_community_info(community_id, name=None, description=None, location=None, status=None):
         """更新社区信息"""
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             raise ValueError("社区不存在")
 
@@ -496,7 +496,7 @@ class CommunityService:
         from database.flask_models import CommunityStaff
 
         # 检查社区是否存在
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             raise ValueError("社区不存在")
 
@@ -519,7 +519,7 @@ class CommunityService:
         for user_id in user_ids:
             try:
                 # 检查用户是否存在
-                target_user = db.session.query(User).get(user_id)
+                target_user = db.session.get(User, user_id)
                 if not target_user:
                     failed.append({'user_id': user_id, 'reason': '用户不存在'})
                     continue
@@ -649,7 +649,7 @@ class CommunityService:
         from datetime import datetime
 
         # 检查社区是否存在
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             raise ValueError("社区不存在")
 
@@ -659,7 +659,7 @@ class CommunityService:
         for user_id in user_ids:
             try:
                 # 检查用户是否存在
-                target_user = db.session.query(User).get(user_id)
+                target_user = db.session.get(User, user_id)
                 if not target_user:
                     failed.append({'user_id': user_id, 'reason': '用户不存在'})
                     continue
@@ -699,12 +699,12 @@ class CommunityService:
         from database.flask_models import CommunityStaff
 
         # 检查社区是否存在
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             raise ValueError("社区不存在")
 
         # 查找用户
-        target_user = db.session.query(User).get(user_id)
+        target_user = db.session.get(User, user_id)
         if not target_user:
             raise ValueError("用户不存在")
 
@@ -799,7 +799,7 @@ class CommunityService:
     def toggle_community_status(community_id, status):
         """切换社区状态"""
         # 查找社区
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             raise ValueError("社区不存在")
 
