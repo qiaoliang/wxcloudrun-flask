@@ -157,10 +157,10 @@ class TestSmsSendCodeIntegration(IntegrationTestBase):
         data = response.get_json()
         assert data['code'] == 1
         
-        # 验证数据库中存储的是标准化后的手机号（无+86前缀）
+        # 验证数据库中存储的是标准化后的手机号（保留86前缀）
         with self.app.app_context():
             vc = VerificationCode.query.filter_by(
-                phone_number='13800008002'  # 标准化后的号码
+                phone_number='8613800008002'  # 标准化后的号码
             ).first()
             assert vc is not None
 

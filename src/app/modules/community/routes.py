@@ -41,7 +41,7 @@ def _check_superadmin_permission(user):
     return None
 
 
-def _format_community_info(community, include_admin_count=False):
+def _format_community_info(community, include_worker_stats=False):
     """
     格式化社区信息
     
