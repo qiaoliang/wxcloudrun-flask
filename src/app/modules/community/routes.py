@@ -117,6 +117,7 @@ def _format_community_info(community, include_worker_stats=False):
         'creator': creator,
         'manager_id': community.manager_id,
         'manager': manager,
+        'manager_name': manager['nickname'] if manager else None,  # 主管昵称（用于前端显示）
         'status': community.status,
         'is_default': community.is_default,
         'is_blackhouse': community.is_blackhouse,
