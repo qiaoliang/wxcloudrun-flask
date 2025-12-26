@@ -183,10 +183,10 @@ def get_community_list():
         # 获取用户可见的社区列表
         communities = CommunityService.get_available_communities()
         
-        # 格式化社区信息
+        # 格式化社区信息（包含主管信息）
         communities_data = []
         for community in communities:
-            community_data = _format_community_info(community)
+            community_data = _format_community_info(community, include_admin_count=True)
             communities_data.append(community_data)
 
         current_app.logger.info(f'获取用户社区列表成功，共 {len(communities_data)} 个社区')
