@@ -18,6 +18,7 @@ class User(db.Model):
     avatar_url = Column(db.String(500), comment='用户头像URL')
     name = Column(db.String(100), comment='真实姓名')
     work_id = Column(db.String(50), comment='工号或身份证号')
+    address = Column(db.String(200), comment='个人地址')
     password_hash = Column(db.String(128), comment='密码哈希')
     password_salt = Column(db.String(32), comment='密码盐')
     role = Column(db.Integer, nullable=False, comment='用户角色')

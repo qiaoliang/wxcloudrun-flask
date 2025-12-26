@@ -138,6 +138,7 @@ def user_profile():
                 'nickname': user.nickname,
                 'name': user.name,
                 'avatar_url': user.avatar_url,
+                'address': user.address,
                 'role': user.role,  # 数字角色值 (1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员)
                 'role_name': user.role_name,  # 中文角色名称
                 'community_id': user.community_id,
@@ -164,7 +165,7 @@ def user_profile():
                 return make_err_response({}, '用户不存在')
 
             # 更新允许的字段
-            update_fields = ['nickname', 'name', 'avatar_url']
+            update_fields = ['nickname', 'name', 'avatar_url', 'address']
             updated = False
 
             for field in update_fields:
@@ -177,7 +178,7 @@ def user_profile():
                             current_app.logger.warning(f'昵称过长，截断处理: {params[field][:30]}... -> {nickname[:30]}...')
                         setattr(user, field, nickname)
                         updated = True
-                    elif field in ['name', 'avatar_url']:
+                    elif field in ['name', 'avatar_url', 'address']:
                         setattr(user, field, params[field])
                         updated = True
 
