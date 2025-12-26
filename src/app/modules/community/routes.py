@@ -33,8 +33,8 @@ def _calculate_phone_hash(phone):
         f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
 
 
-def _check_super_admin_permission(user):
-    """检查超级管理员权限"""
+def _check_superadmin_permission(user):
+    """检查用户是否为超级系统管理员"""
     if not user or user.role != 4:  # 4是超级管理员
         current_app.logger.warning(f'用户 {user.user_id if user else None} 无超级管理员权限')
         return make_err_response({}, '无权限访问')
@@ -143,7 +143,7 @@ def get_communities():
     user = db.session.get(User, user_id)
 
     # 检查权限
-    error = _check_super_admin_permission(user)
+    error = _check_superadmin_permission(user)
     if error:
         return error
 
@@ -763,7 +763,7 @@ def add_community_staff():
                 return make_err_response({}, '用户ID格式错误')
 
         # Layer 1: 角色参数验证
-        valid_roles = ['staff', 'manager', 'admin']  # 支持的角色
+        valid_roles = ['staff', 'manager']  # 支持的角色
         if role not in valid_roles:
             current_app.logger.error(f'Layer 1验证失败: 无效的角色参数: {role}')
             return make_err_response({}, f'角色参数错误，必须是: {", ".join(valid_roles)}')

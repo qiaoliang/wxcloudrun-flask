@@ -133,10 +133,10 @@ def main():
             flask_app.logger.info("开始注入超级管理员和默认社区.....")
         
         if should_initialize:
-            # 创建超级管理员和默认社区
-            from database.initialization import create_super_admin_and_default_community
-            create_super_admin_and_default_community()
-            flask_app.logger.info("注入完成。请使用超级管理员和默认社区！！！")
+            # 创建超级系统管理员和默认社区
+            from database.initialization import create_superadmin_and_default_community
+            create_superadmin_and_default_community()
+            flask_app.logger.info("注入完成。请使用超级系统管理员和默认社区！！！")
         else:
             flask_app.logger.info("跳过超级管理员和默认社区注入")
 

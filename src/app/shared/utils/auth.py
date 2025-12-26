@@ -138,9 +138,9 @@ def require_role(required_role):
     return decorator
 
 
-def require_community_admin():
+def require_community_staff():
     """
-    装饰器：要求用户是社区管理员（包括超级管理员）
+    装饰器：要求用户是社区工作人员（包括超级系统管理员）
     """
     def decorator(f):
         from functools import wraps
@@ -159,9 +159,9 @@ def require_community_admin():
             if not user:
                 return make_err_response({}, '用户不存在')
 
-            # 检查是否为社区管理员或超级管理员
-            if user.role not in [3, 4]:  # 社区管理员或超级管理员
-                return make_err_response({}, '需要社区管理员权限')
+            # 检查是否为社区工作人员或超级系统管理员
+            if user.role not in [3, 4]:  # 社区工作人员或超级系统管理员
+                return make_err_response({}, '需要社区工作人员权限')
 
             # 将用户信息添加到请求上下文
             request.current_user = user
@@ -237,11 +237,11 @@ def require_community_manager():
     return decorator
 
 
-def require_super_admin():
+def require_superadmin():
     """
-    装饰器：要求用户是超级管理员
+    装饰器：要求用户是超级系统管理员
     """
-    return require_role(4)  # 角色值为4的是超级管理员
+    return require_role(4)  # 角色值为4的是超级系统管理员
 
 
 def check_community_permission(community_id):

@@ -4,10 +4,10 @@
 """
 
 from . import flask_models as models
-from .initialization import create_super_admin_and_default_community
+from .initialization import create_superadmin_and_default_community
 
 # 导出的公共接口
 __all__ = [
     'models',
-    'create_super_admin_and_default_community'
+    'create_superadmin_and_default_community'
 ]

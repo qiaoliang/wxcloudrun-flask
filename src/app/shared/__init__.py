@@ -22,10 +22,9 @@ from .decorators import (
 from .utils.auth import (
     verify_token,
     require_role,
-    require_community_admin,
     require_community_staff,
     require_community_manager,
-    require_super_admin,
+    require_superadmin,
     check_community_permission,
     get_current_user,
     generate_jwt_token,

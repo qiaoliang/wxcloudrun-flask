@@ -21,7 +21,7 @@ from database.flask_models import db, User, UserAuditLog
 _phone_counter = 0
 _phone_counter_lock = threading.Lock()
 
-# 超级管理员手机号，需要避免生成这个号码
+# 超级系统管理员手机号，需要避免生成这个号码
 SUPER_ADMIN_PHONE = '13900007997'
 
 # 哈希相关常量

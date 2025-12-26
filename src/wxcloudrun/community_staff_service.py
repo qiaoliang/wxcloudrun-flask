@@ -14,22 +14,22 @@ logger = logging.getLogger('CommunityService')
 
 class CommunityStaffService:
     @staticmethod
-    def is_admin_of_commu(commu_id, user_id):
-        """检查用户是否是社区管理员"""
+    def is_staff_of_community(commu_id, user_id):
+        """检查用户是否是社区工作人员"""
         user_data = UserService.query_user_by_id(user_id)
-        if user_data.role == 4:  # 超级管理员
+        if user_data.role == 4:  # 超级系统管理员
             return user_data
         
         if not commu_id:
             raise ValueError(f'Invalid community ID, {commu_id}')
 
-        any_manager = db.session.query(CommunityStaff).filter_by(
+        any_staff = db.session.query(CommunityStaff).filter_by(
             community_id=commu_id,
             user_id=user_id
         ).first()
 
-        if any_manager:
-            user_data = UserService.query_user_by_id(any_manager.user_id)
+        if any_staff:
+            user_data = UserService.query_user_by_id(any_staff.user_id)
             return user_data
         else:
             return None

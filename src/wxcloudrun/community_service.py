@@ -84,26 +84,26 @@ class CommunityService:
         return community
 
     @staticmethod
-    def add_community_admin(community_id, user_id, role=2, operator_id=None):
-        """添加社区管理员"""
+    def add_community_staff(community_id, user_id, role=2, operator_id=None):
+        """添加社区工作人员"""
         # 导入CommunityStaff模型
         from database.flask_models import CommunityStaff
 
         # 将role值映射到新的角色系统
-        # role: 1(主管理员) -> 'manager', 2(普通管理员) -> 'staff'
+        # role: 1(主管) -> 'manager', 2(专员) -> 'staff'
         role_mapping = {1: 'manager', 2: 'staff'}
         staff_role = role_mapping.get(role, 'staff')
 
-        # 检查用户是否已经是该社区的管理员
+        # 检查用户是否已经是该社区的工作人员
         existing = db.session.query(CommunityStaff).filter_by(
             community_id=community_id,
             user_id=user_id
         ).first()
 
         if existing:
-            raise ValueError("用户已经是该社区的管理员")
+            raise ValueError("用户已经是该社区的工作人员")
 
-        # 添加管理员到CommunityStaff表
+        # 添加工作人员到CommunityStaff表
         staff_record = CommunityStaff(
             community_id=community_id,
             user_id=user_id,
@@ -114,42 +114,42 @@ class CommunityService:
         # 记录审计日志
         audit_log = UserAuditLog(
             user_id=operator_id or user_id,
-            action="add_community_admin",
-            detail=f"添加社区管理员: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}"
+            action="add_community_staff",
+            detail=f"添加社区工作人员: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}"
         )
         db.session.add(audit_log)
 
         db.session.commit()
-        logger.info(f"社区管理员添加成功: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}")
+        logger.info(f"社区工作人员添加成功: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}")
         return staff_record
 
     @staticmethod
-    def remove_community_admin(community_id, user_id, operator_id=None):
-        """移除社区管理员"""
+    def remove_community_staff(community_id, user_id, operator_id=None):
+        """移除社区工作人员"""
         from database.flask_models import CommunityStaff
 
-        # 查找管理员记录
+        # 查找工作人员记录
         staff_record = db.session.query(CommunityStaff).filter_by(
             community_id=community_id,
             user_id=user_id
         ).first()
 
         if not staff_record:
-            raise ValueError("用户不是该社区的管理员")
+            raise ValueError("用户不是该社区的工作人员")
 
-        # 删除管理员记录
+        # 删除工作人员记录
         db.session.delete(staff_record)
 
         # 记录审计日志
         audit_log = UserAuditLog(
             user_id=operator_id or user_id,
-            action="remove_community_admin",
-            detail=f"移除社区管理员: 社区ID={community_id}, 用户ID={user_id}"
+            action="remove_community_staff",
+            detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={user_id}"
         )
         db.session.add(audit_log)
 
         db.session.commit()
-        logger.info(f"社区管理员移除成功: 社区ID={community_id}, 用户ID={user_id}")
+        logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}")
         return True
 
     @staticmethod
@@ -231,12 +231,12 @@ class CommunityService:
         """搜索社区用户（非管理员）"""
         query = db.session.query(User).filter_by(community_id=community_id)
 
-        # 排除社区管理员
+        # 排除社区工作人员
         from database.flask_models import CommunityStaff
-        admin_user_ids = db.session.query(CommunityStaff.user_id).filter_by(
+        staff_user_ids = db.session.query(CommunityStaff.user_id).filter_by(
             community_id=community_id
         ).subquery()
-        query = query.filter(~User.user_id.in_(admin_user_ids))
+        query = query.filter(~User.user_id.in_(staff_user_ids))
 
         if keyword:
             # 判断是电话号码还是昵称
