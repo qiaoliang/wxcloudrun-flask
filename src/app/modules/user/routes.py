@@ -118,16 +118,22 @@ def user_profile():
     # 验证token
     decoded, error_response = verify_token()
     if error_response:
+        current_app.logger.error(f'Token验证失败: {error_response}')
         return error_response
 
     user_id = decoded.get('user_id')
-    current_app.logger.info(f'用户ID: {user_id}')
+    openid = decoded.get('openid')
+    current_app.logger.info(f'用户ID: {user_id}, OpenID: {openid}')
+    current_app.logger.info(f'解码后的完整token信息: {decoded}')
 
     if request.method == 'GET':
         # 获取用户信息
         try:
+            current_app.logger.info(f'开始查询用户，user_id={user_id}, type={type(user_id)}')
             user = UserService.query_user_by_id(user_id)
+            current_app.logger.info(f'查询结果: {user}')
             if not user:
+                current_app.logger.error(f'用户不存在，user_id={user_id}')
                 return make_err_response({}, '用户不存在')
 
             # 构造返回数据
@@ -160,8 +166,11 @@ def user_profile():
             if not params:
                 return make_err_response({}, '缺少请求参数')
 
+            current_app.logger.info(f'开始查询用户进行更新，user_id={user_id}, type={type(user_id)}')
             user = UserService.query_user_by_id(user_id)
+            current_app.logger.info(f'查询结果: {user}')
             if not user:
+                current_app.logger.error(f'用户不存在，user_id={user_id}')
                 return make_err_response({}, '用户不存在')
 
             # 更新允许的字段

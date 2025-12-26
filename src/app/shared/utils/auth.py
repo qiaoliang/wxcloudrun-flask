@@ -57,6 +57,7 @@ def verify_token():
             return None, make_err_response({}, '服务器配置错误')
 
         current_app.logger.debug(f'使用TOKEN_SECRET进行token验证')
+        current_app.logger.info(f'开始解码token，token长度: {len(token)}')
 
         # 解码token
         decoded = jwt.decode(
@@ -64,8 +65,11 @@ def verify_token():
             token_secret,
             algorithms=['HS256']
         )
+        current_app.logger.info(f'Token解码成功: {decoded}')
+
         openid = decoded.get('openid')
         user_id = decoded.get('user_id')
+        current_app.logger.info(f'从token中提取: user_id={user_id} (类型: {type(user_id)}), openid={openid}')
 
         # 对于手机号注册的用户，openid可能为空，但user_id必须存在
         if not user_id:
