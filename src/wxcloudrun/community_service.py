@@ -190,6 +190,10 @@ class CommunityService:
             user = db.session.query(User).get(application.user_id)
             user.community_id = application.target_community_id
 
+            # 同步社区打卡规则到用户
+            from wxcloudrun.community_staff_service import CommunityStaffService
+            CommunityStaffService._activate_new_community_rules(application.user_id, application.target_community_id)
+
             # 记录审计日志
             audit_log = UserAuditLog(
                 user_id=processor_id,
@@ -668,6 +672,11 @@ class CommunityService:
                 # 更新用户社区信息
                 target_user.community_id = community_id
                 target_user.community_joined_at = datetime.now()
+
+                # 同步社区打卡规则到用户
+                from wxcloudrun.community_staff_service import CommunityStaffService
+                CommunityStaffService._activate_new_community_rules(user_id, community_id)
+
                 added_count += 1
 
             except Exception as e:
