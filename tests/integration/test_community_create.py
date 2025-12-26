@@ -110,14 +110,21 @@ class TestCommunityCreateIntegration(IntegrationTestBase):
         assert community['creator_id'] == self.super_admin_id
         assert community['message'] == '创建成功'
 
-        # 验证数据库记录（API目前不支持location、manager_id等额外参数）
+        # 验证数据库记录（API现在支持location、manager_id等额外参数）
         with self.app.app_context():
             saved_community = self.db.session.get(Community, community['community_id'])
             assert saved_community is not None
-            assert saved_community.location is None  # API不支持location参数
-            assert saved_community.location_lat is None  # API不支持location_lat参数
-            assert saved_community.location_lon is None  # API不支持location_lon参数
-            assert saved_community.manager_id is None  # API不支持manager_id参数
+            assert saved_community.location == '测试位置'  # API支持location参数
+            assert saved_community.location_lat == 39.9042  # API支持location_lat参数
+            assert saved_community.location_lon == 116.4074  # API支持location_lon参数
+            assert saved_community.manager_id == self.test_user_id  # API支持manager_id参数
+
+        # 验证返回的manager对象
+        assert 'manager' in community
+        assert community['manager'] is not None
+        assert community['manager']['user_id'] == self.test_user_id
+        assert 'manager_name' in community
+        assert community['manager_name'] is not None
 
     def test_create_community_with_avatar_url_param_should_be_ignored(self):
         """测试创建社区包含avatar_url参数时应该被忽略"""

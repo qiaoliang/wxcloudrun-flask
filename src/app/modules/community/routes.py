@@ -1061,6 +1061,10 @@ def create_community():
 
         name = params.get('name', '').strip()
         description = params.get('description', '').strip()
+        location = params.get('location', '').strip()
+        location_lat = params.get('location_lat')
+        location_lon = params.get('location_lon')
+        manager_id = params.get('manager_id')
 
         if not name:
             return make_err_response({}, '社区名称不能为空')
@@ -1069,22 +1073,40 @@ def create_community():
         community = CommunityService.create_community(
             name=name,
             description=description,
-            creator_id=user_id
+            creator_id=user_id,
+            location=location,
+            location_lat=location_lat,
+            location_lon=location_lon,
+            manager_id=manager_id
         )
+
+        # 获取主管信息
+        manager = None
+        if community.manager_id:
+            manager_user = db.session.get(User, community.manager_id)
+            if manager_user:
+                manager = {
+                    'user_id': manager_user.user_id,
+                    'nickname': manager_user.nickname,
+                    'avatar_url': manager_user.avatar_url
+                }
 
         # 记录审计日志
         _audit(user_id, 'create_community', {
             'community_id': community.community_id,
-            'name': name
+            'name': name,
+            'manager_id': manager_id
         })
 
-        current_app.logger.info(f'创建社区成功: community_id={community.community_id}, name={name}')
+        current_app.logger.info(f'创建社区成功: community_id={community.community_id}, name={name}, manager_id={manager_id}')
         return make_succ_response({
             'community_id': community.community_id,
             'name': community.name,
             'description': community.description,
             'creator_id': community.creator_id,
             'manager_id': community.manager_id,
+            'manager_name': manager['nickname'] if manager else None,
+            'manager': manager,
             'location': community.location,
             'location_lat': community.location_lat,
             'location_lon': community.location_lon,
