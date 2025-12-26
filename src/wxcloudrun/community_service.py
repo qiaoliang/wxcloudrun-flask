@@ -424,8 +424,18 @@ class CommunityService:
         if location is not None:
             community.location = location
 
+        if location_lat is not None:
+            community.location_lat = location_lat
+
+        if location_lon is not None:
+            community.location_lon = location_lon
+
         if status is not None:
             community.status = status
+
+        if manager_id is not None:
+            # 更新社区主管
+            community.manager_id = manager_id
 
         # 更新时间
         community.updated_at = datetime.now()
@@ -452,16 +462,22 @@ class CommunityService:
             description = params.get('description')
             location = params.get('location')
             status = params.get('status')
-            
+            manager_id = params.get('manager_id')
+            location_lat = params.get('location_lat')
+            location_lon = params.get('location_lon')
+
             # 调用现有的update_community_info方法
             community = CommunityService.update_community_info(
                 community_id=community_id,
                 name=name,
                 description=description,
                 location=location,
-                status=status
+                status=status,
+                manager_id=manager_id,
+                location_lat=location_lat,
+                location_lon=location_lon
             )
-            
+
             return community is not None
             
         except Exception as e:
