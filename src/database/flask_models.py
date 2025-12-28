@@ -388,6 +388,10 @@ class CommunityCheckinRule(db.Model):
 
     # 关系 - 使用 back_populates 替代 backref
     community = db.relationship('Community', back_populates='community_checkin_rules', lazy='selectin')
+    creator = db.relationship('User', foreign_keys=[created_by], lazy='selectin')
+    updater = db.relationship('User', foreign_keys=[updated_by], lazy='selectin')
+    enabler = db.relationship('User', foreign_keys=[enabled_by], lazy='selectin')
+    disabler = db.relationship('User', foreign_keys=[disabled_by], lazy='selectin')
     user_mappings = db.relationship('UserCommunityRule', back_populates='community_rule', lazy='dynamic')
 
     def to_dict(self):
