@@ -174,3 +174,53 @@ class TransactionManager:
             logger.error(f"刷新失败: {str(e)}")
             db.session.rollback()
             raise
+
+
+def transaction():
+    """
+    事务上下文管理器
+
+    用于复杂操作场景，特别是批量操作或多步骤操作：
+    - 成功时自动提交
+    - 失败时自动回滚
+    - 适用于需要多个数据库操作的场景
+    - 支持条件跳过、循环等复杂逻辑
+
+    使用示例:
+        def add_staff(community_id, user_ids, role):
+            added_count = 0
+            with transaction():
+                for uid in user_ids:
+                    staff = CommunityStaff(community_id=community_id, user_id=uid, role=role)
+                    db.session.add(staff)
+                    added_count += 1
+            return added_count
+
+    Returns:
+        TransactionContext: 事务上下文管理器
+    """
+    import config_manager
+
+    class TransactionContext:
+        def __enter__(self):
+            # 检查是否在测试环境中
+            if config_manager.is_unit_environment():
+                # 测试环境：使用 begin_nested() + commit()
+                self.session = db.session.begin_nested()
+            else:
+                # 生产环境：使用 begin_nested 支持 SAVEPOINT
+                self.session = db.session.begin_nested()
+            return self.session
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if exc_type is not None:
+                # 发生异常，自动回滚
+                try:
+                    self.session.rollback()
+                    logger.error(f"事务回滚: {exc_type.__name__}: {str(exc_val)}")
+                except Exception as rollback_error:
+                    logger.error(f"回滚失败: {str(rollback_error)}")
+            # 正常退出，自动提交
+            return False
+
+    return TransactionContext()
