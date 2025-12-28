@@ -137,6 +137,9 @@ class TestUserCommunityRuleSwitching:
                 old_community_id=None,
                 new_community_id=community_a_id
             )
+            # 提交事务
+            from database.flask_models import db
+            db.session.commit()
 
         # 验证结果
         assert result['success'] is True
@@ -177,6 +180,9 @@ class TestUserCommunityRuleSwitching:
                 old_community_id=community_a_id,
                 new_community_id=community_b_id
             )
+            # 提交事务
+            from database.flask_models import db
+            db.session.commit()
 
         # 验证切换结果
         assert result['success'] is True
@@ -325,6 +331,9 @@ class TestUserCommunityRuleSwitching:
                 old_community_id=community_b_id,
                 new_community_id=community_a_id
             )
+            # 提交事务
+            from database.flask_models import db
+            db.session.commit()
 
         # 验证切换结果
         assert result['success'] is True

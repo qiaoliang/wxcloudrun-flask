@@ -387,50 +387,48 @@ class CommunityStaffService:
         try:
             from datetime import datetime
 
-            # 0. 更新用户的社区归属
-            user = db.session.get(User, user_id)
-            if not user:
-                raise ValueError(f'用户不存在: {user_id}')
-
-            old_user_community_id = user.community_id
-            user.community_id = new_community_id
-            if new_community_id != old_user_community_id:
-                user.community_joined_at = datetime.now()
-
-            # 1. 停用旧社区的社区规则
-            deactivated_count = 0
-            if old_community_id:
-                deactivated_count = CommunityStaffService._deactivate_old_community_rules(
-                    user_id, old_community_id
-                )
-
-            # 2. 激活新社区的社区规则
-            activated_count = CommunityStaffService._activate_new_community_rules(
-                user_id, new_community_id
-            )
-
-            # 3. 处理工作人员关系
-            # 移除旧社区的工作人员关系
-            if old_community_id:
-                from sqlalchemy import delete
-                stmt_delete = delete(CommunityStaff).where(
-                    CommunityStaff.community_id == old_community_id,
-                    CommunityStaff.user_id == user_id
-                )
-                db.session.execute(stmt_delete)
-
-            # 如果新社区存在，检查是否需要添加工作人员关系
-            if new_community_id:
-                if user and user.role >= 2:  # 如果是管理员或以上
-                    staff = CommunityStaff(
-                        community_id=new_community_id,
-                        user_id=user_id,
-                        role='manager' if user.role >= 3 else 'staff'
-                    )
-                    db.session.add(staff)
-
             with transaction():
-                pass  # 事务上下文，确保所有修改在事务中完成
+                # 0. 更新用户的社区归属
+                user = db.session.get(User, user_id)
+                if not user:
+                    raise ValueError(f'用户不存在: {user_id}')
+
+                old_user_community_id = user.community_id
+                user.community_id = new_community_id
+                if new_community_id != old_user_community_id:
+                    user.community_joined_at = datetime.now()
+
+                # 1. 停用旧社区的社区规则
+                deactivated_count = 0
+                if old_community_id:
+                    deactivated_count = CommunityStaffService._deactivate_old_community_rules(
+                        user_id, old_community_id
+                    )
+
+                # 2. 激活新社区的社区规则
+                activated_count = CommunityStaffService._activate_new_community_rules(
+                    user_id, new_community_id
+                )
+
+                # 3. 处理工作人员关系
+                # 移除旧社区的工作人员关系
+                if old_community_id:
+                    from sqlalchemy import delete
+                    stmt_delete = delete(CommunityStaff).where(
+                        CommunityStaff.community_id == old_community_id,
+                        CommunityStaff.user_id == user_id
+                    )
+                    db.session.execute(stmt_delete)
+
+                # 如果新社区存在，检查是否需要添加工作人员关系
+                if new_community_id:
+                    if user and user.role >= 2:  # 如果是管理员或以上
+                        staff = CommunityStaff(
+                            community_id=new_community_id,
+                            user_id=user_id,
+                            role='manager' if user.role >= 3 else 'staff'
+                        )
+                        db.session.add(staff)
 
             logger.info(f"用户{user_id}社区切换完成: 停用{deactivated_count}个旧规则，激活{activated_count}个新规则")
 
