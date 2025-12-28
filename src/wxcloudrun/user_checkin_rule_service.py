@@ -142,7 +142,12 @@ class UserCheckinRuleService:
 
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 查询用户所属社区的所有规则（包括启用和停用的）
-            stmt_all_rules = select(CommunityCheckinRule).where(
+            # 使用 joinedload 预加载关系，避免 N+1 查询问题
+            from sqlalchemy.orm import joinedload
+            stmt_all_rules = select(CommunityCheckinRule).options(
+                joinedload(CommunityCheckinRule.community),
+                joinedload(CommunityCheckinRule.creator)
+            ).where(
                 CommunityCheckinRule.community_id == user.community_id,
                 CommunityCheckinRule.status != 2  # 排除已删除的规则
             )

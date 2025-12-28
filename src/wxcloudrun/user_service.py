@@ -336,12 +336,17 @@ class UserService:
             users = db.session.execute(stmt).scalars().all()
 
             # 格式化响应数据
+            # 使用子查询一次性获取所有工作人员的用户ID，避免 N+1 查询问题
+            from database.flask_models import CommunityStaff
+            staff_user_ids = db.session.execute(
+                select(CommunityStaff.user_id).distinct()
+            ).scalars().all()
+            staff_user_ids_set = set(staff_user_ids)
+
             result = []
             for u in users:
-                # 检查是否已是任何社区的工作人员
-                from database.flask_models import CommunityStaff
-                stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)
-                is_staff = db.session.execute(stmt_staff).scalar_one_or_none() is not None
+                # 使用集合查找，避免循环查询
+                is_staff = u.user_id in staff_user_ids_set
 
                 user_data = {
                     'user_id': str(u.user_id),
@@ -435,6 +440,19 @@ class UserService:
             users = db.session.execute(stmt).scalars().all()
 
             # 格式化响应数据
+            # 使用子查询一次性获取所有工作人员信息，避免 N+1 查询问题
+            from database.flask_models import CommunityStaff
+            all_staff = db.session.execute(
+                select(CommunityStaff.user_id, CommunityStaff.community_id, CommunityStaff.role)
+            ).all()
+
+            # 构建字典以便快速查找
+            staff_dict = {}
+            for staff_user_id, staff_community_id, staff_role in all_staff:
+                if staff_user_id not in staff_dict:
+                    staff_dict[staff_user_id] = []
+                staff_dict[staff_user_id].append({'community_id': staff_community_id, 'role': staff_role})
+
             result = []
             for u in users:
                 # 检查是否是当前社区的工作人员
@@ -443,28 +461,15 @@ class UserService:
                 other_community_manager = False
 
                 if community_id:
-                    stmt_staff = select(CommunityStaff).where(
-                        CommunityStaff.community_id == community_id,
-                        CommunityStaff.user_id == u.user_id,
-                        CommunityStaff.role == 'staff'
-                    )
-                    current_community_staff = db.session.execute(stmt_staff).scalar_one_or_none() is not None
-
-                    stmt_manager = select(CommunityStaff).where(
-                        CommunityStaff.community_id == community_id,
-                        CommunityStaff.user_id == u.user_id,
-                        CommunityStaff.role == 'manager'
-                    )
-                    current_community_manager = db.session.execute(stmt_manager).scalar_one_or_none() is not None
-
-                # 检查是否是其他社区的管理员
-                stmt_other = select(CommunityStaff).where(
-                    CommunityStaff.user_id == u.user_id,
-                    CommunityStaff.role == 'manager'
-                )
-                if community_id:
-                    stmt_other = stmt_other.where(CommunityStaff.community_id != community_id)
-                other_community_manager = db.session.execute(stmt_other).scalar_one_or_none() is not None
+                    user_staff = staff_dict.get(u.user_id, [])
+                    for staff_info in user_staff:
+                        if staff_info['community_id'] == community_id:
+                            if staff_info['role'] == 'staff':
+                                is_current_community_staff = True
+                            elif staff_info['role'] == 'manager':
+                                current_community_manager = True
+                        elif staff_info['role'] == 'manager':
+                            other_community_manager = True
 
                 user_data = {
                     'user_id': str(u.user_id),

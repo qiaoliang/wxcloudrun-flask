@@ -492,20 +492,39 @@ class CommunityService:
         members_data = []
         today = date.today()
 
-        for member_user in members:
-            if not member_user:
-                continue
+        # 使用子查询一次性获取所有成员的未完成打卡记录，避免 N+1 查询问题
+        # 使用 joinedload 预加载 rule 关系
+        from sqlalchemy import and_, func
+        from sqlalchemy.orm import joinedload
+        member_user_ids = [m.user_id for m in members if m]
 
-            # 获取今日未完成打卡数和详情
-            from sqlalchemy import and_, func
-            stmt_records = select(CheckinRecord).where(
+        if member_user_ids:
+            stmt_records = select(CheckinRecord).options(
+                joinedload(CheckinRecord.rule)
+            ).where(
                 and_(
-                    CheckinRecord.user_id == member_user.user_id,
+                    CheckinRecord.user_id.in_(member_user_ids),
                     func.date(CheckinRecord.planned_time) == today,
                     CheckinRecord.status == 0  # 0-missed(未打卡)
                 )
             )
-            unchecked_records = db.session.execute(stmt_records).scalars().all()
+            all_unchecked_records = db.session.execute(stmt_records).scalars().all()
+
+            # 按用户ID分组
+            unchecked_records_dict = {}
+            for record in all_unchecked_records:
+                if record.user_id not in unchecked_records_dict:
+                    unchecked_records_dict[record.user_id] = []
+                unchecked_records_dict[record.user_id].append(record)
+        else:
+            unchecked_records_dict = {}
+
+        for member_user in members:
+            if not member_user:
+                continue
+
+            # 从字典中获取未完成打卡记录
+            unchecked_records = unchecked_records_dict.get(member_user.user_id, [])
 
             unchecked_items = []
             for record in unchecked_records:
