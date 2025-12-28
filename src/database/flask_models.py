@@ -39,7 +39,7 @@ class User(db.Model):
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_user_community_id', 'community_id'),
         db.Index('idx_user_role', 'role'),
@@ -47,6 +47,8 @@ class User(db.Model):
         db.Index('idx_user_created_at', 'created_at'),
         db.Index('idx_user_community_status', 'community_id', 'status'),
         db.Index('idx_user_role_status', 'role', 'status'),
+        db.CheckConstraint('role IN (0, 1, 2, 3, 4)', name='ck_user_role'),  # 0=未设置, 1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员
+        db.CheckConstraint('status IN (0, 1, 2)', name='ck_user_status'),  # 0=禁用, 1=正常, 2=待验证
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -128,7 +130,7 @@ class Community(db.Model):
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_community_creator_id', 'creator_id'),
         db.Index('idx_community_manager_id', 'manager_id'),
@@ -137,7 +139,23 @@ class Community(db.Model):
         db.Index('idx_community_is_blackhouse', 'is_blackhouse'),
         db.Index('idx_community_created_at', 'created_at'),
         db.Index('idx_community_status_is_default', 'status', 'is_default'),
+        db.CheckConstraint('status IN (0, 1, 2)', name='ck_community_status'),  # 0=禁用, 1=启用, 2=删除
     )
+
+    @property
+    def settings_dict(self):
+        """获取社区设置字典"""
+        import json
+        try:
+            return json.loads(self.settings) if self.settings else {}
+        except (json.JSONDecodeError, TypeError):
+            return {}
+
+    @settings_dict.setter
+    def settings_dict(self, value):
+        """设置社区设置字典"""
+        import json
+        self.settings = json.dumps(value) if value else None
 
     # 关系 - 使用 back_populates 替代 backref
     users = db.relationship('User', foreign_keys=[User.community_id], back_populates='community', lazy='dynamic')
@@ -150,8 +168,9 @@ class Community(db.Model):
 
     # 状态映射
     STATUS_MAPPING = {
+        0: 'disabled',
         1: 'enabled',
-        2: 'disabled'
+        2: 'deleted'
     }
 
     @property
@@ -182,7 +201,7 @@ class CheckinRule(db.Model):
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_checkin_rule_user_id', 'user_id'),
         db.Index('idx_checkin_rule_community_id', 'community_id'),
@@ -190,6 +209,8 @@ class CheckinRule(db.Model):
         db.Index('idx_checkin_rule_user_status', 'user_id', 'status'),
         db.Index('idx_checkin_rule_community_status', 'community_id', 'status'),
         db.Index('idx_checkin_rule_created_at', 'created_at'),
+        db.CheckConstraint("rule_type IN ('personal', 'community')", name='ck_checkin_rule_type'),
+        db.CheckConstraint('status IN (0, 1, 2)', name='ck_checkin_rule_status'),  # 0=停用, 1=启用, 2=删除
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -240,7 +261,7 @@ class CheckinRecord(db.Model):
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_at = Column(db.DateTime, default=datetime.now, index=True)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_checkin_record_user_id', 'user_id'),
         db.Index('idx_checkin_record_solo_user_id', 'solo_user_id'),
@@ -252,6 +273,7 @@ class CheckinRecord(db.Model):
         db.Index('idx_checkin_record_user_status', 'user_id', 'status'),
         db.Index('idx_checkin_record_rule_status', 'rule_id', 'status'),
         db.Index('idx_checkin_record_planned_time_status', 'planned_time', 'status'),
+        db.CheckConstraint('status IN (0, 1, 2)', name='ck_checkin_record_status'),  # 0=未打卡, 1=已打卡, 2=已撤销
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -310,7 +332,7 @@ class SupervisionRuleRelation(db.Model):
     invite_token = Column(db.String(64), unique=True)
     invite_expires_at = Column(db.DateTime)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_supervision_solo_user_id', 'solo_user_id'),
         db.Index('idx_supervision_supervisor_user_id', 'supervisor_user_id'),
@@ -320,6 +342,7 @@ class SupervisionRuleRelation(db.Model):
         db.Index('idx_supervision_supervisor_status', 'supervisor_user_id', 'status'),
         db.Index('idx_supervision_rule_status', 'rule_id', 'status'),
         db.Index('idx_supervision_created_at', 'created_at'),
+        db.CheckConstraint('status IN (0, 1, 2)', name='ck_supervision_rule_relation_status'),  # 0=停用, 1=待确认, 2=已激活
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -340,12 +363,13 @@ class CommunityStaff(db.Model):
     added_at = Column(db.DateTime, default=datetime.now)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_community_staff_community_id', 'community_id'),
         db.Index('idx_community_staff_user_id', 'user_id'),
         db.Index('idx_community_staff_role', 'role'),
         db.Index('idx_community_staff_community_role', 'community_id', 'role'),
+        db.CheckConstraint("role IN ('staff', 'manager')", name='ck_community_staff_role'),
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -377,13 +401,14 @@ class CommunityCheckinRule(db.Model):
     created_at = Column(DateTime, default=datetime.now, index=True)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_community_checkin_rule_community_id', 'community_id'),
         db.Index('idx_community_checkin_rule_status', 'status'),
         db.Index('idx_community_checkin_rule_created_by', 'created_by'),
         db.Index('idx_community_checkin_rule_community_status', 'community_id', 'status'),
         db.Index('idx_community_checkin_rule_created_at', 'created_at'),
+        db.CheckConstraint('status IN (0, 1, 2)', name='ck_community_checkin_rule_status'),  # 0=停用, 1=启用, 2=删除
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -435,14 +460,14 @@ class CommunityApplication(db.Model):
     application_id = Column(db.Integer, primary_key=True)
     user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
     target_community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False, index=True)
-    status = Column(db.Integer, default=1, nullable=False)
+    status = Column(db.Integer, default=1, nullable=False, comment='申请状态', index=True)
     reason = Column(db.Text, comment='申请理由')
     rejection_reason = Column(db.Text, comment='拒绝理由')
     processed_by = Column(db.Integer, db.ForeignKey('users.user_id'))
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_community_application_user_id', 'user_id'),
         db.Index('idx_community_application_target_community_id', 'target_community_id'),
@@ -450,6 +475,7 @@ class CommunityApplication(db.Model):
         db.Index('idx_community_application_processed_by', 'processed_by'),
         db.Index('idx_community_application_target_status', 'target_community_id', 'status'),
         db.Index('idx_community_application_created_at', 'created_at'),
+        db.CheckConstraint('status IN (1, 2, 3)', name='ck_community_application_status'),  # 1=待审核, 2=已通过, 3=已拒绝
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -583,7 +609,7 @@ class CommunityEvent(db.Model):
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     completed_at = Column(db.DateTime, comment='完成时间')
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_community_event_community_id', 'community_id'),
         db.Index('idx_community_event_event_type', 'event_type'),
@@ -593,6 +619,8 @@ class CommunityEvent(db.Model):
         db.Index('idx_community_event_community_status', 'community_id', 'status'),
         db.Index('idx_community_event_type_status', 'event_type', 'status'),
         db.Index('idx_community_event_created_at', 'created_at'),
+        db.CheckConstraint("event_type IN ('call_for_help', 'supporting')", name='ck_community_event_type'),
+        db.CheckConstraint('status IN (1, 2, 3)', name='ck_community_event_status'),  # 1=进行中, 2=已完成, 3=已取消
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -659,13 +687,14 @@ class EventSupport(db.Model):
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 索引优化
+    # 索引优化和约束
     __table_args__ = (
         db.Index('idx_event_support_event_id', 'event_id'),
         db.Index('idx_event_support_supporter_id', 'supporter_id'),
         db.Index('idx_event_support_status', 'status'),
         db.Index('idx_event_support_event_status', 'event_id', 'status'),
         db.Index('idx_event_support_created_at', 'created_at'),
+        db.CheckConstraint('status IN (1, 2)', name='ck_event_support_status'),  # 1=有效, 2=已取消
     )
 
     # 关系 - 使用 back_populates 替代 backref
