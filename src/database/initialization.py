@@ -7,6 +7,7 @@ import logging
 import secrets
 import os
 from hashlib import sha256
+from sqlalchemy import select
 from database.flask_models import User, Community, CommunityStaff, db
 from wxcloudrun.utils.validators import generate_phone_hash
 
@@ -25,9 +26,9 @@ def create_superadmin_and_default_community():
 
         # 检查超级系统管理员是否已存在
         logger.info("检查超级系统管理员是否存在...")
-        existing_superadmin = db.session.query(User).filter(
-            User.phone_number == '13900007997'
-        ).first()
+        # 使用 SQLAlchemy 2.0 的 select() 语句
+        stmt = select(User).where(User.phone_number == '13900007997')
+        existing_superadmin = db.session.execute(stmt).scalar_one_or_none()
 
         if existing_superadmin:
             logger.info("超级系统管理员已存在，跳过创建")
@@ -60,24 +61,26 @@ def create_superadmin_and_default_community():
 
         # 检查默认社区是否已存在
         logger.info("检查默认社区是否存在...")
-        existing_community = db.session.query(Community).filter(
-            Community.name == '安卡大家庭'
-        ).first()
+        # 使用 SQLAlchemy 2.0 的 select() 语句
+        stmt_community = select(Community).where(Community.name == '安卡大家庭')
+        existing_community = db.session.execute(stmt_community).scalar_one_or_none()
 
         if existing_community:
             logger.info("默认社区'安卡大家庭'已存在，跳过创建")
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 确保超级系统管理员是社区主管
-            superadmin_user = db.session.query(User).filter(
-                User.phone_number == '13900007997'
-            ).first()
+            stmt_superadmin = select(User).where(User.phone_number == '13900007997')
+            superadmin_user = db.session.execute(stmt_superadmin).scalar_one_or_none()
 
             if superadmin_user:
-                existing_staff = db.session.query(CommunityStaff).filter(
+                # 使用 SQLAlchemy 2.0 的 select() 语句
+                stmt_staff = select(CommunityStaff).where(
                     CommunityStaff.community_id == existing_community.community_id,
                     CommunityStaff.user_id == superadmin_user.user_id,
                     CommunityStaff.role == 'manager'
-                ).first()
+                )
+                existing_staff = db.session.execute(stmt_staff).scalar_one_or_none()
 
                 if not existing_staff:
                     # 设置为社区主管
@@ -90,10 +93,10 @@ def create_superadmin_and_default_community():
                     logger.info(f"超级系统管理员设置为社区主管，社区ID: {existing_community.community_id}")
         else:
             logger.info("开始创建默认社区...")
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 获取或创建超级系统管理员（用于关联）
-            superadmin_user = db.session.query(User).filter(
-                User.phone_number == '13900007997'
-            ).first()
+            stmt = select(User).where(User.phone_number == '13900007997')
+            superadmin_user = db.session.execute(stmt).scalar_one_or_none()
 
             if not superadmin_user:
                 logger.error("超级系统管理员不存在，无法创建默认社区")
@@ -123,24 +126,26 @@ def create_superadmin_and_default_community():
 
         # 检查黑屋社区是否已存在
         logger.info("检查黑屋社区是否存在...")
-        existing_blackhouse = db.session.query(Community).filter(
-            Community.name == BLACKHOUSE_COMMUNITY_NAME
-        ).first()
+        # 使用 SQLAlchemy 2.0 的 select() 语句
+        stmt_blackhouse = select(Community).where(Community.name == BLACKHOUSE_COMMUNITY_NAME)
+        existing_blackhouse = db.session.execute(stmt_blackhouse).scalar_one_or_none()
 
         if existing_blackhouse:
             logger.info(f"黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'已存在，跳过创建")
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 确保超级系统管理员是黑屋社区主管
-            superadmin_user = db.session.query(User).filter(
-                User.phone_number == '13900007997'
-            ).first()
+            stmt_superadmin = select(User).where(User.phone_number == '13900007997')
+            superadmin_user = db.session.execute(stmt_superadmin).scalar_one_or_none()
 
             if superadmin_user:
-                existing_staff = db.session.query(CommunityStaff).filter(
+                # 使用 SQLAlchemy 2.0 的 select() 语句
+                stmt_staff = select(CommunityStaff).where(
                     CommunityStaff.community_id == existing_blackhouse.community_id,
                     CommunityStaff.user_id == superadmin_user.user_id,
                     CommunityStaff.role == 'manager'
-                ).first()
+                )
+                existing_staff = db.session.execute(stmt_staff).scalar_one_or_none()
 
                 if not existing_staff:
                     # 设置为黑屋社区主管
@@ -153,10 +158,10 @@ def create_superadmin_and_default_community():
                     logger.info(f"超级系统管理员设置为黑屋社区主管，社区ID: {existing_blackhouse.community_id}")
         else:
             logger.info("开始创建黑屋社区...")
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 获取超级系统管理员（应该已存在）
-            superadmin_user = db.session.query(User).filter(
-                User.phone_number == '13900007997'
-            ).first()
+            stmt = select(User).where(User.phone_number == '13900007997')
+            superadmin_user = db.session.execute(stmt).scalar_one_or_none()
 
             if not superadmin_user:
                 logger.error("超级系统管理员不存在，无法创建黑屋社区")
