@@ -114,7 +114,7 @@ def register_blueprints(app):
     app.register_blueprint(sms_bp, url_prefix='/api')
     app.register_blueprint(share_bp, url_prefix='/api')
     app.register_blueprint(events_bp, url_prefix='/api')
-    app.register_blueprint(community_checkin_bp, url_prefix='/api')
+    app.register_blueprint(community_checkin_bp, url_prefix='/api/community_checkin')
     app.register_blueprint(user_checkin_bp, url_prefix='/api')
     app.register_blueprint(misc_bp, url_prefix='/api')
     
