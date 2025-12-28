@@ -305,7 +305,7 @@ class IntegrationTestBase(TestBase):
         nickname = generate_unique_nickname(test_context or 'create_standard_test_user')
         username = generate_unique_username(test_context or 'create_standard_test_user')
 
-        # 生成密码盐和哈希
+        # 生成密码盐和哈希（与auth/routes.py保持一致）
         password_salt = TEST_CONSTANTS.generate_password_salt()
         password_hash = sha256(f"{password}:{password_salt}".encode('utf-8')).hexdigest()
 

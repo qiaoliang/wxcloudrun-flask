@@ -69,15 +69,17 @@ class User(db.Model):
     def set_password(self, password):
         """设置密码"""
         import hashlib
-        self.password_salt = hashlib.md5(str(hash(random())).encode()).hexdigest()[:32]
-        salted_password = password + self.password_salt
+        import random
+        self.password_salt = hashlib.md5(str(hash(random.random())).encode()).hexdigest()[:32]
+        salted_password = f"{password}:{self.password_salt}"
         self.password_hash = hashlib.sha256(salted_password.encode()).hexdigest()
 
     def verify_password(self, password):
         """验证密码"""
+        import hashlib
         if not self.password_hash or not self.password_salt:
             return False
-        salted_password = password + self.password_salt
+        salted_password = f"{password}:{self.password_salt}"
         return self.password_hash == hashlib.sha256(salted_password.encode()).hexdigest()
 
 
