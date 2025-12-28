@@ -83,65 +83,6 @@ class CommunityService:
 
         logger.info(f"创建社区成功: {community.community_id}")
         return community
-
-    @staticmethod
-    def add_community_staff(community_id, user_id, role=2, operator_id=None):
-        """添加社区工作人员"""
-        # 导入CommunityStaff模型
-        from database.flask_models import CommunityStaff
-
-        # 将role值映射到新的角色系统
-        # role: 1(主管) -> 'manager', 2(专员) -> 'staff'
-        role_mapping = {1: 'manager', 2: 'staff'}
-        staff_role = role_mapping.get(role, 'staff')
-
-        # 检查用户是否已经是该社区的工作人员
-        existing = db.session.query(CommunityStaff).filter_by(
-            community_id=community_id,
-            user_id=user_id
-        ).first()
-
-        if existing:
-            raise ValueError("用户已经是该社区的工作人员")
-
-        # 添加工作人员到CommunityStaff表
-        staff_record = CommunityStaff(
-            community_id=community_id,
-            user_id=user_id,
-            role=staff_role
-        )
-        db.session.add(staff_record)
-
-        # 记录审计日志
-        audit_log = UserAuditLog(
-            user_id=operator_id or user_id,
-            action="add_community_staff",
-            detail=f"添加社区工作人员: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}"
-        )
-        db.session.add(audit_log)
-
-        db.session.commit()
-        logger.info(f"社区工作人员添加成功: 社区ID={community_id}, 用户ID={user_id}, 角色={staff_role}")
-        return staff_record
-
-    @staticmethod
-    def get_communities_with_filters(filters=None, page=1, per_page=20):
-        """根据筛选条件获取社区列表"""
-        query = db.session.query(Community)
-
-        if filters:
-            if 'name' in filters:
-                query = query.filter(Community.name.like(f"%{filters['name']}%"))
-            if 'status' in filters:
-                query = query.filter(Community.status == filters['status'])
-
-        # 分页
-        offset = (page - 1) * per_page
-        communities = query.offset(offset).limit(per_page).all()
-        total = query.count()
-
-        return communities, total
-
     @staticmethod
     def process_application(application_id, approve, processor_id, rejection_reason=None):
         """处理社区申请"""
@@ -284,95 +225,6 @@ class CommunityService:
         }
 
     @staticmethod
-    def get_communities_with_filters(status_filter='all', page=1, page_size=20):
-        """获取带过滤条件的社区列表"""
-        query = db.session.query(Community)
-
-        # 状态筛选
-        if status_filter == 'active':
-            query = query.filter_by(status=1)
-        elif status_filter == 'inactive':
-            query = query.filter_by(status=2)
-
-        # 分页
-        total = query.count()
-        offset = (page - 1) * page_size
-        communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
-
-        # 转换为字典列表，避免会话分离问题
-        community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
-        return community_dicts, total
-
-    @staticmethod
-    def get_manager_communities(user_id, status_filter='all', page=1, page_size=20):
-        """获取用户作为主管的社区列表"""
-        from database.flask_models import CommunityStaff
-
-        # 获取用户作为主管的社区ID
-        staff_records = db.session.query(CommunityStaff).filter_by(
-            user_id=user_id,
-            role='manager'
-        ).all()
-
-        community_ids = [record.community_id for record in staff_records]
-
-        if not community_ids:
-            return [], 0
-
-        query = db.session.query(Community).filter(
-            Community.community_id.in_(community_ids)
-        )
-
-        # 状态筛选
-        if status_filter == 'active':
-            query = query.filter_by(status=1)
-        elif status_filter == 'inactive':
-            query = query.filter_by(status=2)
-
-        # 分页
-        total = query.count()
-        offset = (page - 1) * page_size
-        communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
-
-        # 转换为字典列表，避免会话分离问题
-        community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
-        return community_dicts, total
-
-    @staticmethod
-    def get_staff_communities(user_id, status_filter='all', page=1, page_size=20):
-        """获取用户作为工作人员的社区列表（包括主管和专员）"""
-        from database.flask_models import CommunityStaff
-
-        # 获取用户作为工作人员的社区ID
-        staff_records = db.session.query(CommunityStaff).filter_by(
-            user_id=user_id
-        ).all()
-
-        community_ids = [record.community_id for record in staff_records]
-
-        if not community_ids:
-            return [], 0
-
-        query = db.session.query(Community).filter(
-            Community.community_id.in_(community_ids)
-        )
-
-        # 状态筛选
-        if status_filter == 'active':
-            query = query.filter_by(status=1)
-        elif status_filter == 'inactive':
-            query = query.filter_by(status=2)
-
-        # 分页
-        total = query.count()
-        offset = (page - 1) * page_size
-        communities = query.order_by(Community.created_at.desc()).offset(offset).limit(page_size).all()
-
-        # 转换为字典列表，避免会话分离问题
-        community_dicts = [CommunityService._community_to_dict(comm) for comm in communities]
-        return community_dicts, total
-
-    @staticmethod
     def update_community_info(community_id, name=None, description=None, location=None, status=None, manager_id=None, location_lat=None, location_lon=None):
         """更新社区信息"""
         community = db.session.get(Community, community_id)
@@ -419,12 +271,12 @@ class CommunityService:
     def update_community(community_id, params, user_id):
         """
         更新社区信息（适配器方法，用于路由调用）
-        
+
         Args:
             community_id: 社区ID
             params: 更新参数字典
             user_id: 操作用户ID（用于审计）
-            
+
         Returns:
             bool: 更新是否成功
         """
@@ -451,99 +303,10 @@ class CommunityService:
             )
 
             return community is not None
-            
+
         except Exception as e:
             logger.error(f"更新社区失败: {str(e)}")
             return False
-
-    @staticmethod
-    def get_community_staff_list(community_id, role_filter='all', sort_by='time'):
-        """获取社区工作人员列表"""
-        from database.flask_models import CommunityStaff
-
-        # 构建查询
-        query = db.session.query(CommunityStaff).filter_by(community_id=community_id)
-
-        # 角色筛选
-        if role_filter != 'all':
-            query = query.filter_by(role=role_filter)
-
-        # 排序
-        if sort_by == 'name':
-            query = query.join(User).order_by(User.nickname)
-        elif sort_by == 'role':
-            query = query.order_by(CommunityStaff.role.desc())  # manager在前
-        else:  # time
-            query = query.order_by(CommunityStaff.added_at.desc())
-
-        return query.all()
-
-    @staticmethod
-    def add_community_staff(community_id, user_ids, role='staff'):
-        """添加社区工作人员"""
-        from database.flask_models import CommunityStaff
-
-        # 检查社区是否存在
-        community = db.session.get(Community, community_id)
-        if not community:
-            raise ValueError("社区不存在")
-
-        # 如果是添加主管,只能添加一个
-        if role == 'manager' and len(user_ids) > 1:
-            raise ValueError("主管只能添加一个")
-
-        # 检查是否已有主管
-        if role == 'manager':
-            existing_manager = db.session.query(CommunityStaff).filter_by(
-                community_id=community_id,
-                role='manager'
-            ).first()
-            if existing_manager:
-                raise ValueError("该社区已有主管")
-
-        added_count = 0
-        failed = []
-
-        for user_id in user_ids:
-            try:
-                # 检查用户是否存在
-                target_user = db.session.get(User, user_id)
-                if not target_user:
-                    failed.append({'user_id': user_id, 'reason': '用户不存在'})
-                    continue
-
-                # 检查用户是否已在当前社区任职（避免在同一社区重复任职）
-                existing_in_current_community = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    user_id=user_id
-                ).first()
-
-                if existing_in_current_community:
-                    failed.append({'user_id': user_id, 'reason': '用户已在当前社区任职'})
-                    continue
-
-                # 添加工作人员
-                staff = CommunityStaff(
-                    community_id=community_id,
-                    user_id=user_id,
-                    role=role
-                )
-                db.session.add(staff)
-                added_count += 1
-
-            except Exception as e:
-                logger.error(f'添加工作人员失败 user_id={user_id}: {str(e)}')
-                failed.append({'user_id': user_id, 'reason': str(e)})
-
-        db.session.commit()
-
-        if added_count == 0:
-            raise ValueError({'failed': failed}, '添加失败')
-
-        return {
-            'added_count': added_count,
-            'failed': failed
-        }
 
     @staticmethod
     def get_community_members(community_id, page=1, page_size=20):
@@ -559,11 +322,11 @@ class CommunityService:
         # 分页查询社区成员 - 使用User表查询，排除工作人员
         offset = (page - 1) * page_size
         query = db.session.query(User).filter_by(community_id=community_id)
-        
+
         # 排除工作人员
         if staff_user_ids:
             query = query.filter(User.user_id.notin_(staff_user_ids))
-        
+
         total = query.count()
         members = query.order_by(User.community_joined_at.desc()).offset(offset).limit(page_size).all()
 
@@ -835,35 +598,35 @@ class CommunityService:
     def get_community_checkin_stats(community_id: int, days: int = 7) -> Dict:
         """
         获取社区打卡统计信息
-        
+
         Args:
             community_id: 社区ID
             days: 统计天数，默认7天
-            
+
         Returns:
             Dict: 包含每个规则的打卡统计数据
         """
         from database.flask_models import CheckinRecord, CommunityCheckinRule, User, CommunityStaff
         from datetime import date, timedelta
         from sqlalchemy import and_, func, case
-        
+
         # Layer 1: 入口点验证 - 确保社区ID有效
         if not community_id or community_id <= 0:
             raise ValueError('社区ID必须为正整数')
-        
+
         # Layer 4: 调试仪表 - 记录统计上下文
         logger.debug(f"获取社区打卡统计: community_id={community_id}, days={days}")
-        
+
         # 计算日期范围
         end_date = date.today()
         start_date = end_date - timedelta(days=days - 1)
         date_range = [start_date + timedelta(days=i) for i in range(days)]
-        
+
         # 获取该社区所有工作人员的用户ID列表（排除）
         staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
             community_id=community_id
         ).all()]
-        
+
         # Layer 2: 业务逻辑验证 - 获取启用的规则
         enabled_rules = db.session.query(CommunityCheckinRule).filter(
             and_(
@@ -871,18 +634,18 @@ class CommunityService:
                 CommunityCheckinRule.status == 1  # 启用状态
             )
         ).all()
-        
+
         # Layer 4: 调试仪表 - 记录规则和用户数量
         logger.debug(f"社区 {community_id} 启用规则数: {len(enabled_rules)}")
-        
+
         # 获取该社区所有普通用户（排除工作人员）
         all_users_query = db.session.query(User).filter_by(community_id=community_id)
         if staff_user_ids:
             all_users_query = all_users_query.filter(User.user_id.notin_(staff_user_ids))
         all_users = all_users_query.all()
-        
+
         logger.debug(f"社区 {community_id} 普通用户数: {len(all_users)}")
-        
+
         # Layer 2: 业务逻辑验证 - 即使没有用户，也要返回正确的规则数
         # 修复：不再因为无用户而返回 total_rules=0
         if not all_users:
@@ -892,10 +655,10 @@ class CommunityService:
                 'stats': [],
                 'total_rules': len(enabled_rules)  # ✅ 修复：返回实际规则数
             }
-        
+
         user_ids = [user.user_id for user in all_users]
         rule_ids = [rule.community_rule_id for rule in enabled_rules]
-        
+
         # 获取指定日期范围内的所有打卡记录
         all_records = db.session.query(CheckinRecord).filter(
             and_(
@@ -905,31 +668,31 @@ class CommunityService:
                 func.date(CheckinRecord.planned_time) <= end_date
             )
         ).all()
-        
+
         # 构建统计数据
         stats = []
         rule_dict = {rule.community_rule_id: rule for rule in enabled_rules}
-        
+
         for rule in enabled_rules:
             rule_id = rule.community_rule_id
-            
+
             # 统计该规则每日未打卡人数
             daily_missed = []
             for check_date in date_range:
                 # 查询该日期该规则的未打卡记录
-                day_records = [r for r in all_records 
-                             if r.community_rule_id == rule_id 
+                day_records = [r for r in all_records
+                             if r.community_rule_id == rule_id
                              and r.planned_time.date() == check_date
                              and r.status == 0]  # 0-missed
-                
+
                 # 计算该日期应该打卡但未打卡的人数
                 # 理论上每个用户每天应该打卡一次
                 missed_count = len(day_records)
                 daily_missed.append(missed_count)
-            
+
             # 计算7天未打卡人次总和
             total_missed = sum(daily_missed)
-            
+
             stats.append({
                 'rule_id': rule_id,
                 'rule_name': rule.rule_name,
@@ -938,15 +701,15 @@ class CommunityService:
                 'daily_missed': daily_missed,
                 'dates': [d.isoformat() for d in date_range]
             })
-        
+
         # 按未打卡人次总和降序排序
         stats.sort(key=lambda x: x['total_missed'], reverse=True)
-        
+
         return {
             'stats': stats,
             'total_rules': len(enabled_rules)
         }
-    
+
     @staticmethod
     def toggle_community_status(community_id, status):
         """切换社区状态"""
@@ -1044,34 +807,34 @@ class CommunityService:
 
         if user.role == 4:  # 超级管理员
             query = db.session.query(Community).filter_by(status=1)  # 只显示启用状态
-            
+
             # 确保特殊社区（安卡大家庭和黑屋）包含在结果中
             # 获取特殊社区
             special_communities = db.session.query(Community).filter(
                 Community.community_id.in_([DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID]),
                 Community.status == 1
             ).all()
-            
+
             # 获取特殊社区ID列表
             special_community_ids = [c.community_id for c in special_communities]
-            
+
             # 如果特殊社区没有被包含在正常查询中，需要确保它们出现在结果中
             all_communities = query.all()
             existing_ids = [c.community_id for c in all_communities]
-            
+
             # 添加缺失的特殊社区
             for special_community in special_communities:
                 if special_community.community_id not in existing_ids:
                     all_communities.append(special_community)
-            
+
             # 按创建时间排序
             all_communities.sort(key=lambda x: x.created_at, reverse=True)
-            
+
             # 手动分页
             total = len(all_communities)
             offset = (page - 1) * per_page
             communities = all_communities[offset:offset + per_page]
-            
+
             return communities, total
         else:
             # 获取用户作为工作人员的社区

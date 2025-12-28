@@ -32,7 +32,7 @@ class UserCheckinRuleService:
 
             # 获取用户所属社区的所有规则（包括启用和停用的）
             community_rules = UserCheckinRuleService._get_user_all_community_rules(user_id)
-            
+
             # 获取用户的规则映射状态
             user_mappings = {}
             mappings = db.session.query(UserCommunityRule).filter(
@@ -40,7 +40,7 @@ class UserCheckinRuleService:
             ).all()
             for mapping in mappings:
                 user_mappings[mapping.community_rule_id] = mapping.is_active
-            
+
             for rule in community_rules:
                 rule_dict = rule.to_dict()
                 rule_dict['rule_source'] = 'community'
@@ -61,7 +61,7 @@ class UserCheckinRuleService:
                 is_user_mapping_active = user_mappings.get(rule.community_rule_id, False)
                 rule_dict['is_user_mapping_active'] = is_user_mapping_active
                 rule_dict['is_active_for_user'] = is_rule_enabled and is_user_mapping_active
-                
+
                 # 添加规则状态描述
                 if is_rule_enabled and is_user_mapping_active:
                     rule_dict['status_label'] = '启用'
@@ -95,10 +95,10 @@ class UserCheckinRuleService:
     def _get_user_active_community_rules(user_id):
         """
         获取用户激活的社区规则
-        
+
         Args:
             user_id: 用户ID
-            
+
         Returns:
             list: 激活的社区规则列表
         """
@@ -109,10 +109,10 @@ class UserCheckinRuleService:
                 UserCommunityRule.is_active == True,
                 CommunityCheckinRule.status == 1  # 社区规则本身也是启用状态
             ).all()
-                
+
                 # Flask-SQLAlchemy 自动处理会话，不需要复杂的对象包装
             return active_rules
-                
+
         except SQLAlchemyError as e:
             logger.error(f"获取用户激活社区规则失败: {str(e)}")
             raise
@@ -121,10 +121,10 @@ class UserCheckinRuleService:
     def _get_user_all_community_rules(user_id):
         """
         获取用户所属社区的所有规则（包括启用和停用的）
-        
+
         Args:
             user_id: 用户ID
-            
+
         Returns:
             list: 所有社区规则列表（包含激活状态信息）
         """
@@ -133,26 +133,26 @@ class UserCheckinRuleService:
             user = db.session.get(User, user_id)
             if not user or not user.community_id:
                 return []
-            
+
             # 查询用户所属社区的所有规则（包括启用和停用的）
             all_rules = db.session.query(CommunityCheckinRule).filter(
                 CommunityCheckinRule.community_id == user.community_id,
                 CommunityCheckinRule.status != 2  # 排除已删除的规则
             ).all()
-            
+
             # 获取该用户的规则映射记录
             user_mappings = {}
             mappings = db.session.query(UserCommunityRule).filter(
                 UserCommunityRule.user_id == user_id
             ).all()
-            
+
             for mapping in mappings:
                 user_mappings[mapping.community_rule_id] = mapping.is_active
-            
+
             # 确保当前社区的所有已启用规则都有映射记录
             enabled_rules = [rule for rule in all_rules if rule.status == 1]
             new_mappings_created = False
-            
+
             for rule in enabled_rules:
                 if rule.community_rule_id not in user_mappings:
                     # 如果已启用规则没有映射记录，说明是数据不一致，自动创建映射
@@ -165,14 +165,14 @@ class UserCheckinRuleService:
                     db.session.add(new_mapping)
                     user_mappings[rule.community_rule_id] = True
                     new_mappings_created = True
-                    
+
             # 提交新创建的映射记录
             if new_mappings_created:
                 db.session.commit()
-            
+
             # 返回规则列表
             return all_rules
-                
+
         except SQLAlchemyError as e:
             logger.error(f"获取用户所有社区规则失败: {str(e)}")
             raise
@@ -197,7 +197,7 @@ class UserCheckinRuleService:
                 personal_plan = personal_plan_result['checkin_items']
             else:
                 personal_plan = []
-            
+
             for item in personal_plan:
                 item['rule_source'] = 'personal'
                 item['is_editable'] = True
@@ -328,40 +328,6 @@ class UserCheckinRuleService:
             logger.error(f"获取规则详情失败: {str(e)}")
             raise
 
-    @staticmethod
-    def get_rule_source_info(rule):
-        """
-        获取规则来源信息
-
-        Args:
-            rule: 规则对象（CheckinRule或CommunityCheckinRule）
-
-        Returns:
-            dict: 来源信息
-        """
-        if isinstance(rule, CheckinRule):
-            return {
-                'rule_source': 'personal',
-                'is_editable': True,
-                'source_label': '个人规则'
-            }
-        elif isinstance(rule, CommunityCheckinRule):
-            return {
-                'rule_source': 'community',
-                'is_editable': False,
-                'source_label': '社区规则',
-                'community_name': rule.community.name if rule.community else None,
-                'status': rule.status
-            }
-        else:
-            return {
-                'rule_source': 'unknown',
-                'is_editable': False,
-                'source_label': '未知来源'
-            }
-
-    @staticmethod
-    def get_user_rules_statistics(user_id):
         """
         获取用户规则统计信息
 

@@ -13,7 +13,7 @@ from app.shared.utils.auth import verify_token
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
-from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only, format_time
+from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only
 from database.flask_models import db
 
 app_logger = logging.getLogger('log')
@@ -271,13 +271,13 @@ def get_checkin_history():
         # 解析日期参数
         start_date = None
         end_date = None
-        
+
         if start_date_str:
             start_date = parse_date_only(start_date_str)
             if not start_date:
                 current_app.logger.error(f'开始日期格式错误: {start_date_str}')
                 return make_err_response({}, '开始日期格式错误')
-        
+
         if end_date_str:
             end_date = parse_date_only(end_date_str)
             if not end_date:

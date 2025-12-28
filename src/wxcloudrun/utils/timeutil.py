@@ -11,9 +11,6 @@ def parse_time_only(v):
         except ValueError as e:
             raise ValueError(f'无效的时间格式: {v}') from e
 
-def format_time(t):
-    return t.strftime('%H:%M') if t else None
-
 def parse_date_only(v):
     if not v:
         return None

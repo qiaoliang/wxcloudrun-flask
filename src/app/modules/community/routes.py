@@ -44,11 +44,11 @@ def _check_superadmin_permission(user):
 def _format_community_info(community, include_worker_stats=False):
     """
     格式化社区信息
-    
+
     Args:
         community: Community对象
         include_worker_stats: 是否包含工作人员统计信息
-    
+
     Returns:
         dict: 格式化后的社区信息
     """
@@ -96,12 +96,12 @@ def _format_community_info(community, include_worker_stats=False):
             role='staff'  # 社区专员
         ).count()
         worker_count = manager_count + staff_count  # 工作人员总数 = 主管 + 专员
-        
+
         # 获取所有工作人员的用户ID列表
         staff_user_ids = [s.user_id for s in CommunityStaff.query.filter_by(
             community_id=community.community_id
         ).all()]
-        
+
         # 统计普通成员（不包括工作人员）
         if staff_user_ids:
             user_count = db.session.query(User).filter(
@@ -158,7 +158,7 @@ def get_communities():
         # Using Flask-SQLAlchemy db.session
         # 查询所有社区
         communities = db.session.query(Community).all()
-        
+
         # 格式化社区信息
         communities_data = []
         for community in communities:
@@ -189,7 +189,7 @@ def get_community_list():
     try:
         # 获取用户可见的社区列表
         communities = CommunityService.get_available_communities()
-        
+
         # 格式化社区信息（包含主管信息）
         communities_data = []
         for community in communities:
@@ -285,14 +285,14 @@ def remove_community_user(community_id, target_user_id):
 
         # 移除用户
         success = CommunityService.remove_user_from_community(community_id, target_user_id)
-        
+
         if success:
             # 记录审计日志
             _audit(operator_id, 'remove_community_user', {
                 'community_id': community_id,
                 'target_user_id': target_user_id
             })
-            
+
             current_app.logger.info(f'移除社区用户成功: community_id={community_id}, user_id={target_user_id}')
             return make_succ_response({'message': '移除成功'})
         else:
@@ -528,7 +528,7 @@ def get_managed_communities():
     try:
         # 获取用户可管理的社区
         communities, _ = CommunityService.get_manageable_communities(user)
-        
+
         # 格式化社区信息
         communities_data = []
         for community in communities:
@@ -559,7 +559,7 @@ def get_available_communities():
     try:
         # 获取可加入的社区列表
         communities = CommunityService.get_available_communities(user_id)
-        
+
         # 格式化社区信息
         communities_data = []
         for community in communities:
@@ -572,57 +572,6 @@ def get_available_communities():
     except Exception as e:
         current_app.logger.error(f'获取可加入社区列表失败: {str(e)}', exc_info=True)
         return make_err_response({}, '获取可加入社区列表失败')
-
-
-@community_bp.route('/community/staff/list', methods=['GET'])
-def get_community_staff_list():
-    """获取社区工作人员列表"""
-    current_app.logger.info('=== 开始获取社区工作人员列表 ===')
-
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    user_id = decoded.get('user_id')
-    current_app.logger.info(f'用户ID: {user_id}')
-
-    try:
-        params = request.get_json() or {}
-        community_id = params.get('community_id')
-        
-        if not community_id:
-            return make_err_response({}, '缺少社区ID')
-
-        # 检查权限
-        if not CommunityService.has_community_permission(user_id, community_id):
-            return make_err_response({}, '无权限访问该社区')
-
-        # 获取社区工作人员
-        staff_list = CommunityStaffService.get_community_staff(community_id)
-        
-        # 格式化工作人员信息
-        staff_data = []
-        for staff in staff_list:
-            user = db.session.get(User, staff.user_id)
-            if user:
-                staff_info = {
-                    'staff_id': staff.staff_id,
-                    'user_id': user.user_id,
-                    'nickname': user.nickname,
-                    'avatar_url': user.avatar_url,
-                    'role': staff.role_name,
-                    'created_at': staff.created_at.isoformat() if staff.created_at else None
-                }
-                staff_data.append(staff_info)
-
-        current_app.logger.info(f'获取社区工作人员列表成功: community_id={community_id}, 共 {len(staff_data)} 人')
-        return make_succ_response({'staff': staff_data})
-
-    except Exception as e:
-        current_app.logger.error(f'获取社区工作人员列表失败: {str(e)}', exc_info=True)
-        return make_err_response({}, '获取工作人员列表失败')
-
 
 @community_bp.route('/community/staff/list-enhanced', methods=['GET'])
 def get_community_staff_list_enhanced():
@@ -641,7 +590,7 @@ def get_community_staff_list_enhanced():
         # GET请求应该从查询参数获取，而不是JSON body
         community_id = request.args.get('community_id')
         role = request.args.get('role', 'all')  # 默认返回所有角色
-        
+
         if not community_id:
             return make_err_response({}, '缺少社区ID')
 
@@ -656,7 +605,7 @@ def get_community_staff_list_enhanced():
 
         # 获取社区工作人员，传递role参数进行过滤
         staff_list = CommunityStaffService.get_community_staff(community_id, role=role if role != 'all' else None)
-        
+
         # 格式化工作人员信息
         staff_data = []
         for staff in staff_list:
@@ -712,11 +661,11 @@ def add_community_staff():
         if not community_id:
             current_app.logger.error('Layer 1验证失败: 缺少社区ID')
             return make_err_response({}, '缺少社区ID')
-        
+
         if not user_ids and not target_user_id:
             current_app.logger.error('Layer 1验证失败: 缺少用户ID')
             return make_err_response({}, '缺少用户ID')
-        
+
         if not role:
             current_app.logger.error('Layer 1验证失败: 缺少角色参数')
             return make_err_response({}, '缺少角色参数')
@@ -735,11 +684,11 @@ def add_community_staff():
             if not isinstance(user_ids, list):
                 current_app.logger.error(f'Layer 1验证失败: user_ids必须是数组，实际类型: {type(user_ids)}')
                 return make_err_response({}, 'user_ids必须是数组')
-            
+
             if not user_ids:  # 空数组
                 current_app.logger.error('Layer 1验证失败: user_ids数组不能为空')
                 return make_err_response({}, '用户ID列表不能为空')
-            
+
             # 验证每个用户ID
             valid_user_ids = []
             for uid in user_ids:
@@ -752,11 +701,11 @@ def add_community_staff():
                 except (ValueError, TypeError):
                     current_app.logger.warning(f'Layer 1警告: 跳过无效用户ID格式: {uid}')
                     continue
-            
+
             if not valid_user_ids:
                 current_app.logger.error('Layer 1验证失败: 没有有效的用户ID')
                 return make_err_response({}, '没有有效的用户ID')
-            
+
             final_user_ids = valid_user_ids
         else:
             # 兼容单个用户ID的情况
@@ -810,13 +759,6 @@ def add_community_staff():
                 role=role
             )
 
-            # Layer 4: 调试仪表 - 记录操作结果
-            current_app.logger.info('Layer 4调试仪表 - 操作结果取证:', {
-                'success_count': result.get('success_count', 0),
-                'failed_count': len(result.get('failed', [])),
-                'added_users': result.get('added_users', [])[:3],  # 只记录前3个
-                'operation_complete': True
-            })
 
             # 记录审计日志
             _audit(operator_id, 'add_community_staff_batch', {
@@ -885,7 +827,7 @@ def remove_community_staff():
                 'community_id': community_id,
                 'target_user_id': target_user_id
             })
-            
+
             current_app.logger.info(f'移除社区工作人员成功: community_id={community_id}, user_id={target_user_id}')
             return make_succ_response({'message': '移除成功'})
         else:
@@ -912,7 +854,7 @@ def get_community_users_v2():
     try:
         params = request.get_json() or {}
         community_id = params.get('community_id')
-        
+
         if not community_id:
             return make_err_response({}, '缺少社区ID')
 
@@ -922,7 +864,7 @@ def get_community_users_v2():
 
         # 获取社区用户
         users = CommunityService.get_community_users_v2(community_id)
-        
+
         # 格式化用户信息
         users_data = []
         for user in users:
@@ -978,7 +920,7 @@ def add_users_to_community():
 
         # 批量添加用户
         result = CommunityService.add_users_to_community(community_id, user_ids, operator_id)
-        
+
         # 记录审计日志
         _audit(operator_id, 'add_users_to_community', {
             'community_id': community_id,
@@ -1025,14 +967,14 @@ def remove_user_from_community():
 
         # 移除用户
         success = CommunityService.remove_user_from_community(community_id, target_user_id)
-        
+
         if success:
             # 记录审计日志
             _audit(operator_id, 'remove_user_from_community', {
                 'community_id': community_id,
                 'target_user_id': target_user_id
             })
-            
+
             current_app.logger.info(f'从社区中移除用户成功: community_id={community_id}, user_id={target_user_id}')
             return make_succ_response({'message': '移除成功'})
         else:
@@ -1154,14 +1096,14 @@ def update_community():
 
         # 更新社区信息
         success = CommunityService.update_community(community_id, params, user_id)
-        
+
         if success:
             # 记录审计日志
             _audit(user_id, 'update_community', {
                 'community_id': community_id,
                 'updated_fields': list(params.keys())
             })
-            
+
             current_app.logger.info(f'更新社区信息成功: community_id={community_id}')
             return make_succ_response({'message': '更新成功'})
         else:
@@ -1200,13 +1142,13 @@ def toggle_community_status():
 
         # 切换状态
         success = CommunityService.toggle_community_status(community_id, user_id)
-        
+
         if success:
             # 记录审计日志
             _audit(user_id, 'toggle_community_status', {
                 'community_id': community_id
             })
-            
+
             current_app.logger.info(f'切换社区状态成功: community_id={community_id}')
             return make_succ_response({'message': '切换成功'})
         else:
@@ -1245,13 +1187,13 @@ def delete_community():
 
         # 删除社区
         success = CommunityService.delete_community(community_id, user_id)
-        
+
         if success:
             # 记录审计日志
             _audit(user_id, 'delete_community', {
                 'community_id': community_id
             })
-            
+
             current_app.logger.info(f'删除社区成功: community_id={community_id}')
             return make_succ_response({'message': '删除成功'})
         else:
@@ -1279,7 +1221,7 @@ def search_users():
         # 获取搜索参数
         keyword = request.args.get('keyword', '').strip()
         search_type = request.args.get('type', 'all')  # all, phone, nickname
-        
+
         # 安全地解析page参数
         page_str = request.args.get('page', '1')
         try:
@@ -1289,7 +1231,7 @@ def search_users():
         except (ValueError, TypeError):
             current_app.logger.error(f'无效的page参数: {page_str}')
             return make_err_response({}, 'page参数必须是正整数')
-            
+
         per_page = min(int(request.args.get('per_page', 20)), 100)
 
         if not keyword:
@@ -1357,7 +1299,7 @@ def search_users_excluding_blackroom():
     try:
         # 获取搜索参数
         keyword = request.args.get('keyword', '').strip()
-        
+
         # 安全地解析page参数
         page_str = request.args.get('page', '1')
         try:
@@ -1367,7 +1309,7 @@ def search_users_excluding_blackroom():
         except (ValueError, TypeError):
             current_app.logger.error(f'无效的page参数: {page_str}')
             return make_err_response({}, 'page参数必须是正整数')
-            
+
         per_page = min(int(request.args.get('per_page', 20)), 100)
 
         if not keyword:
@@ -1493,10 +1435,10 @@ def get_manageable_communities():
         user = UserService.query_user_by_id(user_id)
         if not user:
             return make_err_response({}, '用户不存在')
-        
+
         # 获取可管理的社区列表
         communities, total = CommunityService.get_manageable_communities(user)
-        
+
         # 格式化社区信息
         communities_data = []
         for community in communities:
@@ -1577,7 +1519,7 @@ def check_community_access(community_id):
     try:
         # 检查权限
         has_permission = CommunityService.has_community_permission(user_id, community_id)
-        
+
         # 获取用户在社区中的角色
         user_role = None
         if has_permission:
@@ -1625,7 +1567,7 @@ def get_community_detail(community_id):
 
         # 获取社区统计信息
         event_stats = CommunityEventService.get_community_stats(community_id)
-        
+
         # 构建响应数据结构
         response_data = {
             'community': community_data,
@@ -1678,21 +1620,21 @@ def create_community_user():
 
         # 创建用户
         user = CommunityService.create_user_in_community(community_id, user_data, operator_id)
-        
+
         current_app.logger.info(f'成功在社区 {community_id} 中创建用户 {user.user_id}')
         return make_succ_response({'user_id': user.user_id})
 
     except Exception as e:
         current_app.logger.error(f'在社区中创建用户失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'创建用户失败: {str(e)}')
-        
+
         if user:
             # 记录审计日志
             _audit(operator_id, 'create_community_user', {
                 'community_id': community_id,
                 'created_user_id': user.user_id
             })
-            
+
             current_app.logger.info(f'在社区中创建用户成功: community_id={community_id}, user_id={user.user_id}')
             return make_succ_response({
                 'user_id': user.user_id,
@@ -1730,13 +1672,13 @@ def switch_user_community():
 
         # 切换社区
         success = CommunityService.switch_user_community(user_id, community_id)
-        
+
         if success:
             # 记录审计日志
             _audit(user_id, 'switch_community', {
                 'community_id': community_id
             })
-            
+
             current_app.logger.info(f'切换用户社区成功: user_id={user_id}, community_id={community_id}')
             return make_succ_response({'message': '切换成功'})
         else:
