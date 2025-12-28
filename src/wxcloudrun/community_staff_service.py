@@ -6,6 +6,7 @@ import os
 import json
 from datetime import datetime
 from hashlib import sha256
+from sqlalchemy import select, func
 from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, Community, CommunityStaff, CommunityApplication, UserAuditLog
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
@@ -24,9 +25,8 @@ class CommunityStaffService:
         Returns:
             bool: 如果是工作人员返回True，否则返回False
         """
-        staff_record = db.session.query(CommunityStaff).filter_by(
-            user_id=user_id
-        ).first()
+        stmt = select(CommunityStaff).where(CommunityStaff.user_id == user_id)
+        staff_record = db.session.execute(stmt).scalar_one_or_none()
         return staff_record is not None
 
     @staticmethod
@@ -73,10 +73,11 @@ class CommunityStaffService:
 
         # 检查操作者权限
         if operator_user.role != 4:  # 不是超级管理员
-            staff_record = db.session.query(CommunityStaff).filter_by(
-                community_id=community_id,
-                user_id=operator_user_id
-            ).first()
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.community_id == community_id,
+                CommunityStaff.user_id == operator_user_id
+            )
+            staff_record = db.session.execute(stmt_staff).scalar_one_or_none()
             if not staff_record:
                 raise ValueError('权限不足，需要社区工作人员权限')
 
@@ -90,10 +91,11 @@ class CommunityStaffService:
 
         # 检查是否已有主管
         if role == 'manager':
-            existing_manager = db.session.query(CommunityStaff).filter_by(
-                community_id=community_id,
-                role='manager'
-            ).first()
+            stmt_manager = select(CommunityStaff).where(
+                CommunityStaff.community_id == community_id,
+                CommunityStaff.role == 'manager'
+            )
+            existing_manager = db.session.execute(stmt_manager).scalar_one_or_none()
             if existing_manager:
                 raise ValueError('该社区已有主管')
 
@@ -139,10 +141,11 @@ class CommunityStaffService:
                     continue
 
                 # 检查用户是否已在当前社区任职
-                existing_in_current_community = db.session.query(CommunityStaff).filter_by(
-                    community_id=community_id,
-                    user_id=uid
-                ).first()
+                stmt_existing = select(CommunityStaff).where(
+                    CommunityStaff.community_id == community_id,
+                    CommunityStaff.user_id == uid
+                )
+                existing_in_current_community = db.session.execute(stmt_existing).scalar_one_or_none()
 
                 if existing_in_current_community:
                     # 静默跳过已任职用户，不计入失败
@@ -247,10 +250,11 @@ class CommunityStaffService:
             CommunityStaff: 工作人员记录
         """
         # 检查是否已经是工作人员
-        existing = db.session.query(CommunityStaff).filter_by(
-            community_id=community_id,
-            user_id=user_id
-        ).first()
+        stmt_existing = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.user_id == user_id
+        )
+        existing = db.session.execute(stmt_existing).scalar_one_or_none()
 
         if existing:
             raise ValueError("用户已经是该社区的工作人员")
@@ -297,10 +301,11 @@ class CommunityStaffService:
             bool: 是否成功
         """
         # Layer 1: 入口点验证 - 检查工作人员记录是否存在
-        staff = db.session.query(CommunityStaff).filter_by(
-            community_id=community_id,
-            user_id=user_id
-        ).first()
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.user_id == user_id
+        )
+        staff = db.session.execute(stmt_staff).scalar_one_or_none()
 
         if not staff:
             raise ValueError("用户不是该社区的工作人员")
@@ -322,7 +327,8 @@ class CommunityStaffService:
         # Layer 3: 环境守卫 - 检查用户是否还在其他社区担任工作人员
         target_user = db.session.get(User, user_id)
         if target_user:
-            other_staff_records = db.session.query(CommunityStaff).filter_by(user_id=user_id).count()
+            stmt_count = select(func.count()).select_from(CommunityStaff).where(CommunityStaff.user_id == user_id)
+            other_staff_records = db.session.execute(stmt_count).scalar()
             if other_staff_records == 0:
                 # 用户不在任何社区担任工作人员，重置为普通用户
                 logger.info(f'Layer 3环境守卫 - 用户{user_id}不在任何社区担任工作人员，重置为普通用户')
@@ -354,12 +360,12 @@ class CommunityStaffService:
         Returns:
             list: 工作人员列表
         """
-        query = db.session.query(CommunityStaff).filter_by(community_id=community_id)
+        stmt = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
 
         if role:
-            query = query.filter_by(role=role)
+            stmt = stmt.where(CommunityStaff.role == role)
 
-        return query.all()
+        return db.session.execute(stmt).scalars().all()
 
     @staticmethod
     def handle_user_community_change(user_id, old_community_id, new_community_id):
@@ -402,10 +408,12 @@ class CommunityStaffService:
             # 3. 处理工作人员关系
             # 移除旧社区的工作人员关系
             if old_community_id:
-                db.session.query(CommunityStaff).filter_by(
-                    community_id=old_community_id,
-                    user_id=user_id
-                ).delete()
+                from sqlalchemy import delete
+                stmt_delete = delete(CommunityStaff).where(
+                    CommunityStaff.community_id == old_community_id,
+                    CommunityStaff.user_id == user_id
+                )
+                db.session.execute(stmt_delete)
 
             # 如果新社区存在，检查是否需要添加工作人员关系
             if new_community_id:
@@ -447,11 +455,12 @@ class CommunityStaffService:
         from database.flask_models import UserCommunityRule, CommunityCheckinRule
 
         # 查找用户与旧社区规则的激活映射记录
-        old_mappings = db.session.query(UserCommunityRule).join(CommunityCheckinRule).filter(
+        stmt_old = select(UserCommunityRule).join(CommunityCheckinRule).where(
             UserCommunityRule.user_id == user_id,
             CommunityCheckinRule.community_id == old_community_id,
             UserCommunityRule.is_active == True
-        ).all()
+        )
+        old_mappings = db.session.execute(stmt_old).scalars().all()
 
         # 将这些规则标记为停用
         deactivated_count = 0
@@ -477,20 +486,22 @@ class CommunityStaffService:
         from database.flask_models import UserCommunityRule, CommunityCheckinRule
 
         # 获取新社区的所有启用规则
-        new_community_rules = db.session.query(CommunityCheckinRule).filter(
+        stmt_new = select(CommunityCheckinRule).where(
             CommunityCheckinRule.community_id == new_community_id,
             CommunityCheckinRule.status == 1  # 启用状态
-        ).all()
+        )
+        new_community_rules = db.session.execute(stmt_new).scalars().all()
 
         activated_count = 0
 
         # 为用户创建或激活规则映射
         for rule in new_community_rules:
             # 查找是否已存在映射记录
-            existing_mapping = db.session.query(UserCommunityRule).filter_by(
-                user_id=user_id,
-                community_rule_id=rule.community_rule_id
-            ).first()
+            stmt_mapping = select(UserCommunityRule).where(
+                UserCommunityRule.user_id == user_id,
+                UserCommunityRule.community_rule_id == rule.community_rule_id
+            )
+            existing_mapping = db.session.execute(stmt_mapping).scalar_one_or_none()
 
             if existing_mapping:
                 # 如果存在且当前是停用状态，重新激活
