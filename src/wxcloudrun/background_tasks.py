@@ -145,36 +145,42 @@ def _process_community_missed_for_today(now):
                 continue
 
             # 获取该社区的所有工作人员（排除）
-            staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
-                community_id=rule.community_id
-            ).all()]
+            stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == rule.community_id)
+            staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
             # 获取该社区所有普通用户（排除工作人员）
-            all_users_query = db.session.query(User).filter_by(community_id=rule.community_id)
+            stmt_users = select(User).where(User.community_id == rule.community_id)
             if staff_user_ids:
-                all_users_query = all_users_query.filter(User.user_id.notin_(staff_user_ids))
-            all_users = all_users_query.all()
+                from sqlalchemy import not_
+                stmt_users = stmt_users.where(not_(User.user_id.in_(staff_user_ids)))
+            all_users = db.session.execute(stmt_users).scalars().all()
 
             if not all_users:
                 continue
 
             # 获取该规则的激活用户映射
-            active_user_ids = [u.user_id for u in all_users if db.session.query(UserCommunityRule).filter_by(
-                user_id=u.user_id,
-                community_rule_id=rule.community_rule_id,
-                is_active=True
-            ).first()]
+            active_user_ids = []
+            for u in all_users:
+                stmt_mapping = select(UserCommunityRule).where(
+                    UserCommunityRule.user_id == u.user_id,
+                    UserCommunityRule.community_rule_id == rule.community_rule_id,
+                    UserCommunityRule.is_active == True
+                )
+                mapping = db.session.execute(stmt_mapping).scalar_one_or_none()
+                if mapping:
+                    active_user_ids.append(u.user_id)
 
             if not active_user_ids:
                 continue
 
             # 查询今天的打卡记录
-            today_records = db.session.query(CheckinRecord).filter(
+            stmt_records = select(CheckinRecord).where(
                 CheckinRecord.community_rule_id == rule.community_rule_id,
                 CheckinRecord.user_id.in_(active_user_ids),
                 CheckinRecord.planned_time >= planned_dt,
                 CheckinRecord.planned_time < planned_dt + timedelta(days=1)
-            ).all()
+            )
+            today_records = db.session.execute(stmt_records).scalars().all()
 
             # 按用户分组检查
             checked_user_ids = {r.user_id for r in today_records if r.status == 1}
