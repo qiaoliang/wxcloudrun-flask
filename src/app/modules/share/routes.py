@@ -6,6 +6,7 @@
 import logging
 from datetime import datetime, timedelta
 from flask import request, Response, current_app
+from sqlalchemy import select
 from . import share_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
@@ -90,7 +91,7 @@ def resolve_share_checkin_link():
         if not token:
             return make_err_response({}, '缺少token参数')
 
-        link = ShareLink.query.filter_by(token=token).first()
+        link = db.session.execute(select(ShareLink).filter_by(token=token)).scalar_one_or_none()
         if not link or link.expires_at < datetime.now():
             return make_err_response({}, '分享链接无效或已过期')
 
@@ -154,7 +155,7 @@ def share_checkin_page():
         if not token:
             return "缺少token参数", 400
 
-        link = ShareLink.query.filter_by(token=token).first()
+        link = db.session.execute(select(ShareLink).filter_by(token=token)).scalar_one_or_none()
         if not link or link.expires_at < datetime.now():
             return "分享链接无效或已过期", 400
 

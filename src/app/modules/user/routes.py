@@ -8,7 +8,7 @@ import os
 import datetime
 import jwt
 from flask import request, current_app
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from . import user_bp
 from app.shared import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
@@ -82,14 +82,14 @@ def _merge_accounts_by_time(account1, account2):
         current_app.logger.info(f'更新姓名: {migrate_info["name"]}')
 
     # 迁移监督关系
-    supervision_relations = SupervisionRuleRelation.query.filter_by(supervised_user_id=secondary.user_id).all()
+    supervision_relations = db.session.execute(select(SupervisionRuleRelation).filter_by(supervised_user_id=secondary.user_id)).scalars().all()
     for relation in supervision_relations:
         # 检查是否已存在相同的监督关系
-        existing = SupervisionRuleRelation.query.filter_by(
+        existing = db.session.execute(select(SupervisionRuleRelation).filter_by(
             supervisor_user_id=relation.supervisor_user_id,
             supervised_user_id=primary.user_id,
             rule_id=relation.rule_id
-        ).first()
+        )).scalar_one_or_none()
 
         if not existing:
             relation.supervised_user_id = primary.user_id

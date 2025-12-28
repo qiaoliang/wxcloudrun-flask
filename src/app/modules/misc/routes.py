@@ -6,6 +6,7 @@
 import logging
 from datetime import datetime
 from flask import render_template, request, Response, current_app
+from sqlalchemy import select, delete
 from . import misc_bp
 from app.shared import make_succ_response, make_err_response, make_succ_empty_response
 from database.flask_models import Counters, db
@@ -58,7 +59,7 @@ def count():
         if action == 'increment':
             # 增加计数
             counter_id = params.get('counter_id', 1)
-            counter = Counters.query.filter_by(id=counter_id).first()
+            counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
             # 使用事务管理器确保数据一致性
             with transaction():
                 if counter:
@@ -73,7 +74,7 @@ def count():
         elif action == 'reset':
             # 重置计数
             counter_id = params.get('counter_id', 1)
-            counter = Counters.query.filter_by(id=counter_id).first()
+            counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
             if counter:
                 with transaction():
                     counter.count = 0
@@ -86,7 +87,7 @@ def count():
         elif action == 'get':
             # 获取计数
             counter_id = params.get('id', 1)
-            counter = Counters.query.filter_by(id=counter_id).first()
+            counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
             if counter:
                 return make_succ_response({'id': counter_id, 'count': counter.count})
             else:
@@ -94,7 +95,7 @@ def count():
 
         elif action == 'list':
             # 列出所有计数器
-            counters = Counters.query.all()
+            counters = db.session.execute(select(Counters)).scalars().all()
             counter_list = [{'id': c.id, 'count': c.count} for c in counters]
             current_app.logger.info(f"获取计数器列表，共 {len(counter_list)} 个计数器")
             return make_succ_response({'counters': counter_list})
@@ -102,7 +103,7 @@ def count():
         elif action == 'clear':
             # 清除所有计数器
             with transaction():
-                Counters.query.delete()
+                db.session.execute(delete(Counters))
             current_app.logger.info("所有计数器已清除")
             return make_succ_response({'message': '所有计数器已清除'})
 
@@ -126,13 +127,13 @@ def get_counter():
         counter_id = request.args.get('id')
         if not counter_id:
             # 列出所有计数器
-            counters = Counters.query.all()
+            counters = db.session.execute(select(Counters)).scalars().all()
             counter_list = [{'id': c.id, 'count': c.count} for c in counters]
             current_app.logger.info(f"获取所有计数器列表，共 {len(counter_list)} 个计数器")
             return make_succ_response({'counters': counter_list})
         else:
             # 获取特定计数器
-            counter = Counters.query.filter_by(id=counter_id).first()
+            counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
             if counter:
                 current_app.logger.info(f"获取计数器 {counter_id}，当前值: {counter.count}")
                 return make_succ_response({'id': counter.id, 'count': counter.count})

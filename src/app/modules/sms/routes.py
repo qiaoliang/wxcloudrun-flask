@@ -7,6 +7,7 @@ import logging
 import os
 from datetime import datetime, timedelta
 from flask import request, current_app
+from sqlalchemy import select
 from . import sms_bp
 from app.shared import make_succ_response, make_err_response
 from database.flask_models import db, VerificationCode
@@ -34,8 +35,8 @@ def sms_send_code():
         is_mock_env = not should_use_real_sms()
         
         now = datetime.now()
-        vc = VerificationCode.query.filter_by(
-            phone_number=normalized_phone, purpose=purpose).first()
+        vc = db.session.execute(select(VerificationCode).filter_by(
+            phone_number=normalized_phone, purpose=purpose)).scalar_one_or_none()
         
         # 只在非 mock 环境下检查频率限制
         if not is_mock_env and vc and (now - vc.last_sent_at).total_seconds() < 60:

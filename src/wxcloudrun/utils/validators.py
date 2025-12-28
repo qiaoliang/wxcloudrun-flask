@@ -8,6 +8,7 @@ import logging
 from datetime import datetime, timedelta
 from hashlib import sha256
 from flask import current_app
+from sqlalchemy import select
 from database.flask_models import VerificationCode, UserAuditLog, db
 from app.shared.utils.transaction import transaction
 
@@ -79,8 +80,8 @@ def _verify_sms_code(phone, purpose, code):
             current_app.logger.info(f"[Mock SMS] 验证码 '{code}' 是未知验证码，在测试环境下视为有效")
             return True
 
-    vc = VerificationCode.query.filter_by(
-        phone_number=phone, purpose=purpose).first()
+    vc = db.session.execute(select(VerificationCode).filter_by(
+        phone_number=phone, purpose=purpose)).scalar_one_or_none()
     if not vc:
         return False
     if vc.expires_at < datetime.now():
