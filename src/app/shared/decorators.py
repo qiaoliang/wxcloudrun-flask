@@ -8,7 +8,6 @@ import logging
 from flask import request
 from database.flask_models import db
 from app.shared.utils.auth import verify_token
-from wxcloudrun.community_service import CommunityService
 
 app_logger = logging.getLogger('log')
 
@@ -82,6 +81,7 @@ def require_community_staff_member():
                 return make_err_response('缺少社区ID参数')
 
             # 验证权限
+            from wxcloudrun.community_service import CommunityService
             if not CommunityService.has_community_permission(user_id, community_id):
                 from app.shared.response import make_err_response
                 return make_err_response('无权限访问该社区功能')
@@ -112,8 +112,9 @@ def require_community_membership():
             if not community_id:
                 from app.shared.response import make_err_response
                 return make_err_response('缺少社区ID参数')
-            
+
             # 验证社区成员关系
+            from wxcloudrun.community_service import CommunityService
             if not CommunityService.verify_user_community_access(user_id, community_id):
                 from app.shared.response import make_err_response
                 return make_err_response('无权限访问该社区')

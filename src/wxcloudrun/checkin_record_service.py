@@ -9,6 +9,7 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import OperationalError
 from .checkin_rule_service import CheckinRuleService
 from database.flask_models import CheckinRecord, SupervisionRuleRelation, db
+from app.shared.utils.transaction import transaction
 
 logger = logging.getLogger('CheckinRecordService')
 
@@ -424,10 +425,10 @@ class CheckinRecordService:
 
             # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                db.session.add(new_record)
-                db.session.commit()
-                db.session.refresh(new_record)
-                record_id = new_record.record_id
+                with transaction():
+                    db.session.add(new_record)
+                    db.session.flush()
+                    record_id = new_record.record_id
                 # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
                 return record_id
@@ -457,16 +458,16 @@ class CheckinRecordService:
         try:
             # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                record = db.session.get(CheckinRecord, record_id)
-                if not record:
-                    raise ValueError('打卡记录不存在')
+                with transaction():
+                    record = db.session.get(CheckinRecord, record_id)
+                    if not record:
+                        raise ValueError('打卡记录不存在')
 
-                record.checkin_time = checkin_time
-                record.status = status
-                record.updated_at = datetime.now()
+                    record.checkin_time = checkin_time
+                    record.status = status
+                    record.updated_at = datetime.now()
 
-                db.session.flush()
-                db.session.commit()
+                    db.session.flush()
 
                 return record_id
             else:

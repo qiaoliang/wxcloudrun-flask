@@ -9,6 +9,7 @@ from sqlalchemy import select, func
 
 from database.flask_models import db, CommunityEvent, EventSupport, User, Community
 from wxcloudrun.community_service import CommunityService
+from app.shared.utils.transaction import transactional
 
 logger = logging.getLogger(__name__)
 
@@ -40,15 +41,15 @@ class CommunityEventService:
             user = db.session.get(User, user_id)
             if not user:
                 return {'success': False, 'message': '用户不存在'}
-            
+
             community = db.session.get(Community, community_id)
             if not community:
                 return {'success': False, 'message': '社区不存在'}
-            
+
             # 验证用户是否属于该社区
             if user.community_id != community_id:
                 return {'success': False, 'message': '用户不属于该社区'}
-            
+
             # 创建事件
             event = CommunityEvent(
                 community_id=community_id,
@@ -59,21 +60,21 @@ class CommunityEventService:
                 target_user_id=target_user_id,
                 created_by=user_id
             )
-            
-            db.session.add(event)
-            db.session.commit()
-            
+
+            with transaction():
+                db.session.add(event)
+                db.session.flush()
+
             logger.info(f"用户{user_id}在社区{community_id}创建了事件{event.event_id}")
-            
+
             return {
                 'success': True,
                 'message': '事件创建成功',
                 'event': event.to_dict()
             }
-            
+
         except Exception as e:
             logger.error(f"创建事件失败: {str(e)}")
-            db.session.rollback()
             return {'success': False, 'message': f'创建事件失败: {str(e)}'}
 
     @staticmethod
@@ -169,20 +170,20 @@ class CommunityEventService:
             event = db.session.get(CommunityEvent, event_id)
             if not event:
                 return {'success': False, 'message': '事件不存在'}
-            
+
             # 验证事件状态
             if event.status != 1:  # 不是进行中状态
                 return {'success': False, 'message': '事件已结束，无法应援'}
-            
+
             # 验证应援者
             supporter = db.session.get(User, supporter_id)
             if not supporter:
                 return {'success': False, 'message': '应援者不存在'}
-            
+
             # 验证应援者是否为社区工作人员
             if not CommunityService.has_community_permission(supporter_id, event.community_id):
                 return {'success': False, 'message': '无权限进行应援操作'}
-            
+
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 检查是否已经应援过
             stmt = select(EventSupport).where(
@@ -191,31 +192,31 @@ class CommunityEventService:
                 EventSupport.status == 1
             )
             existing_support = db.session.execute(stmt).scalar_one_or_none()
-            
+
             if existing_support:
                 return {'success': False, 'message': '您已经应援过该事件'}
-            
+
             # 创建应援记录
             support = EventSupport(
                 event_id=event_id,
                 supporter_id=supporter_id,
                 support_content=support_content
             )
-            
-            db.session.add(support)
-            db.session.commit()
-            
+
+            with transaction():
+                db.session.add(support)
+                db.session.flush()
+
             logger.info(f"用户{supporter_id}对事件{event_id}进行了应援")
-            
+
             return {
                 'success': True,
                 'message': '应援成功',
                 'support': support.to_dict()
             }
-            
+
         except Exception as e:
             logger.error(f"创建应援失败: {str(e)}")
-            db.session.rollback()
             return {'success': False, 'message': f'应援失败: {str(e)}'}
 
     @staticmethod

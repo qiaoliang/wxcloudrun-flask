@@ -10,6 +10,7 @@ from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCom
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
+from app.shared.utils.transaction import transaction
 
 logger = logging.getLogger('UserCheckinRuleService')
 
@@ -176,7 +177,8 @@ class UserCheckinRuleService:
 
             # 提交新创建的映射记录
             if new_mappings_created:
-                db.session.commit()
+                with transaction():
+                    db.session.flush()
 
             # 返回规则列表
             return all_rules
