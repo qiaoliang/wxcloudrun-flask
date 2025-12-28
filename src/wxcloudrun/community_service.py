@@ -13,6 +13,8 @@ from sqlalchemy import select, func, delete, and_, or_, not_
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog
 from wxcloudrun.utils.validators import generate_phone_hash
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
+from app.shared.utils.transaction import transactional
+
 logger = logging.getLogger('CommunityService')
 
 
@@ -20,6 +22,7 @@ class CommunityService:
     """社区服务类"""
 
     @staticmethod
+    @transactional
     def assign_user_to_community(user, community_name):
         """将用户分配到社区"""
         if not community_name:
@@ -33,7 +36,6 @@ class CommunityService:
         # 更新用户的社区ID
         user.community_id = community.community_id
         db.session.merge(user)
-        db.session.commit()
 
         logger.info(f"用户 {user.user_id} 已分配到社区 {community.community_id}")
         return community
@@ -53,6 +55,7 @@ class CommunityService:
         return existing
 
     @staticmethod
+    @transactional
     def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None):
         """创建新社区"""
         # 检查社区名称是否已存在
@@ -84,8 +87,7 @@ class CommunityService:
         )
 
         db.session.add(community)
-        db.session.commit()
-        db.session.refresh(community)
+        db.session.flush()  # 刷新以获取数据库生成的ID
 
         logger.info(f"创建社区成功: {community.community_id}")
         return community

@@ -20,6 +20,7 @@ from database.flask_models import db, User, UserAuditLog
 
 # 导入工具函数
 from wxcloudrun.utils.validators import generate_phone_hash
+from app.shared.utils.transaction import transactional
 
 # 全局计数器，用于生成唯一的测试手机号
 _phone_counter = 0
@@ -69,51 +70,46 @@ class UserService:
             return None
 
     @staticmethod
+    @transactional
     def update_user_by_id(user):
         """
         根据ID更新用户信息
         :param user: User实体
         """
-        try:
-            # 在数据库中查找现有用户
-            stmt = select(User).where(User.user_id == user.user_id)
-            existing_user = db.session.execute(stmt).scalar_one_or_none()
-            if not existing_user:
-                return
+        # 在数据库中查找现有用户
+        stmt = select(User).where(User.user_id == user.user_id)
+        existing_user = db.session.execute(stmt).scalar_one_or_none()
+        if not existing_user:
+            return
 
-            # 更新字段
-            if user.nickname is not None:
-                existing_user.nickname = user.nickname
-            if user.avatar_url is not None:
-                existing_user.avatar_url = user.avatar_url
-            if user.name is not None:
-                existing_user.name = user.name
-            if user.work_id is not None:
-                existing_user.work_id = user.work_id
-            if user.phone_number is not None:
-                existing_user.phone_number = user.phone_number
-            if user.role is not None:
-                if isinstance(user.role, int):
-                    existing_user.role = user.role
-            if user.verification_status is not None:
-                existing_user.verification_status = user.verification_status
-            if user.verification_materials is not None:
-                existing_user.verification_materials = user.verification_materials
-            if user.community_id is not None:
-                existing_user.community_id = user.community_id
-            if user.status is not None:
-                if isinstance(user.status, int):
-                    existing_user.status = user.status
-            if user.refresh_token is not None:
-                existing_user.refresh_token = user.refresh_token
-            if user.refresh_token_expire is not None:
-                existing_user.refresh_token_expire = user.refresh_token_expire
-            existing_user.updated_at = user.updated_at or datetime.now()
-
-            db.session.commit()
-        except OperationalError as e:
-            logger.info(f"update_user_by_id errorMsg= {e}")
-            db.session.rollback()
+        # 更新字段
+        if user.nickname is not None:
+            existing_user.nickname = user.nickname
+        if user.avatar_url is not None:
+            existing_user.avatar_url = user.avatar_url
+        if user.name is not None:
+            existing_user.name = user.name
+        if user.work_id is not None:
+            existing_user.work_id = user.work_id
+        if user.phone_number is not None:
+            existing_user.phone_number = user.phone_number
+        if user.role is not None:
+            if isinstance(user.role, int):
+                existing_user.role = user.role
+        if user.verification_status is not None:
+            existing_user.verification_status = user.verification_status
+        if user.verification_materials is not None:
+            existing_user.verification_materials = user.verification_materials
+        if user.community_id is not None:
+            existing_user.community_id = user.community_id
+        if user.status is not None:
+            if isinstance(user.status, int):
+                existing_user.status = user.status
+        if user.refresh_token is not None:
+            existing_user.refresh_token = user.refresh_token
+        if user.refresh_token_expire is not None:
+            existing_user.refresh_token_expire = user.refresh_token_expire
+        existing_user.updated_at = user.updated_at or datetime.now()
 
     @staticmethod
     def query_user_by_openid(openid):
@@ -200,6 +196,7 @@ class UserService:
         return (new_user.wechat_openid is not None and new_user.wechat_openid != "")
 
     @staticmethod
+    @transactional
     def create_user(new_user):
         # 验证：必须提供 wechat_openid 或 phone_number 至少一个
         has_openid = hasattr(new_user, 'wechat_openid') and new_user.wechat_openid
@@ -269,7 +266,6 @@ class UserService:
         )
         db.session.add(audit_log)
 
-        db.session.commit()
         db.session.refresh(new_user)  # 确保所有属性都已加载
         logger.info(f"用户创建成功: {new_user.nickname}, ID: {new_user.user_id}")
         return new_user

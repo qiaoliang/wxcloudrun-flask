@@ -78,7 +78,10 @@ def create_app(config_name=None):
     # 7. 注册错误处理器
     register_error_handlers(app)
     
-    # 8. 启动后台任务（非unit环境）
+    # 8. 注册会话清理
+    register_session_cleanup(app)
+    
+    # 9. 启动后台任务（非unit环境）
     start_background_tasks(app)
     
     # 9. 在 unit 环境下初始化默认数据
@@ -143,6 +146,14 @@ def register_error_handlers(app):
     @app.errorhandler(403)
     def forbidden(e):
         return make_err_response({}, '禁止访问'), 403
+
+
+def register_session_cleanup(app):
+    """注册会话清理处理器"""
+    @app.teardown_appcontext
+    def shutdown_session(exception=None):
+        """请求结束后清理数据库会话"""
+        db.session.remove()
 
 
 def start_background_tasks(app):

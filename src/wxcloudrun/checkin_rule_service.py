@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from database.flask_models import CheckinRule, CheckinRecord, db
 from wxcloudrun.utils.timeutil import parse_time_only, parse_date_only
+from app.shared.utils.transaction import transactional
 
 logger = logging.getLogger('CheckinRuleService')
 
@@ -55,6 +56,7 @@ class CheckinRuleService:
             return None
 
     @staticmethod
+    @transactional
     def create_rule(rule_data, user_id):
         """
         创建打卡规则
@@ -93,36 +95,32 @@ class CheckinRuleService:
         custom_end_date_str = rule_data.get('custom_end_date')
         custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
 
-        try:
-            # 创建规则实体
-            new_rule = CheckinRule(
-                user_id=user_id,
-                community_id=rule_data.get('community_id'),
-                rule_type=rule_data.get('rule_type', 'personal'),
-                rule_name=rule_data['rule_name'],
-                icon_url=rule_data.get('icon_url', ''),
-                frequency_type=frequency_type,
-                time_slot_type=rule_data.get('time_slot_type', 4),
-                custom_time=custom_time,
-                week_days=rule_data.get('week_days', 127),
-                custom_start_date=custom_start_date,
-                custom_end_date=custom_end_date,
-                status=rule_data.get('status', 1)
-            )
+        # 创建规则实体
+        new_rule = CheckinRule(
+            user_id=user_id,
+            community_id=rule_data.get('community_id'),
+            rule_type=rule_data.get('rule_type', 'personal'),
+            rule_name=rule_data['rule_name'],
+            icon_url=rule_data.get('icon_url', ''),
+            frequency_type=frequency_type,
+            time_slot_type=rule_data.get('time_slot_type', 4),
+            custom_time=custom_time,
+            week_days=rule_data.get('week_days', 127),
+            custom_start_date=custom_start_date,
+            custom_end_date=custom_end_date,
+            status=rule_data.get('status', 1)
+        )
 
-            db.session.add(new_rule)
-            db.session.commit()
-            db.session.refresh(new_rule)
-            # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
+        db.session.add(new_rule)
+        db.session.flush()
+        db.session.refresh(new_rule)
+        # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
-            logger.info(f"创建打卡规则成功: 用户ID={user_id}, 规则ID={new_rule.rule_id}")
-            return new_rule
-
-        except Exception as e:
-            logger.error(f"创建打卡规则失败: {str(e)}")
-            raise
+        logger.info(f"创建打卡规则成功: 用户ID={user_id}, 规则ID={new_rule.rule_id}")
+        return new_rule
 
     @staticmethod
+    @transactional
     def update_rule(rule_id, rule_data, user_id):
         """
         更新打卡规则
@@ -132,67 +130,61 @@ class CheckinRuleService:
         :return: 更新后的规则实体
         :raises ValueError: 当规则不存在或无权限时
         """
-        try:
-            rule = db.session.get(CheckinRule, rule_id)
+        rule = db.session.get(CheckinRule, rule_id)
 
-            if not rule:
-                raise ValueError('打卡规则不存在')
+        if not rule:
+            raise ValueError('打卡规则不存在')
 
-            # 权限验证
-            if rule.user_id != user_id:  # 更新字段名
-                raise ValueError('无权限修改此打卡规则')
+        # 权限验证
+        if rule.user_id != user_id:  # 更新字段名
+            raise ValueError('无权限修改此打卡规则')
 
-            # 解析时间字段
-            if 'custom_time' in rule_data:
-                custom_time_str = rule_data['custom_time']
-                rule.custom_time = parse_time_only(custom_time_str) if custom_time_str else None
+        # 解析时间字段
+        if 'custom_time' in rule_data:
+            custom_time_str = rule_data['custom_time']
+            rule.custom_time = parse_time_only(custom_time_str) if custom_time_str else None
 
-            # 解析日期字段
-            if 'custom_start_date' in rule_data:
-                custom_start_date_str = rule_data['custom_start_date']
-                rule.custom_start_date = parse_date_only(custom_start_date_str) if custom_start_date_str else None
+        # 解析日期字段
+        if 'custom_start_date' in rule_data:
+            custom_start_date_str = rule_data['custom_start_date']
+            rule.custom_start_date = parse_date_only(custom_start_date_str) if custom_start_date_str else None
 
-            if 'custom_end_date' in rule_data:
-                custom_end_date_str = rule_data['custom_end_date']
-                rule.custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
+        if 'custom_end_date' in rule_data:
+            custom_end_date_str = rule_data['custom_end_date']
+            rule.custom_end_date = parse_date_only(custom_end_date_str) if custom_end_date_str else None
 
-            # 更新字段
-            if 'rule_name' in rule_data:
-                rule.rule_name = rule_data['rule_name']
-            if 'icon_url' in rule_data:
-                rule.icon_url = rule_data['icon_url']
-            if 'frequency_type' in rule_data:
-                rule.frequency_type = rule_data['frequency_type']
-            if 'time_slot_type' in rule_data:
-                rule.time_slot_type = rule_data['time_slot_type']
-            if 'week_days' in rule_data:
-                rule.week_days = rule_data['week_days']
-            if 'status' in rule_data:
-                rule.status = rule_data['status']
+        # 更新字段
+        if 'rule_name' in rule_data:
+            rule.rule_name = rule_data['rule_name']
+        if 'icon_url' in rule_data:
+            rule.icon_url = rule_data['icon_url']
+        if 'frequency_type' in rule_data:
+            rule.frequency_type = rule_data['frequency_type']
+        if 'time_slot_type' in rule_data:
+            rule.time_slot_type = rule_data['time_slot_type']
+        if 'week_days' in rule_data:
+            rule.week_days = rule_data['week_days']
+        if 'status' in rule_data:
+            rule.status = rule_data['status']
 
-            rule.updated_at = datetime.now()
+        rule.updated_at = datetime.now()
 
-            # 验证自定义频率的日期范围
-            if rule.frequency_type == 3:
-                if not rule.custom_start_date or not rule.custom_end_date:
-                    raise ValueError('自定义频率必须提供起止日期')
-                if rule.custom_end_date < rule.custom_start_date:
-                    raise ValueError('结束日期不能早于开始日期')
+        # 验证自定义频率的日期范围
+        if rule.frequency_type == 3:
+            if not rule.custom_start_date or not rule.custom_end_date:
+                raise ValueError('自定义频率必须提供起止日期')
+            if rule.custom_end_date < rule.custom_start_date:
+                raise ValueError('结束日期不能早于开始日期')
 
-            db.session.flush()
-            db.session.commit()
-            db.session.refresh(rule)
-            # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
+        db.session.flush()
+        db.session.refresh(rule)
+        # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
-            logger.info(f"更新打卡规则成功: 规则ID={rule_id}")
-            return rule
-        except ValueError:
-            raise
-        except Exception as e:
-            logger.error(f"更新打卡规则失败: {str(e)}")
-            raise
+        logger.info(f"更新打卡规则成功: 规则ID={rule_id}")
+        return rule
 
     @staticmethod
+    @transactional
     def delete_rule(rule_id, user_id):
         """
         软删除打卡规则
@@ -201,29 +193,21 @@ class CheckinRuleService:
         :return: True 删除成功
         :raises ValueError: 当规则不存在或无权限时
         """
-        try:
-            rule = db.session.get(CheckinRule, rule_id)
+        rule = db.session.get(CheckinRule, rule_id)
 
-            if not rule:
-                raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
+        if not rule:
+            raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
 
-            # 权限验证
-            if rule.user_id != user_id:  # 更新字段名
-                raise ValueError('无权限删除此打卡规则')
+        # 权限验证
+        if rule.user_id != user_id:  # 更新字段名
+            raise ValueError('无权限删除此打卡规则')
 
-            # 软删除
-            rule.status = 2  # 已删除
-            rule.deleted_at = datetime.now()
+        # 软删除
+        rule.status = 2  # 已删除
+        rule.deleted_at = datetime.now()
 
-            db.session.commit()
-
-            logger.info(f"删除打卡规则成功: 规则ID={rule_id}")
-            return True
-        except ValueError:
-            raise
-        except Exception as e:
-            logger.error(f"删除打卡规则失败: {str(e)}")
-            raise
+        logger.info(f"删除打卡规则成功: 规则ID={rule_id}")
+        return True
 
     @staticmethod
     def get_today_checkin_plan(user_id):
