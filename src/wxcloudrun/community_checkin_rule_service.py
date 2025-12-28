@@ -4,7 +4,7 @@
 """
 import logging
 from datetime import datetime
-from sqlalchemy import and_, or_
+from sqlalchemy import select, and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from database.flask_models import db, CommunityCheckinRule, UserCommunityRule, User, Community
 from wxcloudrun.community_service import CommunityService
@@ -220,16 +220,20 @@ class CommunityCheckinRuleService:
                 logger.warning(f"用户无权限启用规则: user_id={enabled_by_int}, community_id={rule.community_id}")
                 raise ValueError('无权限启用此规则')
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 获取社区所有用户
-            community_users = db.session.query(User).filter_by(community_id=rule.community_id).all()
+            stmt_users = select(User).where(User.community_id == rule.community_id)
+            community_users = db.session.execute(stmt_users).scalars().all()
 
             # 为每个用户创建或更新映射记录
             for user in community_users:
+                # 使用 SQLAlchemy 2.0 的 select() 语句
                 # 查找是否已有映射记录
-                existing_mapping = db.session.query(UserCommunityRule).filter_by(
-                    user_id=user.user_id,
-                    community_rule_id=rule_id
-                ).first()
+                stmt_mapping = select(UserCommunityRule).where(
+                    UserCommunityRule.user_id == user.user_id,
+                    UserCommunityRule.community_rule_id == rule_id
+                )
+                existing_mapping = db.session.execute(stmt_mapping).scalar_one_or_none()
 
                 if existing_mapping:
                     # 如果已有记录，更新为激活状态
@@ -301,10 +305,11 @@ class CommunityCheckinRuleService:
             if rule.status != 1:
                 raise ValueError('规则未启用')
 
+            # 使用 SQLAlchemy 2.0 的 select() 和 update() 语句
             # 更新所有用户映射为停用状态
-            db.session.query(UserCommunityRule).filter_by(
-                community_rule_id=rule_id
-            ).update({'is_active': False})
+            from sqlalchemy import update
+            stmt = update(UserCommunityRule).where(UserCommunityRule.community_rule_id == rule_id).values(is_active=False)
+            db.session.execute(stmt)
 
             # 更新规则状态
             rule.status = 0  # 设置为停用状态
@@ -357,27 +362,29 @@ class CommunityCheckinRuleService:
             if not community:
                 raise ValueError(f'社区不存在: {community_id_int}')
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 始终排除已删除的规则 (status=2)
-            from sqlalchemy.orm import joinedload
+            from sqlalchemy.orm import joinedload, selectinload
 
-            query = (db.session.query(CommunityCheckinRule)
+            stmt = (select(CommunityCheckinRule)
                     .options(
                         joinedload(CommunityCheckinRule.creator),
                         joinedload(CommunityCheckinRule.updater),
                         joinedload(CommunityCheckinRule.enabler),
                         joinedload(CommunityCheckinRule.disabler)
                     )
-                    .filter_by(community_id=community_id_int)
-                    .filter(CommunityCheckinRule.status != 2))
+                    .where(CommunityCheckinRule.community_id == community_id_int)
+                    .where(CommunityCheckinRule.status != 2))
 
             if not include_disabled:
-                query = query.filter_by(status=1)  # 只返回启用状态的规则
+                stmt = stmt.where(CommunityCheckinRule.status == 1)  # 只返回启用状态的规则
                 logger.debug(f"过滤规则: 只返回启用状态(status=1), 已排除删除状态(status=2)")
             else:
-                query = query.filter(CommunityCheckinRule.status.in_([0, 1]))  # 返回启用和停用状态
+                stmt = stmt.where(CommunityCheckinRule.status.in_([0, 1]))  # 返回启用和停用状态
                 logger.debug(f"过滤规则: 返回启用和停用状态(status in [0, 1]), 已排除删除状态(status=2)")
 
-            rules = query.order_by(CommunityCheckinRule.created_at.desc()).all()
+            stmt = stmt.order_by(CommunityCheckinRule.created_at.desc())
+            rules = db.session.execute(stmt).scalars().all()
 
             # Layer 4: 调试仪表 - 记录规则状态分布
             status_counts = {}
@@ -429,18 +436,19 @@ class CommunityCheckinRuleService:
             if not community:
                 raise ValueError(f'社区不存在: {community_id_int}')
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 查询所有规则（包括已删除的）
             from sqlalchemy.orm import joinedload
-            rules = (db.session.query(CommunityCheckinRule)
+            stmt = (select(CommunityCheckinRule)
                     .options(
                         joinedload(CommunityCheckinRule.creator),
                         joinedload(CommunityCheckinRule.updater),
                         joinedload(CommunityCheckinRule.enabler),
                         joinedload(CommunityCheckinRule.disabler)
                     )
-                    .filter_by(community_id=community_id_int)
-                    .order_by(CommunityCheckinRule.created_at.desc())
-                    .all())
+                    .where(CommunityCheckinRule.community_id == community_id_int)
+                    .order_by(CommunityCheckinRule.created_at.desc()))
+            rules = db.session.execute(stmt).scalars().all()
 
             # 按状态分组
             grouped_rules = {
@@ -485,18 +493,19 @@ class CommunityCheckinRuleService:
             if not user or not user.community_id:
                 return []
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 查询用户社区中已启用且对用户生效的规则
-            rules = (db.session.query(CommunityCheckinRule)
+            stmt = (select(CommunityCheckinRule)
                     .join(UserCommunityRule,
                           UserCommunityRule.community_rule_id == CommunityCheckinRule.community_rule_id)
-                    .filter(
+                    .where(
                         CommunityCheckinRule.community_id == user.community_id,
                         CommunityCheckinRule.status == 1,  # 启用状态
                         UserCommunityRule.user_id == user_id,
                         UserCommunityRule.is_active == True
                     )
-                    .order_by(CommunityCheckinRule.created_at.asc())
-                    .all())
+                    .order_by(CommunityCheckinRule.created_at.asc()))
+            rules = db.session.execute(stmt).scalars().all()
 
             return rules
 
@@ -518,34 +527,41 @@ class CommunityCheckinRuleService:
             bool: 是否同步成功
         """
         try:
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 停用旧社区规则关联
             if old_community_id:
-                old_rules = db.session.query(CommunityCheckinRule).filter_by(
-                    community_id=old_community_id,
-                    status=1  # 启用状态
-                ).all()
+                stmt_old = select(CommunityCheckinRule).where(
+                    CommunityCheckinRule.community_id == old_community_id,
+                    CommunityCheckinRule.status == 1  # 启用状态
+                )
+                old_rules = db.session.execute(stmt_old).scalars().all()
 
                 for rule in old_rules:
-                    mapping = db.session.query(UserCommunityRule).filter_by(
-                        user_id=user_id,
-                        community_rule_id=rule.community_rule_id
-                    ).first()
+                    stmt_mapping = select(UserCommunityRule).where(
+                        UserCommunityRule.user_id == user_id,
+                        UserCommunityRule.community_rule_id == rule.community_rule_id
+                    )
+                    mapping = db.session.execute(stmt_mapping).scalar_one_or_none()
                     if mapping:
                         mapping.is_active = False
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 启用新社区规则关联
             if new_community_id:
-                new_rules = db.session.query(CommunityCheckinRule).filter_by(
-                    community_id=new_community_id,
-                    status=1  # 启用状态
-                ).all()
+                stmt_new = select(CommunityCheckinRule).where(
+                    CommunityCheckinRule.community_id == new_community_id,
+                    CommunityCheckinRule.status == 1  # 启用状态
+                )
+                new_rules = db.session.execute(stmt_new).scalars().all()
 
                 for rule in new_rules:
+                    # 使用 SQLAlchemy 2.0 的 select() 语句
                     # 检查是否已存在映射
-                    existing = db.session.query(UserCommunityRule).filter_by(
-                        user_id=user_id,
-                        community_rule_id=rule.community_rule_id
-                    ).first()
+                    stmt_existing = select(UserCommunityRule).where(
+                        UserCommunityRule.user_id == user_id,
+                        UserCommunityRule.community_rule_id == rule.community_rule_id
+                    )
+                    existing = db.session.execute(stmt_existing).scalar_one_or_none()
 
                     if existing:
                         existing.is_active = True
@@ -623,9 +639,10 @@ class CommunityCheckinRuleService:
         Raises:
             ValueError: 规则不存在
         """
+        # 使用 SQLAlchemy 2.0 的 select() 语句
         # 使用options预先加载关系，避免延迟加载错误
         from sqlalchemy.orm import joinedload
-        rule = (db.session.query(CommunityCheckinRule)
+        stmt = (select(CommunityCheckinRule)
                .options(
                    joinedload(CommunityCheckinRule.community),
                    joinedload(CommunityCheckinRule.creator),
@@ -633,7 +650,8 @@ class CommunityCheckinRuleService:
                    joinedload(CommunityCheckinRule.enabler),
                    joinedload(CommunityCheckinRule.disabler)
                )
-               .get(rule_id))
+               .where(CommunityCheckinRule.community_rule_id == rule_id))
+        rule = db.session.execute(stmt).scalar_one_or_none()
 
         if not rule:
             raise ValueError(f'社区规则不存在: {rule_id}')
