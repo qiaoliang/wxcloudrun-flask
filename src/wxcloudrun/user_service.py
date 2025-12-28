@@ -17,6 +17,9 @@ from sqlalchemy.orm import joinedload
 # 导入Flask-SQLAlchemy模型和实例
 from database.flask_models import db, User, UserAuditLog
 
+# 导入工具函数
+from wxcloudrun.utils.validators import generate_phone_hash
+
 # 全局计数器，用于生成唯一的测试手机号
 _phone_counter = 0
 _phone_counter_lock = threading.Lock()
@@ -156,7 +159,6 @@ class UserService:
         :param phone_number: 手机号
         :return: User实体
         """
-        from wxcloudrun.utils.validators import generate_phone_hash
         user = User.query.filter_by(phone_hash=generate_phone_hash(phone_number)).first()
         return user
 
@@ -228,7 +230,6 @@ class UserService:
             masked_phone = _mask_phone_number(original_phone)
 
             new_user.phone_number = masked_phone  # 存储脱敏号码
-            from wxcloudrun.utils.validators import generate_phone_hash
             new_user.phone_hash = generate_phone_hash(original_phone)  # 哈希值使用原始号码
             new_user.password_hash = pwd_hash(new_user.password)
             new_user.password_salt = PWD_SALT
