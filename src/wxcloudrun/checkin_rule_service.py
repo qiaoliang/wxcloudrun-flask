@@ -5,6 +5,7 @@
 
 import logging
 from datetime import datetime, date, time
+from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from database.flask_models import CheckinRule, CheckinRecord, db
 from wxcloudrun.utils.timeutil import parse_time_only, parse_date_only
@@ -23,11 +24,12 @@ class CheckinRuleService:
         :return: 打卡规则列表
         """
         try:
-            # 使用 db.session.query（符合代码规范）
-            rules = db.session.query(CheckinRule).filter(
-                CheckinRule.user_id == user_id,  # 更新字段名
-                CheckinRule.status == 1  # 更新字段名，只查询启用状态的规则
-            ).all()
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            stmt = select(CheckinRule).where(
+                CheckinRule.user_id == user_id,
+                CheckinRule.status == 1
+            )
+            rules = db.session.execute(stmt).scalars().all()
             return rules or []  # 确保总是返回列表
         except Exception as e:
             logger.error(f"查询用户打卡规则失败: {str(e)}")
@@ -41,10 +43,12 @@ class CheckinRuleService:
         :return: 打卡规则实体（排除已删除的规则）
         """
         try:
-            rule = db.session.query(CheckinRule).filter(
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            stmt = select(CheckinRule).where(
                 CheckinRule.rule_id == rule_id,
                 CheckinRule.status != 2  # 排除已删除的规则
-            ).first()
+            )
+            rule = db.session.execute(stmt).scalar_one_or_none()
             return rule
         except Exception as e:
             logger.error(f"查询打卡规则失败: {str(e)}")
@@ -339,19 +343,20 @@ class CheckinRuleService:
         """
         try:
             from sqlalchemy import func
-            query = db.session.query(CheckinRecord).filter(
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            stmt = select(CheckinRecord).where(
                 func.date(CheckinRecord.planned_time) == today
             )
 
             # 根据规则来源过滤
             if rule_source == 'community':
                 # 社区规则的打卡记录使用community_rule_id字段
-                query = query.filter(CheckinRecord.community_rule_id == rule_id)
+                stmt = stmt.where(CheckinRecord.community_rule_id == rule_id)
             else:
                 # 个人规则的打卡记录使用rule_id字段
-                query = query.filter(CheckinRecord.rule_id == rule_id)
+                stmt = stmt.where(CheckinRecord.rule_id == rule_id)
 
-            records = query.all()
+            records = db.session.execute(stmt).scalars().all()
             return records
         except Exception as e:
             logger.error(f"查询今日打卡记录失败: {str(e)}")
