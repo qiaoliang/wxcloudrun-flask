@@ -135,7 +135,6 @@ class CommunityCheckinRuleService:
             if not rule:
                 raise ValueError(f'社区规则不存在: {rule_id}')
 
-            # 检查规则是否已启用（status=1表示启用状态）
             if rule.status == 1:
                 raise ValueError('规则已启用，请先停用后再修改')
 
@@ -231,7 +230,7 @@ class CommunityCheckinRuleService:
                     user_id=user.user_id,
                     community_rule_id=rule_id
                 ).first()
-                
+
                 if existing_mapping:
                     # 如果已有记录，更新为激活状态
                     existing_mapping.is_active = True
@@ -253,7 +252,7 @@ class CommunityCheckinRuleService:
             rule.updated_at = datetime.now()
 
             db.session.commit()
-            
+
             # 将对象转换为字典
             rule_dict = rule.to_dict()
 
@@ -313,10 +312,10 @@ class CommunityCheckinRuleService:
             rule.disabled_by = disabled_by_int
             rule.updated_at = datetime.now()
             db.session.commit()
-            
+
             # 将对象转换为字典
             rule_dict = rule.to_dict()
-                
+
             logger.info(f"停用社区规则成功: 规则ID={rule_id}, 停用人={disabled_by_int}")
             return rule_dict
 
@@ -360,7 +359,7 @@ class CommunityCheckinRuleService:
 
             # 始终排除已删除的规则 (status=2)
             from sqlalchemy.orm import joinedload
-            
+
             query = (db.session.query(CommunityCheckinRule)
                     .options(
                         joinedload(CommunityCheckinRule.creator),

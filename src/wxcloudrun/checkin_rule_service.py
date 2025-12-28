@@ -25,8 +25,8 @@ class CheckinRuleService:
         """
         try:
             if session is None:
-                # 使用 Flask-SQLAlchemy 的 db.session
-                rules = db.session.query(CheckinRule).filter(
+                # 使用 Flask-SQLAlchemy 的 Model.query（推荐方式）
+                rules = CheckinRule.query.filter(
                     CheckinRule.user_id == user_id,  # 更新字段名
                     CheckinRule.status == 1  # 更新字段名，只查询启用状态的规则
                 ).all()
@@ -51,11 +51,11 @@ class CheckinRuleService:
         """
         try:
             if session is None:
-                # 使用 Flask-SQLAlchemy 的 db.session
-                rule = db.session.query(CheckinRule).get(rule_id)
+                # 使用 Flask-SQLAlchemy 的 Model.query.get（SQLAlchemy 2.0 标准 API）
+                rule = CheckinRule.query.get(rule_id)
                 return rule
             else:
-                rule = session.query(CheckinRule).get(rule_id)
+                rule = session.get(CheckinRule, rule_id)
                 return rule
         except Exception as e:
             logger.error(f"查询打卡规则失败: {str(e)}")
@@ -78,6 +78,10 @@ class CheckinRuleService:
         frequency_type = rule_data.get('frequency_type', 0)
 
         # 验证自定义频率的日期范围
+
+        # 如果 week_days 是列表，转换为位掩码整数
+        if isinstance(rule_data.get('week_days'), list):
+            rule_data['week_days'] = sum(1 << (day - 1) for day in rule_data['week_days'])
         if int(frequency_type) == 3:  # 自定义频率
             start_date = rule_data.get('custom_start_date')
             end_date = rule_data.get('custom_end_date')
@@ -148,7 +152,7 @@ class CheckinRuleService:
         """
         try:
             if session is None:
-                rule = db.session.query(CheckinRule).get(rule_id)
+                rule = CheckinRule.query.get(rule_id)
 
                 if not rule:
                     raise ValueError('打卡规则不存在')
@@ -202,7 +206,7 @@ class CheckinRuleService:
                 logger.info(f"更新打卡规则成功: 规则ID={rule_id}")
                 return rule
             else:
-                rule = session.query(CheckinRule).get(rule_id)
+                rule = session.get(CheckinRule, rule_id)
 
                 if not rule:
                     raise ValueError('打卡规则不存在')
@@ -274,7 +278,7 @@ class CheckinRuleService:
         """
         try:
             if session is None:
-                rule = db.session.query(CheckinRule).get(rule_id)
+                rule = CheckinRule.query.get(rule_id)
 
                 if not rule:
                     raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
@@ -292,7 +296,7 @@ class CheckinRuleService:
                 logger.info(f"删除打卡规则成功: 规则ID={rule_id}")
                 return True
             else:
-                rule = session.query(CheckinRule).get(rule_id)
+                rule = session.get(CheckinRule, rule_id)
 
                 if not rule:
                     raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
@@ -438,7 +442,7 @@ class CheckinRuleService:
         try:
             from sqlalchemy import func
             if session is None:
-                query = db.session.query(CheckinRecord).filter(
+                query = CheckinRecord.query.filter(
                     func.date(CheckinRecord.planned_time) == today
                 )
 
