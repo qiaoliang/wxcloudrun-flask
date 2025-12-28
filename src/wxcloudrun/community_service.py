@@ -8,6 +8,7 @@ import os
 import json
 from datetime import datetime
 from hashlib import sha256
+from typing import Dict
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
 logger = logging.getLogger('CommunityService')
@@ -882,6 +883,122 @@ class CommunityService:
             'unchecked_user_count': unchecked_user_count
         }
 
+    @staticmethod
+    def get_community_checkin_stats(community_id: int, days: int = 7) -> Dict:
+        """
+        获取社区打卡统计信息
+        
+        Args:
+            community_id: 社区ID
+            days: 统计天数，默认7天
+            
+        Returns:
+            Dict: 包含每个规则的打卡统计数据
+        """
+        from database.flask_models import CheckinRecord, CommunityCheckinRule, User, CommunityStaff
+        from datetime import date, timedelta
+        from sqlalchemy import and_, func, case
+        
+        # Layer 1: 入口点验证 - 确保社区ID有效
+        if not community_id or community_id <= 0:
+            raise ValueError('社区ID必须为正整数')
+        
+        # Layer 4: 调试仪表 - 记录统计上下文
+        logger.debug(f"获取社区打卡统计: community_id={community_id}, days={days}")
+        
+        # 计算日期范围
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days - 1)
+        date_range = [start_date + timedelta(days=i) for i in range(days)]
+        
+        # 获取该社区所有工作人员的用户ID列表（排除）
+        staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
+            community_id=community_id
+        ).all()]
+        
+        # Layer 2: 业务逻辑验证 - 获取启用的规则
+        enabled_rules = db.session.query(CommunityCheckinRule).filter(
+            and_(
+                CommunityCheckinRule.community_id == community_id,
+                CommunityCheckinRule.status == 1  # 启用状态
+            )
+        ).all()
+        
+        # Layer 4: 调试仪表 - 记录规则和用户数量
+        logger.debug(f"社区 {community_id} 启用规则数: {len(enabled_rules)}")
+        
+        # 获取该社区所有普通用户（排除工作人员）
+        all_users_query = db.session.query(User).filter_by(community_id=community_id)
+        if staff_user_ids:
+            all_users_query = all_users_query.filter(User.user_id.notin_(staff_user_ids))
+        all_users = all_users_query.all()
+        
+        logger.debug(f"社区 {community_id} 普通用户数: {len(all_users)}")
+        
+        # Layer 2: 业务逻辑验证 - 即使没有用户，也要返回正确的规则数
+        # 修复：不再因为无用户而返回 total_rules=0
+        if not all_users:
+            # Layer 4: 调试仪表 - 记录无用户情况
+            logger.info(f"社区 {community_id} 没有普通用户，返回空统计但保留规则数")
+            return {
+                'stats': [],
+                'total_rules': len(enabled_rules)  # ✅ 修复：返回实际规则数
+            }
+        
+        user_ids = [user.user_id for user in all_users]
+        rule_ids = [rule.community_rule_id for rule in enabled_rules]
+        
+        # 获取指定日期范围内的所有打卡记录
+        all_records = db.session.query(CheckinRecord).filter(
+            and_(
+                CheckinRecord.user_id.in_(user_ids),
+                CheckinRecord.community_rule_id.in_(rule_ids),
+                func.date(CheckinRecord.planned_time) >= start_date,
+                func.date(CheckinRecord.planned_time) <= end_date
+            )
+        ).all()
+        
+        # 构建统计数据
+        stats = []
+        rule_dict = {rule.community_rule_id: rule for rule in enabled_rules}
+        
+        for rule in enabled_rules:
+            rule_id = rule.community_rule_id
+            
+            # 统计该规则每日未打卡人数
+            daily_missed = []
+            for check_date in date_range:
+                # 查询该日期该规则的未打卡记录
+                day_records = [r for r in all_records 
+                             if r.community_rule_id == rule_id 
+                             and r.planned_time.date() == check_date
+                             and r.status == 0]  # 0-missed
+                
+                # 计算该日期应该打卡但未打卡的人数
+                # 理论上每个用户每天应该打卡一次
+                missed_count = len(day_records)
+                daily_missed.append(missed_count)
+            
+            # 计算7天未打卡人次总和
+            total_missed = sum(daily_missed)
+            
+            stats.append({
+                'rule_id': rule_id,
+                'rule_name': rule.rule_name,
+                'rule_icon': rule.icon_url or '📝',
+                'total_missed': total_missed,
+                'daily_missed': daily_missed,
+                'dates': [d.isoformat() for d in date_range]
+            })
+        
+        # 按未打卡人次总和降序排序
+        stats.sort(key=lambda x: x['total_missed'], reverse=True)
+        
+        return {
+            'stats': stats,
+            'total_rules': len(enabled_rules)
+        }
+    
     @staticmethod
     def toggle_community_status(community_id, status):
         """切换社区状态"""

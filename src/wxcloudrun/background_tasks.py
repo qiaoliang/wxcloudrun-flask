@@ -5,7 +5,7 @@ from datetime import datetime, time, timedelta
 
 from flask import current_app
 from app.extensions import db
-from database.flask_models import CheckinRule, CheckinRecord, User
+from database.flask_models import CheckinRule, CheckinRecord, User, CommunityCheckinRule, UserCommunityRule, CommunityStaff
 from wxcloudrun.checkin_record_service import CheckinRecordService
 
 
@@ -23,6 +23,31 @@ def _should_check_today(rule, today):
 
 
 def _planned_time_for_rule(rule, today):
+    if rule.time_slot_type == 4 and rule.custom_time:
+        return datetime.combine(today, rule.custom_time)
+    if rule.time_slot_type == 1:
+        return datetime.combine(today, time(9, 0))
+    if rule.time_slot_type == 2:
+        return datetime.combine(today, time(14, 0))
+    return datetime.combine(today, time(20, 0))
+
+
+def _should_check_community_rule_today(rule, today):
+    """检查社区规则今天是否应该打卡"""
+    if rule.frequency_type == 1:
+        weekday = today.weekday()
+        return bool(rule.week_days & (1 << weekday))
+    if rule.frequency_type == 2:
+        return today.weekday() < 5
+    if rule.frequency_type == 3:
+        if rule.custom_start_date and rule.custom_end_date:
+            return rule.custom_start_date <= today <= rule.custom_end_date
+        return False
+    return True
+
+
+def _planned_time_for_community_rule(rule, today):
+    """计算社区规则的计划打卡时间"""
     if rule.time_slot_type == 4 and rule.custom_time:
         return datetime.combine(today, rule.custom_time)
     if rule.time_slot_type == 1:
@@ -85,6 +110,92 @@ def _process_missed_for_today(now):
             )
 
 
+def _process_community_missed_for_today(now):
+    """处理社区打卡规则的未打卡标记"""
+    today = now.date()
+    grace_minutes = int(os.getenv('MISS_GRACE_MINUTES', '0'))
+    grace_delta = timedelta(minutes=grace_minutes)
+
+    try:
+        # 查询所有启用的社区规则
+        community_rules = CommunityCheckinRule.query.filter_by(status=1).all()
+    except Exception as e:
+        if "no such table" in str(e).lower():
+            current_app.logger.warning(f"[community-missing-mark] 数据库表尚未创建，跳过检查。")
+            return
+        else:
+            raise e
+
+    for rule in community_rules:
+        try:
+            # 检查规则今天是否应该打卡
+            if not _should_check_community_rule_today(rule, today):
+                continue
+
+            # 计算计划打卡时间
+            planned_dt = _planned_time_for_community_rule(rule, today)
+            
+            # 检查是否还在宽限期内
+            if now < planned_dt + grace_delta:
+                continue
+
+            # 获取该社区的所有工作人员（排除）
+            staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
+                community_id=rule.community_id
+            ).all()]
+
+            # 获取该社区所有普通用户（排除工作人员）
+            all_users_query = db.session.query(User).filter_by(community_id=rule.community_id)
+            if staff_user_ids:
+                all_users_query = all_users_query.filter(User.user_id.notin_(staff_user_ids))
+            all_users = all_users_query.all()
+
+            if not all_users:
+                continue
+
+            # 获取该规则的激活用户映射
+            active_user_ids = [u.user_id for u in all_users if db.session.query(UserCommunityRule).filter_by(
+                user_id=u.user_id,
+                community_rule_id=rule.community_rule_id,
+                is_active=True
+            ).first()]
+
+            if not active_user_ids:
+                continue
+
+            # 查询今天的打卡记录
+            today_records = db.session.query(CheckinRecord).filter(
+                CheckinRecord.community_rule_id == rule.community_rule_id,
+                CheckinRecord.user_id.in_(active_user_ids),
+                CheckinRecord.planned_time >= planned_dt,
+                CheckinRecord.planned_time < planned_dt + timedelta(days=1)
+            ).all()
+
+            # 按用户分组检查
+            checked_user_ids = {r.user_id for r in today_records if r.status == 1}
+            missed_user_ids = {r.user_id for r in today_records if r.status == 0}
+
+            # 为未打卡的用户创建记录
+            for user_id in active_user_ids:
+                if user_id not in checked_user_ids and user_id not in missed_user_ids:
+                    CheckinRecordService._create_record(
+                        rule_id=rule.community_rule_id,
+                        user_id=user_id,
+                        checkin_time=None,
+                        planned_time=planned_dt,
+                        status=0,
+                        rule_source='community'
+                    )
+                    current_app.logger.info(
+                        f"[community-missing-mark] 用户 {user_id} 社区规则 {rule.community_rule_id} 标记为miss，计划时间 {planned_dt}"
+                    )
+
+        except Exception as e:
+            current_app.logger.error(
+                f"[community-missing-mark] 处理社区规则 {rule.community_rule_id} 时出错: {str(e)}", exc_info=True
+            )
+
+
 def _run_loop():
     interval_minutes = int(os.getenv('MISS_CHECK_INTERVAL_MINUTES', '5'))
     interval_seconds = max(1, interval_minutes * 60)
@@ -97,6 +208,7 @@ def _run_loop():
             with current_app.app_context():
                 now = datetime.now()
                 _process_missed_for_today(now)
+                _process_community_missed_for_today(now)
         except Exception as e:
             current_app.logger.error(f"[missing-mark] 后台服务循环错误: {str(e)}", exc_info=True)
         finally:

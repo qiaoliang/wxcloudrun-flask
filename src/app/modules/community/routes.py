@@ -1708,6 +1708,45 @@ def create_community_user():
         # 创建用户
         user = CommunityService.create_user_in_community(community_id, user_data, operator_id)
         
+        current_app.logger.info(f'成功在社区 {community_id} 中创建用户 {user.user_id}')
+        return make_succ_response({'user_id': user.user_id})
+
+    except Exception as e:
+        current_app.logger.error(f'在社区中创建用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'创建用户失败: {str(e)}')
+
+
+@community_bp.route('/communities/<int:community_id>/checkin-stats', methods=['GET'])
+def get_community_checkin_stats(community_id):
+    """获取社区打卡统计信息"""
+    current_app.logger.info(f'=== 开始获取社区打卡统计信息: {community_id} ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        # 获取查询参数
+        days = request.args.get('days', 7, type=int)
+        
+        # 检查权限
+        if not CommunityService.has_community_permission(user_id, community_id):
+            return make_err_response({}, '无权限访问该社区')
+
+        # 获取统计数据
+        stats = CommunityService.get_community_checkin_stats(community_id, days)
+        
+        current_app.logger.info(f'成功获取社区 {community_id} 的打卡统计信息，共 {stats["total_rules"]} 个规则')
+        return make_succ_response(stats)
+
+    except Exception as e:
+        current_app.logger.error(f'获取社区打卡统计信息失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取统计信息失败: {str(e)}')
+        
         if user:
             # 记录审计日志
             _audit(operator_id, 'create_community_user', {

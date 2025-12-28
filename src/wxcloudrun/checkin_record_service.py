@@ -489,7 +489,8 @@ class CheckinRecordService:
                 # 社区规则打卡记录
                 new_record = CheckinRecord(
                     community_rule_id=rule_id,
-                    solo_user_id=user_id,
+                    user_id=user_id,  # user_id 是 NOT NULL，必须设置
+                    solo_user_id=user_id,  # solo_user_id 用于社区规则
                     checkin_time=checkin_time,
                     status=status,
                     planned_time=planned_time
