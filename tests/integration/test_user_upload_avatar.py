@@ -13,7 +13,7 @@ from io import BytesIO
 src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
 sys.path.insert(0, src_path)
 
-from conftest import IntegrationTestBase
+from tests.integration.conftest import IntegrationTestBase
 
 
 class TestUserUploadAvatar(IntegrationTestBase):

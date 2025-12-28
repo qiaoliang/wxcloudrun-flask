@@ -13,7 +13,7 @@ from sqlalchemy import select, func, delete, and_, or_, not_
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog
 from wxcloudrun.utils.validators import generate_phone_hash
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
-from app.shared.utils.transaction import transactional
+from app.shared.utils.transaction import transactional, transaction
 
 logger = logging.getLogger('CommunityService')
 
@@ -134,16 +134,17 @@ class CommunityService:
             raise ValueError("已有待审核的申请")
 
         # 创建申请
-        application = CommunityApplication(
-            user_id=user_id,
-            target_community_id=community_id,
-            status=1,  # 待审核
-            reason=reason
-        )
+        with transaction():
+            application = CommunityApplication(
+                user_id=user_id,
+                target_community_id=community_id,
+                status=1,  # 待审核
+                reason=reason
+            )
 
-        db.session.add(application)
-        db.session.commit()
-        db.session.refresh(application)
+            db.session.add(application)
+            db.session.flush()
+            db.session.refresh(application)
 
         logger.info(f"创建社区申请成功: application_id={application.application_id}, user_id={user_id}, community_id={community_id}")
         return application
@@ -231,50 +232,50 @@ class CommunityService:
         if application.status != 1:  # 不是待审核状态
             raise ValueError("申请已被处理")
 
-        if approve:
-            # 批准申请
-            application.status = 2  # 已批准
-            application.processed_by = processor_id
-            application.updated_at = datetime.now()
+        with transaction():
+            if approve:
+                # 批准申请
+                application.status = 2  # 已批准
+                application.processed_by = processor_id
+                application.updated_at = datetime.now()
 
-            # 将用户加入社区
-            user = db.session.get(User, application.user_id)
-            user.community_id = application.target_community_id
+                # 将用户加入社区
+                user = db.session.get(User, application.user_id)
+                user.community_id = application.target_community_id
 
-            # 同步社区打卡规则到用户
-            from wxcloudrun.community_staff_service import CommunityStaffService
-            CommunityStaffService._activate_new_community_rules(application.user_id, application.target_community_id)
+                # 同步社区打卡规则到用户
+                from wxcloudrun.community_staff_service import CommunityStaffService
+                CommunityStaffService._activate_new_community_rules(application.user_id, application.target_community_id)
 
-            # 记录审计日志
-            audit_log = UserAuditLog(
-                user_id=processor_id,
-                action="approve_community_application",
-                detail=f"批准社区申请: 申请ID={application_id}, 用户ID={application.user_id}"
-            )
-            db.session.add(audit_log)
+                # 记录审计日志
+                audit_log = UserAuditLog(
+                    user_id=processor_id,
+                    action="approve_community_application",
+                    detail=f"批准社区申请: 申请ID={application_id}, 用户ID={application.user_id}"
+                )
+                db.session.add(audit_log)
 
-            logger.info(f"社区申请批准: 申请ID={application_id}")
-        else:
-            # 拒绝申请
-            if not rejection_reason:
-                raise ValueError("拒绝申请必须提供理由")
+                logger.info(f"社区申请批准: 申请ID={application_id}")
+            else:
+                # 拒绝申请
+                if not rejection_reason:
+                    raise ValueError("拒绝申请必须提供理由")
 
-            application.status = 3  # 已拒绝
-            application.rejection_reason = rejection_reason
-            application.processed_by = processor_id
-            application.updated_at = datetime.now()
+                application.status = 3  # 已拒绝
+                application.rejection_reason = rejection_reason
+                application.processed_by = processor_id
+                application.updated_at = datetime.now()
 
-            # 记录审计日志
-            audit_log = UserAuditLog(
-                user_id=processor_id,
-                action="reject_community_application",
-                detail=f"拒绝社区申请: 申请ID={application_id}, 理由={rejection_reason}"
-            )
-            db.session.add(audit_log)
+                # 记录审计日志
+                audit_log = UserAuditLog(
+                    user_id=processor_id,
+                    action="reject_community_application",
+                    detail=f"拒绝社区申请: 申请ID={application_id}, 理由={rejection_reason}"
+                )
+                db.session.add(audit_log)
 
-            logger.info(f"社区申请拒绝: 申请ID={application_id}, 理由={rejection_reason}")
+                logger.info(f"社区申请拒绝: 申请ID={application_id}, 理由={rejection_reason}")
 
-        db.session.commit()
         return application
 
     @staticmethod
@@ -381,41 +382,41 @@ class CommunityService:
         if not community:
             raise ValueError("社区不存在")
 
-        # 更新字段
-        if name is not None:
-            # 检查名称是否与其他社区重复
-            stmt = select(Community).where(
-                Community.name == name,
-                Community.community_id != community_id
-            )
-            existing = db.session.execute(stmt).scalar_one_or_none()
-            if existing:
-                raise ValueError("社区名称已存在")
-            community.name = name
+        with transaction():
+            # 更新字段
+            if name is not None:
+                # 检查名称是否与其他社区重复
+                stmt = select(Community).where(
+                    Community.name == name,
+                    Community.community_id != community_id
+                )
+                existing = db.session.execute(stmt).scalar_one_or_none()
+                if existing:
+                    raise ValueError("社区名称已存在")
+                community.name = name
 
-        if description is not None:
-            community.description = description
+            if description is not None:
+                community.description = description
 
-        if location is not None:
-            community.location = location
+            if location is not None:
+                community.location = location
 
-        if location_lat is not None:
-            community.location_lat = location_lat
+            if location_lat is not None:
+                community.location_lat = location_lat
 
-        if location_lon is not None:
-            community.location_lon = location_lon
+            if location_lon is not None:
+                community.location_lon = location_lon
 
-        if status is not None:
-            community.status = status
+            if status is not None:
+                community.status = status
 
-        if manager_id is not None:
-            # 更新社区主管
-            community.manager_id = manager_id
+            if manager_id is not None:
+                # 更新社区主管
+                community.manager_id = manager_id
 
-        # 更新时间
-        community.updated_at = datetime.now()
+            # 更新时间
+            community.updated_at = datetime.now()
 
-        db.session.commit()
         return community
 
     @staticmethod
@@ -543,34 +544,33 @@ class CommunityService:
         added_count = 0
         failed = []
 
-        for user_id in user_ids:
-            try:
-                # 检查用户是否存在
-                target_user = db.session.get(User, user_id)
-                if not target_user:
-                    failed.append({'user_id': user_id, 'reason': '用户不存在'})
-                    continue
+        with transaction():
+            for user_id in user_ids:
+                try:
+                    # 检查用户是否存在
+                    target_user = db.session.get(User, user_id)
+                    if not target_user:
+                        failed.append({'user_id': user_id, 'reason': '用户不存在'})
+                        continue
 
-                # 检查是否已在社区
-                if target_user.community_id == community_id:
-                    failed.append({'user_id': user_id, 'reason': '用户已在社区'})
-                    continue
+                    # 检查是否已在社区
+                    if target_user.community_id == community_id:
+                        failed.append({'user_id': user_id, 'reason': '用户已在社区'})
+                        continue
 
-                # 更新用户社区信息
-                target_user.community_id = community_id
-                target_user.community_joined_at = datetime.now()
+                    # 更新用户社区信息
+                    target_user.community_id = community_id
+                    target_user.community_joined_at = datetime.now()
 
-                # 同步社区打卡规则到用户
-                from wxcloudrun.community_staff_service import CommunityStaffService
-                CommunityStaffService._activate_new_community_rules(user_id, community_id)
+                    # 同步社区打卡规则到用户
+                    from wxcloudrun.community_staff_service import CommunityStaffService
+                    CommunityStaffService._activate_new_community_rules(user_id, community_id)
 
-                added_count += 1
+                    added_count += 1
 
-            except Exception as e:
-                logger.error(f'添加用户失败 user_id={user_id}: {str(e)}')
-                failed.append({'user_id': user_id, 'reason': str(e)})
-
-        db.session.commit()
+                except Exception as e:
+                    logger.error(f'添加用户失败 user_id={user_id}: {str(e)}')
+                    failed.append({'user_id': user_id, 'reason': str(e)})
 
         if added_count == 0:
             raise ValueError({'added_count': added_count, 'failed': failed}, '添加失败')
@@ -649,7 +649,8 @@ class CommunityService:
                 target_user.community_id = None
                 target_user.community_joined_at = None
 
-        db.session.commit()
+        with transaction():
+            pass  # 事务上下文，确保所有修改在事务中完成
 
         return {'moved_to': moved_to}
 
@@ -679,15 +680,15 @@ class CommunityService:
                 'user_count': member_count
             }, '社区内还有用户，无法删除')
 
-        # 删除相关数据
-        stmt_staff = delete(CommunityStaff).where(CommunityStaff.community_id == community_id)
-        db.session.execute(stmt_staff)
-        stmt_app = delete(CommunityApplication).where(CommunityApplication.target_community_id == community_id)
-        db.session.execute(stmt_app)
+        with transaction():
+            # 删除相关数据
+            stmt_staff = delete(CommunityStaff).where(CommunityStaff.community_id == community_id)
+            db.session.execute(stmt_staff)
+            stmt_app = delete(CommunityApplication).where(CommunityApplication.target_community_id == community_id)
+            db.session.execute(stmt_app)
 
-        # 删除社区
-        db.session.delete(community)
-        db.session.commit()
+            # 删除社区
+            db.session.delete(community)
 
     @staticmethod
     def get_community_daily_stats(community_id):
@@ -892,9 +893,9 @@ class CommunityService:
         if community.name in [DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME]:
             raise ValueError("特殊社区不能停用")
 
-        # 更新状态
-        community.status = 1 if status == 'active' else 2
-        db.session.commit()
+        with transaction():
+            # 更新状态
+            community.status = 1 if status == 'active' else 2
 
         return {
             'community_id': community_id,

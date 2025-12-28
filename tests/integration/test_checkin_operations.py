@@ -13,7 +13,7 @@ from datetime import datetime, date
 src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'src')
 sys.path.insert(0, src_path)
 
-from conftest import IntegrationTestBase
+from tests.integration.conftest import IntegrationTestBase
 from test_constants import TEST_CONSTANTS
 
 
