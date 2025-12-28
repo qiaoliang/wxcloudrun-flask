@@ -125,12 +125,10 @@ class TestSupervisionOperations(IntegrationTestBase):
 
         # 创建监督关系（模拟邀请链接创建）
             relation = SupervisionRuleRelation(
-                supervisor_id=supervisor.user_id,
-                supervised_id=supervisor.user_id + 1,  # 假设被监督者
+                solo_user_id=supervisor.user_id,
+                supervisor_user_id=supervisor.user_id + 1,  # 假设被监督者
                 rule_id=rule.rule_id,
-                invite_type='wechat',
-                status='pending',
-                invited_at=datetime.now()
+                status=1  # Pending status
             )
             db.session.add(relation)
             db.session.commit()

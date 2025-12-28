@@ -213,11 +213,11 @@ class CheckinRecordService:
         try:
             # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                record = db.session.query(CheckinRecord).get(record_id)
+                record = db.session.get(CheckinRecord, record_id)
                 return record
             else:
                 # 使用传入的session
-                record = session.query(CheckinRecord).get(record_id)
+                record = session.get(CheckinRecord, record_id)
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return record
         except OperationalError as e:
@@ -420,7 +420,7 @@ class CheckinRecordService:
         try:
             # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                record = db.session.query(CheckinRecord).get(record_id)
+                record = db.session.get(CheckinRecord, record_id)
                 if not record:
                     raise ValueError('打卡记录不存在')
 
@@ -434,7 +434,7 @@ class CheckinRecordService:
                 return record_id
             else:
                 # 使用传入的session
-                record = session.query(CheckinRecord).get(record_id)
+                record = session.get(CheckinRecord, record_id)
                 if not record:
                     raise ValueError('打卡记录不存在')
 

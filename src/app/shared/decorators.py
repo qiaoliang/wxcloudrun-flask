@@ -63,9 +63,10 @@ def require_community_staff_member():
             from database.flask_models import CommunityCheckinRule
 
             # 优先从路径参数、查询参数、请求体中获取community_id
-            community_id = (request.view_args.get('community_id') or
-                          request.args.get('community_id') or
-                          request.json.get('community_id') if request.is_json else None)
+            view_args_community_id = request.view_args.get('community_id')
+            args_community_id = request.args.get('community_id')
+            json_community_id = request.json.get('community_id') if request.is_json else None
+            community_id = (view_args_community_id or args_community_id or json_community_id)
 
             # 如果没有community_id，尝试从rule_id获取
             if not community_id:

@@ -622,7 +622,7 @@ class CommunityService:
         from database.flask_models import CommunityStaff
 
         # 查找社区
-        community = db.session.query(Community).get(community_id)
+        community = db.session.get(Community, community_id)
         if not community:
             raise ValueError("社区不存在")
 

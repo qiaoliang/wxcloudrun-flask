@@ -124,7 +124,7 @@ class CommunityEventService:
             Dict: 事件详情
         """
         try:
-            event = db.session.query(CommunityEvent).get(event_id)
+            event = db.session.get(CommunityEvent, event_id)
             if not event:
                 return {'success': False, 'message': '事件不存在'}
             
@@ -170,7 +170,7 @@ class CommunityEventService:
                 return {'success': False, 'message': '事件已结束，无法应援'}
             
             # 验证应援者
-            supporter = db.session.query(User).get(supporter_id)
+            supporter = db.session.get(User, supporter_id)
             if not supporter:
                 return {'success': False, 'message': '应援者不存在'}
             

@@ -14,6 +14,7 @@ sys.path.insert(0, src_path)
 
 from conftest import IntegrationTestBase
 from test_constants import TEST_CONSTANTS
+from database.flask_models import db
 
 
 class TestEventsOperations(IntegrationTestBase):
@@ -76,6 +77,10 @@ class TestEventsOperations(IntegrationTestBase):
             # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
+            # 将用户添加到社区
+            user.community_id = community.community_id
+            db.session.commit()
+
             # 创建事件
             from wxcloudrun.community_event_service import CommunityEventService
             CommunityEventService.create_event(
@@ -107,8 +112,8 @@ class TestEventsOperations(IntegrationTestBase):
         )
 
         # 验证响应
-        data = self.assert_api_success(response, ['events', 'total'])
-        assert data['data']['total'] >= 2
+        data = self.assert_api_success(response, ['events'])
+        assert len(data['data']['events']) >= 2
 
     def test_get_event_detail_success(self):
         """测试成功获取事件详情"""
@@ -125,6 +130,10 @@ class TestEventsOperations(IntegrationTestBase):
             # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
+            # 将用户添加到社区
+            user.community_id = community.community_id
+            db.session.commit()
+
             # 创建事件
             from wxcloudrun.community_event_service import CommunityEventService
             event = CommunityEventService.create_event(
@@ -136,23 +145,24 @@ class TestEventsOperations(IntegrationTestBase):
                 location='XX小区5栋101'
             )
 
-            # 获取 phone_number 和 event_id，避免在 app_context 外访问 detached 对象
+            # 获取 phone_number、event_id 和 community_id，避免在 app_context 外访问 detached 对象
             manager_phone_number = manager.phone_number
             event_id = event["event"]["event_id"]
+            community_id = community.community_id
 
         client = self.get_test_client()
         token = self.get_jwt_token(manager_phone_number)
 
         # 发送获取事件详情请求
         response = client.get(
-            f'/api/events/{event_id}',
+            f'/api/events/{event_id}?community_id={community_id}',
             headers={'Authorization': f'Bearer {token}'}
         )
 
         # 验证响应
-        data = self.assert_api_success(response, ['event_id', 'title', 'description'])
-        assert data['data']['event_id'] == event['event_id']
-        assert data['data']['title'] == '详细事件'
+        data = self.assert_api_success(response, ['event'])
+        assert data['data']['event']['event_id'] == event['event']['event_id']
+        assert data['data']['event']['title'] == '详细事件'
 
     def test_create_event_support_success(self):
         """测试成功创建事件应援"""
@@ -171,6 +181,10 @@ class TestEventsOperations(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
             self.add_community_staff(community.community_id, supporter.user_id, 'staff', manager.user_id)
 
+            # 将用户添加到社区
+            user.community_id = community.community_id
+            db.session.commit()
+
             # 创建事件
             from wxcloudrun.community_event_service import CommunityEventService
             event = CommunityEventService.create_event(
@@ -181,9 +195,10 @@ class TestEventsOperations(IntegrationTestBase):
                 event_type='call_for_help'
             )
 
-            # 获取 phone_number 和 event_id，避免在 app_context 外访问 detached 对象
+            # 获取 phone_number、event_id 和 community_id，避免在 app_context 外访问 detached 对象
             supporter_phone_number = supporter.phone_number
             event_id = event["event"]["event_id"]
+            community_id = community.community_id
 
         client = self.get_test_client()
         token = self.get_jwt_token(supporter_phone_number)
@@ -192,15 +207,16 @@ class TestEventsOperations(IntegrationTestBase):
         response = client.post(
             f'/api/events/{event_id}/support',
             data=json.dumps({
-                'support_content': '我马上过去帮忙'
+                'support_content': '我马上过去帮忙',
+                'community_id': community.community_id
             }),
             content_type='application/json',
             headers={'Authorization': f'Bearer {token}'}
         )
 
         # 验证响应
-        data = self.assert_api_success(response, ['support_id', 'support_content'])
-        assert data['data']['support_content'] == '我马上过去帮忙'
+        data = self.assert_api_success(response, ['support'])
+        assert data['data']['support']['support_content'] == '我马上过去帮忙'
 
     def test_get_community_stats_success(self):
         """测试成功获取社区事件统计"""
@@ -249,8 +265,8 @@ class TestEventsOperations(IntegrationTestBase):
         )
 
         # 验证响应
-        data = self.assert_api_success(response, ['total_events', 'pending_events', 'completed_events'])
-        assert data['data']['total_events'] >= 2
+        data = self.assert_api_success(response, ['active_events', 'support_count'])
+        assert data['data']['active_events'] >= 2
 
 
 if __name__ == '__main__':
