@@ -38,10 +38,13 @@ class CheckinRuleService:
         """
         根据规则ID查询打卡规则
         :param rule_id: 规则ID
-        :return: 打卡规则实体
+        :return: 打卡规则实体（排除已删除的规则）
         """
         try:
-            rule = CheckinRule.query.get(rule_id)
+            rule = CheckinRule.query.filter(
+                CheckinRule.rule_id == rule_id,
+                CheckinRule.status != 2  # 排除已删除的规则
+            ).first()
             return rule
         except Exception as e:
             logger.error(f"查询打卡规则失败: {str(e)}")

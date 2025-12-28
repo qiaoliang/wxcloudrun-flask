@@ -388,7 +388,7 @@ def manage_checkin_rules():
 
             response_data = CheckinRuleService.delete_rule(int(rule_id), user.user_id)
             current_app.logger.info(f'用户 {user.user_id} 成功删除打卡规则')
-            return make_succ_response(response_data)
+            return make_succ_response({'message': '规则删除成功'})
 
         else:
             return make_err_response({}, '不支持的请求方法')
