@@ -84,6 +84,132 @@ class CommunityService:
 
         logger.info(f"创建社区成功: {community.community_id}")
         return community
+
+    @staticmethod
+    def create_community_application(user_id, community_id, reason=None):
+        """
+        创建社区申请
+
+        Args:
+            user_id: 用户ID
+            community_id: 社区ID
+            reason: 申请理由
+
+        Returns:
+            CommunityApplication: 创建的申请对象
+
+        Raises:
+            ValueError: 当用户或社区不存在，或用户已在社区时
+        """
+        # 检查用户是否存在
+        user = db.session.get(User, user_id)
+        if not user:
+            raise ValueError("用户不存在")
+
+        # 检查社区是否存在
+        community = db.session.get(Community, community_id)
+        if not community:
+            raise ValueError("社区不存在")
+
+        # 检查用户是否已在社区
+        if user.community_id == community_id:
+            raise ValueError("用户已在社区")
+
+        # 检查是否已有待审核的申请
+        existing_application = db.session.query(CommunityApplication).filter_by(
+            user_id=user_id,
+            target_community_id=community_id,
+            status=1  # 待审核状态
+        ).first()
+
+        if existing_application:
+            raise ValueError("已有待审核的申请")
+
+        # 创建申请
+        application = CommunityApplication(
+            user_id=user_id,
+            target_community_id=community_id,
+            status=1,  # 待审核
+            reason=reason
+        )
+
+        db.session.add(application)
+        db.session.commit()
+        db.session.refresh(application)
+
+        logger.info(f"创建社区申请成功: application_id={application.application_id}, user_id={user_id}, community_id={community_id}")
+        return application
+
+    @staticmethod
+    def get_community_applications(user_id, page=1, per_page=20, status_filter=None):
+        """
+        获取社区申请列表
+
+        Args:
+            user_id: 用户ID
+            page: 页码
+            per_page: 每页数量
+            status_filter: 状态过滤（可选）
+
+        Returns:
+            dict: 包含申请列表和分页信息的字典
+        """
+        from sqlalchemy.orm import joinedload
+
+        # 检查用户是否存在
+        user = db.session.get(User, user_id)
+        if not user:
+            raise ValueError("用户不存在")
+
+        # 构建查询
+        query = db.session.query(CommunityApplication).options(
+            joinedload(CommunityApplication.target_community),
+            joinedload(CommunityApplication.user)
+        )
+
+        # 如果用户不是超级管理员，只显示其社区的申请
+        if user.role != 4:
+            # 获取用户管理的社区
+            from database.flask_models import CommunityStaff
+            managed_community_ids = db.session.query(CommunityStaff.community_id).filter_by(
+                user_id=user_id
+            ).all()
+            managed_community_ids = [c[0] for c in managed_community_ids]
+
+            if not managed_community_ids:
+                return {
+                    'applications': [],
+                    'total': 0,
+                    'page': page,
+                    'per_page': per_page
+                }
+
+            query = query.filter(
+                CommunityApplication.target_community_id.in_(managed_community_ids)
+            )
+
+        # 应用状态过滤
+        if status_filter is not None:
+            try:
+                status = int(status_filter)
+                query = query.filter(CommunityApplication.status == status)
+            except ValueError:
+                pass
+
+        # 分页
+        total = query.count()
+        applications = query.order_by(
+            CommunityApplication.created_at.desc()
+        ).offset((page - 1) * per_page).limit(per_page).all()
+
+        logger.info(f"获取社区申请列表成功: user_id={user_id}, total={total}")
+        return {
+            'applications': applications,
+            'total': total,
+            'page': page,
+            'per_page': per_page
+        }
+
     @staticmethod
     def process_application(application_id, approve, processor_id, rejection_reason=None):
         """处理社区申请"""

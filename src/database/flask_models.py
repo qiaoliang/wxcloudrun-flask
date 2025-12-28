@@ -363,6 +363,32 @@ class CommunityApplication(db.Model):
     processor = db.relationship('User', foreign_keys=[processed_by], backref='processed_applications')
     target_community = db.relationship('Community', backref='applications')
 
+    # 兼容性属性
+    @property
+    def community_id(self):
+        """兼容性属性：返回目标社区ID"""
+        return self.target_community_id
+
+    @property
+    def community(self):
+        """兼容性属性：返回目标社区"""
+        return self.target_community
+
+    @property
+    def applicant_id(self):
+        """兼容性属性：返回申请人ID"""
+        return self.user_id
+
+    @property
+    def applicant(self):
+        """兼容性属性：返回申请人"""
+        return self.user
+
+    @property
+    def message(self):
+        """兼容性属性：返回申请理由"""
+        return self.reason
+
 
 class ShareLink(db.Model):
     """分享链接表"""

@@ -456,13 +456,13 @@ def reject_application(application_id):
         if not params:
             return make_err_response({}, '缺少请求参数')
 
-        reason = params.get('reason', '')
+        rejection_reason = params.get('reason', '')
 
         CommunityService.process_application(
             application_id=application_id,
             approve=False,
             processor_id=user_id,
-            reason=reason
+            rejection_reason=rejection_reason
         )
 
         current_app.logger.info(f'社区申请拒绝成功: {application_id}')
