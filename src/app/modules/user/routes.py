@@ -8,6 +8,7 @@ import os
 import datetime
 import jwt
 from flask import request, current_app
+from sqlalchemy import select
 from . import user_bp
 from app.shared import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
@@ -175,8 +176,10 @@ def user_profile():
             current_app.logger.info(f'查询结果: {user}')
             if not user:
                 current_app.logger.error(f'用户不存在，user_id={user_id}')
+                # 使用 SQLAlchemy 2.0 的 select() 语句
                 # 检查数据库中是否有任何用户
-                all_users = db.session.query(User).all()
+                stmt = select(User)
+                all_users = db.session.execute(stmt).scalars().all()
                 current_app.logger.info(f'数据库中的所有用户: {[u.user_id for u in all_users]}')
                 return make_err_response({}, '用户不存在，请重新登录')
 
