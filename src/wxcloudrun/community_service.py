@@ -125,35 +125,6 @@ class CommunityService:
         return staff_record
 
     @staticmethod
-    def remove_community_staff(community_id, user_id, operator_id=None):
-        """移除社区工作人员"""
-        from database.flask_models import CommunityStaff
-
-        # 查找工作人员记录
-        staff_record = db.session.query(CommunityStaff).filter_by(
-            community_id=community_id,
-            user_id=user_id
-        ).first()
-
-        if not staff_record:
-            raise ValueError("用户不是该社区的工作人员")
-
-        # 删除工作人员记录
-        db.session.delete(staff_record)
-
-        # 记录审计日志
-        audit_log = UserAuditLog(
-            user_id=operator_id or user_id,
-            action="remove_community_staff",
-            detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={user_id}"
-        )
-        db.session.add(audit_log)
-
-        db.session.commit()
-        logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}")
-        return True
-
-    @staticmethod
     def get_communities_with_filters(filters=None, page=1, per_page=20):
         """根据筛选条件获取社区列表"""
         query = db.session.query(Community)
@@ -573,29 +544,6 @@ class CommunityService:
             'added_count': added_count,
             'failed': failed
         }
-
-    @staticmethod
-    def remove_community_staff(community_id, user_id):
-        """移除社区工作人员"""
-        from database.flask_models import CommunityStaff
-
-        # 检查社区是否存在
-        community = db.session.query(Community).get(community_id)
-        if not community:
-            raise ValueError("社区不存在")
-
-        # 查找工作人员记录
-        staff = db.session.query(CommunityStaff).filter_by(
-            community_id=community_id,
-            user_id=user_id
-        ).first()
-
-        if not staff:
-            raise ValueError("工作人员不存在")
-
-        # 删除记录
-        db.session.delete(staff)
-        db.session.commit()
 
     @staticmethod
     def get_community_members(community_id, page=1, page_size=20):
