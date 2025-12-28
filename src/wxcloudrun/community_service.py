@@ -470,7 +470,7 @@ class CommunityService:
                     User.community_id != community_id,
                     User.community_id.isnot(None)
                 )
-            ).join(Community).filter(
+            ).join(Community, User.community_id == Community.community_id).filter(
                 Community.name.notin_([DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME])
             ).count()
 
