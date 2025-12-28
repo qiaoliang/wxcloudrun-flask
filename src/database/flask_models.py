@@ -1,6 +1,8 @@
 """
 Flask-SQLAlchemy模型定义
 从纯SQLAlchemy迁移到Flask-SQLAlchemy
+优化关系定义：使用 back_populates 替代 backref，添加 lazy 加载策略
+优化数据库索引：为外键字段和常用查询字段添加索引
 """
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float, CheckConstraint, UniqueConstraint, Index
@@ -11,9 +13,9 @@ class User(db.Model):
     __tablename__ = 'users'
 
     user_id = Column(db.Integer, primary_key=True)
-    wechat_openid = Column(db.String(128), unique=True, nullable=True, comment='微信OpenID')
+    wechat_openid = Column(db.String(128), unique=True, nullable=True, comment='微信OpenID', index=True)
     phone_number = Column(db.String(20), comment='手机号码')
-    phone_hash = Column(db.String(64), unique=True, nullable=True, comment='手机号哈希')
+    phone_hash = Column(db.String(64), unique=True, nullable=True, comment='手机号哈希', index=True)
     nickname = Column(db.String(100), comment='用户昵称')
     avatar_url = Column(db.String(500), comment='用户头像URL')
     name = Column(db.String(100), comment='真实姓名')
@@ -25,20 +27,45 @@ class User(db.Model):
     emergency_contact_address = Column(db.String(100), comment='紧急联系人地址')
     password_hash = Column(db.String(128), comment='密码哈希')
     password_salt = Column(db.String(32), comment='密码盐')
-    role = Column(db.Integer, nullable=False, comment='用户角色')
-    status = Column(db.Integer, default=1, comment='用户状态')
+    role = Column(db.Integer, nullable=False, comment='用户角色', index=True)
+    status = Column(db.Integer, default=1, comment='用户状态', index=True)
     verification_status = Column(db.Integer, default=0, comment='验证状态')
     verification_materials = Column(db.Text, comment='验证材料')
     _is_community_worker = Column('is_community_worker', Boolean, default=False)
-    community_id = Column(db.Integer, db.ForeignKey('communities.community_id', use_alter=True))
+    community_id = Column(db.Integer, db.ForeignKey('communities.community_id', use_alter=True), index=True)
     community_joined_at = Column(db.DateTime, comment='加入当前社区的时间')
     refresh_token = Column(db.String(128), comment='刷新令牌')
     refresh_token_expire = Column(db.DateTime, comment='刷新令牌过期时间')
-    created_at = Column(db.DateTime, default=datetime.now)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    community = db.relationship('Community', foreign_keys=[community_id], backref='users')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_user_community_id', 'community_id'),
+        db.Index('idx_user_role', 'role'),
+        db.Index('idx_user_status', 'status'),
+        db.Index('idx_user_created_at', 'created_at'),
+        db.Index('idx_user_community_status', 'community_id', 'status'),
+        db.Index('idx_user_role_status', 'role', 'status'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    community = db.relationship('Community', foreign_keys=[community_id], back_populates='users', lazy='selectin')
+    checkin_rules = db.relationship('CheckinRule', back_populates='user', lazy='selectin')
+    checkin_records = db.relationship('CheckinRecord', foreign_keys='CheckinRecord.user_id', back_populates='user', lazy='dynamic')
+    solo_checkin_records = db.relationship('CheckinRecord', foreign_keys='CheckinRecord.solo_user_id', back_populates='solo_user', lazy='dynamic')
+    audit_logs = db.relationship('UserAuditLog', back_populates='user', lazy='dynamic')
+    supervised_by_relations = db.relationship('SupervisionRuleRelation', foreign_keys='SupervisionRuleRelation.solo_user_id', back_populates='solo_user', lazy='dynamic')
+    supervising_relations = db.relationship('SupervisionRuleRelation', foreign_keys='SupervisionRuleRelation.supervisor_user_id', back_populates='supervisor_user', lazy='dynamic')
+    staff_roles = db.relationship('CommunityStaff', back_populates='user', lazy='selectin')
+    community_applications = db.relationship('CommunityApplication', foreign_keys='CommunityApplication.user_id', back_populates='user', lazy='dynamic')
+    processed_applications = db.relationship('CommunityApplication', foreign_keys='CommunityApplication.processed_by', back_populates='processor', lazy='dynamic')
+    share_links = db.relationship('ShareLink', back_populates='solo_user', lazy='dynamic')
+    created_communities = db.relationship('Community', foreign_keys='Community.creator_id', back_populates='creator', lazy='dynamic')
+    created_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.created_by', back_populates='creator', lazy='dynamic')
+    targeted_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.target_user_id', back_populates='target_user', lazy='dynamic')
+    supports = db.relationship('EventSupport', back_populates='supporter', lazy='dynamic')
+    user_community_rules = db.relationship('UserCommunityRule', back_populates='user', lazy='selectin')
 
     # 角色映射
     ROLE_MAPPING = {
@@ -89,21 +116,37 @@ class Community(db.Model):
     community_id = Column(db.Integer, primary_key=True)
     name = Column(db.String(100), nullable=False, unique=True, comment='社区名称')
     description = Column(db.Text, comment='社区描述')
-    creator_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='创建人ID')
-    manager_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='主管ID')
-    status = Column(db.Integer, default=1, nullable=False, comment='社区状态')
+    creator_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='创建人ID', index=True)
+    manager_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='主管ID', index=True)
+    status = Column(db.Integer, default=1, nullable=False, comment='社区状态', index=True)
     settings = Column(db.Text, comment='社区设置（JSON）')
     location = Column(db.String(200), comment='地理位置')
     location_lat = Column(db.Float, comment='纬度')
     location_lon = Column(db.Float, comment='经度')
-    is_default = Column(db.Boolean, default=False, nullable=False, comment='是否默认社区')
-    is_blackhouse = Column(db.Boolean, default=False, nullable=False, comment='是否黑屋社区')
-    created_at = Column(db.DateTime, default=datetime.now)
+    is_default = Column(db.Boolean, default=False, nullable=False, comment='是否默认社区', index=True)
+    is_blackhouse = Column(db.Boolean, default=False, nullable=False, comment='是否黑屋社区', index=True)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    creator = db.relationship('User', foreign_keys=[creator_id], backref='created_communities')
-    # 注意：users backref 与 User 模型中的 community 关系冲突，所以不在这里定义
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_community_creator_id', 'creator_id'),
+        db.Index('idx_community_manager_id', 'manager_id'),
+        db.Index('idx_community_status', 'status'),
+        db.Index('idx_community_is_default', 'is_default'),
+        db.Index('idx_community_is_blackhouse', 'is_blackhouse'),
+        db.Index('idx_community_created_at', 'created_at'),
+        db.Index('idx_community_status_is_default', 'status', 'is_default'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    users = db.relationship('User', foreign_keys=[User.community_id], back_populates='community', lazy='dynamic')
+    creator = db.relationship('User', foreign_keys=[creator_id], back_populates='created_communities', lazy='selectin')
+    checkin_rules = db.relationship('CheckinRule', back_populates='community', lazy='dynamic')
+    staff_members = db.relationship('CommunityStaff', back_populates='community', lazy='selectin')
+    community_checkin_rules = db.relationship('CommunityCheckinRule', back_populates='community', lazy='dynamic')
+    applications = db.relationship('CommunityApplication', back_populates='target_community', lazy='dynamic')
+    events = db.relationship('CommunityEvent', back_populates='community', lazy='dynamic')
 
     # 状态映射
     STATUS_MAPPING = {
@@ -124,8 +167,8 @@ class CheckinRule(db.Model):
     __tablename__ = 'checkin_rules'
 
     rule_id = Column(db.Integer, primary_key=True)
-    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=True, comment='规则来源社区')
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=True, comment='规则来源社区', index=True)
     rule_type = Column(db.String(50), nullable=False, default='personal', comment='规则类型: personal=个人规则, community=社区规则')
     rule_name = Column(db.String(100), nullable=False, comment='规则名称')
     icon_url = Column(db.String(500), comment='图标URL')
@@ -135,13 +178,26 @@ class CheckinRule(db.Model):
     custom_start_date = Column(db.Date, comment='自定义开始日期')
     custom_end_date = Column(db.Date, comment='自定义结束日期')
     week_days = Column(db.Integer, default=127, comment='周天数')
-    status = Column(db.Integer, default=1, comment='规则状态: 0=停用, 1=启用, 2=删除')
-    created_at = Column(db.DateTime, default=datetime.now)
+    status = Column(db.Integer, default=1, comment='规则状态: 0=停用, 1=启用, 2=删除', index=True)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    user = db.relationship('User', backref='checkin_rules')
-    community = db.relationship('Community', backref='checkin_rules')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_checkin_rule_user_id', 'user_id'),
+        db.Index('idx_checkin_rule_community_id', 'community_id'),
+        db.Index('idx_checkin_rule_status', 'status'),
+        db.Index('idx_checkin_rule_user_status', 'user_id', 'status'),
+        db.Index('idx_checkin_rule_community_status', 'community_id', 'status'),
+        db.Index('idx_checkin_rule_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    user = db.relationship('User', back_populates='checkin_rules', lazy='selectin')
+    community = db.relationship('Community', back_populates='checkin_rules', lazy='selectin')
+    records = db.relationship('CheckinRecord', back_populates='rule', lazy='dynamic')
+    supervision_relations = db.relationship('SupervisionRuleRelation', back_populates='rule', lazy='dynamic')
+    share_links = db.relationship('ShareLink', back_populates='rule', lazy='dynamic')
 
     def to_dict(self):
         """将模型对象转换为字典"""
@@ -172,22 +228,36 @@ class CheckinRecord(db.Model):
     __tablename__ = 'checkin_records'
 
     record_id = Column(db.Integer, primary_key=True)
-    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='社区规则打卡用户ID')
-    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=True)
-    community_rule_id = Column(db.Integer, nullable=True, comment='社区规则ID')
-    planned_time = Column(db.DateTime, nullable=False, comment='计划打卡时间')
-    checkin_time = Column(db.DateTime, comment='实际打卡时间')
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='社区规则打卡用户ID', index=True)
+    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=True, index=True)
+    community_rule_id = Column(db.Integer, nullable=True, comment='社区规则ID', index=True)
+    planned_time = Column(db.DateTime, nullable=False, comment='计划打卡时间', index=True)
+    checkin_time = Column(db.DateTime, comment='实际打卡时间', index=True)
     checkin_type = Column(db.String(50), comment='打卡类型')
     content = Column(db.Text, comment='打卡内容')
-    status = Column(db.Integer, default=0, comment='打卡状态: 0=未打卡, 1=已打卡, 2=已撤销')
+    status = Column(db.Integer, default=0, comment='打卡状态: 0=未打卡, 1=已打卡, 2=已撤销', index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
-    created_at = Column(db.DateTime, default=datetime.now)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
 
-    # 关系
-    user = db.relationship('User', foreign_keys=[user_id], backref='checkin_records')
-    solo_user = db.relationship('User', foreign_keys=[solo_user_id], backref='solo_checkin_records')
-    rule = db.relationship('CheckinRule', backref='records')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_checkin_record_user_id', 'user_id'),
+        db.Index('idx_checkin_record_solo_user_id', 'solo_user_id'),
+        db.Index('idx_checkin_record_rule_id', 'rule_id'),
+        db.Index('idx_checkin_record_community_rule_id', 'community_rule_id'),
+        db.Index('idx_checkin_record_planned_time', 'planned_time'),
+        db.Index('idx_checkin_record_checkin_time', 'checkin_time'),
+        db.Index('idx_checkin_record_status', 'status'),
+        db.Index('idx_checkin_record_user_status', 'user_id', 'status'),
+        db.Index('idx_checkin_record_rule_status', 'rule_id', 'status'),
+        db.Index('idx_checkin_record_planned_time_status', 'planned_time', 'status'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    user = db.relationship('User', foreign_keys=[user_id], back_populates='checkin_records', lazy='selectin')
+    solo_user = db.relationship('User', foreign_keys=[solo_user_id], back_populates='solo_checkin_records', lazy='selectin')
+    rule = db.relationship('CheckinRule', back_populates='records', lazy='selectin')
 
     @property
     def status_name(self):
@@ -208,13 +278,19 @@ class UserAuditLog(db.Model):
     __tablename__ = 'user_audit_logs'
 
     log_id = Column(db.Integer, primary_key=True)
-    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
     action = Column(db.String(100), comment='操作类型')
     detail = Column(db.Text, comment='操作详情')
-    created_at = Column(db.DateTime, default=datetime.now)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
 
-    # 关系
-    user = db.relationship('User', backref='audit_logs')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_user_audit_log_user_id', 'user_id'),
+        db.Index('idx_user_audit_log_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    user = db.relationship('User', back_populates='audit_logs', lazy='selectin')
 
     def __repr__(self):
         return f'<UserAuditLog {self.log_id}: User {self.user_id} {self.action}>'
@@ -225,19 +301,31 @@ class SupervisionRuleRelation(db.Model):
     __tablename__ = 'supervision_rule_relations'
 
     relation_id = Column(db.Integer, primary_key=True)
-    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    supervisor_user_id = Column(db.Integer, db.ForeignKey('users.user_id'))
-    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'))
-    status = Column(db.Integer, default=1, comment='关系状态')
-    created_at = Column(db.DateTime, default=datetime.now)
+    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    supervisor_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), index=True)
+    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), index=True)
+    status = Column(db.Integer, default=1, comment='关系状态', index=True)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     invite_token = Column(db.String(64), unique=True)
     invite_expires_at = Column(db.DateTime)
 
-    # 关系
-    solo_user = db.relationship('User', foreign_keys=[solo_user_id], backref='supervised_by_relations')
-    supervisor_user = db.relationship('User', foreign_keys=[supervisor_user_id], backref='supervising_relations')
-    rule = db.relationship('CheckinRule', backref='supervision_relations')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_supervision_solo_user_id', 'solo_user_id'),
+        db.Index('idx_supervision_supervisor_user_id', 'supervisor_user_id'),
+        db.Index('idx_supervision_rule_id', 'rule_id'),
+        db.Index('idx_supervision_status', 'status'),
+        db.Index('idx_supervision_solo_status', 'solo_user_id', 'status'),
+        db.Index('idx_supervision_supervisor_status', 'supervisor_user_id', 'status'),
+        db.Index('idx_supervision_rule_status', 'rule_id', 'status'),
+        db.Index('idx_supervision_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    solo_user = db.relationship('User', foreign_keys=[solo_user_id], back_populates='supervised_by_relations', lazy='selectin')
+    supervisor_user = db.relationship('User', foreign_keys=[supervisor_user_id], back_populates='supervising_relations', lazy='selectin')
+    rule = db.relationship('CheckinRule', back_populates='supervision_relations', lazy='selectin')
 
 
 class CommunityStaff(db.Model):
@@ -245,23 +333,32 @@ class CommunityStaff(db.Model):
     __tablename__ = 'community_staff'
 
     id = Column(db.Integer, primary_key=True)
-    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
-    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False, index=True)
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
     role = Column(db.String(20), nullable=False, comment='角色')
     scope = Column(db.String(200), comment='负责范围')
     added_at = Column(db.DateTime, default=datetime.now)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    community = db.relationship('Community', backref='staff_members')
-    user = db.relationship('User', backref='staff_roles')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_community_staff_community_id', 'community_id'),
+        db.Index('idx_community_staff_user_id', 'user_id'),
+        db.Index('idx_community_staff_role', 'role'),
+        db.Index('idx_community_staff_community_role', 'community_id', 'role'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    community = db.relationship('Community', back_populates='staff_members', lazy='selectin')
+    user = db.relationship('User', back_populates='staff_roles', lazy='selectin')
+
 
 class CommunityCheckinRule(db.Model):
     """社区打卡规则表"""
     __tablename__ = 'community_checkin_rules'
 
     community_rule_id = Column(Integer, primary_key=True, autoincrement=True)
-    community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False)
+    community_id = Column(Integer, ForeignKey('communities.community_id'), nullable=False, index=True)
     rule_name = Column(String(100), nullable=False, comment='规则名称')
     icon_url = Column(String(500), comment='图标URL')
     frequency_type = Column(Integer, nullable=False, default=0, comment='频率类型')
@@ -270,22 +367,28 @@ class CommunityCheckinRule(db.Model):
     custom_start_date = Column(Date, comment='自定义开始日期')
     custom_end_date = Column(Date, comment='自定义结束日期')
     week_days = Column(Integer, default=127, comment='周天数')
-    status = Column(Integer, default=0, comment='规则状态: 0=停用, 1=启用, 2=删除')
-    created_by = Column(Integer, ForeignKey('users.user_id'), nullable=False, comment='创建者')
+    status = Column(Integer, default=0, comment='规则状态: 0=停用, 1=启用, 2=删除', index=True)
+    created_by = Column(Integer, ForeignKey('users.user_id'), nullable=False, comment='创建者', index=True)
     updated_by = Column(Integer, ForeignKey('users.user_id'), comment='最后更新者')
     enabled_at = Column(DateTime, comment='启用时间')
     disabled_at = Column(DateTime, comment='停用时间')
     enabled_by = Column(Integer, ForeignKey('users.user_id'), comment='启用人')
     disabled_by = Column(Integer, ForeignKey('users.user_id'), comment='停用人')
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=datetime.now, index=True)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    community = db.relationship('Community', backref='community_checkin_rules')
-    creator = db.relationship('User', foreign_keys=[created_by])
-    updater = db.relationship('User', foreign_keys=[updated_by])
-    enabler = db.relationship('User', foreign_keys=[enabled_by])
-    disabler = db.relationship('User', foreign_keys=[disabled_by])
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_community_checkin_rule_community_id', 'community_id'),
+        db.Index('idx_community_checkin_rule_status', 'status'),
+        db.Index('idx_community_checkin_rule_created_by', 'created_by'),
+        db.Index('idx_community_checkin_rule_community_status', 'community_id', 'status'),
+        db.Index('idx_community_checkin_rule_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    community = db.relationship('Community', back_populates='community_checkin_rules', lazy='selectin')
+    user_mappings = db.relationship('UserCommunityRule', back_populates='community_rule', lazy='dynamic')
 
     def to_dict(self):
         """将模型对象转换为字典"""
@@ -318,50 +421,37 @@ class CommunityCheckinRule(db.Model):
         except Exception:
             pass  # 关系未加载，忽略
 
-        try:
-            if self.creator:
-                result['created_by_name'] = self.creator.nickname or self.creator.phone
-        except Exception:
-            pass
-
-        try:
-            if self.updater:
-                result['updated_by_name'] = self.updater.nickname or self.updater.phone
-        except Exception:
-            pass
-
-        try:
-            if self.enabler:
-                result['enabled_by_name'] = self.enabler.nickname or self.enabler.phone
-        except Exception:
-            pass
-
-        try:
-            if self.disabler:
-                result['disabled_by_name'] = self.disabler.nickname or self.disabler.phone
-        except Exception:
-            pass
-
         return result
+
 
 class CommunityApplication(db.Model):
     """社区申请表"""
     __tablename__ = 'community_applications'
 
     application_id = Column(db.Integer, primary_key=True)
-    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    target_community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    target_community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False, index=True)
     status = Column(db.Integer, default=1, nullable=False)
     reason = Column(db.Text, comment='申请理由')
     rejection_reason = Column(db.Text, comment='拒绝理由')
     processed_by = Column(db.Integer, db.ForeignKey('users.user_id'))
-    created_at = Column(db.DateTime, default=datetime.now)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    user = db.relationship('User', foreign_keys=[user_id], backref='community_applications')
-    processor = db.relationship('User', foreign_keys=[processed_by], backref='processed_applications')
-    target_community = db.relationship('Community', backref='applications')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_community_application_user_id', 'user_id'),
+        db.Index('idx_community_application_target_community_id', 'target_community_id'),
+        db.Index('idx_community_application_status', 'status'),
+        db.Index('idx_community_application_processed_by', 'processed_by'),
+        db.Index('idx_community_application_target_status', 'target_community_id', 'status'),
+        db.Index('idx_community_application_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    user = db.relationship('User', foreign_keys=[user_id], back_populates='community_applications', lazy='selectin')
+    processor = db.relationship('User', foreign_keys=[processed_by], back_populates='processed_applications', lazy='selectin')
+    target_community = db.relationship('Community', back_populates='applications', lazy='selectin')
 
     # 兼容性属性
     @property
@@ -395,16 +485,25 @@ class ShareLink(db.Model):
     __tablename__ = 'share_links'
 
     link_id = Column(db.Integer, primary_key=True)
-    token = Column(db.String(64), unique=True, nullable=False)
-    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
-    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=False)
-    expires_at = Column(db.DateTime, nullable=False)
-    created_at = Column(db.DateTime, default=datetime.now)
+    token = Column(db.String(64), unique=True, nullable=False, index=True)
+    solo_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    rule_id = Column(db.Integer, db.ForeignKey('checkin_rules.rule_id'), nullable=False, index=True)
+    expires_at = Column(db.DateTime, nullable=False, index=True)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    solo_user = db.relationship('User', backref='share_links')
-    rule = db.relationship('CheckinRule', backref='share_links')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_share_link_token', 'token'),
+        db.Index('idx_share_link_solo_user_id', 'solo_user_id'),
+        db.Index('idx_share_link_rule_id', 'rule_id'),
+        db.Index('idx_share_link_expires_at', 'expires_at'),
+        db.Index('idx_share_link_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    solo_user = db.relationship('User', back_populates='share_links', lazy='selectin')
+    rule = db.relationship('CheckinRule', back_populates='share_links', lazy='selectin')
 
 
 class ShareLinkAccessLog(db.Model):
@@ -412,10 +511,16 @@ class ShareLinkAccessLog(db.Model):
     __tablename__ = 'share_link_access_logs'
 
     log_id = Column(db.Integer, primary_key=True)
-    token = Column(db.String(64), nullable=False)
-    accessed_at = Column(db.DateTime, default=datetime.now)
+    token = Column(db.String(64), nullable=False, index=True)
+    accessed_at = Column(db.DateTime, default=datetime.now, index=True)
     ip_address = Column(db.String(64))
     user_agent = Column(db.String(512))
+
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_share_link_access_log_token', 'token'),
+        db.Index('idx_share_link_access_log_accessed_at', 'accessed_at'),
+    )
 
 
 class VerificationCode(db.Model):
@@ -423,15 +528,25 @@ class VerificationCode(db.Model):
     __tablename__ = 'verification_codes'
 
     id = Column(db.Integer, primary_key=True)
-    phone_number = Column(db.String(20), nullable=False)
-    purpose = Column(db.String(50), nullable=False)
+    phone_number = Column(db.String(20), nullable=False, index=True)
+    purpose = Column(db.String(50), nullable=False, index=True)
     code_hash = Column(db.String(128), nullable=False)
     salt = Column(db.String(32), nullable=False)
-    expires_at = Column(db.DateTime, nullable=False)
-    last_sent_at = Column(db.DateTime, nullable=False)
+    expires_at = Column(db.DateTime, nullable=False, index=True)
+    last_sent_at = Column(db.DateTime, nullable=False, index=True)
     is_used = Column(db.Boolean, default=False)
-    created_at = Column(db.DateTime, default=datetime.now)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_verification_code_phone_number', 'phone_number'),
+        db.Index('idx_verification_code_purpose', 'purpose'),
+        db.Index('idx_verification_code_expires_at', 'expires_at'),
+        db.Index('idx_verification_code_last_sent_at', 'last_sent_at'),
+        db.Index('idx_verification_code_phone_purpose', 'phone_number', 'purpose'),
+        db.Index('idx_verification_code_expires_at_status', 'expires_at', 'is_used'),
+    )
 
 
 class Counters(db.Model):
@@ -452,23 +567,35 @@ class CommunityEvent(db.Model):
     __tablename__ = 'community_events'
 
     event_id = Column(db.Integer, primary_key=True, autoincrement=True)
-    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
+    community_id = Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False, index=True)
     title = Column(db.String(200), nullable=False, comment='事件标题')
     description = Column(db.Text, comment='事件描述')
     event_type = Column(db.String(50), nullable=False, default='call_for_help', comment='事件类型')
-    status = Column(db.Integer, default=1, comment='事件状态：1-进行中，2-已完成，3-已取消')
-    target_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), comment='目标用户ID')
+    status = Column(db.Integer, default=1, comment='事件状态：1-进行中，2-已完成，3-已取消', index=True)
+    target_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), comment='目标用户ID', index=True)
     location = Column(db.String(200), comment='事件地点')
-    created_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='创建者ID')
-    created_at = Column(db.DateTime, default=datetime.now)
+    created_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='创建者ID', index=True)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     completed_at = Column(db.DateTime, comment='完成时间')
 
-    # 关系
-    community = db.relationship('Community', backref='events')
-    creator = db.relationship('User', foreign_keys=[created_by], backref='created_events')
-    target_user = db.relationship('User', foreign_keys=[target_user_id], backref='targeted_events')
-    supports = db.relationship('EventSupport', backref='event', cascade='all, delete-orphan')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_community_event_community_id', 'community_id'),
+        db.Index('idx_community_event_event_type', 'event_type'),
+        db.Index('idx_community_event_status', 'status'),
+        db.Index('idx_community_event_target_user_id', 'target_user_id'),
+        db.Index('idx_community_event_created_by', 'created_by'),
+        db.Index('idx_community_event_community_status', 'community_id', 'status'),
+        db.Index('idx_community_event_type_status', 'event_type', 'status'),
+        db.Index('idx_community_event_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    community = db.relationship('Community', back_populates='events', lazy='selectin')
+    creator = db.relationship('User', foreign_keys=[created_by], back_populates='created_events', lazy='selectin')
+    target_user = db.relationship('User', foreign_keys=[target_user_id], back_populates='targeted_events', lazy='selectin')
+    supports = db.relationship('EventSupport', back_populates='event', cascade='all, delete-orphan', lazy='selectin')
 
     # 事件类型映射
     EVENT_TYPE_MAPPING = {
@@ -513,17 +640,6 @@ class CommunityEvent(db.Model):
             'support_count': len([s for s in self.supports if s.status == 1])
         }
 
-        # 添加关联信息
-        try:
-            if self.community:
-                result['community_name'] = self.community.name
-            if self.creator:
-                result['creator_name'] = self.creator.nickname or self.creator.phone_number
-            if self.target_user:
-                result['target_user_name'] = self.target_user.nickname or self.target_user.phone_number
-        except Exception:
-            pass
-
         return result
 
 
@@ -532,15 +648,25 @@ class EventSupport(db.Model):
     __tablename__ = 'event_supports'
 
     support_id = Column(db.Integer, primary_key=True, autoincrement=True)
-    event_id = Column(db.Integer, db.ForeignKey('community_events.event_id'), nullable=False)
-    supporter_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    event_id = Column(db.Integer, db.ForeignKey('community_events.event_id'), nullable=False, index=True)
+    supporter_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
     support_content = Column(db.Text, comment='应援内容')
-    status = Column(db.Integer, default=1, comment='应援状态：1-有效，2-已取消')
-    created_at = Column(db.DateTime, default=datetime.now)
+    status = Column(db.Integer, default=1, comment='应援状态：1-有效，2-已取消', index=True)
+    created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
-    # 关系
-    supporter = db.relationship('User', backref='supports')
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_event_support_event_id', 'event_id'),
+        db.Index('idx_event_support_supporter_id', 'supporter_id'),
+        db.Index('idx_event_support_status', 'status'),
+        db.Index('idx_event_support_event_status', 'event_id', 'status'),
+        db.Index('idx_event_support_created_at', 'created_at'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    supporter = db.relationship('User', back_populates='supports', lazy='selectin')
+    event = db.relationship('CommunityEvent', back_populates='supports', lazy='selectin')
 
     # 状态映射
     STATUS_MAPPING = {
@@ -566,13 +692,6 @@ class EventSupport(db.Model):
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
 
-        # 添加关联信息
-        try:
-            if self.supporter:
-                result['supporter_name'] = self.supporter.nickname or self.supporter.phone_number
-        except Exception:
-            pass
-
         return result
 
 
@@ -595,9 +714,9 @@ class UserCommunityRule(db.Model):
         db.Index('idx_user_community_rules_user_active', 'user_id', 'is_active'),
     )
 
-    # 关系
-    user = db.relationship('User', backref='user_community_rules')
-    community_rule = db.relationship('CommunityCheckinRule', backref='user_mappings')
+    # 关系 - 使用 back_populates 替代 backref
+    user = db.relationship('User', back_populates='user_community_rules', lazy='selectin')
+    community_rule = db.relationship('CommunityCheckinRule', back_populates='user_mappings', lazy='selectin')
 
     def __repr__(self):
         return f'<UserCommunityRule {self.mapping_id}: User{self.user_id}-Rule{self.community_rule_id}>'
