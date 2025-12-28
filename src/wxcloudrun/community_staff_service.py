@@ -228,7 +228,7 @@ class CommunityStaffService:
 
         # 提交事务
         with transaction():
-            db.session.commit()
+            pass  # 事务上下文，确保所有修改在事务中完成
 
         return {
             'success_count': added_count,
@@ -286,7 +286,7 @@ class CommunityStaffService:
         db.session.add(audit_log)
 
         with transaction():
-            db.session.commit()
+            pass  # 事务上下文，确保所有修改在事务中完成
         logger.info(f"社区工作人员添加成功: 社区ID={community_id}, 用户ID={user_id}")
         return staff
 
@@ -348,7 +348,7 @@ class CommunityStaffService:
         db.session.add(audit_log)
 
         with transaction():
-            db.session.commit()
+            pass  # 事务上下文，确保所有修改在事务中完成
         logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}")
         return True
 
@@ -430,7 +430,7 @@ class CommunityStaffService:
                     db.session.add(staff)
 
             with transaction():
-                db.session.commit()
+                pass  # 事务上下文，确保所有修改在事务中完成
 
             logger.info(f"用户{user_id}社区切换完成: 停用{deactivated_count}个旧规则，激活{activated_count}个新规则")
 

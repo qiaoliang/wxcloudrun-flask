@@ -299,17 +299,17 @@ def remove_community_user(community_id, target_user_id):
             return make_err_response({}, '无权限访问该社区')
 
         # 移除用户
-        success = CommunityService.remove_user_from_community(community_id, target_user_id)
+        result = CommunityService.remove_user_from_community(community_id, target_user_id)
 
-        if success:
+        if result:
             # 记录审计日志
             _audit(operator_id, 'remove_community_user', {
                 'community_id': community_id,
                 'target_user_id': target_user_id
             })
 
-            current_app.logger.info(f'移除社区用户成功: community_id={community_id}, user_id={target_user_id}')
-            return make_succ_response({'message': '移除成功'})
+            current_app.logger.info(f'移除社区用户成功: community_id={community_id}, user_id={target_user_id}, result={result}')
+            return make_succ_response({'message': '移除成功', 'moved_to': result.get('moved_to')})
         else:
             return make_err_response({}, '移除失败')
 

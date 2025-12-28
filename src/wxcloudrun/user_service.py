@@ -260,7 +260,6 @@ class UserService:
         # 添加到数据库
         db.session.add(new_user)
         db.session.flush()  # 刷新以获取数据库生成的ID
-        db.session.refresh(new_user)  # 确保获取数据库生成的值
 
         # 记录审计日志
         audit_log = UserAuditLog(
@@ -270,7 +269,6 @@ class UserService:
         )
         db.session.add(audit_log)
 
-        db.session.refresh(new_user)  # 确保所有属性都已加载
         logger.info(f"用户创建成功: {new_user.nickname}, ID: {new_user.user_id}")
         return new_user
 

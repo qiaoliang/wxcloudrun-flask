@@ -113,7 +113,6 @@ class CheckinRuleService:
 
         db.session.add(new_rule)
         db.session.flush()
-        db.session.refresh(new_rule)
         # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
         logger.info(f"创建打卡规则成功: 用户ID={user_id}, 规则ID={new_rule.rule_id}")
@@ -177,7 +176,6 @@ class CheckinRuleService:
                 raise ValueError('结束日期不能早于开始日期')
 
         db.session.flush()
-        db.session.refresh(rule)
         # Flask-SQLAlchemy 会自动处理对象状态，不需要 expunge
 
         logger.info(f"更新打卡规则成功: 规则ID={rule_id}")

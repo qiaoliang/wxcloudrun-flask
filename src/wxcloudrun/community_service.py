@@ -144,7 +144,6 @@ class CommunityService:
 
             db.session.add(application)
             db.session.flush()
-            db.session.refresh(application)
 
         logger.info(f"创建社区申请成功: application_id={application.application_id}, user_id={user_id}, community_id={community_id}")
         return application
@@ -613,8 +612,9 @@ class CommunityService:
             # 对于安卡大家庭，不检查用户是否在该社区，直接移入黑屋
             # 检查是否已在黑屋
             if target_user.community_id != blackhouse.community_id:
-                target_user.community_id = blackhouse.community_id
-                target_user.community_joined_at = datetime.now()
+                with transaction():
+                    target_user.community_id = blackhouse.community_id
+                    target_user.community_joined_at = datetime.now()
                 moved_to = DEFAULT_BLACK_ROOM_NAME
 
         # 如果从普通社区移除
@@ -641,16 +641,15 @@ class CommunityService:
             if other_communities_count == 0 and anka_family:
                 # 检查是否已在安卡大家庭
                 if target_user.community_id != anka_family.community_id:
-                    target_user.community_id = anka_family.community_id
-                    target_user.community_joined_at = datetime.now()
+                    with transaction():
+                        target_user.community_id = anka_family.community_id
+                        target_user.community_joined_at = datetime.now()
                     moved_to = DEFAULT_COMMUNITY_NAME
             else:
                 # 如果用户属于其他普通社区，则清空社区信息
-                target_user.community_id = None
-                target_user.community_joined_at = None
-
-        with transaction():
-            pass  # 事务上下文，确保所有修改在事务中完成
+                with transaction():
+                    target_user.community_id = None
+                    target_user.community_joined_at = None
 
         return {'moved_to': moved_to}
 

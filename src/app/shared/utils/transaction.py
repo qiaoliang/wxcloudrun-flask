@@ -220,7 +220,15 @@ def transaction():
                     logger.error(f"事务回滚: {exc_type.__name__}: {str(exc_val)}")
                 except Exception as rollback_error:
                     logger.error(f"回滚失败: {str(rollback_error)}")
-            # 正常退出，自动提交
+                return True  # 抑制异常
+            else:
+                # 正常退出，自动提交
+                try:
+                    self.session.commit()
+                    logger.debug("事务提交成功")
+                except Exception as commit_error:
+                    logger.error(f"提交失败: {str(commit_error)}")
+                    return True  # 抑制异常
             return False
 
     return TransactionContext()

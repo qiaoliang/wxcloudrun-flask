@@ -216,6 +216,7 @@ class TestBase:
         community = Community(**default_data)
         cls.db.session.add(community)
         cls.db.session.commit()
+        cls.db.session.refresh(community)  # 刷新对象以确保状态正确
         return community
 
     # ==================== API 测试工具 ====================
@@ -465,27 +466,26 @@ class IntegrationTestBase(TestBase):
         """
         from wxcloudrun.community_staff_service import CommunityStaffService
 
-        with cls.app.app_context():
-            # 如果没有提供操作者ID，使用超级管理员
-            if operator_id is None:
-                super_admin = cls.get_super_admin('add_community_staff')
-                operator_id = super_admin['user_id']
+        # 如果没有提供操作者ID，使用超级管理员
+        if operator_id is None:
+            super_admin = cls.get_super_admin('add_community_staff')
+            operator_id = super_admin['user_id']
 
-            # 调用服务层方法添加工作人员
-            try:
-                staff_record = CommunityStaffService.add_staff_single(
-                    community_id=community_id,
-                    user_id=user_id,
-                    role=role,
-                    operator_id=operator_id
-                )
-                return staff_record
-            except ValueError as e:
-                # 重新抛出业务异常
-                raise ValueError(f"添加社区工作人员失败: {str(e)}")
-            except Exception as e:
-                # 包装其他异常
-                raise ValueError(f"添加社区工作人员时发生未知错误: {str(e)}")
+        # 调用服务层方法添加工作人员
+        try:
+            staff_record = CommunityStaffService.add_staff_single(
+                community_id=community_id,
+                user_id=user_id,
+                role=role,
+                operator_id=operator_id
+            )
+            return staff_record
+        except ValueError as e:
+            # 重新抛出业务异常
+            raise ValueError(f"添加社区工作人员失败: {str(e)}")
+        except Exception as e:
+            # 包装其他异常
+            raise ValueError(f"添加社区工作人员时发生未知错误: {str(e)}")
 
 
 @pytest.fixture(scope="class")

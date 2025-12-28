@@ -64,7 +64,6 @@ class CommunityEventService:
             with transaction():
                 db.session.add(event)
                 db.session.flush()
-                db.session.refresh(event)  # 确保 event_id 被正确生成
 
             logger.info(f"用户{user_id}在社区{community_id}创建了事件{event.event_id}")
 
@@ -207,7 +206,6 @@ class CommunityEventService:
             with transaction():
                 db.session.add(support)
                 db.session.flush()
-                db.session.refresh(support)  # 确保 support_id 被正确生成
 
             logger.info(f"用户{supporter_id}对事件{event_id}进行了应援")
 

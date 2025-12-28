@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from hashlib import sha256
 from flask import current_app
 from database.flask_models import VerificationCode, UserAuditLog, db
+from app.shared.utils.transaction import transaction
 
 
 def normalize_phone_number(phone):
@@ -90,9 +91,9 @@ def _verify_sms_code(phone, purpose, code):
     # 验证码匹配
     if vc.code_hash == _hash_code(phone, code, vc.salt):
         # 验证成功后立即标记为已使用
-        vc.is_used = True
-        db.session.add(vc)
-        db.session.commit()
+        with transaction():
+            vc.is_used = True
+            db.session.add(vc)
         return True
     return False
 
@@ -104,10 +105,10 @@ def _audit(user_id, action, detail=None):
     try:
         import json
         from database.flask_models import UserAuditLog
-        log = UserAuditLog(user_id=user_id, action=action, detail=json.dumps(
-            detail) if isinstance(detail, dict) else detail)
-        db.session.add(log)
-        db.session.commit()
+        with transaction():
+            log = UserAuditLog(user_id=user_id, action=action, detail=json.dumps(
+                detail) if isinstance(detail, dict) else detail)
+            db.session.add(log)
     except Exception:
         pass
 
