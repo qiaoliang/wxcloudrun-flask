@@ -96,7 +96,7 @@ def main():
         if env_type in ['unit']:
             migration_logger.info("检测到 unit 环境（内存数据库），跳过数据库迁移")
             migration_success = True
-            
+
             # 在 unit 环境下，需要手动创建 Flask-SQLAlchemy 的表
             migration_logger.info("在 unit 环境下创建 Flask-SQLAlchemy 表")
             from app.extensions import db
@@ -119,10 +119,10 @@ def main():
             if not migration_success:
                 migration_logger.error("数据库迁移失败，程序退出")
                 sys.exit(1)
-        
+
         # 4. 初始化超级管理员和默认社区
         should_initialize = False
-        
+
         if env_type == 'function':
             # function环境总是执行初始化
             should_initialize = True
@@ -131,7 +131,7 @@ def main():
             # 其他非unit环境，在非调试模式或调试模式的主进程中执行
             should_initialize = True
             flask_app.logger.info("开始注入超级管理员和默认社区.....")
-        
+
         if should_initialize:
             # 创建超级系统管理员和默认社区
             from database.initialization import create_superadmin_and_default_community
@@ -142,7 +142,9 @@ def main():
 
     # 5. 启动 Flask 应用
     host = sys.argv[1] if len(sys.argv) > 1 else '0.0.0.0'
-    port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
+    #port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
+    port = int(os.environ.get("EXPOSE_PORT", 8080))
+
     flask_app.run(host=host, port=port)
 
 
