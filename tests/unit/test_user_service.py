@@ -10,7 +10,7 @@ from wxcloudrun.user_service import UserService
 from test_constants import TEST_CONSTANTS
 
 from wxcloudrun.user_service import phone_hash, pwd_hash
-
+from wxcloudrun.utils.validators import generate_phone_hash
 
 class TestUserService:
     """测试 UserService.create_user 方法"""
@@ -150,7 +150,7 @@ class TestUserService:
 
         # 验证手机号用户的密码和手机号哈希已正确设置
         # 注意：phone_hash 仍使用原始手机号生成
-        assert result.phone_hash == phone_hash(original_phone)
+        assert result.phone_hash == generate_phone_hash(original_phone)
         assert result.password_hash == pwd_hash("test_password_123")
 
         # 验证用户确实被保存到数据库
@@ -201,7 +201,7 @@ class TestUserService:
         assert result.phone_number == expected_masked_phone
 
         # 验证phone_hash仍使用原始手机号生成
-        assert result.phone_hash == phone_hash(original_phone)
+        assert result.phone_hash == generate_phone_hash(original_phone)
 
         # 验证用户确实被保存到数据库
         test_session.expire_all()  # 刷新会话以获取最新数据
@@ -691,9 +691,9 @@ class TestUserService:
             with patch('database.flask_models.User.query') as mock_query:
                 mock_query.filter.side_effect = OperationalError(
                     "Database error", None, None)
-    
+
                 # Act - 查询用户
                 result = UserService.query_user_by_refresh_token("test_token")
-    
+
                 # Assert - 应该返回 None 而不是抛出异常
                 assert result is None

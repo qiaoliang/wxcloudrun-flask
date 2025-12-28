@@ -128,3 +128,16 @@ def _mask_phone_number(phone):
     if len(normalized) >= 7:
         return normalized[:3] + '****' + normalized[-4:]
     return normalized
+
+def generate_phone_hash(phone_number):
+    """
+    生成手机号哈希值
+    
+    Args:
+        phone_number (str): 手机号码（已标准化）
+    
+    Returns:
+        str: 手机号的哈希值
+    """
+    phone_secret = os.getenv("PHONE_ENC_SECRET", "default_secret")
+    return sha256(f"{phone_secret}:{phone_number}".encode("utf-8")).hexdigest()

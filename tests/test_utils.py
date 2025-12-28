@@ -62,7 +62,8 @@ class TestUserFactory:
         # 生成手机哈希（与登录API保持一致）
         import os
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-        phone_hash = sha256(f"{phone_secret}:{phone_number}".encode('utf-8')).hexdigest()
+        from wxcloudrun.utils.validators import generate_phone_hash
+        phone_hash = generate_phone_hash(phone_number)
 
         # 构建用户数据
         user_data = {

@@ -14,7 +14,7 @@ from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
 from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only
-from database.flask_models import db
+from database.flask_models import db, User
 
 app_logger = logging.getLogger('log')
 

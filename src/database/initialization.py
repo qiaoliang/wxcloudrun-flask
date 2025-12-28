@@ -8,6 +8,7 @@ import secrets
 import os
 from hashlib import sha256
 from database.flask_models import User, Community, CommunityStaff, db
+from wxcloudrun.utils.validators import generate_phone_hash
 
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,BLACKHOUSE_COMMUNITY_NAME
 
@@ -38,8 +39,7 @@ def create_superadmin_and_default_community():
 
             # 使用与auth.py相同的手机号哈希方法
             phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-            phone_hash = sha256(f"{phone_secret}:13900007997".encode('utf-8')).hexdigest()
-
+            phone_hash = generate_phone_hash("13900007997")
             superadmin = User(
                 wechat_openid=f"superadmin_{secrets.token_hex(16)}",  # 生成唯一openid
                 phone_number='13900007997',

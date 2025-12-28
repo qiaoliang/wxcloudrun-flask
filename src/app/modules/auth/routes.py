@@ -19,7 +19,7 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token, verify_token
 from wxcloudrun.user_service import UserService
 from database.flask_models import User
-from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
+from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number,generate_phone_hash
 from config_manager import get_token_secret
 from const_default import DEFAULT_COMMUNITY_NAME
 from error_code import INVALID_CAPTCHA
@@ -442,8 +442,7 @@ def register_phone():
             if len(pwd) < 8 or (not any(c.isalpha() for c in pwd)) or (not any(c.isdigit() for c in pwd)):
                 return make_err_response({}, '密码强度不足')
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-        phone_hash = sha256(
-            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
+        phone_hash =generate_phone_hash(normalized_phone)
         existing = UserService.query_user_by_phone_hash(phone_hash)
 
         # 严格按策略1：不验证密码，直接提示账号已存在
@@ -522,8 +521,7 @@ def login_phone_code():
         current_app.logger.info('SMS验证码验证通过，开始查询用户...')
 
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-        phone_hash = sha256(
-            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
+        phone_hash = generate_phone_hash(normalized_phone)
         current_app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
 
         # 数据库查询 - 添加执行时间监控
@@ -597,8 +595,7 @@ def login_phone_password():
         current_app.logger.info(f'标准化后的手机号: {normalized_phone}')
 
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-        phone_hash = sha256(
-            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
+        phone_hash = generate_phone_hash(normalized_phone)
         current_app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
 
         # 数据库查询 - 添加执行时间监控
@@ -692,8 +689,7 @@ def login_phone():
 
         # 查找用户
         phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-        phone_hash = sha256(
-            f"{phone_secret}:{normalized_phone}".encode('utf-8')).hexdigest()
+        phone_hash = generate_phone_hash(normalized_phone)
         current_app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
 
         # 数据库查询 - 添加执行时间监控

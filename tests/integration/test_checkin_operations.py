@@ -25,10 +25,11 @@ class TestCheckinOperations(IntegrationTestBase):
         # 创建测试用户
         with self.app.app_context():
             user = self.create_standard_test_user(role=1, test_context='today_checkin')
+            phone_number = user.phone_number
         client = self.get_test_client()
 
         # 获取JWT token
-        token = self.get_jwt_token(user.phone_number)
+        token = self.get_jwt_token(phone_number)
 
         # 发送获取今日打卡事项请求
         response = client.get(
@@ -46,6 +47,7 @@ class TestCheckinOperations(IntegrationTestBase):
         # 创建测试用户
         with self.app.app_context():
             user = self.create_standard_test_user(role=1, test_context='perform_checkin')
+            phone_number = user.phone_number
         client = self.get_test_client()
 
         # 创建打卡规则
@@ -62,7 +64,7 @@ class TestCheckinOperations(IntegrationTestBase):
         )
 
         # 获取JWT token
-        token = self.get_jwt_token(user.phone_number)
+        token = self.get_jwt_token(phone_number)
 
         # 发送打卡请求
         response = client.post(
@@ -85,6 +87,7 @@ class TestCheckinOperations(IntegrationTestBase):
         # 创建测试用户
         with self.app.app_context():
             user = self.create_standard_test_user(role=1, test_context='miss_checkin')
+            phone_number = user.phone_number
         client = self.get_test_client()
 
         # 创建打卡规则
@@ -101,7 +104,7 @@ class TestCheckinOperations(IntegrationTestBase):
         )
 
         # 获取JWT token
-        token = self.get_jwt_token(user.phone_number)
+        token = self.get_jwt_token(phone_number)
 
         # 发送上报漏打卡请求
         response = client.post(
@@ -124,6 +127,7 @@ class TestCheckinOperations(IntegrationTestBase):
         # 创建测试用户
         with self.app.app_context():
             user = self.create_standard_test_user(role=1, test_context='cancel_checkin')
+            phone_number = user.phone_number
         client = self.get_test_client()
 
         # 创建打卡规则
@@ -149,7 +153,7 @@ class TestCheckinOperations(IntegrationTestBase):
         )
 
         # 获取JWT token
-        token = self.get_jwt_token(user.phone_number)
+        token = self.get_jwt_token(phone_number)
 
         # 发送取消打卡请求
         response = client.post(
@@ -171,6 +175,7 @@ class TestCheckinOperations(IntegrationTestBase):
         # 创建测试用户
         with self.app.app_context():
             user = self.create_standard_test_user(role=1, test_context='checkin_history')
+            phone_number = user.phone_number
         client = self.get_test_client()
 
         # 创建打卡规则
@@ -202,7 +207,7 @@ class TestCheckinOperations(IntegrationTestBase):
         )
 
         # 获取JWT token
-        token = self.get_jwt_token(user.phone_number)
+        token = self.get_jwt_token(phone_number)
 
         # 发送获取打卡历史请求
         response = client.get(

@@ -33,7 +33,7 @@ def pwd_hash(pwd):
     return sha256(f"{pwd}:{PWD_SALT}".encode('utf-8')).hexdigest()
 
 def phone_hash(phone_number):
-    return sha256(f"{PHONE_SALT}:{phone_number}".encode('utf-8')).hexdigest()
+    return generate_phone_hash(phone_number)
 
 def sms_code_hash(phone, code, salt):
     """生成验证码哈希值"""
@@ -156,7 +156,8 @@ class UserService:
         :param phone_number: 手机号
         :return: User实体
         """
-        user = User.query.filter_by(phone_hash=phone_hash(phone_number)).first()
+        from wxcloudrun.utils.validators import generate_phone_hash
+        user = User.query.filter_by(phone_hash=generate_phone_hash(phone_number)).first()
         return user
 
     @staticmethod
@@ -227,7 +228,8 @@ class UserService:
             masked_phone = _mask_phone_number(original_phone)
 
             new_user.phone_number = masked_phone  # 存储脱敏号码
-            new_user.phone_hash = phone_hash(original_phone)  # 哈希值使用原始号码
+            from wxcloudrun.utils.validators import generate_phone_hash
+            new_user.phone_hash = generate_phone_hash(original_phone)  # 哈希值使用原始号码
             new_user.password_hash = pwd_hash(new_user.password)
             new_user.password_salt = PWD_SALT
             new_user.wechat_openid = None
@@ -328,7 +330,7 @@ class UserService:
                 # 检查是否已是任何社区的工作人员
                 from database.flask_models import CommunityStaff
                 is_staff = db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
-                
+
                 user_data = {
                     'user_id': str(u.user_id),
                     'nickname': u.nickname or '未设置昵称',
@@ -361,13 +363,13 @@ class UserService:
     def search_users(keyword, page=1, per_page=20, community_id=None):
         """
         搜索用户（全局搜索，支持社区过滤）
-        
+
         Args:
             keyword (str): 搜索关键词
             page (int): 页码，默认1
             per_page (int): 每页数量，默认20，最大100
             community_id (int): 社区ID过滤，用于排除当前社区工作人员
-            
+
         Returns:
             dict: 包含用户列表和分页信息的字典
         """
@@ -395,7 +397,7 @@ class UserService:
             # 构建基础查询
             from database.flask_models import CommunityStaff
             from sqlalchemy import or_
-            
+
             query = User.query.filter(
                 or_(
                     User.nickname.ilike(f'%{keyword}%'),
@@ -422,16 +424,16 @@ class UserService:
                 is_current_community_staff = False
                 current_community_manager = False
                 other_community_manager = False
-                
+
                 if community_id:
                     current_community_staff = db.session.query(CommunityStaff).filter_by(
-                        community_id=community_id, 
+                        community_id=community_id,
                         user_id=u.user_id,
                         role='staff'
                     ).first() is not None
-                    
+
                     current_community_manager = db.session.query(CommunityStaff).filter_by(
-                        community_id=community_id, 
+                        community_id=community_id,
                         user_id=u.user_id,
                         role='manager'
                     ).first() is not None
@@ -483,12 +485,12 @@ class UserService:
     def search_users_by_phone(normalized_phone, page=1, per_page=20):
         """
         按手机号搜索用户
-        
+
         Args:
             normalized_phone (str): 标准化的手机号
             page (int): 页码，默认1
             per_page (int): 每页数量，默认20，最大100
-            
+
         Returns:
             dict: 包含用户列表和分页信息的字典
         """
@@ -554,12 +556,12 @@ class UserService:
     def search_users_by_nickname(keyword, page=1, per_page=20):
         """
         按昵称搜索用户
-        
+
         Args:
             keyword (str): 搜索关键词
             page (int): 页码，默认1
             per_page (int): 每页数量，默认20，最大100
-            
+
         Returns:
             dict: 包含用户列表和分页信息的字典
         """

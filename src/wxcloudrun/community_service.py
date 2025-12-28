@@ -10,6 +10,7 @@ from datetime import datetime
 from hashlib import sha256
 from typing import Dict
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog
+from wxcloudrun.utils.validators import generate_phone_hash
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
 logger = logging.getLogger('CommunityService')
 
@@ -155,8 +156,7 @@ class CommunityService:
             # 判断是电话号码还是昵称
             if keyword.isdigit() and len(keyword) >= 7:
                 # 电话号码精确搜索
-                phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-                phone_hash = sha256(f"{phone_secret}:{keyword}".encode('utf-8')).hexdigest()
+                phone_hash = generate_phone_hash(keyword)
                 query = query.filter_by(phone_hash=phone_hash)
             else:
                 # 昵称模糊搜索
