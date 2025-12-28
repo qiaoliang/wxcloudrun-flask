@@ -5,6 +5,7 @@
 import logging
 from datetime import datetime
 from typing import List, Dict, Optional
+from sqlalchemy import select, func
 
 from database.flask_models import db, CommunityEvent, EventSupport, User, Community
 from wxcloudrun.community_service import CommunityService
@@ -90,18 +91,20 @@ class CommunityEventService:
             Dict: 查询结果
         """
         try:
-            query = db.session.query(CommunityEvent).filter(
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            stmt = select(CommunityEvent).where(
                 CommunityEvent.community_id == community_id
             )
             
             # 应用过滤条件
             if status_filter is not None:
-                query = query.filter(CommunityEvent.status == status_filter)
+                stmt = stmt.where(CommunityEvent.status == status_filter)
             
             if event_type_filter is not None:
-                query = query.filter(CommunityEvent.event_type == event_type_filter)
+                stmt = stmt.where(CommunityEvent.event_type == event_type_filter)
             
-            events = query.order_by(CommunityEvent.created_at.desc()).all()
+            stmt = stmt.order_by(CommunityEvent.created_at.desc())
+            events = db.session.execute(stmt).scalars().all()
             
             return {
                 'success': True,
@@ -128,11 +131,13 @@ class CommunityEventService:
             if not event:
                 return {'success': False, 'message': '事件不存在'}
             
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 获取应援记录
-            supports = db.session.query(EventSupport).filter(
+            stmt = select(EventSupport).where(
                 EventSupport.event_id == event_id,
                 EventSupport.status == 1
-            ).order_by(EventSupport.created_at.desc()).all()
+            ).order_by(EventSupport.created_at.desc())
+            supports = db.session.execute(stmt).scalars().all()
             
             event_data = event.to_dict()
             event_data['supports'] = [support.to_dict() for support in supports]
@@ -178,12 +183,14 @@ class CommunityEventService:
             if not CommunityService.has_community_permission(supporter_id, event.community_id):
                 return {'success': False, 'message': '无权限进行应援操作'}
             
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 检查是否已经应援过
-            existing_support = db.session.query(EventSupport).filter(
+            stmt = select(EventSupport).where(
                 EventSupport.event_id == event_id,
                 EventSupport.supporter_id == supporter_id,
                 EventSupport.status == 1
-            ).first()
+            )
+            existing_support = db.session.execute(stmt).scalar_one_or_none()
             
             if existing_support:
                 return {'success': False, 'message': '您已经应援过该事件'}
@@ -228,18 +235,22 @@ class CommunityEventService:
             if not community:
                 return {'success': False, 'message': '社区不存在'}
             
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 未结束事件数量（状态为1-进行中）
-            active_events_count = db.session.query(CommunityEvent).filter(
+            stmt_active = select(func.count()).select_from(CommunityEvent).where(
                 CommunityEvent.community_id == community_id,
                 CommunityEvent.status == 1
-            ).count()
+            )
+            active_events_count = db.session.execute(stmt_active).scalar()
             
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 应援数量（未结束事件中的supporting类型事件数量）
-            support_events_count = db.session.query(CommunityEvent).filter(
+            stmt_support = select(func.count()).select_from(CommunityEvent).where(
                 CommunityEvent.community_id == community_id,
                 CommunityEvent.status == 1,
                 CommunityEvent.event_type == 'supporting'
-            ).count()
+            )
+            support_events_count = db.session.execute(stmt_support).scalar()
             
             return {
                 'success': True,
