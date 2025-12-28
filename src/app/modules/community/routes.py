@@ -875,7 +875,7 @@ def remove_community_staff():
             return make_err_response({}, '无权限访问该社区')
 
         # 移除工作人员
-        success = CommunityStaffService.remove_community_staff(
+        success = CommunityStaffService.remove_staff(
             community_id, target_user_id, operator_id
         )
 
