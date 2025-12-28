@@ -60,7 +60,7 @@ class UserService:
         根据refresh token查询用户
         """
         try:
-            user = User.query.filter(User.refresh_token == refresh_token).first()
+            user = db.session.query(User).filter(User.refresh_token == refresh_token).first()
             return user
         except Exception as e:
             logger.error(f'查询用户失败: {str(e)}')
@@ -74,7 +74,7 @@ class UserService:
         """
         try:
             # 在数据库中查找现有用户
-            existing_user = User.query.filter_by(user_id=user.user_id).first()
+            existing_user = db.session.query(User).filter_by(user_id=user.user_id).first()
             if not existing_user:
                 return
 
@@ -120,7 +120,7 @@ class UserService:
         :return: User实体
         """
         try:
-            user = User.query.options(joinedload(User.community)).filter(
+            user = db.session.query(User).options(joinedload(User.community)).filter(
                 User.wechat_openid == openid
             ).first()
             return user
@@ -136,7 +136,7 @@ class UserService:
         :return: User实体
         """
         try:
-            user = User.query.options(joinedload(User.community)).filter(
+            user = db.session.query(User).options(joinedload(User.community)).filter(
                 User.phone_hash == phone_hash
             ).first()
             return user
@@ -150,7 +150,7 @@ class UserService:
         :param user_id: 用户ID
         :return: User实体
         """
-        user = User.query.filter_by(user_id=user_id).first()
+        user = db.session.query(User).filter_by(user_id=user_id).first()
         return user
 
     @staticmethod
@@ -159,7 +159,7 @@ class UserService:
         :param phone_number: 手机号
         :return: User实体
         """
-        user = User.query.filter_by(phone_hash=generate_phone_hash(phone_number)).first()
+        user = db.session.query(User).filter_by(phone_hash=generate_phone_hash(phone_number)).first()
         return user
 
     @staticmethod
@@ -305,7 +305,7 @@ class UserService:
             from const_default import DEFAULT_COMMUNITY_ID
             from sqlalchemy import or_
 
-            query = User.query.filter(User.community_id == DEFAULT_COMMUNITY_ID)
+            query = db.session.query(User).filter(User.community_id == DEFAULT_COMMUNITY_ID)
 
             # 关键词搜索（昵称或手机号）
             query = query.filter(
@@ -399,7 +399,7 @@ class UserService:
             from database.flask_models import CommunityStaff
             from sqlalchemy import or_
 
-            query = User.query.filter(
+            query = db.session.query(User).filter(
                 or_(
                     User.nickname.ilike(f'%{keyword}%'),
                     User.phone_number.ilike(f'%{keyword}%')
@@ -505,7 +505,7 @@ class UserService:
                 per_page = 100
 
             # 搜索用户
-            query = User.query.filter(
+            query = db.session.query(User).filter(
                 User.phone_number.ilike(f'%{normalized_phone}%')
             ).filter(User.role != 4)  # 排除超级管理员
 
@@ -576,7 +576,7 @@ class UserService:
                 per_page = 100
 
             # 搜索用户
-            query = User.query.filter(
+            query = db.session.query(User).filter(
                 User.nickname.ilike(f'%{keyword}%')
             ).filter(User.role != 4)  # 排除超级管理员
 

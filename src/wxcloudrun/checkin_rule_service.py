@@ -23,8 +23,8 @@ class CheckinRuleService:
         :return: 打卡规则列表
         """
         try:
-            # 使用 Flask-SQLAlchemy 的 Model.query（推荐方式）
-            rules = CheckinRule.query.filter(
+            # 使用 db.session.query（符合代码规范）
+            rules = db.session.query(CheckinRule).filter(
                 CheckinRule.user_id == user_id,  # 更新字段名
                 CheckinRule.status == 1  # 更新字段名，只查询启用状态的规则
             ).all()
@@ -41,7 +41,7 @@ class CheckinRuleService:
         :return: 打卡规则实体（排除已删除的规则）
         """
         try:
-            rule = CheckinRule.query.filter(
+            rule = db.session.query(CheckinRule).filter(
                 CheckinRule.rule_id == rule_id,
                 CheckinRule.status != 2  # 排除已删除的规则
             ).first()
@@ -339,7 +339,7 @@ class CheckinRuleService:
         """
         try:
             from sqlalchemy import func
-            query = CheckinRecord.query.filter(
+            query = db.session.query(CheckinRecord).filter(
                 func.date(CheckinRecord.planned_time) == today
             )
 

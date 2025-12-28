@@ -86,19 +86,19 @@ def _format_community_info(community, include_worker_stats=False):
     worker_count = 0
     user_count = 0  # 普通成员数量（不包括工作人员）
     if include_worker_stats:
-        manager_count = CommunityStaff.query.filter_by(
+        manager_count = db.session.query(CommunityStaff).filter_by(
             community_id=community.community_id,
             role='manager'  # 社区主管
         ).count()
         # 只统计专员（不包括主管）
-        staff_count = CommunityStaff.query.filter_by(
+        staff_count = db.session.query(CommunityStaff).filter_by(
             community_id=community.community_id,
             role='staff'  # 社区专员
         ).count()
         worker_count = manager_count + staff_count  # 工作人员总数 = 主管 + 专员
 
         # 获取所有工作人员的用户ID列表
-        staff_user_ids = [s.user_id for s in CommunityStaff.query.filter_by(
+        staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
             community_id=community.community_id
         ).all()]
 

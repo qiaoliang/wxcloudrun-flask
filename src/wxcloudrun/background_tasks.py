@@ -63,7 +63,7 @@ def _process_missed_for_today(now):
     grace_delta = timedelta(minutes=grace_minutes)
 
     try:
-        rules = CheckinRule.query.filter(CheckinRule.status != 2).all()  # 排除已删除的规则
+        rules = db.session.query(CheckinRule).filter(CheckinRule.status != 2).all()  # 排除已删除的规则
     except Exception as e:
         # 如果数据库表不存在，跳过本次检查
         if "no such table" in str(e).lower():
@@ -118,7 +118,7 @@ def _process_community_missed_for_today(now):
 
     try:
         # 查询所有启用的社区规则
-        community_rules = CommunityCheckinRule.query.filter_by(status=1).all()
+        community_rules = db.session.query(CommunityCheckinRule).filter_by(status=1).all()
     except Exception as e:
         if "no such table" in str(e).lower():
             current_app.logger.warning(f"[community-missing-mark] 数据库表尚未创建，跳过检查。")

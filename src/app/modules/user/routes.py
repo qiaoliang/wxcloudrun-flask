@@ -176,7 +176,7 @@ def user_profile():
             if not user:
                 current_app.logger.error(f'用户不存在，user_id={user_id}')
                 # 检查数据库中是否有任何用户
-                all_users = User.query.all()
+                all_users = db.session.query(User).all()
                 current_app.logger.info(f'数据库中的所有用户: {[u.user_id for u in all_users]}')
                 return make_err_response({}, '用户不存在，请重新登录')
 
