@@ -86,6 +86,7 @@ class CheckinRecordService:
             'rule_id': rule_id,
             'record_id': record_id,
             'checkin_time': checkin_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'status': 'completed',
             'message': '打卡成功'
         }
 
@@ -120,6 +121,7 @@ class CheckinRecordService:
 
         return {
             'record_id': record_id,
+            'status': 'missed',
             'message': '已标记为miss'
         }
 
@@ -154,6 +156,7 @@ class CheckinRecordService:
 
         return {
             'record_id': record_id,
+            'status': 'cancelled',
             'message': '撤销打卡成功'
         }
 

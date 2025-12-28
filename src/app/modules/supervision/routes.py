@@ -52,7 +52,7 @@ def invite_supervisor(decoded):
         if rule_ids:
             for rule_id in rule_ids:
                 rule = CheckinRuleService.query_rule_by_id(rule_id)
-                if not rule or rule.solo_user_id != user.user_id:
+                if not rule or rule.user_id != user.user_id:
                     return make_err_response({}, f'规则ID {rule_id} 不存在或无权限')
 
         # 创建监督关系
@@ -61,12 +61,10 @@ def invite_supervisor(decoded):
             # 监督指定规则
             for rule_id in rule_ids:
                 relation = SupervisionRuleRelation(
-                    supervisor_id=user.user_id,
-                    supervised_id=target_user.user_id,
+                    solo_user_id=target_user.user_id,
+                    supervisor_user_id=user.user_id,
                     rule_id=rule_id,
-                    invite_type=invite_type,
-                    status='pending',
-                    invited_at=datetime.now()
+                    status=1
                 )
                 relations.append(relation)
         else:
@@ -74,12 +72,10 @@ def invite_supervisor(decoded):
             user_rules = CheckinRuleService.get_user_rules(user.user_id)
             for rule in user_rules.get('rules', []):
                 relation = SupervisionRuleRelation(
-                    supervisor_id=user.user_id,
-                    supervised_id=target_user.user_id,
+                    solo_user_id=target_user.user_id,
+                    supervisor_user_id=user.user_id,
                     rule_id=rule['rule_id'],
-                    invite_type=invite_type,
-                    status='pending',
-                    invited_at=datetime.now()
+                    status=1
                 )
                 relations.append(relation)
 

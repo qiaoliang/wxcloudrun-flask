@@ -103,31 +103,19 @@ def perform_checkin():
         return make_err_response({}, '缺少请求参数')
 
     rule_id = params.get('rule_id')
-    checkin_time_str = params.get('checkin_time')
-    note = params.get('note', '')
 
     if not rule_id:
         current_app.logger.warning('打卡请求缺少rule_id参数')
         return make_err_response({}, '缺少规则ID参数')
 
-    if not checkin_time_str:
-        current_app.logger.warning('打卡请求缺少checkin_time参数')
-        return make_err_response({}, '缺少打卡时间参数')
-
     try:
-        # 解析打卡时间
-        checkin_time = parse_time_only(checkin_time_str)
-        if not checkin_time:
-            current_app.logger.error(f'打卡时间格式错误: {checkin_time_str}')
-            return make_err_response({}, '打卡时间格式错误')
-
         # 调用 Service 层执行打卡
         response_data = CheckinRecordService.perform_checkin(
-            user.user_id, rule_id, checkin_time, note
+            rule_id, user.user_id
         )
 
         current_app.logger.info(
-            f'用户 {user.user_id} 成功打卡，规则ID: {rule_id}, 打卡时间: {checkin_time_str}')
+            f'用户 {user.user_id} 成功打卡，规则ID: {rule_id}')
         return make_succ_response(response_data)
 
     except Exception as e:
@@ -162,31 +150,19 @@ def report_miss_checkin():
         return make_err_response({}, '缺少请求参数')
 
     rule_id = params.get('rule_id')
-    miss_date_str = params.get('miss_date')
-    reason = params.get('reason', '')
 
     if not rule_id:
         current_app.logger.warning('上报漏打卡请求缺少rule_id参数')
         return make_err_response({}, '缺少规则ID参数')
 
-    if not miss_date_str:
-        current_app.logger.warning('上报漏打卡请求缺少miss_date参数')
-        return make_err_response({}, '缺少漏打卡日期参数')
-
     try:
-        # 解析漏打卡日期
-        miss_date = parse_date_only(miss_date_str)
-        if not miss_date:
-            current_app.logger.error(f'漏打卡日期格式错误: {miss_date_str}')
-            return make_err_response({}, '漏打卡日期格式错误')
-
         # 调用 Service 层上报漏打卡
-        response_data = CheckinRecordService.report_miss_checkin(
-            user.user_id, rule_id, miss_date, reason
+        response_data = CheckinRecordService.mark_missed(
+            rule_id, user.user_id
         )
 
         current_app.logger.info(
-            f'用户 {user.user_id} 成功上报漏打卡，规则ID: {rule_id}, 漏打卡日期: {miss_date_str}')
+            f'用户 {user.user_id} 成功上报漏打卡，规则ID: {rule_id}')
         return make_succ_response(response_data)
 
     except Exception as e:

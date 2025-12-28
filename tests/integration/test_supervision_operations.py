@@ -31,7 +31,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             rule = CheckinRuleService.create_rule(
                 {
                     'rule_name': '每日学习',
-                    'frequency_type': 'daily',
+                    'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '09:00:00',
                     'week_days': [1, 2, 3, 4, 5]
@@ -70,7 +70,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             rule = CheckinRuleService.create_rule(
                 {
                     'rule_name': '每日运动',
-                    'frequency_type': 'daily',
+                    'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '18:00:00',
                     'week_days': [1, 2, 3, 4, 5]
@@ -108,7 +108,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             rule = CheckinRuleService.create_rule(
                 {
                     'rule_name': '每日阅读',
-                    'frequency_type': 'daily',
+                    'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '20:00:00',
                     'week_days': [1, 2, 3, 4, 5]

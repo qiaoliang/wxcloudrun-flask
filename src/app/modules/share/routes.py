@@ -43,7 +43,7 @@ def create_share_checkin_link():
             return make_err_response({}, '缺少rule_id参数')
 
         rule = CheckinRuleService.query_rule_by_id(rule_id)
-        if not rule or rule.solo_user_id != user.user_id:
+        if not rule or rule.user_id != user.user_id:
             return make_err_response({}, '打卡规则不存在或无权限')
 
         token = secrets.token_urlsafe(16)
@@ -94,7 +94,7 @@ def resolve_share_checkin_link():
 
         # 记录访问日志
         access_log = ShareLinkAccessLog(
-            share_link_id=link.share_link_id,
+            token=link.token,
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent', ''),
             accessed_at=datetime.now()
@@ -159,7 +159,7 @@ def share_checkin_page():
 
         # 记录访问日志
         access_log = ShareLinkAccessLog(
-            share_link_id=link.share_link_id,
+            token=link.token,
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent', ''),
             accessed_at=datetime.now()

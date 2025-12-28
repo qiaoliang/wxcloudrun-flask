@@ -22,7 +22,7 @@ class TestEventsOperations(IntegrationTestBase):
     def test_create_event_success(self):
         """测试成功创建社区事件"""
         with self.app.app_context():
-        # 创建用户和社区
+            # 创建用户和社区
             user = self.create_standard_test_user(role=1, test_context='create_event')
             manager = self.create_standard_test_user(role=3, test_context='create_event_manager')
 
@@ -31,36 +31,40 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
 
-        # 将用户添加到社区
+            # 将用户添加到社区
             from wxcloudrun.community_service import CommunityService
-            CommunityService.add_user_to_community(user.user_id, community.community_id)
+            CommunityService.add_users_to_community(community.community_id, [user.user_id])
 
-            client = self.get_test_client()
-            token = self.get_jwt_token(user.phone_number)
+            # 获取 phone_number，避免在 app_context 外访问 detached 对象
+            phone_number = user.phone_number
+            community_id = community.community_id
+
+        client = self.get_test_client()
+        token = self.get_jwt_token(phone_number)
 
         # 发送创建事件请求
-            response = client.post(
-                '/api/events',
-                data=json.dumps({
-                    'community_id': community.community_id,
-                    'title': '紧急求助',
-                    'description': '老人需要帮助',
-                    'event_type': 'call_for_help',
-                    'location': 'XX小区3栋201'
-                }),
-                content_type='application/json',
-                headers={'Authorization': f'Bearer {token}'}
-            )
+        response = client.post(
+            '/api/events',
+            data=json.dumps({
+                'community_id': community.community_id,
+                'title': '紧急求助',
+                'description': '老人需要帮助',
+                'event_type': 'call_for_help',
+                'location': 'XX小区3栋201'
+            }),
+            content_type='application/json',
+            headers={'Authorization': f'Bearer {token}'}
+        )
 
         # 验证响应
-            data = self.assert_api_success(response, ['event_id', 'title', 'status'])
-            assert data['data']['title'] == '紧急求助'
-            assert data['data']['event_id'] > 0
+        data = self.assert_api_success(response, ['event'])
+        assert data['data']['event']['title'] == '紧急求助'
+        assert data['data']['event']['event_id'] > 0
 
-        def test_get_community_events_success(self):
-            """测试成功获取社区事件列表"""
+    def test_get_community_events_success(self):
+        """测试成功获取社区事件列表"""
         with self.app.app_context():
-        # 创建用户和社区
+            # 创建用户和社区
             user = self.create_standard_test_user(role=1, test_context='get_events')
             manager = self.create_standard_test_user(role=3, test_context='get_events_manager')
 
@@ -69,10 +73,10 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
 
-        # 添加主管到社区
+            # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
-        # 创建事件
+            # 创建事件
             from wxcloudrun.community_event_service import CommunityEventService
             CommunityEventService.create_event(
                 user_id=user.user_id,
@@ -89,23 +93,27 @@ class TestEventsOperations(IntegrationTestBase):
                 event_type='supporting'
             )
 
-            client = self.get_test_client()
-            token = self.get_jwt_token(manager.phone_number)
+            # 获取 phone_number 和 community_id，避免在 app_context 外访问 detached 对象
+            manager_phone_number = manager.phone_number
+            community_id = community.community_id
+
+        client = self.get_test_client()
+        token = self.get_jwt_token(manager_phone_number)
 
         # 发送获取社区事件列表请求
-            response = client.get(
-                f'/api/communities/{community.community_id}/events',
-                headers={'Authorization': f'Bearer {token}'}
-            )
+        response = client.get(
+            f'/api/communities/{community_id}/events',
+            headers={'Authorization': f'Bearer {token}'}
+        )
 
         # 验证响应
-            data = self.assert_api_success(response, ['events', 'total'])
-            assert data['data']['total'] >= 2
+        data = self.assert_api_success(response, ['events', 'total'])
+        assert data['data']['total'] >= 2
 
-        def test_get_event_detail_success(self):
-            """测试成功获取事件详情"""
+    def test_get_event_detail_success(self):
+        """测试成功获取事件详情"""
         with self.app.app_context():
-        # 创建用户和社区
+            # 创建用户和社区
             user = self.create_standard_test_user(role=1, test_context='get_event_detail')
             manager = self.create_standard_test_user(role=3, test_context='get_event_detail_manager')
 
@@ -114,10 +122,10 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
 
-        # 添加主管到社区
+            # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
-        # 创建事件
+            # 创建事件
             from wxcloudrun.community_event_service import CommunityEventService
             event = CommunityEventService.create_event(
                 user_id=user.user_id,
@@ -128,24 +136,28 @@ class TestEventsOperations(IntegrationTestBase):
                 location='XX小区5栋101'
             )
 
-            client = self.get_test_client()
-            token = self.get_jwt_token(manager.phone_number)
+            # 获取 phone_number 和 event_id，避免在 app_context 外访问 detached 对象
+            manager_phone_number = manager.phone_number
+            event_id = event["event"]["event_id"]
+
+        client = self.get_test_client()
+        token = self.get_jwt_token(manager_phone_number)
 
         # 发送获取事件详情请求
-            response = client.get(
-                f'/api/events/{event["event_id"]}',
-                headers={'Authorization': f'Bearer {token}'}
-            )
+        response = client.get(
+            f'/api/events/{event_id}',
+            headers={'Authorization': f'Bearer {token}'}
+        )
 
         # 验证响应
-            data = self.assert_api_success(response, ['event_id', 'title', 'description'])
-            assert data['data']['event_id'] == event['event_id']
-            assert data['data']['title'] == '详细事件'
+        data = self.assert_api_success(response, ['event_id', 'title', 'description'])
+        assert data['data']['event_id'] == event['event_id']
+        assert data['data']['title'] == '详细事件'
 
-        def test_create_event_support_success(self):
-            """测试成功创建事件应援"""
+    def test_create_event_support_success(self):
+        """测试成功创建事件应援"""
         with self.app.app_context():
-        # 创建用户和社区
+            # 创建用户和社区
             user = self.create_standard_test_user(role=1, test_context='create_support')
             supporter = self.create_standard_test_user(role=2, test_context='create_supporter')
             manager = self.create_standard_test_user(role=3, test_context='create_support_manager')
@@ -155,11 +167,11 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
 
-        # 添加主管到社区
+            # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
             self.add_community_staff(community.community_id, supporter.user_id, 'staff', manager.user_id)
 
-        # 创建事件
+            # 创建事件
             from wxcloudrun.community_event_service import CommunityEventService
             event = CommunityEventService.create_event(
                 user_id=user.user_id,
@@ -169,27 +181,31 @@ class TestEventsOperations(IntegrationTestBase):
                 event_type='call_for_help'
             )
 
-            client = self.get_test_client()
-            token = self.get_jwt_token(supporter.phone_number)
+            # 获取 phone_number 和 event_id，避免在 app_context 外访问 detached 对象
+            supporter_phone_number = supporter.phone_number
+            event_id = event["event"]["event_id"]
+
+        client = self.get_test_client()
+        token = self.get_jwt_token(supporter_phone_number)
 
         # 发送创建应援请求
-            response = client.post(
-                f'/api/events/{event["event_id"]}/support',
-                data=json.dumps({
-                    'support_content': '我马上过去帮忙'
-                }),
-                content_type='application/json',
-                headers={'Authorization': f'Bearer {token}'}
-            )
+        response = client.post(
+            f'/api/events/{event_id}/support',
+            data=json.dumps({
+                'support_content': '我马上过去帮忙'
+            }),
+            content_type='application/json',
+            headers={'Authorization': f'Bearer {token}'}
+        )
 
         # 验证响应
-            data = self.assert_api_success(response, ['support_id', 'support_content'])
-            assert data['data']['support_content'] == '我马上过去帮忙'
+        data = self.assert_api_success(response, ['support_id', 'support_content'])
+        assert data['data']['support_content'] == '我马上过去帮忙'
 
-        def test_get_community_stats_success(self):
-            """测试成功获取社区事件统计"""
+    def test_get_community_stats_success(self):
+        """测试成功获取社区事件统计"""
         with self.app.app_context():
-        # 创建用户和社区
+            # 创建用户和社区
             user = self.create_standard_test_user(role=1, test_context='get_stats')
             manager = self.create_standard_test_user(role=3, test_context='get_stats_manager')
 
@@ -198,11 +214,11 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
 
-        # 将用户添加到社区
+            # 将用户添加到社区
             from wxcloudrun.community_service import CommunityService
-            CommunityService.add_user_to_community(user.user_id, community.community_id)
+            CommunityService.add_users_to_community(community.community_id, [user.user_id])
 
-        # 创建一些事件
+            # 创建一些事件
             from wxcloudrun.community_event_service import CommunityEventService
             CommunityEventService.create_event(
                 user_id=user.user_id,
@@ -219,19 +235,23 @@ class TestEventsOperations(IntegrationTestBase):
                 event_type='supporting'
             )
 
-            client = self.get_test_client()
-            token = self.get_jwt_token(user.phone_number)
+            # 获取 phone_number 和 community_id，避免在 app_context 外访问 detached 对象
+            user_phone_number = user.phone_number
+            community_id = community.community_id
+
+        client = self.get_test_client()
+        token = self.get_jwt_token(user_phone_number)
 
         # 发送获取社区统计请求
-            response = client.get(
-                f'/api/communities/{community.community_id}/stats',
-                headers={'Authorization': f'Bearer {token}'}
-            )
+        response = client.get(
+            f'/api/communities/{community_id}/stats',
+            headers={'Authorization': f'Bearer {token}'}
+        )
 
         # 验证响应
-            data = self.assert_api_success(response, ['total_events', 'pending_events', 'completed_events'])
-            assert data['data']['total_events'] >= 2
+        data = self.assert_api_success(response, ['total_events', 'pending_events', 'completed_events'])
+        assert data['data']['total_events'] >= 2
 
 
 if __name__ == '__main__':
-        pytest.main([__file__, '-v'])
+    pytest.main([__file__, '-v'])

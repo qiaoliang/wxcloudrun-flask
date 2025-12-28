@@ -44,25 +44,25 @@ class TestCheckinOperations(IntegrationTestBase):
 
     def test_perform_checkin_success(self):
         """测试成功执行打卡"""
-        # 创建测试用户
         with self.app.app_context():
+            # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='perform_checkin')
             phone_number = user.phone_number
+
+            # 创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日阅读',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '09:00:00',
+                    'week_days': [1, 2, 3, 4, 5, 6, 7]
+                },
+                user.user_id
+            )
+
         client = self.get_test_client()
-
-        # 创建打卡规则
-        from wxcloudrun.checkin_rule_service import CheckinRuleService
-        rule = CheckinRuleService.create_rule(
-            {
-                'rule_name': '每日阅读',
-                'frequency_type': 'daily',
-                'time_slot_type': 'fixed_time',
-                'custom_time': '09:00:00',
-                'week_days': [1, 2, 3, 4, 5, 6, 7]
-            },
-            user.user_id
-        )
-
         # 获取JWT token
         token = self.get_jwt_token(phone_number)
 
@@ -84,25 +84,25 @@ class TestCheckinOperations(IntegrationTestBase):
 
     def test_report_miss_checkin_success(self):
         """测试成功上报漏打卡"""
-        # 创建测试用户
         with self.app.app_context():
+            # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='miss_checkin')
             phone_number = user.phone_number
+
+            # 创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日运动',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '18:00:00',
+                    'week_days': [1, 2, 3, 4, 5, 6, 7]
+                },
+                user.user_id
+            )
+
         client = self.get_test_client()
-
-        # 创建打卡规则
-        from wxcloudrun.checkin_rule_service import CheckinRuleService
-        rule = CheckinRuleService.create_rule(
-            {
-                'rule_name': '每日运动',
-                'frequency_type': 'daily',
-                'time_slot_type': 'fixed_time',
-                'custom_time': '18:00:00',
-                'week_days': [1, 2, 3, 4, 5, 6, 7]
-            },
-            user.user_id
-        )
-
         # 获取JWT token
         token = self.get_jwt_token(phone_number)
 
@@ -124,34 +124,32 @@ class TestCheckinOperations(IntegrationTestBase):
 
     def test_cancel_checkin_success(self):
         """测试成功取消打卡"""
-        # 创建测试用户
         with self.app.app_context():
+            # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='cancel_checkin')
             phone_number = user.phone_number
+
+            # 创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日学习',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '20:00:00',
+                    'week_days': [1, 2, 3, 4, 5, 6, 7]
+                },
+                user.user_id
+            )
+
+            # 先执行打卡
+            from wxcloudrun.checkin_record_service import CheckinRecordService
+            record = CheckinRecordService.perform_checkin(
+                rule.rule_id,
+                user.user_id
+            )
+
         client = self.get_test_client()
-
-        # 创建打卡规则
-        from wxcloudrun.checkin_rule_service import CheckinRuleService
-        rule = CheckinRuleService.create_rule(
-            {
-                'rule_name': '每日学习',
-                'frequency_type': 'daily',
-                'time_slot_type': 'fixed_time',
-                'custom_time': '20:00:00',
-                'week_days': [1, 2, 3, 4, 5, 6, 7]
-            },
-            user.user_id
-        )
-
-        # 先执行打卡
-        from wxcloudrun.checkin_record_service import CheckinRecordService
-        record = CheckinRecordService.perform_checkin(
-            user.user_id,
-            rule.rule_id,
-            datetime.strptime('20:00:00', '%H:%M:%S').time(),
-            '学习完成'
-        )
-
         # 获取JWT token
         token = self.get_jwt_token(phone_number)
 
@@ -172,40 +170,36 @@ class TestCheckinOperations(IntegrationTestBase):
 
     def test_get_checkin_history_success(self):
         """测试成功获取打卡历史记录"""
-        # 创建测试用户
         with self.app.app_context():
+            # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='checkin_history')
             phone_number = user.phone_number
+
+            # 创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日打卡',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '08:00:00',
+                    'week_days': [1, 2, 3, 4, 5, 6, 7]
+                },
+                user.user_id
+            )
+
+            # 执行几次打卡
+            from wxcloudrun.checkin_record_service import CheckinRecordService
+            CheckinRecordService.perform_checkin(
+                rule.rule_id,
+                user.user_id
+            )
+            CheckinRecordService.perform_checkin(
+                rule.rule_id,
+                user.user_id
+            )
+
         client = self.get_test_client()
-
-        # 创建打卡规则
-        from wxcloudrun.checkin_rule_service import CheckinRuleService
-        rule = CheckinRuleService.create_rule(
-            {
-                'rule_name': '每日打卡',
-                'frequency_type': 'daily',
-                'time_slot_type': 'fixed_time',
-                'custom_time': '08:00:00',
-                'week_days': [1, 2, 3, 4, 5, 6, 7]
-            },
-            user.user_id
-        )
-
-        # 执行几次打卡
-        from wxcloudrun.checkin_record_service import CheckinRecordService
-        CheckinRecordService.perform_checkin(
-            user.user_id,
-            rule.rule_id,
-            datetime.strptime('08:00:00', '%H:%M:%S').time(),
-            '打卡1'
-        )
-        CheckinRecordService.perform_checkin(
-            user.user_id,
-            rule.rule_id,
-            datetime.strptime('08:00:00', '%H:%M:%S').time(),
-            '打卡2'
-        )
-
         # 获取JWT token
         token = self.get_jwt_token(phone_number)
 
