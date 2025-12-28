@@ -13,6 +13,7 @@ from app.shared.utils.auth import verify_token
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from database.flask_models import db, ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
+from app.shared.utils.transaction import transaction
 import secrets
 
 app_logger = logging.getLogger('log')
@@ -49,14 +50,15 @@ def create_share_checkin_link():
         token = secrets.token_urlsafe(16)
         expires_at = datetime.now() + timedelta(hours=expire_hours)
 
-        link = ShareLink(
-            token=token,
-            solo_user_id=user.user_id,
-            rule_id=rule.rule_id,
-            expires_at=expires_at
-        )
-        db.session.add(link)
-        db.session.commit()
+        # 使用事务管理器确保数据一致性
+        with transaction():
+            link = ShareLink(
+                token=token,
+                solo_user_id=user.user_id,
+                rule_id=rule.rule_id,
+                expires_at=expires_at
+            )
+            db.session.add(link)
 
         # 构建分享链接
         base_url = request.host_url.rstrip('/')
@@ -92,15 +94,15 @@ def resolve_share_checkin_link():
         if not link or link.expires_at < datetime.now():
             return make_err_response({}, '分享链接无效或已过期')
 
-        # 记录访问日志
-        access_log = ShareLinkAccessLog(
-            token=link.token,
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent', ''),
-            accessed_at=datetime.now()
-        )
-        db.session.add(access_log)
-        db.session.commit()
+        # 记录访问日志（使用事务管理器）
+        with transaction():
+            access_log = ShareLinkAccessLog(
+                token=link.token,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent', ''),
+                accessed_at=datetime.now()
+            )
+            db.session.add(access_log)
 
         # 获取规则信息
         rule = CheckinRuleService.query_rule_by_id(link.rule_id)
@@ -156,15 +158,15 @@ def share_checkin_page():
         if not link or link.expires_at < datetime.now():
             return "分享链接无效或已过期", 400
 
-        # 记录访问日志
-        access_log = ShareLinkAccessLog(
-            token=link.token,
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent', ''),
-            accessed_at=datetime.now()
-        )
-        db.session.add(access_log)
-        db.session.commit()
+        # 记录访问日志（使用事务管理器）
+        with transaction():
+            access_log = ShareLinkAccessLog(
+                token=link.token,
+                ip_address=request.remote_addr,
+                user_agent=request.headers.get('User-Agent', ''),
+                accessed_at=datetime.now()
+            )
+            db.session.add(access_log)
 
         # 获取规则和用户信息
         rule = CheckinRuleService.query_rule_by_id(link.rule_id)

@@ -10,6 +10,7 @@ from flask import request, current_app
 from . import sms_bp
 from app.shared import make_succ_response, make_err_response
 from database.flask_models import db, VerificationCode
+from app.shared.utils.transaction import transaction
 from wxcloudrun.sms_service import create_sms_provider, generate_code
 from wxcloudrun.utils.validators import _verify_sms_code, _code_expiry_minutes, normalize_phone_number, _hash_code
 from config_manager import should_use_real_sms
@@ -52,21 +53,26 @@ def sms_send_code():
             vc.code_hash = code_hash
             vc.salt = salt
             vc.expires_at = now + timedelta(minutes=_code_expiry_minutes())
-            vc.last_sent_at = now
-        else:
-            # 创建新记录
-            vc = VerificationCode(
-                phone_number=normalized_phone,
-                purpose=purpose,
-                code_hash=code_hash,
-                salt=salt,
-                expires_at=now + timedelta(minutes=_code_expiry_minutes()),
-                last_sent_at=now
-            )
-            db.session.add(vc)
-        
-        db.session.commit()
-        
+            # 使用事务管理器确保数据一致性
+        with transaction():
+            if vc:
+                # 更新现有记录
+                vc.code_hash = code_hash
+                vc.salt = salt
+                vc.expires_at = now + timedelta(minutes=_code_expiry_minutes())
+                vc.last_sent_at = now
+            else:
+                # 创建新记录
+                vc = VerificationCode(
+                    phone_number=normalized_phone,
+                    purpose=purpose,
+                    code_hash=code_hash,
+                    salt=salt,
+                    expires_at=now + timedelta(minutes=_code_expiry_minutes()),
+                    last_sent_at=now
+                )
+                db.session.add(vc)
+
         # 发送短信
         if is_mock_env:
             current_app.logger.info(f'Mock环境：验证码已生成，手机号：{normalized_phone}，验证码：{code}')

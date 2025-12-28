@@ -14,6 +14,7 @@ from app.shared import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, SupervisionRuleRelation
 from app.shared.utils.auth import verify_token
+from app.shared.utils.transaction import transaction
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code, normalize_phone_number
 from app.shared.decorators import login_required
 from config_manager import get_token_secret
@@ -100,8 +101,9 @@ def _merge_accounts_by_time(account1, account2):
     # 删除次要账号
     db.session.delete(secondary)
 
-    # 保存主账号更改
-    db.session.commit()
+    # 使用事务管理器确保数据一致性
+    with transaction():
+        pass  # 事务会自动提交
 
     current_app.logger.info(f'账号合并完成，保留账号ID: {primary.user_id}')
     return primary

@@ -14,6 +14,7 @@ from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
 from database.flask_models import db, SupervisionRuleRelation, CheckinRecord
+from app.shared.utils.transaction import transaction
 
 app_logger = logging.getLogger('log')
 
@@ -79,10 +80,10 @@ def invite_supervisor(decoded):
                 )
                 relations.append(relation)
 
-        # 批量保存
-        for relation in relations:
-            db.session.add(relation)
-        db.session.commit()
+        # 批量保存（使用事务管理器确保原子性）
+        with transaction():
+            for relation in relations:
+                db.session.add(relation)
 
         current_app.logger.info(f'用户 {user.user_id} 成功邀请用户 {target_user.user_id} 监督，共 {len(relations)} 个规则')
         return make_succ_response({

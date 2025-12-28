@@ -9,6 +9,7 @@ from flask import render_template, request, Response, current_app
 from . import misc_bp
 from app.shared import make_succ_response, make_err_response, make_succ_empty_response
 from database.flask_models import Counters, db
+from app.shared.utils.transaction import transaction
 from config_manager import analyze_all_configs, detect_external_systems_status
 
 app_logger = logging.getLogger('log')
@@ -58,13 +59,14 @@ def count():
             # 增加计数
             counter_id = params.get('counter_id', 1)
             counter = Counters.query.filter_by(id=counter_id).first()
-            if counter:
-                counter.count += 1
-            else:
-                # 创建新计数器时，设置 id 为请求中指定的 counter_id
-                counter = Counters(id=counter_id, count=1)
-                db.session.add(counter)
-            db.session.commit()
+            # 使用事务管理器确保数据一致性
+            with transaction():
+                if counter:
+                    counter.count += 1
+                else:
+                    # 创建新计数器时，设置 id 为请求中指定的 counter_id
+                    counter = Counters(id=counter_id, count=1)
+                    db.session.add(counter)
             current_app.logger.info(f"计数器 {counter.id} 增加到 {counter.count}")
             return make_succ_response({'id': counter.id, 'count': counter.count})
 
@@ -73,8 +75,8 @@ def count():
             counter_id = params.get('counter_id', 1)
             counter = Counters.query.filter_by(id=counter_id).first()
             if counter:
-                counter.count = 0
-                db.session.commit()
+                with transaction():
+                    counter.count = 0
                 current_app.logger.info(f"计数器 {counter.id} 已重置")
                 return make_succ_response({'id': counter.id, 'count': 0})
             else:
@@ -99,8 +101,8 @@ def count():
 
         elif action == 'clear':
             # 清除所有计数器
-            Counters.query.delete()
-            db.session.commit()
+            with transaction():
+                Counters.query.delete()
             current_app.logger.info("所有计数器已清除")
             return make_succ_response({'message': '所有计数器已清除'})
 
