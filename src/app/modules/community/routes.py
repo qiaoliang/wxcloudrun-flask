@@ -8,6 +8,7 @@ import re
 import os
 from datetime import datetime
 from flask import request, current_app
+from sqlalchemy import select
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
@@ -86,31 +87,44 @@ def _format_community_info(community, include_worker_stats=False):
     worker_count = 0
     user_count = 0  # 普通成员数量（不包括工作人员）
     if include_worker_stats:
-        manager_count = db.session.query(CommunityStaff).filter_by(
-            community_id=community.community_id,
-            role='manager'  # 社区主管
-        ).count()
+        # 使用 SQLAlchemy 2.0 的 select() 语句
+        from sqlalchemy import func
+        
+        # 统计主管
+        stmt_manager = select(func.count()).select_from(CommunityStaff).where(
+            CommunityStaff.community_id == community.community_id,
+            CommunityStaff.role == 'manager'  # 社区主管
+        )
+        manager_count = db.session.execute(stmt_manager).scalar()
+        
         # 只统计专员（不包括主管）
-        staff_count = db.session.query(CommunityStaff).filter_by(
-            community_id=community.community_id,
-            role='staff'  # 社区专员
-        ).count()
+        stmt_staff = select(func.count()).select_from(CommunityStaff).where(
+            CommunityStaff.community_id == community.community_id,
+            CommunityStaff.role == 'staff'  # 社区专员
+        )
+        staff_count = db.session.execute(stmt_staff).scalar()
         worker_count = manager_count + staff_count  # 工作人员总数 = 主管 + 专员
 
         # 获取所有工作人员的用户ID列表
-        staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
-            community_id=community.community_id
-        ).all()]
+        stmt_all_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community.community_id
+        )
+        staff_user_ids = [s.user_id for s in db.session.execute(stmt_all_staff).scalars().all()]
 
         # 统计普通成员（不包括工作人员）
         if staff_user_ids:
-            user_count = db.session.query(User).filter(
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            from sqlalchemy import not_
+            stmt_users = select(func.count()).select_from(User).where(
                 User.community_id == community.community_id,
-                User.user_id.notin_(staff_user_ids)
-            ).count()
+                not_(User.user_id.in_(staff_user_ids))
+            )
+            user_count = db.session.execute(stmt_users).scalar()
         else:
             # 如果没有工作人员，统计所有社区用户
-            user_count = db.session.query(User).filter_by(community_id=community.community_id).count()
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            stmt = select(func.count()).select_from(User).where(User.community_id == community.community_id)
+            user_count = db.session.execute(stmt).scalar()
 
     return {
         'community_id': community.community_id,
@@ -155,9 +169,10 @@ def get_communities():
         return error
 
     try:
-        # Using Flask-SQLAlchemy db.session
+        # 使用 SQLAlchemy 2.0 的 select() 语句
         # 查询所有社区
-        communities = db.session.query(Community).all()
+        stmt = select(Community)
+        communities = db.session.execute(stmt).scalars().all()
 
         # 格式化社区信息
         communities_data = []
