@@ -206,7 +206,7 @@ def cancel_checkin():
     try:
         # 调用 Service 层取消打卡
         response_data = CheckinRecordService.cancel_checkin(
-            user.user_id, record_id, reason
+            record_id, user.user_id
         )
 
         current_app.logger.info(

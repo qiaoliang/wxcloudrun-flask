@@ -161,12 +161,14 @@ class CheckinRecordService:
         }
 
     @staticmethod
-    def get_checkin_history(user_id, start_date, end_date):
+    def get_checkin_history(user_id, start_date, end_date, page=1, per_page=10):
         """
         获取打卡历史记录
         :param user_id: 用户ID
         :param start_date: 开始日期
         :param end_date: 结束日期
+        :param page: 页码
+        :param per_page: 每页记录数
         :return: 历史记录字典
         """
         try:
@@ -174,9 +176,15 @@ class CheckinRecordService:
             records = CheckinRecordService._query_records_by_user_and_date_range(
                 user_id, start_date, end_date)
 
+            # 分页处理
+            total = len(records)
+            start_idx = (page - 1) * per_page
+            end_idx = start_idx + per_page
+            paginated_records = records[start_idx:end_idx]
+
             # 转换为响应格式
             history_data = []
-            for record in records:
+            for record in paginated_records:
                 history_data.append({
                     'record_id': record.record_id,
                     'rule_id': record.rule_id,
@@ -190,10 +198,17 @@ class CheckinRecordService:
 
             logger.info(f"获取打卡历史成功，用户ID: {user_id}, 记录数量: {len(history_data)}")
 
+            # 处理日期显示
+            start_date_str = start_date.strftime('%Y-%m-%d') if start_date else None
+            end_date_str = end_date.strftime('%Y-%m-%d') if end_date else None
+
             return {
-                'start_date': start_date.strftime('%Y-%m-%d'),
-                'end_date': end_date.strftime('%Y-%m-%d'),
-                'history': history_data
+                'start_date': start_date_str,
+                'end_date': end_date_str,
+                'history': history_data,
+                'total': total,
+                'page': page,
+                'per_page': per_page
             }
 
         except Exception as e:
@@ -283,19 +298,29 @@ class CheckinRecordService:
         try:
             # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
-                records = db.session.query(CheckinRecord).filter(
-                    CheckinRecord.user_id == user_id,
-                    CheckinRecord.planned_time >= start_date,
-                    CheckinRecord.planned_time <= end_date
-                ).order_by(CheckinRecord.planned_time.desc()).all()
+                # 构建查询条件
+                filters = [CheckinRecord.user_id == user_id]
+                
+                # 如果提供了日期范围，添加日期过滤条件
+                if start_date is not None and end_date is not None:
+                    filters.append(func.date(CheckinRecord.planned_time) >= start_date)
+                    filters.append(func.date(CheckinRecord.planned_time) <= end_date)
+                
+                records = db.session.query(CheckinRecord).filter(*filters).order_by(
+                    CheckinRecord.planned_time.desc()).all()
                 return records
             else:
                 # 使用传入的session
-                records = session.query(CheckinRecord).filter(
-                    CheckinRecord.user_id == user_id,
-                    CheckinRecord.planned_time >= start_date,
-                    CheckinRecord.planned_time <= end_date
-                ).order_by(CheckinRecord.planned_time.desc()).all()
+                # 构建查询条件
+                filters = [CheckinRecord.user_id == user_id]
+                
+                # 如果提供了日期范围，添加日期过滤条件
+                if start_date is not None and end_date is not None:
+                    filters.append(func.date(CheckinRecord.planned_time) >= start_date)
+                    filters.append(func.date(CheckinRecord.planned_time) <= end_date)
+                
+                records = session.query(CheckinRecord).filter(*filters).order_by(
+                    CheckinRecord.planned_time.desc()).all()
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return records
         except OperationalError as e:

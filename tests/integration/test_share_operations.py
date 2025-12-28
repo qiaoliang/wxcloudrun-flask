@@ -63,14 +63,14 @@ class TestShareOperations(IntegrationTestBase):
         # 保存token用于后续测试
             self.share_token = data['data']['token']
 
-        def test_resolve_share_checkin_link_success(self):
-            """测试成功解析打卡分享链接"""
+    def test_resolve_share_checkin_link_success(self):
+        """测试成功解析打卡分享链接"""
         with self.app.app_context():
-        # 创建测试用户
+            # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='resolve_share_link')
             client = self.get_test_client()
 
-        # 创建打卡规则
+            # 创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
             rule = CheckinRuleService.create_rule(
                 {
@@ -83,10 +83,10 @@ class TestShareOperations(IntegrationTestBase):
                 user.user_id
             )
 
-        # 获取JWT token
+            # 获取JWT token
             token = self.get_jwt_token(user.phone_number)
 
-        # 创建分享链接
+            # 创建分享链接
             response = client.post(
                 '/api/checkin/create',
                 data=json.dumps({
@@ -100,24 +100,24 @@ class TestShareOperations(IntegrationTestBase):
             data = json.loads(response.data)
             share_token = data['data']['token']
 
-        # 发送解析分享链接请求（无需登录）
+            # 发送解析分享链接请求（无需登录）
             resolve_response = client.get(
                 f'/api/checkin/resolve?token={share_token}'
             )
 
-        # 验证响应
+            # 验证响应
             resolve_data = self.assert_api_success(resolve_response, ['rule_info', 'share_info'])
             assert resolve_data['data']['rule_info']['rule_id'] == rule.rule_id
             assert resolve_data['data']['share_info']['share_user_id'] == user.user_id
 
-        def test_share_checkin_page_success(self):
-            """测试成功渲染分享打卡页面"""
+    def test_share_checkin_page_success(self):
+        """测试成功渲染分享打卡页面"""
         with self.app.app_context():
-        # 创建测试用户
+            # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='share_page')
             client = self.get_test_client()
 
-        # 创建打卡规则
+            # 创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
             rule = CheckinRuleService.create_rule(
                 {
@@ -130,10 +130,10 @@ class TestShareOperations(IntegrationTestBase):
                 user.user_id
             )
 
-        # 获取JWT token
+            # 获取JWT token
             token = self.get_jwt_token(user.phone_number)
 
-        # 创建分享链接
+            # 创建分享链接
             response = client.post(
                 '/api/checkin/create',
                 data=json.dumps({
@@ -147,10 +147,10 @@ class TestShareOperations(IntegrationTestBase):
             data = json.loads(response.data)
             share_token = data['data']['token']
 
-        # 访问分享页面（无需登录）
-            page_response = client.get(f'/share/check-in?token={share_token}')
+            # 访问分享页面（无需登录）
+            page_response = client.get(f'/api/check-in?token={share_token}')
 
-        # 验证响应
+            # 验证响应
             assert page_response.status_code == 200
             assert b'<!DOCTYPE html>' in page_response.data
             assert rule.rule_name.encode('utf-8') in page_response.data

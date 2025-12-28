@@ -114,11 +114,11 @@ def resolve_share_checkin_link():
 
         rule_info = {
             'rule_id': rule.rule_id,
-            'title': rule.title,
-            'description': rule.description,
-            'checkin_time': rule.checkin_time,
-            'repeat_days': rule.repeat_days,
-            'is_enabled': rule.is_enabled
+            'title': rule.rule_name,
+            'description': '',  # CheckinRule 模型没有 description 字段
+            'checkin_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else None,
+            'repeat_days': rule.week_days,
+            'is_enabled': rule.status == 1
         }
 
         share_info = {
@@ -126,8 +126,7 @@ def resolve_share_checkin_link():
             'share_user_nickname': user.nickname,
             'share_user_avatar': user.avatar_url,
             'created_at': link.created_at.isoformat(),
-            'expires_at': link.expires_at.isoformat(),
-            'access_count': link.access_count
+            'expires_at': link.expires_at.isoformat()
         }
 
         current_app.logger.info(f'解析分享链接成功，token: {token}')
@@ -181,7 +180,7 @@ def share_checkin_page():
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>{rule.title} - 打卡分享</title>
+            <title>{rule.rule_name} - 打卡分享</title>
             <style>
                 body {{
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -252,18 +251,18 @@ def share_checkin_page():
             <div class="container">
                 <div class="header">
                     <img src="{user.avatar_url}" alt="头像" class="avatar">
-                    <div class="title">{rule.title}</div>
-                    <div class="description">{rule.description or '暂无描述'}</div>
+                    <div class="title">{rule.rule_name}</div>
+                    <div class="description">暂无描述</div>
                 </div>
                 
                 <div class="info">
                     <div class="info-item">
                         <span class="info-label">打卡时间：</span>
-                        <span class="info-value">{rule.checkin_time}</span>
+                        <span class="info-value">{rule.custom_time.strftime('%H:%M') if rule.custom_time else '未设置'}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">重复周期：</span>
-                        <span class="info-value">{rule.repeat_days}</span>
+                        <span class="info-value">每天</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">分享者：</span>
@@ -271,7 +270,7 @@ def share_checkin_page():
                     </div>
                     <div class="info-item">
                         <span class="info-label">状态：</span>
-                        <span class="info-value">{'启用' if rule.is_enabled else '禁用'}</span>
+                        <span class="info-value">{'启用' if rule.status == 1 else '禁用'}</span>
                     </div>
                 </div>
                 

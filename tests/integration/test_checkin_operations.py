@@ -157,7 +157,7 @@ class TestCheckinOperations(IntegrationTestBase):
         response = client.post(
             '/api/checkin/cancel',
             data=json.dumps({
-                'record_id': record.record_id,
+                'record_id': record['record_id'],
                 'reason': '误操作，取消打卡'
             }),
             content_type='application/json',
@@ -170,6 +170,9 @@ class TestCheckinOperations(IntegrationTestBase):
 
     def test_get_checkin_history_success(self):
         """测试成功获取打卡历史记录"""
+        from datetime import timedelta
+        from database.flask_models import db, CheckinRecord
+        
         with self.app.app_context():
             # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='checkin_history')
@@ -188,16 +191,30 @@ class TestCheckinOperations(IntegrationTestBase):
                 user.user_id
             )
 
-            # 执行几次打卡
-            from wxcloudrun.checkin_record_service import CheckinRecordService
-            CheckinRecordService.perform_checkin(
-                rule.rule_id,
-                user.user_id
+            # 创建不同日期的打卡记录
+            today = datetime.now()
+            yesterday = today - timedelta(days=1)
+            
+            # 创建昨天的打卡记录
+            record1 = CheckinRecord(
+                user_id=user.user_id,
+                rule_id=rule.rule_id,
+                planned_time=yesterday,
+                checkin_time=yesterday,
+                status=1
             )
-            CheckinRecordService.perform_checkin(
-                rule.rule_id,
-                user.user_id
+            db.session.add(record1)
+            
+            # 创建今天的打卡记录
+            record2 = CheckinRecord(
+                user_id=user.user_id,
+                rule_id=rule.rule_id,
+                planned_time=today,
+                checkin_time=today,
+                status=1
             )
+            db.session.add(record2)
+            db.session.commit()
 
         client = self.get_test_client()
         # 获取JWT token
@@ -210,7 +227,7 @@ class TestCheckinOperations(IntegrationTestBase):
         )
 
         # 验证响应
-        data = self.assert_api_success(response, ['records', 'total'])
+        data = self.assert_api_success(response, ['history', 'total'])
         assert data['data']['total'] >= 2
 
 
