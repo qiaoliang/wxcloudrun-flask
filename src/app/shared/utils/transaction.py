@@ -20,7 +20,7 @@ def transactional(f):
     - 失败时自动回滚
     - 记录详细的错误日志
     - 支持嵌套事务（使用 SAVEPOINT）
-    - 在测试环境中不执行任何操作，依赖外层事务管理
+    - 在测试环境中使用 begin_nested() + commit()，让外层事务回滚时自动回滚所有修改
 
     使用示例:
         @transactional
@@ -38,12 +38,14 @@ def transactional(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
-            # 在测试环境中，不执行任何操作，依赖外层事务管理
+            # 检查是否在测试环境中
             import config_manager
             if config_manager.is_unit_environment():
-                # 测试环境：直接执行，依赖外层事务管理
-                result = f(*args, **kwargs)
-                return result
+                # 测试环境：使用 begin_nested() + commit()，让外层事务回滚时自动回滚所有修改
+                with db.session.begin_nested():
+                    result = f(*args, **kwargs)
+                    db.session.commit()  # 提交到 SAVEPOINT，让 test_client 可以访问
+                    return result
             else:
                 # 生产环境：使用 begin_nested 支持 SAVEPOINT，允许嵌套事务
                 with db.session.begin_nested():

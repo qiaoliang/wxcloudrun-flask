@@ -26,6 +26,7 @@ class TestCheckinOperations(IntegrationTestBase):
         with self.app.app_context():
             user = self.create_standard_test_user(role=1, test_context='today_checkin')
             phone_number = user.phone_number
+            self.db.session.commit()
         client = self.get_test_client()
 
         # 获取JWT token
@@ -48,6 +49,7 @@ class TestCheckinOperations(IntegrationTestBase):
             # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='perform_checkin')
             phone_number = user.phone_number
+            self.db.session.commit()
 
             # 创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
@@ -62,6 +64,9 @@ class TestCheckinOperations(IntegrationTestBase):
                 user.user_id
             )
 
+            # 在 app context 内提取 rule_id，避免访问 detached 对象
+            rule_id = rule.rule_id
+
         client = self.get_test_client()
         # 获取JWT token
         token = self.get_jwt_token(phone_number)
@@ -70,7 +75,7 @@ class TestCheckinOperations(IntegrationTestBase):
         response = client.post(
             '/api/checkin',
             data=json.dumps({
-                'rule_id': rule.rule_id,
+                'rule_id': rule_id,
                 'checkin_time': '09:00:00',
                 'note': '今天完成了阅读任务'
             }),
@@ -88,6 +93,7 @@ class TestCheckinOperations(IntegrationTestBase):
             # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='miss_checkin')
             phone_number = user.phone_number
+            self.db.session.commit()
 
             # 创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
@@ -102,6 +108,9 @@ class TestCheckinOperations(IntegrationTestBase):
                 user.user_id
             )
 
+            # 在 app context 内提取 rule_id，避免访问 detached 对象
+            rule_id = rule.rule_id
+
         client = self.get_test_client()
         # 获取JWT token
         token = self.get_jwt_token(phone_number)
@@ -110,7 +119,7 @@ class TestCheckinOperations(IntegrationTestBase):
         response = client.post(
             '/api/checkin/miss',
             data=json.dumps({
-                'rule_id': rule.rule_id,
+                'rule_id': rule_id,
                 'miss_date': '2024-12-25',
                 'reason': '生病了，无法运动'
             }),
@@ -128,6 +137,7 @@ class TestCheckinOperations(IntegrationTestBase):
             # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='cancel_checkin')
             phone_number = user.phone_number
+            self.db.session.commit()
 
             # 创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
@@ -142,10 +152,13 @@ class TestCheckinOperations(IntegrationTestBase):
                 user.user_id
             )
 
+            # 在 app context 内提取 rule_id，避免访问 detached 对象
+            rule_id = rule.rule_id
+
             # 先执行打卡
             from wxcloudrun.checkin_record_service import CheckinRecordService
             record = CheckinRecordService.perform_checkin(
-                rule.rule_id,
+                rule_id,
                 user.user_id
             )
 

@@ -32,10 +32,10 @@ class TestUserChangePassword(IntegrationTestBase):
                 password=old_password,
                 test_context='change_password'
             )
-            phone_number = user.phone_number  # 在上下文中获取phone_number
-            user_id = user.user_id  # 保存user_id用于后续验证
-            # 提交到数据库，确保 test_client 可以访问
+            phone_number = user.phone_number
+            # commit 确保数据可以被 test_client 访问
             self.db.session.commit()
+
         client = self.get_test_client()
 
         # 获取JWT token

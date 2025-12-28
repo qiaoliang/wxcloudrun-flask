@@ -116,21 +116,21 @@ class TestBase:
 
     def setup_method(self, method):
         """每个测试方法前的设置"""
-        # 在应用上下文中开始事务
-        # 注意：这里不创建新的应用上下文，而是使用类的应用上下文
-        # 但是由于 pytest 的 fixture 机制，我们需要确保在正确的上下文中运行
-        pass
+        # 在应用上下文中开始外层事务
+        with self.app.app_context():
+            self.db.session.begin()
 
     def teardown_method(self, method):
         """每个测试方法后的清理"""
-        # 回滚事务，确保测试隔离
-        # 注意：这里不创建新的应用上下文
-        pass
+        # 回滚外层事务，确保测试隔离
+        with self.app.app_context():
+            self.db.session.rollback()
 
     @classmethod
     def _create_initial_data(cls):
         """创建测试所需的初始数据"""
         from database.flask_models import User, Community
+        import time
 
         # 创建测试用户
         test_user = User(
@@ -142,9 +142,10 @@ class TestBase:
         )
         cls.db.session.add(test_user)
 
-        # 创建测试社区
+        # 创建测试社区（使用时间戳确保唯一性）
+        community_name = f'测试社区_{int(time.time() * 1000)}'
         test_community = Community(
-            name='测试社区',
+            name=community_name,
             description='用于测试的社区',
             creator_id=test_user.user_id
         )
@@ -195,9 +196,12 @@ class TestBase:
     def create_test_community(cls, name=None, creator=None, **kwargs):
         """创建测试社区的增强方法"""
         from database.flask_models import Community
+        import time
 
         if name is None:
-            name = f'测试社区_{kwargs.get("suffix", "default")}'
+            # 使用时间戳确保唯一性
+            suffix = kwargs.get("suffix", f"default_{int(time.time() * 1000)}")
+            name = f'测试社区_{suffix}'
 
         if creator is None:
             creator = cls.test_user
@@ -510,18 +514,3 @@ def app():
 def client(app):
     """为每个测试提供HTTP客户端"""
     return app.test_client()
-
-
-@pytest.fixture
-def db_session(app):
-    """为每个测试提供数据库会话，支持自动回滚"""
-    with app.app_context():
-        from app.extensions import db
-
-        # 开始嵌套事务
-        savepoint = db.session.begin_nested()
-        try:
-            yield db.session
-        finally:
-            # 回滚到保存点，确保测试隔离
-            savepoint.rollback()
