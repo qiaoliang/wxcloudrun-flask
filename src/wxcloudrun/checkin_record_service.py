@@ -5,8 +5,8 @@
 
 import logging
 from datetime import datetime, date, time, timedelta
+from sqlalchemy import select, func
 from sqlalchemy.exc import OperationalError
-from sqlalchemy import func
 from .checkin_rule_service import CheckinRuleService
 from database.flask_models import CheckinRecord, SupervisionRuleRelation, db
 
@@ -253,32 +253,40 @@ class CheckinRecordService:
             # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
                 if rule_source == 'community':
+                    # 使用 SQLAlchemy 2.0 的 select() 语句
                     # 查询社区规则打卡记录
-                    records = db.session.query(CheckinRecord).filter(
+                    stmt = select(CheckinRecord).where(
                         CheckinRecord.community_rule_id == rule_id,
                         func.date(CheckinRecord.planned_time) == checkin_date
-                    ).all()
+                    )
+                    records = db.session.execute(stmt).scalars().all()
                 else:
+                    # 使用 SQLAlchemy 2.0 的 select() 语句
                     # 查询个人规则打卡记录
-                    records = db.session.query(CheckinRecord).filter(
+                    stmt = select(CheckinRecord).where(
                         CheckinRecord.rule_id == rule_id,
                         func.date(CheckinRecord.planned_time) == checkin_date
-                    ).all()
+                    )
+                    records = db.session.execute(stmt).scalars().all()
                 return records
             else:
                 # 使用传入的session
                 if rule_source == 'community':
+                    # 使用 SQLAlchemy 2.0 的 select() 语句
                     # 查询社区规则打卡记录
-                    records = session.query(CheckinRecord).filter(
+                    stmt = select(CheckinRecord).where(
                         CheckinRecord.community_rule_id == rule_id,
                         func.date(CheckinRecord.planned_time) == checkin_date
-                    ).all()
+                    )
+                    records = session.execute(stmt).scalars().all()
                 else:
+                    # 使用 SQLAlchemy 2.0 的 select() 语句
                     # 查询个人规则打卡记录
-                    records = session.query(CheckinRecord).filter(
+                    stmt = select(CheckinRecord).where(
                         CheckinRecord.rule_id == rule_id,
                         func.date(CheckinRecord.planned_time) == checkin_date
-                    ).all()
+                    )
+                    records = session.execute(stmt).scalars().all()
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return records
         except OperationalError as e:
@@ -298,29 +306,33 @@ class CheckinRecordService:
         try:
             # 如果session为None，使用Flask-SQLAlchemy的session
             if session is None:
+                # 使用 SQLAlchemy 2.0 的 select() 语句
                 # 构建查询条件
-                filters = [CheckinRecord.user_id == user_id]
+                conditions = [CheckinRecord.user_id == user_id]
                 
                 # 如果提供了日期范围，添加日期过滤条件
                 if start_date is not None and end_date is not None:
-                    filters.append(func.date(CheckinRecord.planned_time) >= start_date)
-                    filters.append(func.date(CheckinRecord.planned_time) <= end_date)
+                    conditions.append(func.date(CheckinRecord.planned_time) >= start_date)
+                    conditions.append(func.date(CheckinRecord.planned_time) <= end_date)
                 
-                records = db.session.query(CheckinRecord).filter(*filters).order_by(
-                    CheckinRecord.planned_time.desc()).all()
+                stmt = select(CheckinRecord).where(*conditions).order_by(
+                    CheckinRecord.planned_time.desc())
+                records = db.session.execute(stmt).scalars().all()
                 return records
             else:
                 # 使用传入的session
+                # 使用 SQLAlchemy 2.0 的 select() 语句
                 # 构建查询条件
-                filters = [CheckinRecord.user_id == user_id]
+                conditions = [CheckinRecord.user_id == user_id]
                 
                 # 如果提供了日期范围，添加日期过滤条件
                 if start_date is not None and end_date is not None:
-                    filters.append(func.date(CheckinRecord.planned_time) >= start_date)
-                    filters.append(func.date(CheckinRecord.planned_time) <= end_date)
+                    conditions.append(func.date(CheckinRecord.planned_time) >= start_date)
+                    conditions.append(func.date(CheckinRecord.planned_time) <= end_date)
                 
-                records = session.query(CheckinRecord).filter(*filters).order_by(
-                    CheckinRecord.planned_time.desc()).all()
+                stmt = select(CheckinRecord).where(*conditions).order_by(
+                    CheckinRecord.planned_time.desc())
+                records = session.execute(stmt).scalars().all()
                 # 注意：使用外部传入的session时，不进行expunge操作
                 return records
         except OperationalError as e:
