@@ -24,6 +24,63 @@ sys.path.insert(0, os.path.dirname(__file__))
 from test_data_generator import generate_unique_phone_number
 
 
+# ==================== Pytest Fixtures ====================
+
+@pytest.fixture(scope='class')
+def app():
+    """创建并返回 Flask 应用实例"""
+    # 设置测试环境
+    os.environ['ENV_TYPE'] = 'unit'
+    os.environ['SECRET_KEY'] = 'test_secret_key_for_session'
+    os.environ['TOKEN_SECRET'] = 'test_token_secret_for_testing'
+
+    # 导入并创建Flask应用
+    from app import create_app
+    from app.extensions import db
+
+    app = create_app()
+
+    # 在应用上下文中初始化数据库
+    with app.app_context():
+        # 创建所有表
+        db.create_all()
+
+        # 创建初始数据
+        _create_initial_data(db)
+
+    yield app
+
+    # 清理
+    with app.app_context():
+        db.drop_all()
+
+
+@pytest.fixture(scope='function')
+def db_session(app):
+    """
+    为每个测试函数创建一个新的数据库会话和事务
+    使用 commit 而不是 begin_nested，确保数据可以被 test_client 访问
+    """
+    from app.extensions import db
+
+    with app.app_context():
+        # 开始事务
+        db.session.begin()
+
+        yield db
+
+        # 回滚事务，确保测试隔离
+        db.session.rollback()
+
+
+@pytest.fixture(scope='function')
+def test_client(app):
+    """创建测试客户端"""
+    return app.test_client()
+
+
+# ==================== 测试基类 ====================
+
 class TestBase:
     """测试基类，封装Flask-SQLAlchemy测试上下文管理"""
 
@@ -33,6 +90,7 @@ class TestBase:
         # 设置测试环境
         os.environ['ENV_TYPE'] = 'unit'
         os.environ['SECRET_KEY'] = 'test_secret_key_for_session'
+        os.environ['TOKEN_SECRET'] = 'test_token_secret_for_testing'
 
         # 导入并创建Flask应用
         from app import create_app
@@ -59,14 +117,15 @@ class TestBase:
     def setup_method(self, method):
         """每个测试方法前的设置"""
         # 在应用上下文中开始事务
-        with self.app.app_context():
-            self.db.session.begin_nested()
+        # 注意：这里不创建新的应用上下文，而是使用类的应用上下文
+        # 但是由于 pytest 的 fixture 机制，我们需要确保在正确的上下文中运行
+        pass
 
     def teardown_method(self, method):
         """每个测试方法后的清理"""
         # 回滚事务，确保测试隔离
-        with self.app.app_context():
-            self.db.session.rollback()
+        # 注意：这里不创建新的应用上下文
+        pass
 
     @classmethod
     def _create_initial_data(cls):
@@ -255,25 +314,8 @@ class TestBase:
 class IntegrationTestBase(TestBase):
     """集成测试专用基类"""
 
-    @classmethod
-    def setup_class(cls):
-        """集成测试专用的类级别设置"""
-        # 设置测试环境变量
-        os.environ['ENV_TYPE'] = 'unit'
-        os.environ['SECRET_KEY'] = 'test_secret_key_for_session'
-        os.environ['TOKEN_SECRET'] = 'test_token_secret_for_testing'
-
-        # 导入并创建Flask应用
-        from app import create_app
-        from app.extensions import db
-
-        cls.app = create_app()
-        cls.db = db
-
-        # 在应用上下文中初始化数据库
-        with cls.app.app_context():
-            # 创建所有表
-            cls.db.create_all()
+    # 不再需要覆盖 setup_class，直接继承父类的实现
+    # 父类的 setup_class 已经包含了创建初始数据的逻辑
 
     @classmethod
     def create_standard_test_user(cls, role=1, phone_number=None, password=None, open_id=None, test_context=None):
