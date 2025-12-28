@@ -61,7 +61,8 @@ def count():
             if counter:
                 counter.count += 1
             else:
-                counter = Counters(count=1)
+                # 创建新计数器时，设置 id 为请求中指定的 counter_id
+                counter = Counters(id=counter_id, count=1)
                 db.session.add(counter)
             db.session.commit()
             current_app.logger.info(f"计数器 {counter.id} 增加到 {counter.count}")
@@ -132,7 +133,7 @@ def get_counter():
             counter = Counters.query.filter_by(id=counter_id).first()
             if counter:
                 current_app.logger.info(f"获取计数器 {counter_id}，当前值: {counter.count}")
-                return make_succ_response({'id': counter_id, 'count': counter.count})
+                return make_succ_response({'id': counter.id, 'count': counter.count})
             else:
                 current_app.logger.warning(f"计数器 {counter_id} 不存在")
                 return make_err_response({}, f'计数器 {counter_id} 不存在')
