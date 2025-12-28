@@ -11,6 +11,7 @@ import time
 import threading
 from datetime import datetime
 from hashlib import sha256
+from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
@@ -60,7 +61,8 @@ class UserService:
         根据refresh token查询用户
         """
         try:
-            user = db.session.query(User).filter(User.refresh_token == refresh_token).first()
+            stmt = select(User).where(User.refresh_token == refresh_token)
+            user = db.session.execute(stmt).scalar_one_or_none()
             return user
         except Exception as e:
             logger.error(f'查询用户失败: {str(e)}')
@@ -74,7 +76,8 @@ class UserService:
         """
         try:
             # 在数据库中查找现有用户
-            existing_user = db.session.query(User).filter_by(user_id=user.user_id).first()
+            stmt = select(User).where(User.user_id == user.user_id)
+            existing_user = db.session.execute(stmt).scalar_one_or_none()
             if not existing_user:
                 return
 
@@ -120,9 +123,10 @@ class UserService:
         :return: User实体
         """
         try:
-            user = db.session.query(User).options(joinedload(User.community)).filter(
+            stmt = select(User).options(joinedload(User.community)).where(
                 User.wechat_openid == openid
-            ).first()
+            )
+            user = db.session.execute(stmt).scalar_one_or_none()
             return user
         except OperationalError as e:
             logger.info(f"query_user_by_openid errorMsg= {e}")
@@ -136,9 +140,10 @@ class UserService:
         :return: User实体
         """
         try:
-            user = db.session.query(User).options(joinedload(User.community)).filter(
+            stmt = select(User).options(joinedload(User.community)).where(
                 User.phone_hash == phone_hash
-            ).first()
+            )
+            user = db.session.execute(stmt).scalar_one_or_none()
             return user
         except OperationalError as e:
             logger.info(f"query_user_by_phone_hash errorMsg= {e}")
@@ -150,7 +155,8 @@ class UserService:
         :param user_id: 用户ID
         :return: User实体
         """
-        user = db.session.query(User).filter_by(user_id=user_id).first()
+        stmt = select(User).where(User.user_id == user_id)
+        user = db.session.execute(stmt).scalar_one_or_none()
         return user
 
     @staticmethod
@@ -159,7 +165,8 @@ class UserService:
         :param phone_number: 手机号
         :return: User实体
         """
-        user = db.session.query(User).filter_by(phone_hash=generate_phone_hash(phone_number)).first()
+        stmt = select(User).where(User.phone_hash == generate_phone_hash(phone_number))
+        user = db.session.execute(stmt).scalar_one_or_none()
         return user
 
     @staticmethod
@@ -303,12 +310,12 @@ class UserService:
 
             # 构建查询 - 只从安卡大家庭搜索
             from const_default import DEFAULT_COMMUNITY_ID
-            from sqlalchemy import or_
+            from sqlalchemy import or_, func
 
-            query = db.session.query(User).filter(User.community_id == DEFAULT_COMMUNITY_ID)
+            stmt_count = select(func.count()).select_from(User).where(User.community_id == DEFAULT_COMMUNITY_ID)
 
             # 关键词搜索（昵称或手机号）
-            query = query.filter(
+            stmt_count = stmt_count.where(
                 or_(
                     User.nickname.ilike(f'%{keyword}%'),
                     User.phone_number.ilike(f'%{keyword}%')
@@ -316,21 +323,27 @@ class UserService:
             )
 
             # 计算总数
-            total_count = query.count()
+            total_count = db.session.execute(stmt_count).scalar()
 
             # 分页查询
             offset = (page - 1) * per_page
-            users = (query.order_by(User.created_at.desc())
-                    .offset(offset)
-                    .limit(per_page)
-                    .all())
+            stmt = select(User).where(User.community_id == DEFAULT_COMMUNITY_ID)
+            stmt = stmt.where(
+                or_(
+                    User.nickname.ilike(f'%{keyword}%'),
+                    User.phone_number.ilike(f'%{keyword}%')
+                )
+            )
+            stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
+            users = db.session.execute(stmt).scalars().all()
 
             # 格式化响应数据
             result = []
             for u in users:
                 # 检查是否已是任何社区的工作人员
                 from database.flask_models import CommunityStaff
-                is_staff = db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)
+                is_staff = db.session.execute(stmt_staff).scalar_one_or_none() is not None
 
                 user_data = {
                     'user_id': str(u.user_id),
@@ -397,9 +410,9 @@ class UserService:
 
             # 构建基础查询
             from database.flask_models import CommunityStaff
-            from sqlalchemy import or_
+            from sqlalchemy import or_, func
 
-            query = db.session.query(User).filter(
+            stmt_count = select(func.count()).select_from(User).where(
                 or_(
                     User.nickname.ilike(f'%{keyword}%'),
                     User.phone_number.ilike(f'%{keyword}%')
@@ -407,16 +420,21 @@ class UserService:
             )
 
             # 角色过滤：排除超级管理员 (role=4)
-            query = query.filter(User.role != 4)
+            stmt_count = stmt_count.where(User.role != 4)
 
-            total_count = query.count()
+            total_count = db.session.execute(stmt_count).scalar()
 
             # 分页查询
             offset = (page - 1) * per_page
-            users = (query.order_by(User.created_at.desc())
-                    .offset(offset)
-                    .limit(per_page)
-                    .all())
+            stmt = select(User).where(
+                or_(
+                    User.nickname.ilike(f'%{keyword}%'),
+                    User.phone_number.ilike(f'%{keyword}%')
+                )
+            )
+            stmt = stmt.where(User.role != 4)
+            stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
+            users = db.session.execute(stmt).scalars().all()
 
             # 格式化响应数据
             result = []
@@ -427,23 +445,28 @@ class UserService:
                 other_community_manager = False
 
                 if community_id:
-                    current_community_staff = db.session.query(CommunityStaff).filter_by(
-                        community_id=community_id,
-                        user_id=u.user_id,
-                        role='staff'
-                    ).first() is not None
+                    stmt_staff = select(CommunityStaff).where(
+                        CommunityStaff.community_id == community_id,
+                        CommunityStaff.user_id == u.user_id,
+                        CommunityStaff.role == 'staff'
+                    )
+                    current_community_staff = db.session.execute(stmt_staff).scalar_one_or_none() is not None
 
-                    current_community_manager = db.session.query(CommunityStaff).filter_by(
-                        community_id=community_id,
-                        user_id=u.user_id,
-                        role='manager'
-                    ).first() is not None
+                    stmt_manager = select(CommunityStaff).where(
+                        CommunityStaff.community_id == community_id,
+                        CommunityStaff.user_id == u.user_id,
+                        CommunityStaff.role == 'manager'
+                    )
+                    current_community_manager = db.session.execute(stmt_manager).scalar_one_or_none() is not None
 
                 # 检查是否是其他社区的管理员
-                other_community_manager = db.session.query(CommunityStaff).filter_by(
-                    user_id=u.user_id,
-                    role='manager'
-                ).filter(CommunityStaff.community_id != community_id).first() is not None
+                stmt_other = select(CommunityStaff).where(
+                    CommunityStaff.user_id == u.user_id,
+                    CommunityStaff.role == 'manager'
+                )
+                if community_id:
+                    stmt_other = stmt_other.where(CommunityStaff.community_id != community_id)
+                other_community_manager = db.session.execute(stmt_other).scalar_one_or_none() is not None
 
                 user_data = {
                     'user_id': str(u.user_id),
@@ -459,7 +482,7 @@ class UserService:
                     'is_current_community_staff': is_current_community_staff,
                     'is_current_community_manager': current_community_manager,
                     'is_other_community_manager': other_community_manager,
-                    'is_staff': db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                    'is_staff': db.session.execute(select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)).scalar_one_or_none() is not None
                 }
 
                 result.append(user_data)
@@ -505,18 +528,22 @@ class UserService:
                 per_page = 100
 
             # 搜索用户
-            query = db.session.query(User).filter(
+            from sqlalchemy import func
+            stmt_count = select(func.count()).select_from(User).where(
                 User.phone_number.ilike(f'%{normalized_phone}%')
-            ).filter(User.role != 4)  # 排除超级管理员
+            )
+            stmt_count = stmt_count.where(User.role != 4)  # 排除超级管理员
 
-            total_count = query.count()
+            total_count = db.session.execute(stmt_count).scalar()
 
             # 分页查询
             offset = (page - 1) * per_page
-            users = (query.order_by(User.created_at.desc())
-                    .offset(offset)
-                    .limit(per_page)
-                    .all())
+            stmt = select(User).where(
+                User.phone_number.ilike(f'%{normalized_phone}%')
+            )
+            stmt = stmt.where(User.role != 4)  # 排除超级管理员
+            stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
+            users = db.session.execute(stmt).scalars().all()
 
             # 格式化响应数据
             result = []
@@ -532,7 +559,7 @@ class UserService:
                     'community_id': str(u.community_id) if u.community_id else None,
                     'status': u.status,
                     'created_at': u.created_at.isoformat() if u.created_at else None,
-                    'is_staff': db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                    'is_staff': db.session.execute(select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)).scalar_one_or_none() is not None
                 }
 
                 result.append(user_data)
@@ -576,18 +603,21 @@ class UserService:
                 per_page = 100
 
             # 搜索用户
-            query = db.session.query(User).filter(
+            stmt_count = select(func.count()).select_from(User).where(
                 User.nickname.ilike(f'%{keyword}%')
-            ).filter(User.role != 4)  # 排除超级管理员
+            )
+            stmt_count = stmt_count.where(User.role != 4)  # 排除超级管理员
 
-            total_count = query.count()
+            total_count = db.session.execute(stmt_count).scalar()
 
             # 分页查询
             offset = (page - 1) * per_page
-            users = (query.order_by(User.created_at.desc())
-                    .offset(offset)
-                    .limit(per_page)
-                    .all())
+            stmt = select(User).where(
+                User.nickname.ilike(f'%{keyword}%')
+            )
+            stmt = stmt.where(User.role != 4)  # 排除超级管理员
+            stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
+            users = db.session.execute(stmt).scalars().all()
 
             # 格式化响应数据
             result = []
@@ -603,7 +633,7 @@ class UserService:
                     'community_id': str(u.community_id) if u.community_id else None,
                     'status': u.status,
                     'created_at': u.created_at.isoformat() if u.created_at else None,
-                    'is_staff': db.session.query(CommunityStaff).filter_by(user_id=u.user_id).first() is not None
+                    'is_staff': db.session.execute(select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)).scalar_one_or_none() is not None
                 }
 
                 result.append(user_data)
