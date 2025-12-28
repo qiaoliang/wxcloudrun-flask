@@ -156,7 +156,7 @@ def user_profile():
                 'status': user.status
             }
 
-            current_app.logger.info(f'获取用户信息成功: {user_id}')
+            current_app.logger.info(f'获取用户信息成功: user_id={user_id}, phone_number={user.phone_number}')
             return make_succ_response(user_data)
 
         except Exception as e:
