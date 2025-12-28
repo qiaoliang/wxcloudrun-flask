@@ -19,7 +19,7 @@ logger = logging.getLogger('CommunityCheckinView')
 
 
 
-@community_checkin_bp.route('/community_checkin/rules', methods=['GET'])
+@community_checkin_bp.route('/rules', methods=['GET'])
 @require_community_staff_member()
 def get_community_checkin_rules(decoded):
     """
@@ -72,7 +72,7 @@ def get_community_checkin_rules(decoded):
         return make_err_response({}, f'获取规则列表失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/rules', methods=['POST'])
+@community_checkin_bp.route('/rules', methods=['POST'])
 @require_community_staff_member()
 def create_community_checkin_rule(decoded):
     """
@@ -115,7 +115,7 @@ def create_community_checkin_rule(decoded):
         return make_err_response({}, f'创建规则失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/rules/<int:rule_id>', methods=['PUT'])
+@community_checkin_bp.route('/rules/<int:rule_id>', methods=['PUT'])
 @require_community_staff_member()
 def update_community_checkin_rule(decoded, rule_id):
     """
@@ -152,7 +152,7 @@ def update_community_checkin_rule(decoded, rule_id):
         return make_err_response({}, f'更新规则失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/rules/<int:rule_id>/enable', methods=['POST'])
+@community_checkin_bp.route('/rules/<int:rule_id>/enable', methods=['POST'])
 @require_community_staff_member()
 def enable_community_checkin_rule(decoded, rule_id):
     """
@@ -184,7 +184,7 @@ def enable_community_checkin_rule(decoded, rule_id):
         return make_err_response({}, f'启用规则失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/rules/<int:rule_id>/disable', methods=['POST'])
+@community_checkin_bp.route('/rules/<int:rule_id>/disable', methods=['POST'])
 @require_community_staff_member()
 def disable_community_checkin_rule(decoded, rule_id):
     """
@@ -216,7 +216,7 @@ def disable_community_checkin_rule(decoded, rule_id):
         return make_err_response({}, f'禁用规则失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/rules/<int:rule_id>', methods=['DELETE'])
+@community_checkin_bp.route('/rules/<int:rule_id>', methods=['DELETE'])
 @require_community_staff_member()
 def delete_community_checkin_rule(decoded, rule_id):
     """
@@ -251,7 +251,7 @@ def delete_community_checkin_rule(decoded, rule_id):
         return make_err_response({}, f'删除规则失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/rules/<int:rule_id>', methods=['GET'])
+@community_checkin_bp.route('/rules/<int:rule_id>', methods=['GET'])
 @require_community_staff_member()
 def get_community_checkin_rule(decoded, rule_id):
     """
@@ -280,7 +280,7 @@ def get_community_checkin_rule(decoded, rule_id):
         return make_err_response({}, f'获取规则详情失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/stats/<int:community_id>/daily-stats', methods=['GET'])
+@community_checkin_bp.route('/stats/<int:community_id>/daily-stats', methods=['GET'])
 @require_community_staff_member()
 def get_community_daily_stats(decoded, community_id):
     """获取社区每日打卡统计"""
@@ -305,7 +305,7 @@ def get_community_daily_stats(decoded, community_id):
         return make_err_response({}, f'获取统计信息失败: {str(e)}')
 
 
-@community_checkin_bp.route('/community_checkin/stats/<int:community_id>/checkin-stats', methods=['GET'])
+@community_checkin_bp.route('/stats/<int:community_id>/checkin-stats', methods=['GET'])
 @require_community_staff_member()
 def get_community_checkin_stats(decoded, community_id):
     """获取社区打卡统计信息"""
