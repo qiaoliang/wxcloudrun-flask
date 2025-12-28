@@ -179,11 +179,17 @@ class CommunityStaffService:
                 )
                 db.session.add(staff)
                 
+                # 更新用户的 role 字段
+                if role == 'manager':
+                    target_user.role = 3  # 社区主管
+                elif role == 'staff':
+                    target_user.role = 2  # 社区专员
+                
                 # 记录审计日志
                 audit_log = UserAuditLog(
                     user_id=operator_user_id,
                     action="add_community_staff",
-                    detail=f"添加用户{uid}为社区{community_id}的{role}"
+                    detail=f"添加用户{uid}为社区{community_id}的{role}，更新角色为{target_user.role}"
                 )
                 db.session.add(audit_log)
                 
@@ -278,11 +284,19 @@ class CommunityStaffService:
         )
         db.session.add(staff)
         
+        # 更新用户的 role 字段
+        target_user = db.session.get(User, user_id)
+        if target_user:
+            if role == 'manager':
+                target_user.role = 3  # 社区主管
+            elif role == 'staff':
+                target_user.role = 2  # 社区专员
+        
         # 记录审计日志
         audit_log = UserAuditLog(
             user_id=operator_id or user_id,
             action="add_staff",
-            detail=f"添加社区工作人员: 社区ID={community_id}, 用户ID={user_id}, 角色={role}"
+            detail=f"添加社区工作人员: 社区ID={community_id}, 用户ID={user_id}, 角色={role}，更新角色为{target_user.role if target_user else 'N/A'}"
         )
         db.session.add(audit_log)
         
@@ -326,11 +340,22 @@ class CommunityStaffService:
                 community.manager_id = None
                 logger.info(f'Layer 3环境守卫 - 成功清理社区{community_id}的manager_id字段')
 
+        # Layer 3: 环境守卫 - 检查用户是否还在其他社区担任工作人员
+        target_user = db.session.get(User, user_id)
+        if target_user:
+            other_staff_records = db.session.query(CommunityStaff).filter_by(user_id=user_id).count()
+            if other_staff_records == 0:
+                # 用户不在任何社区担任工作人员，重置为普通用户
+                logger.info(f'Layer 3环境守卫 - 用户{user_id}不在任何社区担任工作人员，重置为普通用户')
+                target_user.role = 1  # 普通用户
+            else:
+                logger.info(f'Layer 3环境守卫 - 用户{user_id}还在{other_staff_records}个社区担任工作人员，保持当前角色')
+
         # 记录审计日志
         audit_log = UserAuditLog(
             user_id=operator_id or user_id,
             action="remove_staff",
-            detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}"
+            detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}，用户当前角色={target_user.role if target_user else 'N/A'}"
         )
         db.session.add(audit_log)
 
