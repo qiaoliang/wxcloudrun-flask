@@ -129,7 +129,7 @@ class CheckinRuleService:
         :raises ValueError: 当规则不存在或无权限时
         """
         try:
-            rule = CheckinRule.query.get(rule_id)
+            rule = db.session.get(CheckinRule, rule_id)
 
             if not rule:
                 raise ValueError('打卡规则不存在')
@@ -198,7 +198,7 @@ class CheckinRuleService:
         :raises ValueError: 当规则不存在或无权限时
         """
         try:
-            rule = CheckinRule.query.get(rule_id)
+            rule = db.session.get(CheckinRule, rule_id)
 
             if not rule:
                 raise ValueError(f"没有找到 id 为 {rule_id} 的打卡规则")
