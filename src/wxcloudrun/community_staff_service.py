@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, Community, CommunityStaff, CommunityApplication, UserAuditLog
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
+from app.shared.utils.transaction import transaction
 logger = logging.getLogger('CommunityService')
 
 
@@ -226,7 +227,8 @@ class CommunityStaffService:
                 logger.error(f'Layer 4调试仪表 - 社区{community_id}不存在，无法更新manager_id')
 
         # 提交事务
-        db.session.commit()
+        with transaction():
+            db.session.commit()
 
         return {
             'success_count': added_count,
@@ -283,7 +285,8 @@ class CommunityStaffService:
         )
         db.session.add(audit_log)
 
-        db.session.commit()
+        with transaction():
+            db.session.commit()
         logger.info(f"社区工作人员添加成功: 社区ID={community_id}, 用户ID={user_id}")
         return staff
 
@@ -344,7 +347,8 @@ class CommunityStaffService:
         )
         db.session.add(audit_log)
 
-        db.session.commit()
+        with transaction():
+            db.session.commit()
         logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}")
         return True
 
@@ -425,7 +429,8 @@ class CommunityStaffService:
                     )
                     db.session.add(staff)
 
-            db.session.commit()
+            with transaction():
+                db.session.commit()
 
             logger.info(f"用户{user_id}社区切换完成: 停用{deactivated_count}个旧规则，激活{activated_count}个新规则")
 

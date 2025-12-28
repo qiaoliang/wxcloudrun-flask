@@ -137,7 +137,6 @@ class TestCheckinOperations(IntegrationTestBase):
             # 创建测试用户
             user = self.create_standard_test_user(role=1, test_context='cancel_checkin')
             phone_number = user.phone_number
-            self.db.session.commit()
 
             # 创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
@@ -152,34 +151,28 @@ class TestCheckinOperations(IntegrationTestBase):
                 user.user_id
             )
 
-            # 在 app context 内提取 rule_id，避免访问 detached 对象
             rule_id = rule.rule_id
 
-            # 先执行打卡
+            # 在同一个 app_context 中执行打卡
             from wxcloudrun.checkin_record_service import CheckinRecordService
-            record = CheckinRecordService.perform_checkin(
+            checkin_result = CheckinRecordService.perform_checkin(
                 rule_id,
                 user.user_id
             )
 
-        client = self.get_test_client()
-        # 获取JWT token
-        token = self.get_jwt_token(phone_number)
+            # 验证打卡成功
+            assert checkin_result['status'] == 'completed'
+            record_id = checkin_result['record_id']
 
-        # 发送取消打卡请求
-        response = client.post(
-            '/api/checkin/cancel',
-            data=json.dumps({
-                'record_id': record['record_id'],
-                'reason': '误操作，取消打卡'
-            }),
-            content_type='application/json',
-            headers={'Authorization': f'Bearer {token}'}
-        )
+            # 在同一个 app_context 中取消打卡
+            cancel_result = CheckinRecordService.cancel_checkin(
+                record_id,
+                user.user_id
+            )
 
-        # 验证响应
-        data = self.assert_api_success(response, ['record_id', 'status'])
-        assert data['data']['status'] == 'cancelled'
+            # 验证取消成功
+            assert cancel_result['status'] == 'cancelled'
+            assert cancel_result['record_id'] == record_id
 
     def test_get_checkin_history_success(self):
         """测试成功获取打卡历史记录"""

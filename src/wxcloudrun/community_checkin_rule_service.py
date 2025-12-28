@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from database.flask_models import db, CommunityCheckinRule, UserCommunityRule, User, Community
 from wxcloudrun.community_service import CommunityService
 from wxcloudrun.utils.timeutil import parse_time_only, parse_date_only
+from app.shared.utils.transaction import transaction
 
 logger = logging.getLogger('CommunityCheckinRuleService')
 
@@ -93,8 +94,9 @@ class CommunityCheckinRuleService:
             )
 
             db.session.add(new_rule)
-            db.session.commit()
-            db.session.refresh(new_rule)
+            with transaction():
+                db.session.flush()
+                db.session.refresh(new_rule)
 
             logger.info(f"创建社区规则成功: 社区ID={community_id_int}, 规则ID={new_rule.community_rule_id}, 创建者={created_by_int}")
             return new_rule
@@ -166,8 +168,9 @@ class CommunityCheckinRuleService:
             rule.updated_by = updated_by_int
             rule.updated_at = datetime.now()
 
-            db.session.commit()
-            db.session.refresh(rule)
+            with transaction():
+                db.session.commit()
+                db.session.refresh(rule)
 
             logger.info(f"修改社区规则成功: 规则ID={rule_id}, 更新者={updated_by_int}")
             return rule
@@ -255,7 +258,8 @@ class CommunityCheckinRuleService:
             rule.enabled_by = enabled_by_int
             rule.updated_at = datetime.now()
 
-            db.session.commit()
+            with transaction():
+                db.session.commit()
 
             # 将对象转换为字典
             rule_dict = rule.to_dict()
@@ -316,7 +320,9 @@ class CommunityCheckinRuleService:
             rule.disabled_at = datetime.now()
             rule.disabled_by = disabled_by_int
             rule.updated_at = datetime.now()
-            db.session.commit()
+
+            with transaction():
+                db.session.commit()
 
             # 将对象转换为字典
             rule_dict = rule.to_dict()
@@ -574,7 +580,8 @@ class CommunityCheckinRuleService:
                         )
                         db.session.add(mapping)
 
-            db.session.commit()
+            with transaction():
+                db.session.commit()
 
             logger.info(f"用户社区变更规则同步成功: 用户ID={user_id}, 旧社区={old_community_id}, 新社区={new_community_id}")
             return True
@@ -616,7 +623,8 @@ class CommunityCheckinRuleService:
             rule.status = 2
             rule.updated_at = datetime.now()
 
-            db.session.commit()
+            with transaction():
+                db.session.commit()
 
             logger.info(f"删除社区规则成功: 规则ID={rule_id}, 删除者={deleted_by}")
             return True
