@@ -141,3 +141,6 @@ dmypy.json
 
 .idea.env
 .worktrees/
+
+# Uploads directory (runtime generated files)
+src/app/static/uploads/
