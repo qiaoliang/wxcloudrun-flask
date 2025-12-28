@@ -109,6 +109,10 @@ class UserService:
             existing_user.refresh_token = user.refresh_token
         if user.refresh_token_expire is not None:
             existing_user.refresh_token_expire = user.refresh_token_expire
+        if user.password_hash is not None:
+            existing_user.password_hash = user.password_hash
+        if user.password_salt is not None:
+            existing_user.password_salt = user.password_salt
         existing_user.updated_at = user.updated_at or datetime.now()
 
     @staticmethod

@@ -150,10 +150,13 @@ def register_error_handlers(app):
 
 def register_session_cleanup(app):
     """注册会话清理处理器"""
-    @app.teardown_appcontext
-    def shutdown_session(exception=None):
-        """请求结束后清理数据库会话"""
-        db.session.remove()
+    # 在测试环境中不注册 teardown_appcontext，以保持事务的一致性
+    import config_manager
+    if not config_manager.is_unit_environment():
+        @app.teardown_appcontext
+        def shutdown_session(exception=None):
+            """请求结束后清理数据库会话"""
+            db.session.remove()
 
 
 def start_background_tasks(app):

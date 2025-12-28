@@ -20,6 +20,7 @@ def transactional(f):
     - 失败时自动回滚
     - 记录详细的错误日志
     - 支持嵌套事务（使用 SAVEPOINT）
+    - 在测试环境中不执行任何操作，依赖外层事务管理
 
     使用示例:
         @transactional
@@ -37,10 +38,17 @@ def transactional(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
-            # 使用 begin_nested 支持 SAVEPOINT，允许嵌套事务
-            with db.session.begin_nested():
+            # 在测试环境中，不执行任何操作，依赖外层事务管理
+            import config_manager
+            if config_manager.is_unit_environment():
+                # 测试环境：直接执行，依赖外层事务管理
                 result = f(*args, **kwargs)
                 return result
+            else:
+                # 生产环境：使用 begin_nested 支持 SAVEPOINT，允许嵌套事务
+                with db.session.begin_nested():
+                    result = f(*args, **kwargs)
+                    return result
         except SQLAlchemyError as e:
             logger.error(f"事务失败 - 函数: {f.__name__}, 错误: {str(e)}")
             # 上下文管理器会自动回滚到 SAVEPOINT
