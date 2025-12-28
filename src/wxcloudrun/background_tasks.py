@@ -4,6 +4,7 @@ import time as time_module
 from datetime import datetime, time, timedelta
 
 from flask import current_app
+from sqlalchemy import select
 from app.extensions import db
 from database.flask_models import CheckinRule, CheckinRecord, User, CommunityCheckinRule, UserCommunityRule, CommunityStaff
 from wxcloudrun.checkin_record_service import CheckinRecordService
@@ -63,7 +64,9 @@ def _process_missed_for_today(now):
     grace_delta = timedelta(minutes=grace_minutes)
 
     try:
-        rules = db.session.query(CheckinRule).filter(CheckinRule.status != 2).all()  # 排除已删除的规则
+        # 使用 SQLAlchemy 2.0 的 select() 语句
+        stmt = select(CheckinRule).where(CheckinRule.status != 2)  # 排除已删除的规则
+        rules = db.session.execute(stmt).scalars().all()
     except Exception as e:
         # 如果数据库表不存在，跳过本次检查
         if "no such table" in str(e).lower():
@@ -117,8 +120,10 @@ def _process_community_missed_for_today(now):
     grace_delta = timedelta(minutes=grace_minutes)
 
     try:
+        # 使用 SQLAlchemy 2.0 的 select() 语句
         # 查询所有启用的社区规则
-        community_rules = db.session.query(CommunityCheckinRule).filter_by(status=1).all()
+        stmt = select(CommunityCheckinRule).where(CommunityCheckinRule.status == 1)
+        community_rules = db.session.execute(stmt).scalars().all()
     except Exception as e:
         if "no such table" in str(e).lower():
             current_app.logger.warning(f"[community-missing-mark] 数据库表尚未创建，跳过检查。")
