@@ -67,7 +67,7 @@ ENV ENV_TYPE=${ENV_TYPE}
 EXPOSE ${EXPOSE_PORT}
 
 # 启动容器
-CMD ["python3", "run.py", "0.0.0.0", "${EXPOSE_PORT}"]
+CMD ["python3", "run.py", "0.0.0.0", "8080"]
 
 # ================================
 # 环境特定构建目标
@@ -79,7 +79,7 @@ ARG EXPOSE_PORT=9999
 ENV ENV_TYPE=function
 EXPOSE ${EXPOSE_PORT}
 
-# UAT 环境  
+# UAT 环境
 FROM runtime as uat
 ARG EXPOSE_PORT=8081
 ENV ENV_TYPE=uat
