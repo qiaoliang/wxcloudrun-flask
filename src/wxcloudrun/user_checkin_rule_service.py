@@ -4,6 +4,7 @@
 """
 import logging
 from datetime import datetime
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule, User, CheckinRecord
 from wxcloudrun.checkin_rule_service import CheckinRuleService
@@ -35,9 +36,11 @@ class UserCheckinRuleService:
 
             # 获取用户的规则映射状态
             user_mappings = {}
-            mappings = db.session.query(UserCommunityRule).filter(
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            stmt_mappings = select(UserCommunityRule).where(
                 UserCommunityRule.user_id == user_id
-            ).all()
+            )
+            mappings = db.session.execute(stmt_mappings).scalars().all()
             for mapping in mappings:
                 user_mappings[mapping.community_rule_id] = mapping.is_active
 
@@ -103,14 +106,16 @@ class UserCheckinRuleService:
             list: 激活的社区规则列表
         """
         try:
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 通过UserCommunityRule表查询激活的社区规则
-            active_rules = db.session.query(CommunityCheckinRule).join(UserCommunityRule).filter(
+            stmt = select(CommunityCheckinRule).join(UserCommunityRule).where(
                 UserCommunityRule.user_id == user_id,
                 UserCommunityRule.is_active == True,
                 CommunityCheckinRule.status == 1  # 社区规则本身也是启用状态
-            ).all()
+            )
+            active_rules = db.session.execute(stmt).scalars().all()
 
-                # Flask-SQLAlchemy 自动处理会话，不需要复杂的对象包装
+            # Flask-SQLAlchemy 自动处理会话，不需要复杂的对象包装
             return active_rules
 
         except SQLAlchemyError as e:
@@ -134,17 +139,20 @@ class UserCheckinRuleService:
             if not user or not user.community_id:
                 return []
 
+            # 使用 SQLAlchemy 2.0 的 select() 语句
             # 查询用户所属社区的所有规则（包括启用和停用的）
-            all_rules = db.session.query(CommunityCheckinRule).filter(
+            stmt_all_rules = select(CommunityCheckinRule).where(
                 CommunityCheckinRule.community_id == user.community_id,
                 CommunityCheckinRule.status != 2  # 排除已删除的规则
-            ).all()
+            )
+            all_rules = db.session.execute(stmt_all_rules).scalars().all()
 
             # 获取该用户的规则映射记录
             user_mappings = {}
-            mappings = db.session.query(UserCommunityRule).filter(
+            stmt_mappings = select(UserCommunityRule).where(
                 UserCommunityRule.user_id == user_id
-            ).all()
+            )
+            mappings = db.session.execute(stmt_mappings).scalars().all()
 
             for mapping in mappings:
                 user_mappings[mapping.community_rule_id] = mapping.is_active
@@ -212,15 +220,15 @@ class UserCheckinRuleService:
                 if not CheckinRuleService._should_checkin_today(rule, today):
                     continue
 
+                # 使用 SQLAlchemy 2.0 的 select() 语句
                 # 获取今日打卡记录
                 from sqlalchemy import func
-                today_records = (db.session.query(CheckinRecord)
-                            .filter(
-                                CheckinRecord.rule_id == rule.community_rule_id,
-                                func.date(CheckinRecord.checkin_time) == today,  # 更新字段名
-                                CheckinRecord.user_id == user_id  # 更新字段名
-                            )
-                            .all())
+                stmt = select(CheckinRecord).where(
+                    CheckinRecord.rule_id == rule.community_rule_id,
+                    func.date(CheckinRecord.checkin_time) == today,  # 更新字段名
+                    CheckinRecord.user_id == user_id  # 更新字段名
+                )
+                today_records = db.session.execute(stmt).scalars().all()
 
                 # 计算计划时间 - 使用规则的时间设置
                 planned_time = CheckinRecordService._calculate_planned_time(rule, today)
@@ -297,12 +305,14 @@ class UserCheckinRuleService:
                 if not user or user.community_id != rule['community_id']:
                     raise ValueError('社区规则不存在或无权限')
 
+                # 使用 SQLAlchemy 2.0 的 select() 语句
                 # 检查规则是否对用户生效
-                mapping = db.session.query(UserCommunityRule).filter_by(
-                    user_id=user_id,
-                    community_rule_id=rule_id,
-                    is_active=True
-                ).first()
+                stmt = select(UserCommunityRule).where(
+                    UserCommunityRule.user_id == user_id,
+                    UserCommunityRule.community_rule_id == rule_id,
+                    UserCommunityRule.is_active == True
+                )
+                mapping = db.session.execute(stmt).scalar_one_or_none()
 
                 if not mapping:
                     raise ValueError('此规则未对您生效')
