@@ -812,6 +812,77 @@ class CommunityService:
         db.session.commit()
 
     @staticmethod
+    def get_community_daily_stats(community_id):
+        """获取社区每日打卡统计"""
+        from database.flask_models import CheckinRecord, CommunityStaff, CommunityCheckinRule
+        from datetime import date
+        from sqlalchemy import and_, func
+
+        # 获取该社区所有工作人员的用户ID列表
+        staff_user_ids = [s.user_id for s in db.session.query(CommunityStaff).filter_by(
+            community_id=community_id
+        ).all()]
+
+        # 获取社区所有用户（排除工作人员）
+        query = db.session.query(User).filter_by(community_id=community_id)
+        if staff_user_ids:
+            query = query.filter(User.user_id.notin_(staff_user_ids))
+        all_users = query.all()
+
+        # 获取今日所有启用的社区打卡规则
+        today = date.today()
+        enabled_rules = db.session.query(CommunityCheckinRule).filter(
+            CommunityCheckinRule.community_id == community_id,
+            CommunityCheckinRule.status == 1  # 启用状态
+        ).all()
+
+        if not enabled_rules or not all_users:
+            # 如果没有规则或没有用户，返回默认值
+            return {
+                'user_count': len(all_users),
+                'total_rules': len(enabled_rules),
+                'total_checkins': 0,
+                'completed_checkins': 0,
+                'missed_checkins': 0,
+                'checkin_rate': 0.0,
+                'unchecked_user_count': 0
+            }
+
+        # 获取今日所有打卡记录
+        rule_ids = [rule.community_rule_id for rule in enabled_rules]
+        user_ids = [user.user_id for user in all_users]
+
+        today_records = db.session.query(CheckinRecord).filter(
+            and_(
+                CheckinRecord.user_id.in_(user_ids),
+                CheckinRecord.community_rule_id.in_(rule_ids),
+                func.date(CheckinRecord.planned_time) == today
+            )
+        ).all()
+
+        # 统计数据
+        total_checkins = len(today_records)
+        completed_checkins = sum(1 for r in today_records if r.status == 1)  # 1-completed
+        missed_checkins = sum(1 for r in today_records if r.status == 0)  # 0-missed
+
+        # 计算打卡率（已打卡数 / 总打卡数）
+        checkin_rate = (completed_checkins / total_checkins * 100) if total_checkins > 0 else 0.0
+
+        # 计算未打卡人数（去重）
+        unchecked_user_ids = set(r.user_id for r in today_records if r.status == 0)
+        unchecked_user_count = len(unchecked_user_ids)
+
+        return {
+            'user_count': len(all_users),
+            'total_rules': len(enabled_rules),
+            'total_checkins': total_checkins,
+            'completed_checkins': completed_checkins,
+            'missed_checkins': missed_checkins,
+            'checkin_rate': round(checkin_rate, 1),
+            'unchecked_user_count': unchecked_user_count
+        }
+
+    @staticmethod
     def toggle_community_status(community_id, status):
         """切换社区状态"""
         # 查找社区
