@@ -427,8 +427,8 @@ class TestCommunityStaffService:
             assert staff_record.role == 'staff'
             assert staff_record.user_id == staff_user.user_id
 
-            # 验证用户本身不是超级管理员
-            assert staff_user.role == 1  # 普通用户，不是管理员
+            # 验证用户角色已更新为社区专员（2），不是超级管理员（4）
+            assert staff_user.role == 2  # 社区专员，不是超级管理员
 
     def test_is_admin_of_commu_invalid_community_id(self, test_session, test_app):
         """测试无效社区ID的处理"""
