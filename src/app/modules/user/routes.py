@@ -633,7 +633,7 @@ def verify_community():
 # ==================== 用户事件相关 API ====================
 
 @user_bp.route('/my-active-event', methods=['GET'])
-@login_required()
+@login_required
 def get_my_active_event(decoded):
     """获取用户当前进行中的事件"""
     try:
@@ -653,7 +653,7 @@ def get_my_active_event(decoded):
 
 
 @user_bp.route('/events/<int:event_id>/messages', methods=['POST'])
-@login_required()
+@login_required
 def add_event_message(decoded, event_id):
     """添加事件消息（支持文字/语音/图片）"""
     try:
@@ -700,7 +700,7 @@ def add_event_message(decoded, event_id):
 
 
 @user_bp.route('/events/<int:event_id>/close', methods=['POST'])
-@login_required()
+@login_required
 def close_event(decoded, event_id):
     """关闭事件"""
     try:
@@ -732,7 +732,7 @@ def close_event(decoded, event_id):
 
 
 @user_bp.route('/events/<int:event_id>/history', methods=['GET'])
-@login_required()
+@login_required
 def get_event_history(decoded, event_id):
     """获取事件历史记录"""
     try:
