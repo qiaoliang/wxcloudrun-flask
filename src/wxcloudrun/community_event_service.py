@@ -282,8 +282,10 @@ class CommunityEventService:
                 CommunityEvent.event_type == 'call_for_help',
                 CommunityEvent.status == 1  # 进行中
             ).order_by(CommunityEvent.created_at.desc())
-            
-            event = db.session.execute(stmt).scalar_one_or_none()
+
+            # 使用 first() 而不是 scalar_one_or_none()，避免多行数据错误
+            # 如果用户有多个进行中的事件，只返回最新的一条
+            event = db.session.execute(stmt).scalars().first()
             
             if not event:
                 return {
