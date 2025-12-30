@@ -443,7 +443,7 @@ class CommunityEventService:
                     event_id=event_id,
                     closed_by=user_id,
                     closure_reason=closure_reason,
-                    closure_status='user_closed'
+                    closure_status='resolved'  # 已解决
                 )
                 db.session.add(closure)
                 
@@ -453,11 +453,11 @@ class CommunityEventService:
                 
                 db.session.flush()
             
-            logger.info(f"用户{user_id}关闭了事件{event_id}，原因：{closure_reason}")
+            logger.info(f"用户{user_id}解决了事件{event_id}，原因：{closure_reason}")
             
             return {
                 'success': True,
-                'message': '事件已关闭',
+                'message': '事件已解决',
                 'closure': closure.to_dict()
             }
             
