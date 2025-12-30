@@ -9,7 +9,8 @@ import json
 from datetime import datetime
 from hashlib import sha256
 from typing import Dict
-from sqlalchemy import select, func, delete, and_, or_, not_
+from flask import current_app
+from sqlalchemy import select, func, delete, and_, or_, not_, update
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog
 from wxcloudrun.utils.validators import generate_phone_hash
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
@@ -912,8 +913,29 @@ class CommunityService:
             raise ValueError("特殊社区不能停用")
 
         with transaction():
-            # 更新状态
+            # 更新社区状态
             community.status = 1 if status == 'active' else 2
+
+            # 如果停用社区，同时停用所有启用的社区打卡规则
+            if status == 'inactive':
+                from database.flask_models import CommunityCheckinRule
+
+                # 批量更新该社区下所有启用的打卡规则
+                stmt = update(CommunityCheckinRule).where(
+                    CommunityCheckinRule.community_id == community_id,
+                    CommunityCheckinRule.status == 1  # 启用状态
+                ).values(
+                    status=0,  # 停用
+                    disabled_by=None,  # 可以从上下文获取操作人
+                    disabled_at=datetime.now()
+                )
+                result = db.session.execute(stmt)
+
+                # 记录停用的规则数量
+                if result.rowcount > 0:
+                    current_app.logger.info(
+                        f'停用社区 {community_id} 时，停用了 {result.rowcount} 个社区打卡规则'
+                    )
 
         return {
             'community_id': community_id,

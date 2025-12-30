@@ -89,14 +89,14 @@ def _format_community_info(community, include_worker_stats=False):
     if include_worker_stats:
         # 使用 SQLAlchemy 2.0 的 select() 语句
         from sqlalchemy import func
-        
+
         # 统计主管
         stmt_manager = select(func.count()).select_from(CommunityStaff).where(
             CommunityStaff.community_id == community.community_id,
             CommunityStaff.role == 'manager'  # 社区主管
         )
         manager_count = db.session.execute(stmt_manager).scalar()
-        
+
         # 只统计专员（不包括主管）
         stmt_staff = select(func.count()).select_from(CommunityStaff).where(
             CommunityStaff.community_id == community.community_id,
@@ -1143,7 +1143,7 @@ def toggle_community_status():
     user = db.session.get(User, user_id)
 
     # 检查权限
-    if not user or user.role < 4:  # 只有超级管理员可以切换状态
+    if not user or user.role == 1:  # 只有超级管理员可以切换状态
         return make_err_response({}, '无权限执行此操作')
 
     try:
@@ -1155,10 +1155,14 @@ def toggle_community_status():
         if not community_id:
             return make_err_response({}, '缺少社区ID')
 
-        # 切换状态
-        success = CommunityService.toggle_community_status(community_id, user_id)
+        status = params.get('status')
+        if not status:
+            return make_err_response({}, '缺少状态参数')
 
-        if success:
+        # 切换状态
+        result = CommunityService.toggle_community_status(community_id, status)
+
+        if result:
             # 记录审计日志
             _audit(user_id, 'toggle_community_status', {
                 'community_id': community_id
@@ -1171,7 +1175,7 @@ def toggle_community_status():
 
     except Exception as e:
         current_app.logger.error(f'切换社区状态失败: {str(e)}', exc_info=True)
-        return make_err_response({}, '切换失败')
+        return make_err_response({}, f'切换失败: {str(e)}')
 
 
 @community_bp.route('/community/delete', methods=['POST'])
@@ -1216,7 +1220,7 @@ def delete_community():
 
     except Exception as e:
         current_app.logger.error(f'删除社区失败: {str(e)}', exc_info=True)
-        return make_err_response({}, '删除失败')
+        return make_err_response({}, f'删除失败: {str(e)}')
 
 
 @community_bp.route('/user/search', methods=['GET'])
@@ -1635,14 +1639,6 @@ def create_community_user():
 
         # 创建用户
         user = CommunityService.create_user_in_community(community_id, user_data, operator_id)
-
-        current_app.logger.info(f'成功在社区 {community_id} 中创建用户 {user.user_id}')
-        return make_succ_response({'user_id': user.user_id})
-
-    except Exception as e:
-        current_app.logger.error(f'在社区中创建用户失败: {str(e)}', exc_info=True)
-        return make_err_response({}, f'创建用户失败: {str(e)}')
-
         if user:
             # 记录审计日志
             _audit(operator_id, 'create_community_user', {
@@ -1657,10 +1653,10 @@ def create_community_user():
             })
         else:
             return make_err_response({}, '创建失败')
-
     except Exception as e:
         current_app.logger.error(f'在社区中创建用户失败: {str(e)}', exc_info=True)
-        return make_err_response({}, '创建失败')
+        return make_err_response({}, f'创建用户失败: {str(e)}')
+
 
 
 @community_bp.route('/user/switch-community', methods=['POST'])
@@ -1701,8 +1697,4 @@ def switch_user_community():
 
     except Exception as e:
         current_app.logger.error(f'切换用户社区失败: {str(e)}', exc_info=True)
-        return make_err_response({}, '切换失败')
-
-
-
-
+        return make_err_response({}, f'切换失败: {str(e)}')
