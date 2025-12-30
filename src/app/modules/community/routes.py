@@ -590,7 +590,7 @@ def get_available_communities():
 
 @community_bp.route('/community/staff/list-enhanced', methods=['GET'])
 def get_community_staff_list_enhanced():
-    """获取社区工作人员列表（增强版，包含更多字段）"""
+    """获取社区工作人员列表（增强版，包含更多字段和分页）"""
     current_app.logger.info('=== 开始获取社区工作人员列表（增强版） ===')
 
     # 验证token
@@ -605,6 +605,8 @@ def get_community_staff_list_enhanced():
         # GET请求应该从查询参数获取，而不是JSON body
         community_id = request.args.get('community_id')
         role = request.args.get('role', 'all')  # 默认返回所有角色
+        page = request.args.get('page', 1, type=int)
+        limit = request.args.get('limit', 20, type=int)
 
         if not community_id:
             return make_err_response({}, '缺少社区ID')
@@ -619,7 +621,12 @@ def get_community_staff_list_enhanced():
             return make_err_response({}, '无权限访问该社区')
 
         # 获取社区工作人员，传递role参数进行过滤
-        staff_list = CommunityStaffService.get_community_staff(community_id, role=role if role != 'all' else None)
+        staff_list, total_count = CommunityStaffService.get_community_staff_with_pagination(
+            community_id, 
+            role=role if role != 'all' else None,
+            page=page,
+            limit=limit
+        )
 
         # 格式化工作人员信息
         staff_data = []
@@ -639,8 +646,21 @@ def get_community_staff_list_enhanced():
                 }
                 staff_data.append(staff_info)
 
-        current_app.logger.info(f'获取社区工作人员列表成功: community_id={community_id}, 共 {len(staff_data)} 人')
-        return make_succ_response({'staff': staff_data})
+        # 计算分页信息
+        total_pages = (total_count + limit - 1) // limit if total_count > 0 else 1
+        has_more = page < total_pages
+
+        current_app.logger.info(f'获取社区工作人员列表成功: community_id={community_id}, page={page}, 共 {len(staff_data)} 人, 总计 {total_count} 人')
+        return make_succ_response({
+            'staff': staff_data,
+            'pagination': {
+                'page': page,
+                'limit': limit,
+                'total': total_count,
+                'total_pages': total_pages,
+                'has_more': has_more
+            }
+        })
 
     except Exception as e:
         current_app.logger.error(f'获取社区工作人员列表失败: {str(e)}', exc_info=True)

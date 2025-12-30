@@ -372,6 +372,42 @@ class CommunityStaffService:
         return db.session.execute(stmt).scalars().all()
 
     @staticmethod
+    def get_community_staff_with_pagination(community_id, role=None, page=1, limit=20):
+        """
+        获取社区工作人员列表（带分页）
+
+        Args:
+            community_id (int): 社区ID
+            role (str): 角色筛选 (可选)
+            page (int): 页码，从1开始
+            limit (int): 每页数量
+
+        Returns:
+            tuple: (工作人员列表, 总数)
+        """
+        # 构建基础查询
+        stmt = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+
+        if role:
+            stmt = stmt.where(CommunityStaff.role == role)
+
+        # 获取总数
+        count_stmt = select(func.count()).select_from(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        if role:
+            count_stmt = count_stmt.where(CommunityStaff.role == role)
+        
+        total_count = db.session.execute(count_stmt).scalar()
+
+        # 添加排序和分页
+        stmt = stmt.order_by(CommunityStaff.added_at.desc())
+        stmt = stmt.offset((page - 1) * limit).limit(limit)
+
+        # 执行查询
+        staff_list = db.session.execute(stmt).scalars().all()
+
+        return staff_list, total_count
+
+    @staticmethod
     def handle_user_community_change(user_id, old_community_id, new_community_id):
         """
         处理用户社区变更时的规则管理
