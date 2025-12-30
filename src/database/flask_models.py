@@ -687,6 +687,12 @@ class EventSupport(db.Model):
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
+    # 新增字段：支持多媒体消息和回应标签
+    message_type = Column(db.String(20), default='text', comment='消息类型：text/voice/image')
+    media_url = Column(db.String(500), comment='媒体文件URL（语音或图片）')
+    media_duration = Column(db.Integer, comment='语音时长（秒）')
+    support_tags = Column(db.JSON, comment='回应标签数组，如["已电话联系", "正在前往"]')
+
     # 索引优化和约束
     __table_args__ = (
         db.Index('idx_event_support_event_id', 'event_id'),
@@ -695,6 +701,7 @@ class EventSupport(db.Model):
         db.Index('idx_event_support_event_status', 'event_id', 'status'),
         db.Index('idx_event_support_created_at', 'created_at'),
         db.CheckConstraint('status IN (1, 2)', name='ck_event_support_status'),  # 1=有效, 2=已取消
+        db.CheckConstraint("message_type IN ('text', 'voice', 'image')", name='ck_event_support_message_type'),
     )
 
     # 关系 - 使用 back_populates 替代 backref
@@ -707,10 +714,22 @@ class EventSupport(db.Model):
         2: '已取消'
     }
 
+    # 消息类型映射
+    MESSAGE_TYPE_MAPPING = {
+        'text': '文字',
+        'voice': '语音',
+        'image': '图片'
+    }
+
     @property
     def status_label(self):
         """获取状态标签"""
         return self.STATUS_MAPPING.get(self.status, '未知')
+
+    @property
+    def message_type_label(self):
+        """获取消息类型标签"""
+        return self.MESSAGE_TYPE_MAPPING.get(self.message_type, '未知')
 
     def to_dict(self):
         """将模型对象转换为字典"""
@@ -722,7 +741,62 @@ class EventSupport(db.Model):
             'status': self.status,
             'status_label': self.status_label,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'message_type': self.message_type,
+            'message_type_label': self.message_type_label,
+            'media_url': self.media_url,
+            'media_duration': self.media_duration,
+            'support_tags': self.support_tags or []
+        }
+
+        return result
+
+
+class EventClosure(db.Model):
+    """事件关闭记录表"""
+    __tablename__ = 'event_closures'
+
+    closure_id = Column(db.Integer, primary_key=True, autoincrement=True)
+    event_id = Column(db.Integer, db.ForeignKey('community_events.event_id'), nullable=False, index=True)
+    closed_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    closed_at = Column(db.DateTime, default=datetime.now, index=True)
+    closure_reason = Column(db.Text, nullable=False, comment='关闭原因/备注')
+    closure_status = Column(db.String(20), default='user_closed', comment='关闭类型：user_closed/resolved/cancelled')
+
+    # 索引优化和约束
+    __table_args__ = (
+        db.Index('idx_event_closure_event_id', 'event_id'),
+        db.Index('idx_event_closure_closed_by', 'closed_by'),
+        db.Index('idx_event_closure_closed_at', 'closed_at'),
+        db.CheckConstraint("closure_status IN ('user_closed', 'resolved', 'cancelled')", name='ck_event_closure_status'),
+    )
+
+    # 关系
+    event = db.relationship('CommunityEvent', backref='closure')
+    closer = db.relationship('User', backref='closed_events')
+
+    # 关闭状态映射
+    CLOSURE_STATUS_MAPPING = {
+        'user_closed': '用户关闭',
+        'resolved': '已解决',
+        'cancelled': '已取消'
+    }
+
+    @property
+    def closure_status_label(self):
+        """获取关闭状态标签"""
+        return self.CLOSURE_STATUS_MAPPING.get(self.closure_status, '未知')
+
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        result = {
+            'closure_id': self.closure_id,
+            'event_id': self.event_id,
+            'closed_by': self.closed_by,
+            'closed_at': self.closed_at.isoformat() if self.closed_at else None,
+            'closure_reason': self.closure_reason,
+            'closure_status': self.closure_status,
+            'closure_status_label': self.closure_status_label
         }
 
         return result

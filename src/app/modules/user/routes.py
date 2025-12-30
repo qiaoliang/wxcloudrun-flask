@@ -628,4 +628,123 @@ def verify_community():
 
     except Exception as e:
         current_app.logger.error(f'社区验证失败: {str(e)}', exc_info=True)
+
+
+# ==================== 用户事件相关 API ====================
+
+@user_bp.route('/my-active-event', methods=['GET'])
+@login_required()
+def get_my_active_event(decoded):
+    """获取用户当前进行中的事件"""
+    try:
+        user_id = decoded.get('user_id')
+
+        from wxcloudrun.community_event_service import CommunityEventService
+        result = CommunityEventService.get_user_active_event(user_id)
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        current_app.logger.error(f"获取用户进行中事件API异常: {str(e)}", exc_info=True)
+        return make_err_response('服务器内部错误')
+
+
+@user_bp.route('/events/<int:event_id>/messages', methods=['POST'])
+@login_required()
+def add_event_message(decoded, event_id):
+    """添加事件消息（支持文字/语音/图片）"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response('请求数据不能为空')
+
+        user_id = decoded.get('user_id')
+        message_type = data.get('message_type', 'text')
+        content = data.get('content', '')
+        media_url = data.get('media_url')
+        media_duration = data.get('media_duration')
+
+        # 验证消息类型
+        if message_type not in ['text', 'voice', 'image']:
+            return make_err_response('无效的消息类型')
+
+        # 文字消息必须有内容
+        if message_type == 'text' and not content.strip():
+            return make_err_response('消息内容不能为空')
+
+        # 语音和图片必须有媒体URL
+        if message_type in ['voice', 'image'] and not media_url:
+            return make_err_response('缺少媒体文件')
+
+        from wxcloudrun.community_event_service import CommunityEventService
+        result = CommunityEventService.add_event_message(
+            event_id=event_id,
+            user_id=user_id,
+            message_type=message_type,
+            content=content,
+            media_url=media_url,
+            media_duration=media_duration
+        )
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        current_app.logger.error(f"添加事件消息API异常: {str(e)}", exc_info=True)
+        return make_err_response('服务器内部错误')
+
+
+@user_bp.route('/events/<int:event_id>/close', methods=['POST'])
+@login_required()
+def close_event(decoded, event_id):
+    """关闭事件"""
+    try:
+        data = request.get_json()
+        if not data or 'closure_reason' not in data:
+            return make_err_response('缺少关闭原因')
+
+        closure_reason = data.get('closure_reason', '').strip()
+        if len(closure_reason) < 5:
+            return make_err_response('关闭原因至少需要5个字符')
+
+        user_id = decoded.get('user_id')
+
+        from wxcloudrun.community_event_service import CommunityEventService
+        result = CommunityEventService.close_event(
+            event_id=event_id,
+            user_id=user_id,
+            closure_reason=closure_reason
+        )
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        current_app.logger.error(f"关闭事件API异常: {str(e)}", exc_info=True)
+        return make_err_response('服务器内部错误')
+
+
+@user_bp.route('/events/<int:event_id>/history', methods=['GET'])
+@login_required()
+def get_event_history(decoded, event_id):
+    """获取事件历史记录"""
+    try:
+        from wxcloudrun.community_event_service import CommunityEventService
+        result = CommunityEventService.get_event_history(event_id)
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        current_app.logger.error(f"获取事件历史API异常: {str(e)}", exc_info=True)
+        return make_err_response('服务器内部错误')
         return make_err_response({}, '验证失败')

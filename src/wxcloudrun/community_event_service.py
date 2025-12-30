@@ -243,7 +243,7 @@ class CommunityEventService:
                 CommunityEvent.status == 1
             )
             active_events_count = db.session.execute(stmt_active).scalar()
-            
+
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 应援数量（未结束事件中的supporting类型事件数量）
             stmt_support = select(func.count()).select_from(CommunityEvent).where(
@@ -252,13 +252,316 @@ class CommunityEventService:
                 CommunityEvent.event_type == 'supporting'
             )
             support_events_count = db.session.execute(stmt_support).scalar()
-            
+
             return {
                 'success': True,
                 'active_events': active_events_count,
                 'support_count': support_events_count
             }
-            
+
         except Exception as e:
             logger.error(f"获取社区统计失败: {str(e)}")
             return {'success': False, 'message': f'获取统计失败: {str(e)}'}
+
+    @staticmethod
+    def get_user_active_event(user_id: int) -> Dict:
+        """
+        获取用户当前进行中的事件（call_for_help类型）
+        
+        Args:
+            user_id: 用户ID
+            
+        Returns:
+            Dict: 查询结果
+        """
+        try:
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            # 查询用户作为target_user的进行中事件
+            stmt = select(CommunityEvent).where(
+                CommunityEvent.target_user_id == user_id,
+                CommunityEvent.event_type == 'call_for_help',
+                CommunityEvent.status == 1  # 进行中
+            ).order_by(CommunityEvent.created_at.desc())
+            
+            event = db.session.execute(stmt).scalar_one_or_none()
+            
+            if not event:
+                return {
+                    'success': True,
+                    'event': None,
+                    'messages': []
+                }
+            
+            # 获取事件消息（EventSupport记录）
+            stmt_messages = select(EventSupport).where(
+                EventSupport.event_id == event.event_id,
+                EventSupport.status == 1
+            ).order_by(EventSupport.created_at.desc())
+            
+            messages = db.session.execute(stmt_messages).scalars().all()
+            
+            return {
+                'success': True,
+                'event': event.to_dict(),
+                'messages': [msg.to_dict() for msg in messages]
+            }
+            
+        except Exception as e:
+            logger.error(f"获取用户进行中事件失败: {str(e)}")
+            return {'success': False, 'message': f'获取事件失败: {str(e)}'}
+
+    @staticmethod
+    def add_event_message(event_id: int, user_id: int, message_type: str = 'text',
+                        content: str = '', media_url: str = None, 
+                        media_duration: int = None, support_tags: list = None) -> Dict:
+        """
+        添加事件消息
+        
+        Args:
+            event_id: 事件ID
+            user_id: 用户ID
+            message_type: 消息类型（text/voice/image）
+            content: 文字内容
+            media_url: 媒体文件URL
+            media_duration: 语音时长（秒）
+            support_tags: 回应标签（工作人员使用）
+            
+        Returns:
+            Dict: 添加结果
+        """
+        try:
+            # 验证事件存在
+            event = db.session.get(CommunityEvent, event_id)
+            if not event:
+                return {'success': False, 'message': '事件不存在'}
+            
+            # 验证事件状态
+            if event.status != 1:
+                return {'success': False, 'message': '事件已结束，无法添加消息'}
+            
+            # 验证用户权限
+            user = db.session.get(User, user_id)
+            if not user:
+                return {'success': False, 'message': '用户不存在'}
+            
+            # 检查用户是否为事件相关人员（发起者或目标用户或社区工作人员）
+            is_event_user = (event.created_by == user_id or event.target_user_id == user_id)
+            is_staff = CommunityService.has_community_permission(user_id, event.community_id)
+            
+            if not is_event_user and not is_staff:
+                return {'success': False, 'message': '无权限添加消息'}
+            
+            # 创建消息记录
+            message = EventSupport(
+                event_id=event_id,
+                supporter_id=user_id,
+                support_content=content,
+                message_type=message_type,
+                media_url=media_url,
+                media_duration=media_duration,
+                support_tags=support_tags
+            )
+            
+            with transaction():
+                db.session.add(message)
+                db.session.flush()
+            
+            logger.info(f"用户{user_id}向事件{event_id}添加了{message_type}消息")
+            
+            return {
+                'success': True,
+                'message': '消息添加成功',
+                'message_data': message.to_dict()
+            }
+            
+        except Exception as e:
+            logger.error(f"添加事件消息失败: {str(e)}")
+            return {'success': False, 'message': f'添加消息失败: {str(e)}'}
+
+    @staticmethod
+    def close_event(event_id: int, user_id: int, closure_reason: str) -> Dict:
+        """
+        关闭事件
+        
+        Args:
+            event_id: 事件ID
+            user_id: 用户ID
+            closure_reason: 关闭原因
+            
+        Returns:
+            Dict: 关闭结果
+        """
+        try:
+            # 导入 EventClosure 模型
+            from database.flask_models import EventClosure
+            
+            # 验证事件存在
+            event = db.session.get(CommunityEvent, event_id)
+            if not event:
+                return {'success': False, 'message': '事件不存在'}
+            
+            # 验证事件状态
+            if event.status != 1:
+                return {'success': False, 'message': '事件已关闭'}
+            
+            # 验证用户权限（只有事件发起者或目标用户可以关闭）
+            if event.created_by != user_id and event.target_user_id != user_id:
+                return {'success': False, 'message': '只有事件发起者或目标用户可以关闭事件'}
+            
+            with transaction():
+                # 创建关闭记录
+                closure = EventClosure(
+                    event_id=event_id,
+                    closed_by=user_id,
+                    closure_reason=closure_reason,
+                    closure_status='user_closed'
+                )
+                db.session.add(closure)
+                
+                # 更新事件状态
+                event.status = 2  # 已完成
+                event.completed_at = datetime.now()
+                
+                db.session.flush()
+            
+            logger.info(f"用户{user_id}关闭了事件{event_id}，原因：{closure_reason}")
+            
+            return {
+                'success': True,
+                'message': '事件已关闭',
+                'closure': closure.to_dict()
+            }
+            
+        except Exception as e:
+            logger.error(f"关闭事件失败: {str(e)}")
+            return {'success': False, 'message': f'关闭事件失败: {str(e)}'}
+
+    @staticmethod
+    def get_event_history(event_id: int, limit: int = 50) -> Dict:
+        """
+        获取事件历史记录
+        
+        Args:
+            event_id: 事件ID
+            limit: 返回消息数量限制
+            
+        Returns:
+            Dict: 历史记录
+        """
+        try:
+            # 验证事件存在
+            event = db.session.get(CommunityEvent, event_id)
+            if not event:
+                return {'success': False, 'message': '事件不存在'}
+            
+            # 获取事件消息
+            stmt = select(EventSupport).where(
+                EventSupport.event_id == event_id,
+                EventSupport.status == 1
+            ).order_by(EventSupport.created_at.desc()).limit(limit)
+            
+            messages = db.session.execute(stmt).scalars().all()
+            
+            return {
+                'success': True,
+                'event': event.to_dict(),
+                'messages': [msg.to_dict() for msg in messages],
+                'total': len(messages)
+            }
+            
+        except Exception as e:
+            logger.error(f"获取事件历史失败: {str(e)}")
+            return {'success': False, 'message': f'获取历史失败: {str(e)}'}
+
+    @staticmethod
+    def get_pending_events(community_id: int) -> Dict:
+        """
+        获取社区未处理的求助事件
+        
+        Args:
+            community_id: 社区ID
+            
+        Returns:
+            Dict: 未处理事件列表
+        """
+        try:
+            # 验证社区是否存在
+            community = db.session.get(Community, community_id)
+            if not community:
+                return {'success': False, 'message': '社区不存在'}
+            
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            # 查询未处理的call_for_help类型事件
+            stmt = select(CommunityEvent).where(
+                CommunityEvent.community_id == community_id,
+                CommunityEvent.event_type == 'call_for_help',
+                CommunityEvent.status == 1
+            ).order_by(CommunityEvent.created_at.desc())
+            
+            events = db.session.execute(stmt).scalars().all()
+            
+            return {
+                'success': True,
+                'events': [event.to_dict() for event in events],
+                'count': len(events)
+            }
+            
+        except Exception as e:
+            logger.error(f"获取未处理事件失败: {str(e)}")
+            return {'success': False, 'message': f'获取未处理事件失败: {str(e)}'}
+
+    @staticmethod
+    def add_staff_response(event_id: int, staff_id: int, content: str = '',
+                          media_url: str = None, support_tags: list = None) -> Dict:
+        """
+        工作人员添加回应
+        
+        Args:
+            event_id: 事件ID
+            staff_id: 工作人员ID
+            content: 文字内容
+            media_url: 媒体文件URL
+            support_tags: 回应标签
+            
+        Returns:
+            Dict: 添加结果
+        """
+        try:
+            # 验证事件存在
+            event = db.session.get(CommunityEvent, event_id)
+            if not event:
+                return {'success': False, 'message': '事件不存在'}
+            
+            # 验证事件状态
+            if event.status != 1:
+                return {'success': False, 'message': '事件已结束'}
+            
+            # 验证工作人员权限
+            if not CommunityService.has_community_permission(staff_id, event.community_id):
+                return {'success': False, 'message': '无权限进行此操作'}
+            
+            # 创建回应记录
+            message = EventSupport(
+                event_id=event_id,
+                supporter_id=staff_id,
+                support_content=content,
+                message_type='text',
+                media_url=media_url,
+                support_tags=support_tags
+            )
+            
+            with transaction():
+                db.session.add(message)
+                db.session.flush()
+            
+            logger.info(f"工作人员{staff_id}对事件{event_id}添加了回应")
+            
+            return {
+                'success': True,
+                'message': '回应添加成功',
+                'message_data': message.to_dict()
+            }
+            
+        except Exception as e:
+            logger.error(f"添加工作人员回应失败: {str(e)}")
+            return {'success': False, 'message': f'添加回应失败: {str(e)}'}

@@ -137,12 +137,65 @@ def get_community_stats(decoded, community_id):
     """获取社区事件统计"""
     try:
         result = CommunityEventService.get_community_stats(community_id)
-        
+
         if result['success']:
             return make_succ_response(result)
         else:
             return make_err_response(result['message'])
-            
+
     except Exception as e:
         logger.error(f"获取社区统计API异常: {str(e)}")
+        return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/communities/<int:community_id>/pending-events', methods=['GET'])
+@require_community_staff_member()
+def get_pending_events(decoded, community_id):
+    """获取社区未处理的求助事件"""
+    try:
+        result = CommunityEventService.get_pending_events(community_id)
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        logger.error(f"获取未处理事件API异常: {str(e)}")
+        return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/events/<int:event_id>/respond', methods=['POST'])
+@require_community_staff_member()
+def add_staff_response(decoded, event_id):
+    """工作人员添加回应"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response('请求数据不能为空')
+
+        staff_id = decoded['user_id']
+        content = data.get('content', '')
+        media_url = data.get('media_url')
+        support_tags = data.get('support_tags', [])
+
+        # 至少要有文字内容或媒体文件
+        if not content.strip() and not media_url:
+            return make_err_response('请至少提供文字内容或媒体文件')
+
+        result = CommunityEventService.add_staff_response(
+            event_id=event_id,
+            staff_id=staff_id,
+            content=content,
+            media_url=media_url,
+            support_tags=support_tags
+        )
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        logger.error(f"添加工作人员回应API异常: {str(e)}")
         return make_err_response('服务器内部错误')
