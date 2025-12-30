@@ -632,7 +632,7 @@ def verify_community():
 
 # ==================== 用户事件相关 API ====================
 
-@user_bp.route('/my-active-event', methods=['GET'])
+@user_bp.route('/user/my-active-event', methods=['GET'])
 @login_required
 def get_my_active_event(decoded):
     """获取用户当前进行中的事件"""
@@ -652,7 +652,7 @@ def get_my_active_event(decoded):
         return make_err_response('服务器内部错误')
 
 
-@user_bp.route('/events/<int:event_id>/messages', methods=['POST'])
+@user_bp.route('/user/events/<int:event_id>/messages', methods=['POST'])
 @login_required
 def add_event_message(decoded, event_id):
     """添加事件消息（支持文字/语音/图片）"""
@@ -699,7 +699,7 @@ def add_event_message(decoded, event_id):
         return make_err_response('服务器内部错误')
 
 
-@user_bp.route('/events/<int:event_id>/close', methods=['POST'])
+@user_bp.route('/user/events/<int:event_id>/close', methods=['POST'])
 @login_required
 def close_event(decoded, event_id):
     """关闭事件"""
@@ -731,7 +731,7 @@ def close_event(decoded, event_id):
         return make_err_response('服务器内部错误')
 
 
-@user_bp.route('/events/<int:event_id>/history', methods=['GET'])
+@user_bp.route('/user/events/<int:event_id>/history', methods=['GET'])
 @login_required
 def get_event_history(decoded, event_id):
     """获取事件历史记录"""
