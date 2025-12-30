@@ -12,7 +12,7 @@ from wxcloudrun.community_service import CommunityService
 logger = logging.getLogger(__name__)
 
 
-@events_bp.route('/events', methods=['POST'])
+@events_bp.route('/events/events', methods=['POST'])
 @require_community_membership()
 def create_event(decoded):
     """创建社区事件"""
@@ -59,7 +59,7 @@ def create_event(decoded):
         return make_err_response('服务器内部错误')
 
 
-@events_bp.route('/communities/<int:community_id>/events', methods=['GET'])
+@events_bp.route('/events/communities/<int:community_id>/events', methods=['GET'])
 @require_community_staff_member()
 def get_community_events(decoded, community_id):
     """获取社区事件列表"""
@@ -84,7 +84,7 @@ def get_community_events(decoded, community_id):
         return make_err_response('服务器内部错误')
 
 
-@events_bp.route('/events/<int:event_id>', methods=['GET'])
+@events_bp.route('/events/events/<int:event_id>', methods=['GET'])
 @require_community_staff_member()
 def get_event_detail(decoded, event_id):
     """获取事件详情"""
@@ -102,7 +102,7 @@ def get_event_detail(decoded, event_id):
         return make_err_response('服务器内部错误')
 
 
-@events_bp.route('/events/<int:event_id>/support', methods=['POST'])
+@events_bp.route('/events/events/<int:event_id>/support', methods=['POST'])
 @require_community_staff_member()
 def create_event_support(decoded, event_id):
     """创建事件应援"""
@@ -131,7 +131,7 @@ def create_event_support(decoded, event_id):
         return make_err_response('服务器内部错误')
 
 
-@events_bp.route('/communities/<int:community_id>/stats', methods=['GET'])
+@events_bp.route('/events/communities/<int:community_id>/stats', methods=['GET'])
 @require_community_membership()
 def get_community_stats(decoded, community_id):
     """获取社区事件统计"""
@@ -148,7 +148,7 @@ def get_community_stats(decoded, community_id):
         return make_err_response('服务器内部错误')
 
 
-@events_bp.route('/communities/<int:community_id>/pending-events', methods=['GET'])
+@events_bp.route('/events/communities/<int:community_id>/pending-events', methods=['GET'])
 @require_community_staff_member()
 def get_pending_events(decoded, community_id):
     """获取社区未处理的求助事件"""
@@ -165,7 +165,7 @@ def get_pending_events(decoded, community_id):
         return make_err_response('服务器内部错误')
 
 
-@events_bp.route('/events/<int:event_id>/respond', methods=['POST'])
+@events_bp.route('/events/events/<int:event_id>/respond', methods=['POST'])
 @require_community_staff_member()
 def add_staff_response(decoded, event_id):
     """工作人员添加回应"""
