@@ -68,10 +68,18 @@ def get_community_events(decoded, community_id):
         status_filter = request.args.get('status', type=int)
         event_type_filter = request.args.get('event_type')
         
+        # 获取当前用户信息
+        user_id = decoded.get('user_id')
+        user = db.session.get(User, user_id)
+        
+        if not user:
+            return make_err_response('用户不存在')
+        
         result = CommunityEventService.get_community_events(
             community_id=community_id,
             status_filter=status_filter,
-            event_type_filter=event_type_filter
+            event_type_filter=event_type_filter,
+            current_user=user
         )
         
         if result['success']:

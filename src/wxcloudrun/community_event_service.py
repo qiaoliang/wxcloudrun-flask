@@ -96,7 +96,7 @@ class CommunityEventService:
 
     @staticmethod
     def get_community_events(community_id: int, status_filter: int = None, 
-                           event_type_filter: str = None) -> Dict:
+                           event_type_filter: str = None, current_user=None) -> Dict:
         """
         获取社区事件列表
         
@@ -104,6 +104,7 @@ class CommunityEventService:
             community_id: 社区ID
             status_filter: 状态过滤（可选）
             event_type_filter: 事件类型过滤（可选）
+            current_user: 当前用户对象（可选，用于权限过滤）
             
         Returns:
             Dict: 查询结果
@@ -121,6 +122,15 @@ class CommunityEventService:
             if event_type_filter is not None:
                 stmt = stmt.where(CommunityEvent.event_type == event_type_filter)
             
+            # 权限过滤：普通用户只能看到自己作为 target_user 的 call_for_help 事件
+            if current_user and current_user.role < 2:  # 普通用户
+                if event_type_filter == 'call_for_help':
+                    # 只显示用户自己的求助事件
+                    stmt = stmt.where(CommunityEvent.target_user_id == current_user.user_id)
+                else:
+                    # 对于非 call_for_help 类型，普通用户不应该看到
+                    stmt = stmt.where(CommunityEvent.target_user_id == current_user.user_id)
+            
             stmt = stmt.order_by(CommunityEvent.created_at.desc())
             events = db.session.execute(stmt).scalars().all()
             
@@ -131,7 +141,7 @@ class CommunityEventService:
             
         except Exception as e:
             logger.error(f"获取社区事件失败: {str(e)}")
-            return {'success': False, 'message': f'获取事件失败: {str(e)}'}
+            return {'success': False, 'message': f'获取社区失败: {str(e)}'}
 
     @staticmethod
     def get_event_detail(event_id: int) -> Dict:
