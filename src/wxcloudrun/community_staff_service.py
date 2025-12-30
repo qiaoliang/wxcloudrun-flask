@@ -226,9 +226,8 @@ class CommunityStaffService:
             else:
                 logger.error(f'Layer 4调试仪表 - 社区{community_id}不存在，无法更新manager_id')
 
-        # 提交事务
-        with transaction():
-            pass  # 事务上下文，确保所有修改在事务中完成
+        # Flask-SQLAlchemy 会在请求结束时自动提交事务
+        # 不需要手动提交或使用事务上下文管理器
 
         return {
             'success_count': added_count,
@@ -285,8 +284,7 @@ class CommunityStaffService:
         )
         db.session.add(audit_log)
 
-        with transaction():
-            pass  # 事务上下文，确保所有修改在事务中完成
+        # Flask-SQLAlchemy 会在请求结束时自动提交事务
         logger.info(f"社区工作人员添加成功: 社区ID={community_id}, 用户ID={user_id}")
         return staff
 
@@ -347,8 +345,7 @@ class CommunityStaffService:
         )
         db.session.add(audit_log)
 
-        with transaction():
-            pass  # 事务上下文，确保所有修改在事务中完成
+        # Flask-SQLAlchemy 会在请求结束时自动提交事务
         logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}")
         return True
 
