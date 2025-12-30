@@ -495,7 +495,6 @@ class CommunityService:
 
         # 使用子查询一次性获取所有成员的未完成打卡记录，避免 N+1 查询问题
         # 使用 joinedload 预加载 rule 关系
-        from sqlalchemy import and_, func
         from sqlalchemy.orm import joinedload
         member_user_ids = [m.user_id for m in members if m]
 
