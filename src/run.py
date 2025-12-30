@@ -7,6 +7,12 @@ SafeGuard 后端应用主入口
 import sys
 import os
 import logging
+import warnings
+
+# 在开发环境中忽略 multiprocessing 资源泄漏警告
+# 这个警告来自 Flask 调试模式的重启机制，不会影响程序功能
+if os.getenv('ENV_TYPE') == 'function':
+    warnings.filterwarnings('ignore', message='resource_tracker.*leaked semaphore')
 
 # 添加当前目录到 Python 路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
