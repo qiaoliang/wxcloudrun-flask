@@ -50,6 +50,23 @@ class CommunityEventService:
             if user.community_id != community_id:
                 return {'success': False, 'message': '用户不属于该社区'}
 
+            # 检查是否为一键求助类型
+            if event_type == 'call_for_help' and target_user_id:
+                # 检查该用户是否已有进行中的一键求助事件
+                stmt_existing = select(CommunityEvent).where(
+                    CommunityEvent.target_user_id == target_user_id,
+                    CommunityEvent.event_type == 'call_for_help',
+                    CommunityEvent.status == 1  # 进行中
+                )
+                existing_event = db.session.execute(stmt_existing).scalars().first()
+
+                if existing_event:
+                    logger.warning(f"用户{target_user_id}已有进行中的一键求助事件{existing_event.event_id}")
+                    return {
+                        'success': False,
+                        'message': '您已有进行中的求助事件，请先关闭或等待工作人员处理'
+                    }
+
             # 创建事件
             event = CommunityEvent(
                 community_id=community_id,
