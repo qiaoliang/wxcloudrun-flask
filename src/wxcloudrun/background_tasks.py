@@ -415,19 +415,36 @@ def _run_loop():
 
 def _run_daily_loop():
     """运行每日检查服务，每天凌晨检查一次全天规则的missed状态"""
+    last_execution_date = None  # 记录上次执行的日期
+    
     while True:
         try:
             with current_app.app_context():
                 now = datetime.now()
-                # 只在凌晨 00:00:00 到 00:01:00 之间运行（确保只运行一次）
-                if now.hour == 0 and now.minute == 0:
-                    current_app.logger.info("[daily-missing-mark] 开始执行每日全天规则检查")
+                today_date = now.date()
+                
+                # 检查今天是否已经执行过
+                if last_execution_date == today_date:
+                    current_app.logger.info(f"[daily-missing-mark] 今天 {today_date} 的检查已经执行过，跳过")
+                    # 计算到第二天的间隔并 sleep
+                    tomorrow = today_date + timedelta(days=1)
+                    next_run = datetime.combine(tomorrow, time(0, 0))
+                    sleep_seconds = (next_run - now).total_seconds()
+                    time_module.sleep(sleep_seconds)
+                    continue
+                
+                # 只在凌晨 00:00:00 之后运行
+                if now.hour == 0:
+                    current_app.logger.info(f"[daily-missing-mark] 开始执行每日全天规则检查，检查日期: {today_date}")
                     _process_all_day_missed_for_yesterday(now)
                     _process_community_all_day_missed_for_yesterday(now)
-                    current_app.logger.info("[daily-missing-mark] 每日全天规则检查完成")
+                    
+                    # 记录执行日期
+                    last_execution_date = today_date
+                    current_app.logger.info(f"[daily-missing-mark] 每日全天规则检查完成，已标记 {today_date} 为已执行")
                     
                     # 执行完成后，立即计算到第二天的间隔并 sleep
-                    tomorrow = now.date() + timedelta(days=1)
+                    tomorrow = today_date + timedelta(days=1)
                     next_run = datetime.combine(tomorrow, time(0, 0))
                     sleep_seconds = (next_run - now).total_seconds()
                     current_app.logger.info(
@@ -436,7 +453,7 @@ def _run_daily_loop():
                     time_module.sleep(sleep_seconds)
                 else:
                     # 计算到下一次凌晨 00:00:00 的间隔
-                    tomorrow = now.date() + timedelta(days=1)
+                    tomorrow = today_date + timedelta(days=1)
                     next_run = datetime.combine(tomorrow, time(0, 0))
                     sleep_seconds = (next_run - now).total_seconds()
                     current_app.logger.info(
