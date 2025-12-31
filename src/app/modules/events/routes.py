@@ -8,6 +8,7 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import require_token, require_community_staff_member, require_community_membership
 from wxcloudrun.community_event_service import CommunityEventService
 from wxcloudrun.community_service import CommunityService
+from database.flask_models import db, User
 
 logger = logging.getLogger(__name__)
 
