@@ -136,3 +136,66 @@ def verify_sms_code_dual_purpose(phone, code, app_logger):
         return False
     
     return True
+
+
+def assign_user_to_default_community(user, app_logger):
+    """
+    自动分配用户到默认社区
+    
+    Args:
+        user: 用户对象
+        app_logger: Flask 应用的 logger
+    """
+    from wxcloudrun.community_service import CommunityService
+    from const_default import DEFAULT_COMMUNITY_NAME
+    
+    try:
+        CommunityService.assign_user_to_community(user, DEFAULT_COMMUNITY_NAME)
+        app_logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
+    except Exception as e:
+        app_logger.error(f'自动分配社区失败: {str(e)}', exc_info=True)
+        # 不影响登录流程，只记录错误
+
+
+def normalize_and_hash_phone(phone, app_logger):
+    """
+    标准化电话号码并生成 hash
+    
+    Args:
+        phone: 原始手机号
+        app_logger: Flask 应用的 logger
+        
+    Returns:
+        tuple: (normalized_phone, phone_hash)
+    """
+    from wxcloudrun.utils.validators import normalize_phone_number, generate_phone_hash
+    
+    # 标准化电话号码格式
+    normalized_phone = normalize_phone_number(phone)
+    app_logger.info(f'标准化后的手机号: {normalized_phone}')
+    
+    # 生成 phone_hash
+    phone_hash = generate_phone_hash(normalized_phone)
+    app_logger.info(f'生成phone_hash: {phone_hash[:20]}...')
+    
+    return normalized_phone, phone_hash
+
+
+def query_user_by_phone_hash_with_timing(phone_hash, app_logger):
+    """
+    通过 phone_hash 查询用户（带时间监控）
+    
+    Args:
+        phone_hash: 手机号 hash
+        app_logger: Flask 应用的 logger
+        
+    Returns:
+        User: 用户对象，如果不存在则返回 None
+    """
+    from wxcloudrun.user_service import UserService
+    
+    return execute_timed_query(
+        UserService.query_user_by_phone_hash,
+        'UserService.query_user_by_phone_hash',
+        phone_hash
+    )
