@@ -196,8 +196,9 @@ def start_background_tasks(app):
             if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
                 app.logger.info(f"# 启动后台的打卡扫描检测服务")
                 # 导入并启动后台任务
-                from wxcloudrun.background_tasks import start_missing_check_service
+                from wxcloudrun.background_tasks import start_missing_check_service, start_daily_check_service
                 start_missing_check_service(app)
+                start_daily_check_service(app)
         except Exception as e:
             app.logger.error(f"启动后台missing服务失败: {str(e)}")
     else:

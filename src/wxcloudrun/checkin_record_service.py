@@ -105,6 +105,10 @@ class CheckinRecordService:
         if not rule or rule.user_id != user_id:  # 更新字段名
             raise ValueError('打卡规则不存在或无权限')
 
+        # 检查是否为全天规则，全天规则不允许主动标记为 missed
+        if rule.time_slot_type == 5:
+            raise ValueError('全天规则不允许主动标记为miss，系统会在第二天自动检查')
+
         # 检查今天是否已打卡
         today = date.today()
         records = CheckinRecordService._query_records_by_rule_and_date(rule_id, today)
