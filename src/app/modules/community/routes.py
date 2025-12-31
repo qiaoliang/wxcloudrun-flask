@@ -1227,19 +1227,30 @@ def delete_community():
             return make_err_response({}, '缺少社区ID')
 
         # 删除社区
-        success = CommunityService.delete_community(community_id, user_id)
+        CommunityService.delete_community(community_id)
+        
+        # 获取社区信息用于返回
+        community = db.session.get(Community, community_id)
+        
+        # 记录审计日志
+        _audit(user_id, 'delete_community', {
+            'community_id': community_id
+        })
 
-        if success:
-            # 记录审计日志
-            _audit(user_id, 'delete_community', {
-                'community_id': community_id
-            })
-
-            current_app.logger.info(f'删除社区成功: community_id={community_id}')
-            return make_succ_response({'message': '删除成功'})
+        current_app.logger.info(f'删除社区成功: community_id={community_id}')
+        return make_succ_response({
+            'community_id': community_id,
+            'community_name': community.name if community else ''
+        })
+    except ValueError as e:
+        # 检查是否是"社区还有用户"的错误
+        if isinstance(e.args[0], dict) and 'user_count' in e.args[0]:
+            user_count = e.args[0]['user_count']
+            return make_err_response({
+                'user_count': user_count
+            }, '社区内还有用户，无法删除')
         else:
-            return make_err_response({}, '删除失败')
-
+            return make_err_response({}, str(e))
     except Exception as e:
         current_app.logger.error(f'删除社区失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'删除失败: {str(e)}')
