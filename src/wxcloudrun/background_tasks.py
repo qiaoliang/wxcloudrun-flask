@@ -425,6 +425,15 @@ def _run_daily_loop():
                     _process_all_day_missed_for_yesterday(now)
                     _process_community_all_day_missed_for_yesterday(now)
                     current_app.logger.info("[daily-missing-mark] 每日全天规则检查完成")
+                    
+                    # 执行完成后，立即计算到第二天的间隔并 sleep
+                    tomorrow = now.date() + timedelta(days=1)
+                    next_run = datetime.combine(tomorrow, time(0, 0))
+                    sleep_seconds = (next_run - now).total_seconds()
+                    current_app.logger.info(
+                        f"[daily-missing-mark] 等待到 {next_run} 执行下次检查，间隔 {sleep_seconds/3600:.2f} 小时"
+                    )
+                    time_module.sleep(sleep_seconds)
                 else:
                     # 计算到下一次凌晨 00:00:00 的间隔
                     tomorrow = now.date() + timedelta(days=1)
@@ -434,11 +443,10 @@ def _run_daily_loop():
                         f"[daily-missing-mark] 等待到 {next_run} 执行下次检查，间隔 {sleep_seconds/3600:.2f} 小时"
                     )
                     time_module.sleep(sleep_seconds)
-                    continue
         except Exception as e:
             current_app.logger.error(f"[daily-missing-mark] 每日检查服务错误: {str(e)}", exc_info=True)
-            # 出错后等待1小时再重试
-            time_module.sleep(3600)
+            # 出错后等待到第二天凌晨再重试
+            time_module.sleep(86400)
 
 
 def start_missing_check_service(app):
