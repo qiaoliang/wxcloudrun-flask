@@ -27,7 +27,7 @@ _phone_counter = 0
 _phone_counter_lock = threading.Lock()
 
 # 超级系统管理员手机号，需要避免生成这个号码
-SUPER_ADMIN_PHONE = '13900007997'
+SUPER_ADMIN_PHONE = '13141516171'
 
 # 哈希相关常量
 PWD_SALT = secrets.token_hex(8)

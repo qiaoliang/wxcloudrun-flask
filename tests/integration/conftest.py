@@ -387,7 +387,7 @@ class IntegrationTestBase(TestBase):
 
         超级管理员特征：
         - role=4 (超级系统管理员)
-        - 手机号: 13900007997 (固定)
+        - 手机号: 13141516171 (固定)
         - 昵称: 系统超级管理员
 
         Returns:

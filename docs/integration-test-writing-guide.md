@@ -1295,7 +1295,7 @@ python smart_test_runner.py tests/integration/
 | `TEST_CONSTANTS.DEFAULT_PASSWORD` | 默认密码 | `'Test@123456'` |
 | `TEST_CONSTANTS.TEST_VERIFICATION_CODE` | 测试验证码 | `'123456'` |
 | `TEST_CONSTANTS.INVALID_VERIFICATION_CODE` | 无效验证码 | `'000000'` |
-| `TEST_CONSTANTS.SUPER_ADMIN_PHONE` | 超级管理员手机号 | `'13900007997'` |
+| `TEST_CONSTANTS.SUPER_ADMIN_PHONE` | 超级管理员手机号 | `'13141516171'` |
 | `TEST_CONSTANTS.SUPER_ADMIN_ROLE` | 超级管理员角色 | `4` |
 
 ### D. 相关文档

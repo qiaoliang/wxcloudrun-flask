@@ -140,7 +140,7 @@ class TestUserIntegration(IntegrationTestBase):
         #     'POST',
         #     '/api/user/switch-community',
         #     data=switch_data,
-        #     phone_number='13900007997',
+        #     phone_number='13141516171',
         #     password=TEST_CONSTANTS.DEFAULT_PASSWORD
         # )
         # data = self.assert_api_success(response)
