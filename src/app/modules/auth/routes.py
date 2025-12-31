@@ -17,6 +17,10 @@ from . import auth_bp
 from .services import _format_user_login_response
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token, verify_token
+from app.shared.utils.auth_helpers import (
+    generate_auth_tokens, execute_timed_query, 
+    verify_password, ensure_user_nickname, verify_sms_code_dual_purpose
+)
 from wxcloudrun.user_service import UserService
 from database.flask_models import User
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number,generate_phone_hash
@@ -252,9 +256,9 @@ def login_wechat():
         # 保存refresh token到数据库
         UserService.update_user_by_id(user)
 
-        # 打印生成的token用于调试（只打印前50个字符）
-        current_app.logger.info(f'生成的token前50字符: {token[:50]}...')
-        current_app.logger.info(f'生成的token总长度: {len(token)}')
+        # 打印生成的token用于调试（只打印前50个字符），增加空值检查
+        current_app.logger.info(f'生成的token前50字符: {token[:50] if token else "None"}...')
+        current_app.logger.info(f'生成的token总长度: {len(token) if token else 0}')
 
         current_app.logger.info('JWT token和refresh token生成成功')
 
@@ -359,16 +363,10 @@ def refresh_token():
 
         current_app.logger.info(f'找到用户，正在为用户ID: {user.user_id} 生成新token')
 
-        # 使用工具函数生成新的JWT token
-        new_token, error_response = generate_jwt_token(user, expires_hours=2)
+        # 使用辅助函数生成新的token
+        new_token, new_refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
         if error_response:
             return error_response
-
-        # 使用工具函数生成新的refresh token
-        new_refresh_token = generate_refresh_token(user, expires_days=7)
-
-        # 保存到数据库
-        UserService.update_user_by_id(user)
 
         current_app.logger.info(f'成功为用户ID: {user.user_id} 刷新token')
 
@@ -475,11 +473,10 @@ def register_phone():
             # 不影响注册流程，只记录错误
 
 
-        token, error_response = generate_jwt_token(user, expires_hours=2)
+        # 使用辅助函数生成token
+        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
         if error_response:
             return error_response
-        refresh_token = generate_refresh_token(user, expires_days=7)
-        UserService.update_user_by_id(user)
 
         # 使用统一的响应格式
         response_data = _format_user_login_response(
@@ -524,23 +521,12 @@ def login_phone_code():
         phone_hash = generate_phone_hash(normalized_phone)
         current_app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
 
-        # 数据库查询 - 添加执行时间监控
-        import time
-
-        try:
-            current_app.logger.info('开始执行UserService.query_user_by_phone_hash...')
-            start_time = time.time()
-            user = UserService.query_user_by_phone_hash(phone_hash)
-            query_time = time.time() - start_time
-            current_app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
-
-            # 检查查询时间是否异常长
-            if query_time > 3.0:
-                current_app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
-
-        except Exception as db_error:
-            current_app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
-            return make_err_response({}, '数据库查询失败')
+        # 使用辅助函数执行带时间监控的数据库查询
+        user = execute_timed_query(
+            UserService.query_user_by_phone_hash,
+            'UserService.query_user_by_phone_hash',
+            phone_hash
+        )
 
         if not user:
             current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
@@ -548,21 +534,13 @@ def login_phone_code():
 
         current_app.logger.info(f'找到用户 - user_id: {user.user_id}, nickname: {user.nickname}')
 
-        if not user.nickname:
-            current_app.logger.info('用户昵称为空，生成默认昵称...')
-            user.nickname = _gen_phone_nickname()
-            UserService.update_user_by_id(user)
-            current_app.logger.info(f'已更新用户昵称: {user.nickname}')
+        # 使用辅助函数确保用户有昵称
+        ensure_user_nickname(user, current_app.logger)
 
-        current_app.logger.info('开始生成JWT token...')
-        # 使用工具函数生成token
-        token, error_response = generate_jwt_token(user, expires_hours=2)
+        # 使用辅助函数生成token
+        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
         if error_response:
             return error_response
-        refresh_token = generate_refresh_token(user, expires_days=7)
-
-        current_app.logger.info('保存refresh token到数据库...')
-        UserService.update_user_by_id(user)
 
         _audit(user.user_id, 'login_phone_code', {'phone': phone})
         current_app.logger.info('=== 手机号验证码登录接口执行完成 ===')
@@ -598,22 +576,12 @@ def login_phone_password():
         phone_hash = generate_phone_hash(normalized_phone)
         current_app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
 
-        # 数据库查询 - 添加执行时间监控
-        import time
-        try:
-            current_app.logger.info('开始执行UserService.query_user_by_phone_hash...')
-            start_time = time.time()
-            user = UserService.query_user_by_phone_hash(phone_hash)
-            query_time = time.time() - start_time
-            current_app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
-
-            # 检查查询时间是否异常长
-            if query_time > 3.0:
-                current_app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
-
-        except Exception as db_error:
-            current_app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
-            return make_err_response({}, '数据库查询失败')
+        # 使用辅助函数执行带时间监控的数据库查询
+        user = execute_timed_query(
+            UserService.query_user_by_phone_hash,
+            'UserService.query_user_by_phone_hash',
+            phone_hash
+        )
 
         if not user:
             current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
@@ -621,27 +589,19 @@ def login_phone_password():
         if not user.password_hash or not user.password_salt:
             current_app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
             return make_err_response({}, '账号未设置密码')
-        pwd_hash = sha256(
-            f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
-        if pwd_hash != user.password_hash:
-            current_app.logger.warning(f'密码验证失败 - user_id: {user.user_id}')
+
+        # 使用辅助函数验证密码
+        if not verify_password(user, password, current_app.logger):
             return make_err_response({}, '密码不正确')
 
         current_app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
-        if not user.nickname:
-            user.nickname = _gen_phone_nickname()
-            UserService.update_user_by_id(user)
-            current_app.logger.info(f'已更新用户昵称: {user.nickname}')
+        # 使用辅助函数确保用户有昵称
+        ensure_user_nickname(user, current_app.logger)
 
-        current_app.logger.info('开始生成JWT token...')
-        # 使用工具函数生成token
-        token, error_response = generate_jwt_token(user, expires_hours=2)
+        # 使用辅助函数生成token
+        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
         if error_response:
             return error_response
-        refresh_token = generate_refresh_token(user, expires_days=7)
-
-        current_app.logger.info('保存refresh token到数据库...')
-        UserService.update_user_by_id(user)
         _audit(user.user_id, 'login_phone_password', {'phone': phone})
 
         current_app.logger.info('=== 手机号密码登录接口执行完成 ===')
@@ -678,11 +638,8 @@ def login_phone():
         normalized_phone = normalize_phone_number(phone)
         current_app.logger.info(f'标准化后的手机号: {normalized_phone}')
 
-        # 验证码验证（允许使用login或register类型的验证码）
-        # 这样用户可以使用注册时发送的验证码进行登录
-        current_app.logger.info('开始验证SMS验证码...')
-        code_valid = _verify_sms_code(normalized_phone, 'login', code) or _verify_sms_code(normalized_phone, 'register', code)
-        if not code_valid:
+        # 使用辅助函数验证验证码（支持 login 或 register 类型）
+        if not verify_sms_code_dual_purpose(phone, code, current_app.logger):
             current_app.logger.warning(f'验证码验证失败 - phone: {normalized_phone}, code: {code}')
             return make_err_response({}, 'INVALID_CAPTCHA')
         current_app.logger.info('验证码验证通过')
@@ -692,22 +649,12 @@ def login_phone():
         phone_hash = generate_phone_hash(normalized_phone)
         current_app.logger.info(f'生成phone_hash: {phone_hash[:20]}...')
 
-        # 数据库查询 - 添加执行时间监控
-        import time
-        try:
-            current_app.logger.info('开始执行UserService.query_user_by_phone_hash...')
-            start_time = time.time()
-            user = UserService.query_user_by_phone_hash(phone_hash)
-            query_time = time.time() - start_time
-            current_app.logger.info(f'数据库查询完成，耗时: {query_time:.2f}秒，用户存在: {user is not None}')
-
-            # 检查查询时间是否异常长
-            if query_time > 3.0:
-                current_app.logger.warning(f'数据库查询耗时过长: {query_time:.2f}秒')
-
-        except Exception as db_error:
-            current_app.logger.error(f'数据库查询异常: {str(db_error)}', exc_info=True)
-            return make_err_response({}, '数据库查询失败')
+        # 使用辅助函数执行带时间监控的数据库查询
+        user = execute_timed_query(
+            UserService.query_user_by_phone_hash,
+            'UserService.query_user_by_phone_hash',
+            phone_hash
+        )
 
         if not user:
             current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
@@ -716,22 +663,16 @@ def login_phone():
             current_app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
             return make_err_response({}, '账号未设置密码')
 
-        # 验证密码
-        pwd_hash = sha256(
-            f"{password}:{user.password_salt}".encode('utf-8')).hexdigest()
-        if pwd_hash != user.password_hash:
-            current_app.logger.warning(f'密码验证失败 - user_id: {user.user_id}')
+        # 使用辅助函数验证密码
+        if not verify_password(user, password, current_app.logger):
             return make_err_response({}, '密码不正确')
 
         current_app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
-        if not user.nickname:
-            user.nickname = _gen_phone_nickname()
-            UserService.update_user_by_id(user)
-            current_app.logger.info(f'已更新用户昵称: {user.nickname}')
+        # 使用辅助函数确保用户有昵称
+        ensure_user_nickname(user, current_app.logger)
 
-        current_app.logger.info('开始生成JWT token...')
-        # 使用工具函数生成token
-        token, error_response = generate_jwt_token(user, expires_hours=2)
+        # 使用辅助函数生成token
+        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
         if error_response:
             return error_response
         refresh_token = generate_refresh_token(user, expires_days=7)
