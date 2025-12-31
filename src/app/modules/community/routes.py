@@ -642,7 +642,7 @@ def get_community_staff_list_enhanced():
                     'name': user.name,
                     'avatar_url': user.avatar_url,
                     'role': staff.role,
-                    'created_at': staff.added_at.isoformat() if staff.added_at else None
+                    'added_time': staff.added_at.isoformat() if staff.added_at else None
                 }
                 staff_data.append(staff_info)
 
