@@ -92,6 +92,10 @@ def _process_missed_for_today(now):
             if rule.time_slot_type == 5:
                 continue
 
+            # 跳过今天创建的规则，给用户时间打卡
+            if rule.created_at and rule.created_at.date() == today:
+                continue
+
             if not _should_check_today(rule, today):
                 continue
 
@@ -148,6 +152,10 @@ def _process_community_missed_for_today(now):
         try:
             # 跳过全天规则，全天规则由每日任务处理
             if rule.time_slot_type == 5:
+                continue
+
+            # 跳过今天创建的规则，给用户时间打卡
+            if rule.created_at and rule.created_at.date() == today:
                 continue
 
             # 检查规则今天是否应该打卡
@@ -251,6 +259,10 @@ def _process_all_day_missed_for_yesterday(now):
             if not user:
                 continue
 
+            # 跳过昨天创建的规则，给用户时间打卡
+            if rule.created_at and rule.created_at.date() == yesterday:
+                continue
+
             # 检查规则昨天是否应该打卡
             if not _should_check_today(rule, yesterday):
                 continue
@@ -304,6 +316,10 @@ def _process_community_all_day_missed_for_yesterday(now):
 
     for rule in community_rules:
         try:
+            # 跳过昨天创建的规则，给用户时间打卡
+            if rule.created_at and rule.created_at.date() == yesterday:
+                continue
+
             # 检查规则昨天是否应该打卡
             if not _should_check_community_rule_today(rule, yesterday):
                 continue
