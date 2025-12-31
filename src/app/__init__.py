@@ -65,6 +65,10 @@ def create_app(config_name=None):
     # 4. 初始化扩展
     db.init_app(app)
     
+    # 4.5 初始化CORS（支持跨域请求）
+    from flask_cors import CORS
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    
     # 5. 导入Flask-SQLAlchemy模型（确保在db.init_app之后）
     # 注意：模型导入必须在db.init_app之后，但在注册蓝图之前
     from database.flask_models import (
