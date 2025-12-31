@@ -96,3 +96,10 @@ class TestCalculatePlannedTime:
         result = CheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime.combine(self.today, time(20, 0))
         assert result == expected
+
+    def test_all_day_time_slot(self):
+        """测试全天时间段（time_slot_type == 5）"""
+        rule = MockRule(5, None)
+        result = CheckinRuleService._calculate_planned_time(rule, self.today)
+        expected = datetime.combine(self.today, time(0, 0))
+        assert result == expected

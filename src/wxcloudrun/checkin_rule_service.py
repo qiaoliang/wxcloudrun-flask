@@ -355,7 +355,11 @@ class CheckinRuleService:
         time_slot_type = CheckinRuleService._get_rule_attr(rule, 'time_slot_type')
         custom_time = CheckinRuleService._get_rule_attr(rule, 'custom_time')
 
-        if time_slot_type == 4 and custom_time:  # 自定义时间
+        if time_slot_type == 5:  # 全天有效
+            # 全天规则的计划时间设置为当天的开始时间（00:00:00）
+            # 这样用户可以在一天 24 小时内的任何时间打卡
+            return datetime.combine(today, time(0, 0))
+        elif time_slot_type == 4 and custom_time:  # 自定义时间
             # 确保custom_time是time对象，而不是字符串
             if isinstance(custom_time, str):
                 from wxcloudrun.utils.timeutil import parse_time_only

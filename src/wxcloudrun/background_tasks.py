@@ -24,6 +24,9 @@ def _should_check_today(rule, today):
 
 
 def _planned_time_for_rule(rule, today):
+    """计算个人规则的计划打卡时间"""
+    if rule.time_slot_type == 5:  # 全天有效
+        return datetime.combine(today, time(0, 0))
     if rule.time_slot_type == 4 and rule.custom_time:
         return datetime.combine(today, rule.custom_time)
     if rule.time_slot_type == 1:
@@ -49,6 +52,8 @@ def _should_check_community_rule_today(rule, today):
 
 def _planned_time_for_community_rule(rule, today):
     """计算社区规则的计划打卡时间"""
+    if rule.time_slot_type == 5:  # 全天有效
+        return datetime.combine(today, time(0, 0))
     if rule.time_slot_type == 4 and rule.custom_time:
         return datetime.combine(today, rule.custom_time)
     if rule.time_slot_type == 1:
@@ -85,9 +90,19 @@ def _process_missed_for_today(now):
             if not _should_check_today(rule, today):
                 continue
 
+# 计算计划打卡时间
             planned_dt = _planned_time_for_rule(rule, today)
-            if now < planned_dt + grace_delta:
-                continue
+            
+            # 对于全天规则（time_slot_type == 5），在当天结束时检查
+            if rule.time_slot_type == 5:
+                # 设置为第二天凌晨 00:00 检查
+                check_time = datetime.combine(today + timedelta(days=1), time(0, 0))
+                if now < check_time:
+                    continue
+            else:
+                # 对于其他规则，使用宽限期逻辑
+                if now < planned_dt + grace_delta:
+                    continue
 
             today_records = CheckinRecordService._query_records_by_rule_and_date(rule.rule_id, today)
 
@@ -140,9 +155,17 @@ def _process_community_missed_for_today(now):
             # 计算计划打卡时间
             planned_dt = _planned_time_for_community_rule(rule, today)
             
-            # 检查是否还在宽限期内
-            if now < planned_dt + grace_delta:
-                continue
+            # 对于全天规则（time_slot_type == 5），在当天结束时检查
+            if rule.time_slot_type == 5:
+                # 设置为第二天凌晨 00:00 检查
+                check_time = datetime.combine(today + timedelta(days=1), time(0, 0))
+                if now < check_time:
+                    continue
+            else:
+                # 对于其他规则，使用宽限期逻辑
+                # 检查是否还在宽限期内
+                if now < planned_dt + grace_delta:
+                    continue
 
             # 获取该社区的所有工作人员（排除）
             stmt_staff = select(CommunityStaff).where(
