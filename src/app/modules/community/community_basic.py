@@ -1,0 +1,286 @@
+"""
+社区基础管理路由
+包含社区列表、详情查询等基础功能
+"""
+
+import logging
+from flask import request, current_app
+from sqlalchemy import select
+from . import community_bp
+from app.shared import make_succ_response, make_err_response
+from app.shared.utils.auth import verify_token, get_current_user
+from database.flask_models import db, User, Community
+from wxcloudrun.community_service import CommunityService
+from wxcloudrun.user_service import UserService
+from wxcloudrun.community_event_service import CommunityEventService
+from .utils import _check_superadmin_permission, _format_community_info
+
+app_logger = logging.getLogger('log')
+
+
+@community_bp.route('/communities', methods=['GET'])
+def get_communities():
+    """获取社区列表（超级管理员专用）- 为了兼容应用初始化测试"""
+    current_app.logger.info('=== 开始获取社区列表 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    user = db.session.get(User, user_id)
+
+    # 检查权限
+    error = _check_superadmin_permission(user)
+    if error:
+        return error
+
+    try:
+        # 使用 SQLAlchemy 2.0 的 select() 语句
+        # 查询所有社区
+        stmt = select(Community)
+        communities = db.session.execute(stmt).scalars().all()
+
+        # 格式化社区信息
+        communities_data = []
+        for community in communities:
+            community_data = _format_community_info(community, include_worker_stats=True)
+            communities_data.append(community_data)
+
+        current_app.logger.info(f'获取社区列表成功，共 {len(communities_data)} 个社区')
+        return make_succ_response({'communities': communities_data})
+
+    except Exception as e:
+        current_app.logger.error(f'获取社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '获取社区列表失败')
+
+
+@community_bp.route('/community/list', methods=['GET'])
+def get_community_list():
+    """获取社区列表（用户可见的社区列表）"""
+    current_app.logger.info('=== 开始获取社区列表（用户可见） ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        # 获取用户可见的社区列表
+        communities = CommunityService.get_available_communities()
+
+        # 格式化社区信息（包含主管信息）
+        communities_data = []
+        for community in communities:
+            community_data = _format_community_info(community, include_worker_stats=True)
+            communities_data.append(community_data)
+
+        current_app.logger.info(f'获取用户社区列表成功，共 {len(communities_data)} 个社区')
+        return make_succ_response({'communities': communities_data})
+
+    except Exception as e:
+        current_app.logger.error(f'获取用户社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '获取社区列表失败')
+
+
+@community_bp.route('/communities/available', methods=['GET'])
+def get_available_communities():
+    """获取可加入的社区列表"""
+    current_app.logger.info('=== 开始获取可加入社区列表 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        # 获取可加入的社区列表
+        communities = CommunityService.get_available_communities(user_id)
+
+        # 格式化社区信息
+        communities_data = []
+        for community in communities:
+            community_data = _format_community_info(community)
+            communities_data.append(community_data)
+
+        current_app.logger.info(f'获取可加入社区列表成功，共 {len(communities_data)} 个社区')
+        return make_succ_response({'communities': communities_data})
+
+    except Exception as e:
+        current_app.logger.error(f'获取可加入社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '获取可加入社区列表失败')
+
+
+@community_bp.route('/user/managed-communities', methods=['GET'])
+def get_managed_communities():
+    """获取用户管理的社区列表（默认7个）"""
+    from app.shared.utils.auth import get_current_user
+
+    current_app.logger.info('=== 开始获取可管理社区列表 ===')
+
+    # 获取当前用户（装饰器已验证token）
+    user = get_current_user()
+
+    if not user:
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取用户可管理的社区
+        communities, _ = CommunityService.get_manageable_communities(user)
+
+        # 格式化社区信息
+        communities_data = []
+        for community in communities:
+            community_data = _format_community_info(community)
+            communities_data.append(community_data)
+
+        current_app.logger.info(f'获取可管理社区列表成功，共 {len(communities_data)} 个社区')
+        return make_succ_response({'communities': communities_data})
+
+    except Exception as e:
+        current_app.logger.error(f'获取可管理社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '获取可管理社区列表失败')
+
+
+@community_bp.route('/community/communities/manage/list', methods=['GET'])
+def get_manageable_communities():
+    """获取可管理的社区列表"""
+    current_app.logger.info('=== 开始获取可管理的社区列表 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        # 获取用户对象
+        user = UserService.query_user_by_id(user_id)
+        if not user:
+            return make_err_response({}, '用户不存在')
+
+        # 获取可管理的社区列表
+        communities, total = CommunityService.get_manageable_communities(user)
+
+        # 格式化社区信息
+        communities_data = []
+        for community in communities:
+            community_data = _format_community_info(community)
+            communities_data.append(community_data)
+
+        current_app.logger.info(f'获取可管理社区列表成功，共 {len(communities_data)} 个社区')
+        return make_succ_response({'communities': communities_data})
+
+    except Exception as e:
+        current_app.logger.error(f'获取可管理社区列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '获取可管理社区列表失败')
+
+
+@community_bp.route('/communities/manage/search', methods=['GET'])
+def search_manageable_communities():
+    """搜索可管理的社区"""
+    current_app.logger.info('=== 开始搜索可管理的社区 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        # 获取搜索参数
+        keyword = request.args.get('keyword', '').strip()
+        page = int(request.args.get('page', 1))
+        per_page = min(int(request.args.get('per_page', 20)), 100)
+
+        if not keyword:
+            return make_err_response({}, '搜索关键词不能为空')
+
+        current_app.logger.info(f'搜索参数: keyword={keyword}, page={page}, per_page={per_page}')
+
+        # 执行搜索
+        result = CommunityService.search_manageable_communities(user_id, keyword, page, per_page)
+
+        current_app.logger.info(f'搜索结果: 找到 {result["total"]} 条记录')
+
+        # 构造返回数据
+        communities = []
+        for community in result.get('communities', []):
+            community_data = _format_community_info(community)
+            communities.append(community_data)
+
+        response_data = {
+            'communities': communities,
+            'total': result.get('total', 0),
+            'page': page,
+            'per_page': per_page,
+            'has_next': len(communities) == per_page
+        }
+
+        return make_succ_response(response_data)
+
+    except Exception as e:
+        current_app.logger.error(f'搜索可管理社区失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '搜索失败')
+
+
+@community_bp.route('/communities/<int:community_id>', methods=['GET'])
+def get_community_detail(community_id):
+    """获取社区详情"""
+    current_app.logger.info(f'=== 开始获取社区详情: {community_id} ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'用户ID: {user_id}')
+
+    try:
+        # 检查权限
+        if not CommunityService.has_community_permission(user_id, community_id):
+            return make_err_response({}, '无权限访问该社区')
+
+        # 获取社区详情
+        community = db.session.get(Community, community_id)
+        if not community:
+            return make_err_response({}, '社区不存在')
+
+        # 格式化社区信息
+        community_data = _format_community_info(community, include_worker_stats=True)
+
+        # 获取社区统计信息
+        event_stats = CommunityEventService.get_community_stats(community_id)
+
+        # 构建响应数据结构
+        response_data = {
+            'community': community_data,
+            'stats': {
+                'staff_count': community_data.get('staff_count', 0),  # 专员数量
+                'worker_count': community_data.get('worker_count', 0),  # 工作人员总数
+                'user_count': community_data.get('user_count', 0),  # 普通成员数量（不包括工作人员）
+                'manager_count': community_data.get('manager_count', 0),  # 主管数量
+                'support_count': event_stats.get('support_count', 0) if event_stats.get('success') else 0,
+                'active_events': event_stats.get('active_events', 0) if event_stats.get('success') else 0,
+                'checkin_rate': 0  # TODO: 计算打卡率
+            }
+        }
+
+        current_app.logger.info(f'获取社区详情成功: community_id={community_id}')
+        return make_succ_response(response_data)
+
+    except Exception as e:
+        current_app.logger.error(f'获取社区详情失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '获取社区详情失败')
