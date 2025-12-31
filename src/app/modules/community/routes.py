@@ -887,7 +887,8 @@ def get_community_users_v2():
     current_app.logger.info(f'用户ID: {user_id}')
 
     try:
-        params = request.get_json() or {}
+        # GET 请求从查询参数获取数据
+        params = request.args.to_dict()
         community_id = params.get('community_id')
 
         if not community_id:
