@@ -419,8 +419,8 @@ def _run_daily_loop():
         try:
             with current_app.app_context():
                 now = datetime.now()
-                # 只在凌晨 00:00:00 到 00:05:00 之间运行
-                if now.hour == 0 and now.minute < 5:
+                # 只在凌晨 00:00:00 到 00:01:00 之间运行（确保只运行一次）
+                if now.hour == 0 and now.minute == 0:
                     current_app.logger.info("[daily-missing-mark] 开始执行每日全天规则检查")
                     _process_all_day_missed_for_yesterday(now)
                     _process_community_all_day_missed_for_yesterday(now)
