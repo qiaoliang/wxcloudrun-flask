@@ -8,10 +8,7 @@
 
 import logging
 import datetime
-import secrets
 import jwt
-import os
-from hashlib import sha256
 from flask import request, current_app
 from . import auth_bp
 from .services import _format_user_login_response
@@ -19,8 +16,8 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token, verify_token
 from app.shared.utils.auth_helpers import (
     generate_auth_tokens,
-    verify_password, 
-    ensure_user_nickname, 
+    verify_password,
+    ensure_user_nickname,
     verify_sms_code_dual_purpose,
     assign_user_to_default_community,
     normalize_and_hash_phone,
@@ -28,8 +25,7 @@ from app.shared.utils.auth_helpers import (
 )
 from wxcloudrun.user_service import UserService
 from database.flask_models import User
-from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code
-from config_manager import get_token_secret
+from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname
 from const_default import DEFAULT_COMMUNITY_NAME
 from error_code import INVALID_CAPTCHA
 

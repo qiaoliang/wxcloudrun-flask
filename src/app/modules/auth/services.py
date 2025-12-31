@@ -4,11 +4,6 @@
 """
 import logging
 from flask import current_app
-from wxcloudrun.user_service import UserService
-from database.flask_models import User
-from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
-from config_manager import get_token_secret
-from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
 
 app_logger = logging.getLogger('log')
 
