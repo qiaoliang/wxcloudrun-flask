@@ -36,7 +36,7 @@ def create_superadmin_and_default_community():
             logger.info("开始创建超级系统管理员...")
             # 创建超级系统管理员
             salt = secrets.token_hex(8)
-            password_hash = sha256(f"Firefox0820:{salt}".encode('utf-8')).hexdigest()
+            password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
 
             # 使用与auth.py相同的手机号哈希方法
             phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')

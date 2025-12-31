@@ -14,7 +14,7 @@ class TestConstants:
     # ==================== 认证相关常量 ====================
     
     # 默认测试密码
-    DEFAULT_PASSWORD = "Firefox0820"
+    DEFAULT_PASSWORD = "F1234567"
     
     # 默认密码盐（用于测试）
     @classmethod
