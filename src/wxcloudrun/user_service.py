@@ -485,7 +485,10 @@ class UserService:
                     'is_current_community_staff': is_current_community_staff,
                     'is_current_community_manager': current_community_manager,
                     'is_other_community_manager': other_community_manager,
-                    'is_staff': db.session.execute(select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)).scalar_one_or_none() is not None
+                    'is_staff': db.session.execute(select(CommunityStaff).where(
+                        CommunityStaff.user_id == u.user_id,
+                        CommunityStaff.removed_at.is_(None)
+                    )).scalar_one_or_none() is not None
                 }
 
                 result.append(user_data)
@@ -562,7 +565,10 @@ class UserService:
                     'community_id': str(u.community_id) if u.community_id else None,
                     'status': u.status,
                     'created_at': u.created_at.isoformat() if u.created_at else None,
-                    'is_staff': db.session.execute(select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)).scalar_one_or_none() is not None
+                    'is_staff': db.session.execute(select(CommunityStaff).where(
+                        CommunityStaff.user_id == u.user_id,
+                        CommunityStaff.removed_at.is_(None)
+                    )).scalar_one_or_none() is not None
                 }
 
                 result.append(user_data)

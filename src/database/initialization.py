@@ -78,7 +78,8 @@ def create_superadmin_and_default_community():
                 stmt_staff = select(CommunityStaff).where(
                     CommunityStaff.community_id == existing_community.community_id,
                     CommunityStaff.user_id == superadmin_user.user_id,
-                    CommunityStaff.role == 'manager'
+                    CommunityStaff.role == 'manager',
+                    CommunityStaff.removed_at.is_(None)
                 )
                 existing_staff = db.session.execute(stmt_staff).scalar_one_or_none()
 
@@ -143,7 +144,8 @@ def create_superadmin_and_default_community():
                 stmt_staff = select(CommunityStaff).where(
                     CommunityStaff.community_id == existing_blackhouse.community_id,
                     CommunityStaff.user_id == superadmin_user.user_id,
-                    CommunityStaff.role == 'manager'
+                    CommunityStaff.role == 'manager',
+                    CommunityStaff.removed_at.is_(None)
                 )
                 existing_staff = db.session.execute(stmt_staff).scalar_one_or_none()
 

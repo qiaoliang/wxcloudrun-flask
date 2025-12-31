@@ -145,7 +145,10 @@ def _process_community_missed_for_today(now):
                 continue
 
             # 获取该社区的所有工作人员（排除）
-            stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == rule.community_id)
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.community_id == rule.community_id,
+                CommunityStaff.removed_at.is_(None)
+            )
             staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
             # 获取该社区所有普通用户（排除工作人员）

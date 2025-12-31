@@ -362,6 +362,7 @@ class CommunityStaff(db.Model):
     scope = Column(db.String(200), comment='负责范围')
     added_at = Column(db.DateTime, default=datetime.now)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    removed_at = Column(db.DateTime, nullable=True, comment='移除时间（软删除标记）')
 
     # 索引优化和约束
     __table_args__ = (
@@ -369,6 +370,7 @@ class CommunityStaff(db.Model):
         db.Index('idx_community_staff_user_id', 'user_id'),
         db.Index('idx_community_staff_role', 'role'),
         db.Index('idx_community_staff_community_role', 'community_id', 'role'),
+        db.Index('idx_community_staff_removed_at', 'removed_at'),
         db.CheckConstraint("role IN ('staff', 'manager')", name='ck_community_staff_role'),
     )
 

@@ -107,7 +107,8 @@ def _format_community_info(community, include_worker_stats=False):
 
         # 获取所有工作人员的用户ID列表
         stmt_all_staff = select(CommunityStaff).where(
-            CommunityStaff.community_id == community.community_id
+            CommunityStaff.community_id == community.community_id,
+            CommunityStaff.removed_at.is_(None)
         )
         staff_user_ids = [s.user_id for s in db.session.execute(stmt_all_staff).scalars().all()]
 

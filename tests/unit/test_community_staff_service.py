@@ -663,12 +663,13 @@ class TestCommunityStaffService:
             # 验证移除成功
             assert result is True
 
-            # 验证工作人员已被移除
+            # 验证工作人员已被软删除（removed_at不为空）
             staff_after = test_session.query(CommunityStaff).filter_by(
                 community_id=community.community_id,
                 user_id=user.user_id
             ).first()
-            assert staff_after is None
+            assert staff_after is not None
+            assert staff_after.removed_at is not None
 
     def test_remove_staff_not_exist(self, test_session, test_app):
         """测试移除不存在的工作人员"""

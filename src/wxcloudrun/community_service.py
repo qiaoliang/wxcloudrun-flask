@@ -467,7 +467,10 @@ class CommunityService:
         from datetime import date
 
         # 获取该社区所有工作人员的用户ID列表
-        stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
         staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
         # 分页查询社区成员 - 使用User表查询，排除工作人员
@@ -699,14 +702,22 @@ class CommunityService:
             }, '社区内还有用户，无法删除')
 
         with transaction():
-            # 删除相关数据
-            stmt_staff = delete(CommunityStaff).where(CommunityStaff.community_id == community_id)
-            db.session.execute(stmt_staff)
+            # 软删除社区：设置 status = 2
+            community.status = 2
+
+            # 软删除该社区所有工作人员：设置 removed_at
+            from datetime import datetime
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.community_id == community_id,
+                CommunityStaff.removed_at.is_(None)
+            )
+            staff_list = db.session.execute(stmt_staff).scalars().all()
+            for staff in staff_list:
+                staff.removed_at = datetime.now()
+
+            # 删除社区申请（物理删除，因为申请记录不需要保留）
             stmt_app = delete(CommunityApplication).where(CommunityApplication.target_community_id == community_id)
             db.session.execute(stmt_app)
-
-            # 删除社区
-            db.session.delete(community)
 
     @staticmethod
     def get_community_daily_stats(community_id):
@@ -716,7 +727,10 @@ class CommunityService:
         from sqlalchemy import and_, func
 
         # 获取该社区所有工作人员的用户ID列表
-        stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
         staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
         # 获取社区所有用户（排除工作人员）
@@ -810,7 +824,10 @@ class CommunityService:
         date_range = [start_date + timedelta(days=i) for i in range(days)]
 
         # 获取该社区所有工作人员的用户ID列表（排除）
-        stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
         staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
         # Layer 2: 业务逻辑验证 - 获取启用的规则
@@ -961,7 +978,10 @@ class CommunityService:
         result = []
         for u in users:
             # 检查是否已是任何社区的工作人员
-            stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.user_id == u.user_id,
+                CommunityStaff.removed_at.is_(None)
+            )
             is_staff = db.session.execute(stmt_staff).scalar_one_or_none() is not None
 
             user_data = {
@@ -1066,7 +1086,10 @@ class CommunityService:
             return communities, total
         else:
             # 获取用户作为工作人员的社区
-            stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == user.user_id)
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.user_id == user.user_id,
+                CommunityStaff.removed_at.is_(None)
+            )
             staff_communities = db.session.execute(stmt_staff).scalars().all()
             community_ids = [sc.community_id for sc in staff_communities]
 
@@ -1103,7 +1126,10 @@ class CommunityService:
             )
         else:
             # 获取用户有权限的社区
-            stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == user.user_id)
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.user_id == user.user_id,
+                CommunityStaff.removed_at.is_(None)
+            )
             staff_communities = db.session.execute(stmt_staff).scalars().all()
             community_ids = [sc.community_id for sc in staff_communities]
 
@@ -1131,7 +1157,8 @@ class CommunityService:
         # 检查是否是社区工作人员
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
-            CommunityStaff.user_id == user.user_id
+            CommunityStaff.user_id == user.user_id,
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1148,7 +1175,8 @@ class CommunityService:
         # 检查是否是社区工作人员（主管或专员都可以管理用户）
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
-            CommunityStaff.user_id == user.user_id
+            CommunityStaff.user_id == user.user_id,
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1166,7 +1194,8 @@ class CommunityService:
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
             CommunityStaff.user_id == user.user_id,
-            CommunityStaff.role == 'manager'
+            CommunityStaff.role == 'manager',
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1183,7 +1212,8 @@ class CommunityService:
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
             CommunityStaff.user_id == user.user_id,
-            CommunityStaff.role == 'manager'  # 主管角色
+            CommunityStaff.role == 'manager',  # 主管角色
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1247,7 +1277,8 @@ class CommunityService:
         # 检查用户是否是该社区的工作人员
         stmt = select(CommunityStaff).where(
             CommunityStaff.user_id == user_id,
-            CommunityStaff.community_id == community_id
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
