@@ -4,34 +4,20 @@
 """
 
 import logging
-import re
-import os
 from datetime import datetime
 from flask import request, current_app
 from sqlalchemy import select
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
-from app.shared.decorators import login_required
-from app.shared.utils.auth import verify_token, require_community_staff, get_current_user
-from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog, CommunityStaff
+from app.shared.utils.auth import verify_token, get_current_user
+from database.flask_models import db, User, Community, CommunityApplication, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.community_service import CommunityService
 from wxcloudrun.community_event_service import CommunityEventService
 from wxcloudrun.user_service import UserService
-from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_NAME, DEFAULT_BLACK_ROOM_ID
-from wxcloudrun.utils.validators import _audit, _hash_code
+from wxcloudrun.utils.validators import _audit
 
 app_logger = logging.getLogger('log')
-
-
-def _calculate_phone_hash(phone):
-    """
-    计算手机号的hash值
-    """
-    from hashlib import sha256
-    phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-    return sha256(
-        f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
 
 
 def _check_superadmin_permission(user):
