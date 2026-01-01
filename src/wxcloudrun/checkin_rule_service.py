@@ -243,7 +243,8 @@ class CheckinRuleService:
                     'icon_url': rule.icon_url,
                     'planned_time': planned_time.strftime('%H:%M:%S'),
                     'status': status_info['status'],
-                    'checkin_time': status_info['checkin_time']
+                    'checkin_time': status_info['checkin_time'],
+                    'time_slot_type': rule.time_slot_type
                 })
 
             return {
