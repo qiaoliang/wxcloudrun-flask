@@ -4,10 +4,13 @@ import time as time_module
 from datetime import datetime, time, timedelta
 
 from flask import current_app
-from sqlalchemy import select
+from sqlalchemy import select, func
 from app.extensions import db
 from database.flask_models import CheckinRule, CheckinRecord, User, CommunityCheckinRule, UserCommunityRule, CommunityStaff
 from wxcloudrun.checkin_record_service import CheckinRecordService
+
+# 全局变量，记录上次执行全天规则检查的日期
+_last_daily_check_date = None
 
 
 def _should_check_today(rule, today):
@@ -48,6 +51,30 @@ def _should_check_community_rule_today(rule, today):
             return rule.custom_start_date <= today <= rule.custom_end_date
         return False
     return True
+
+
+def daily_check():
+    """执行全天规则的missing检查（每天最多执行一次）"""
+    global _last_daily_check_date
+
+    today = datetime.now().date()
+
+    # 检查今天是否已经执行过
+    if _last_daily_check_date == today:
+        return  # 今天已执行，跳过
+
+    try:
+        with current_app.app_context():
+            now = datetime.now()
+            _process_all_day_missed_for_yesterday(now)
+            _process_community_all_day_missed_for_yesterday(now)
+
+        # 更新执行日期
+        _last_daily_check_date = today
+        current_app.logger.info(f"[daily-check] 全天规则检查完成，日期: {today}")
+
+    except Exception as e:
+        current_app.logger.error(f"[daily-check] 执行失败: {str(e)}", exc_info=True)
 
 
 def _planned_time_for_community_rule(rule, today):
@@ -237,12 +264,17 @@ def _process_community_missed_for_today(now):
 
 
 def _process_all_day_missed_for_yesterday(now):
-    """处理全天规则的未打卡标记（每天运行一次，检查前一天的记录）"""
+    """处理个人全天规则的未打卡标记（每天运行一次，检查前一天的记录）"""
     yesterday = (now.date() - timedelta(days=1))
+    today = now.date()
 
     try:
         # 使用 SQLAlchemy 2.0 的 select() 语句
-        stmt = select(CheckinRule).where(CheckinRule.status != 2, CheckinRule.time_slot_type == 5)  # 排除已删除的规则，只查询全天规则
+        # 查询所有启用的全天规则
+        stmt = select(CheckinRule).where(
+            CheckinRule.status == 1,           # 已启用
+            CheckinRule.time_slot_type == 5    # 全天规则
+        )
         rules = db.session.execute(stmt).scalars().all()
     except Exception as e:
         # 如果数据库表不存在，跳过本次检查
@@ -259,36 +291,37 @@ def _process_all_day_missed_for_yesterday(now):
             if not user:
                 continue
 
-            # 跳过昨天创建的规则，给用户时间打卡
-            if rule.created_at and rule.created_at.date() == yesterday:
-                continue
+            # 检查启用时间
+            if rule.enabled_at is None:
+                continue  # 未启用，跳过
 
-            # 检查规则昨天是否应该打卡
-            if not _should_check_today(rule, yesterday):
-                continue
+            if rule.enabled_at.date() == today:
+                continue  # 今天启用，跳过
 
-            # 计算计划打卡时间
-            planned_dt = _planned_time_for_rule(rule, yesterday)
+            if rule.enabled_at.date() > yesterday:
+                continue  # 启用时间在昨天之后，跳过
 
             # 查询昨天的打卡记录
-            yesterday_records = CheckinRecordService._query_records_by_rule_and_date(rule.rule_id, yesterday)
+            yesterday_records = CheckinRecordService._query_records_by_rule_and_date(
+                rule_id=rule.rule_id,
+                checkin_date=yesterday
+            )
 
             has_checked = any(r.status == 1 for r in yesterday_records)
             has_missed = any(r.status == 0 for r in yesterday_records)
-            if has_checked or has_missed:
-                continue
 
-            # 使用 service 方法创建记录
-            CheckinRecordService._create_record(
-                rule_id=rule.rule_id,
-                user_id=rule.user_id,
-                checkin_time=None,
-                planned_time=planned_dt,
-                status=0
-            )
-            current_app.logger.info(
-                f"[all-day-missing-mark] 用户 {rule.user_id} 全天规则 {rule.rule_id} 标记为miss，计划时间 {planned_dt}"
-            )
+            if not has_checked and not has_missed:
+                # 创建missing记录
+                CheckinRecordService._create_record(
+                    rule_id=rule.rule_id,
+                    user_id=rule.user_id,
+                    checkin_time=None,
+                    planned_time=datetime.combine(yesterday, time(0, 0)),
+                    status=0
+                )
+                current_app.logger.info(
+                    f"[all-day-missing-mark] 用户 {rule.user_id} 全天规则 {rule.rule_id} 标记为miss，计划时间 {datetime.combine(yesterday, time(0, 0))}"
+                )
         except Exception as e:
             current_app.logger.error(
                 f"[all-day-missing-mark] 处理全天规则 {rule.rule_id} 时出错: {str(e)}", exc_info=True
@@ -298,6 +331,7 @@ def _process_all_day_missed_for_yesterday(now):
 def _process_community_all_day_missed_for_yesterday(now):
     """处理社区全天规则的未打卡标记（每天运行一次，检查前一天的记录）"""
     yesterday = (now.date() - timedelta(days=1))
+    today = now.date()
 
     try:
         # 使用 SQLAlchemy 2.0 的 select() 语句
@@ -316,16 +350,15 @@ def _process_community_all_day_missed_for_yesterday(now):
 
     for rule in community_rules:
         try:
-            # 跳过昨天创建的规则，给用户时间打卡
-            if rule.created_at and rule.created_at.date() == yesterday:
-                continue
+            # 检查启用时间
+            if rule.enabled_at is None:
+                continue  # 未启用，跳过
 
-            # 检查规则昨天是否应该打卡
-            if not _should_check_community_rule_today(rule, yesterday):
-                continue
+            if rule.enabled_at.date() == today:
+                continue  # 今天启用，跳过
 
-            # 计算计划打卡时间
-            planned_dt = _planned_time_for_community_rule(rule, yesterday)
+            if rule.enabled_at.date() > yesterday:
+                continue  # 启用时间在昨天之后，跳过
 
             # 获取该社区的所有工作人员（排除）
             stmt_staff = select(CommunityStaff).where(
@@ -363,8 +396,7 @@ def _process_community_all_day_missed_for_yesterday(now):
             stmt_records = select(CheckinRecord).where(
                 CheckinRecord.community_rule_id == rule.community_rule_id,
                 CheckinRecord.user_id.in_(active_user_ids),
-                CheckinRecord.planned_time >= planned_dt,
-                CheckinRecord.planned_time < planned_dt + timedelta(days=1)
+                func.date(CheckinRecord.planned_time) == yesterday
             )
             yesterday_records = db.session.execute(stmt_records).scalars().all()
 
@@ -379,12 +411,12 @@ def _process_community_all_day_missed_for_yesterday(now):
                         rule_id=rule.community_rule_id,
                         user_id=user_id,
                         checkin_time=None,
-                        planned_time=planned_dt,
+                        planned_time=datetime.combine(yesterday, time(0, 0)),
                         status=0,
                         rule_source='community'
                     )
                     current_app.logger.info(
-                        f"[community-all-day-missing-mark] 用户 {user_id} 社区全天规则 {rule.community_rule_id} 标记为miss，计划时间 {planned_dt}"
+                        f"[community-all-day-missing-mark] 用户 {user_id} 社区全天规则 {rule.community_rule_id} 标记为miss，计划时间 {datetime.combine(yesterday, time(0, 0))}"
                     )
 
         except Exception as e:
@@ -394,108 +426,43 @@ def _process_community_all_day_missed_for_yesterday(now):
 
 
 def _run_loop():
-    """运行后台检查服务，每5分钟检查一次（跳过全天规则）"""
+    """运行后台检查服务，每5分钟检查一次"""
     interval_minutes = int(os.getenv('MISS_CHECK_INTERVAL_MINUTES', '5'))
     interval_seconds = max(1, interval_minutes * 60)
     current_app.logger.info(
-        f"[missing-mark] 后台服务启动，检查间隔 {interval_minutes} 分钟（跳过全天规则）"
+        f"[missing-check] 后台服务启动，检查间隔 {interval_minutes} 分钟"
     )
 
     while True:
         try:
             with current_app.app_context():
                 now = datetime.now()
+
+                # 每日检查（全天规则）
+                daily_check()
+
+                # 常规规则检查（非全天规则）
                 _process_missed_for_today(now)
                 _process_community_missed_for_today(now)
         except Exception as e:
-            current_app.logger.error(f"[missing-mark] 后台服务循环错误: {str(e)}", exc_info=True)
+            current_app.logger.error(f"[missing-check] 后台服务循环错误: {str(e)}", exc_info=True)
         finally:
             time_module.sleep(interval_seconds)
 
 
-def _run_daily_loop():
-    """运行每日检查服务，每天凌晨检查一次全天规则的missed状态"""
-    last_execution_date = None  # 记录上次执行的日期
-    
-    while True:
-        try:
-            with current_app.app_context():
-                now = datetime.now()
-                today_date = now.date()
-                
-                # 检查今天是否已经执行过
-                if last_execution_date == today_date:
-                    current_app.logger.info(f"[daily-missing-mark] 今天 {today_date} 的检查已经执行过，跳过")
-                    # 计算到第二天的间隔并 sleep
-                    tomorrow = today_date + timedelta(days=1)
-                    next_run = datetime.combine(tomorrow, time(0, 0))
-                    sleep_seconds = (next_run - now).total_seconds()
-                    time_module.sleep(sleep_seconds)
-                    continue
-                
-                # 只在凌晨 00:00:00 之后运行
-                if now.hour == 0:
-                    current_app.logger.info(f"[daily-missing-mark] 开始执行每日全天规则检查，检查日期: {today_date}")
-                    _process_all_day_missed_for_yesterday(now)
-                    _process_community_all_day_missed_for_yesterday(now)
-                    
-                    # 记录执行日期
-                    last_execution_date = today_date
-                    current_app.logger.info(f"[daily-missing-mark] 每日全天规则检查完成，已标记 {today_date} 为已执行")
-                    
-                    # 执行完成后，立即计算到第二天的间隔并 sleep
-                    tomorrow = today_date + timedelta(days=1)
-                    next_run = datetime.combine(tomorrow, time(0, 0))
-                    sleep_seconds = (next_run - now).total_seconds()
-                    current_app.logger.info(
-                        f"[daily-missing-mark] 等待到 {next_run} 执行下次检查，间隔 {sleep_seconds/3600:.2f} 小时"
-                    )
-                    time_module.sleep(sleep_seconds)
-                else:
-                    # 计算到下一次凌晨 00:00:00 的间隔
-                    tomorrow = today_date + timedelta(days=1)
-                    next_run = datetime.combine(tomorrow, time(0, 0))
-                    sleep_seconds = (next_run - now).total_seconds()
-                    current_app.logger.info(
-                        f"[daily-missing-mark] 等待到 {next_run} 执行下次检查，间隔 {sleep_seconds/3600:.2f} 小时"
-                    )
-                    time_module.sleep(sleep_seconds)
-        except Exception as e:
-            current_app.logger.error(f"[daily-missing-mark] 每日检查服务错误: {str(e)}", exc_info=True)
-            # 出错后等待到第二天凌晨再重试
-            time_module.sleep(86400)
-
-
 def start_missing_check_service(app):
-    """启动缺失检查服务（每5分钟检查一次，跳过全天规则）"""
+    """启动缺失检查服务（每5分钟检查一次）"""
     try:
         # 创建后台线程
         t = threading.Thread(target=_run_loop_with_context, daemon=True, args=(app,))
         t.start()
-        app.logger.info("[missing-mark] 后台服务线程已启动（每5分钟检查一次）")
+        app.logger.info("[missing-check] 后台服务线程已启动（每5分钟检查一次）")
     except Exception as e:
-        app.logger.error(f"[missing-mark] 启动后台服务失败: {str(e)}")
-
-
-def start_daily_check_service(app):
-    """启动每日检查服务（每天凌晨检查一次全天规则）"""
-    try:
-        # 创建后台线程
-        t = threading.Thread(target=_run_daily_loop_with_context, daemon=True, args=(app,))
-        t.start()
-        app.logger.info("[daily-missing-mark] 每日检查服务线程已启动（每天凌晨检查一次）")
-    except Exception as e:
-        app.logger.error(f"[daily-missing-mark] 启动每日检查服务失败: {str(e)}")
+        app.logger.error(f"[missing-check] 启动后台服务失败: {str(e)}")
 
 
 def _run_loop_with_context(app):
     """在线程中运行循环，保持应用上下文"""
     with app.app_context():
         _run_loop()
-
-
-def _run_daily_loop_with_context(app):
-    """在线程中运行每日循环，保持应用上下文"""
-    with app.app_context():
-        _run_daily_loop()
 
