@@ -252,7 +252,8 @@ class UserCheckinRuleService:
                     'checkin_time': status_info['checkin_time'],
                     'rule_source': 'community',
                     'is_editable': False,
-                    'community_name': rule.community.name if rule.community else None
+                    'community_name': rule.community.name if rule.community else None,
+                    'time_slot_type': rule.time_slot_type
                 }
 
                 today_plan.append(plan_item)
