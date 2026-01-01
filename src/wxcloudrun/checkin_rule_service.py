@@ -392,7 +392,7 @@ class CheckinRuleService:
         :return: 状态信息字典
         """
         status_info = {
-            'status': 'unchecked',
+            'status': 'pending',
             'checkin_time': None,
             'record_id': None
         }
