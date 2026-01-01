@@ -291,15 +291,15 @@ def _process_all_day_missed_for_yesterday(now):
             if not user:
                 continue
 
-            # 检查启用时间
-            if rule.enabled_at is None:
-                continue  # 未启用，跳过
+            # 检查创建时间（使用 created_at 作为启用时间）
+            if rule.created_at is None:
+                continue  # 创建时间为空，跳过
 
-            if rule.enabled_at.date() == today:
-                continue  # 今天启用，跳过
+            if rule.created_at.date() == today:
+                continue  # 今天创建，跳过
 
-            if rule.enabled_at.date() > yesterday:
-                continue  # 启用时间在昨天之后，跳过
+            if rule.created_at.date() > yesterday:
+                continue  # 创建时间在昨天之后，跳过
 
             # 查询昨天的打卡记录
             yesterday_records = CheckinRecordService._query_records_by_rule_and_date(
@@ -350,15 +350,15 @@ def _process_community_all_day_missed_for_yesterday(now):
 
     for rule in community_rules:
         try:
-            # 检查启用时间
-            if rule.enabled_at is None:
-                continue  # 未启用，跳过
+            # 检查创建时间（使用 created_at 作为启用时间）
+            if rule.created_at is None:
+                continue  # 创建时间为空，跳过
 
-            if rule.enabled_at.date() == today:
-                continue  # 今天启用，跳过
+            if rule.created_at.date() == today:
+                continue  # 今天创建，跳过
 
-            if rule.enabled_at.date() > yesterday:
-                continue  # 启用时间在昨天之后，跳过
+            if rule.created_at.date() > yesterday:
+                continue  # 创建时间在昨天之后，跳过
 
             # 获取该社区的所有工作人员（排除）
             stmt_staff = select(CommunityStaff).where(
