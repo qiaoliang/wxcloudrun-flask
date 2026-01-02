@@ -57,7 +57,7 @@ class CommunityService:
 
     @staticmethod
     @transactional
-    def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None):
+    def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None, province=None, city=None, district=None, street=None):
         """创建新社区"""
         # 检查社区名称是否已存在
         stmt = select(Community).where(Community.name == name)
@@ -83,6 +83,10 @@ class CommunityService:
             manager_id=manager_id,
             location_lat=location_lat,
             location_lon=location_lon,
+            province=province,
+            city=city,
+            district=district,
+            street=street,
             status=1,
             created_at=datetime.now()
         )
@@ -376,7 +380,7 @@ class CommunityService:
         }
 
     @staticmethod
-    def update_community_info(community_id, name=None, description=None, location=None, status=None, manager_id=None, location_lat=None, location_lon=None):
+    def update_community_info(community_id, name=None, description=None, location=None, status=None, manager_id=None, location_lat=None, location_lon=None, province=None, city=None, district=None, street=None):
         """更新社区信息"""
         community = db.session.get(Community, community_id)
         if not community:
@@ -406,6 +410,18 @@ class CommunityService:
 
             if location_lon is not None:
                 community.location_lon = location_lon
+
+            if province is not None:
+                community.province = province
+
+            if city is not None:
+                community.city = city
+
+            if district is not None:
+                community.district = district
+
+            if street is not None:
+                community.street = street
 
             if status is not None:
                 community.status = status

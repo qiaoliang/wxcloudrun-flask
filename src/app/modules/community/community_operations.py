@@ -43,6 +43,10 @@ def create_community():
         location_lat = params.get('location_lat')
         location_lon = params.get('location_lon')
         manager_id = params.get('manager_id')
+        province = params.get('province')
+        city = params.get('city')
+        district = params.get('district')
+        street = params.get('street')
 
         if not name:
             return make_err_response({}, '社区名称不能为空')
@@ -55,7 +59,11 @@ def create_community():
             location=location,
             location_lat=location_lat,
             location_lon=location_lon,
-            manager_id=manager_id
+            manager_id=manager_id,
+            province=province,
+            city=city,
+            district=district,
+            street=street
         )
 
         # 获取主管信息
@@ -88,6 +96,10 @@ def create_community():
             'location': community.location,
             'location_lat': community.location_lat,
             'location_lon': community.location_lon,
+            'province': community.province,
+            'city': community.city,
+            'district': community.district,
+            'street': community.street,
             'status': community.status,
             'created_at': community.created_at.isoformat() if community.created_at else None,
             'message': '创建成功'

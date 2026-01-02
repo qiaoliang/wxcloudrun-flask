@@ -186,7 +186,7 @@ def user_profile():
                 return make_err_response({}, '用户不存在，请重新登录')
 
             # 更新允许的字段
-            update_fields = ['nickname', 'name', 'avatar_url', 'address', 'motto', 
+            update_fields = ['nickname', 'name', 'avatar_url', 'address', 'motto',
                            'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_address']
             updated = False
 
@@ -200,7 +200,7 @@ def user_profile():
                             current_app.logger.warning(f'昵称过长，截断处理: {params[field][:30]}... -> {nickname[:30]}...')
                         setattr(user, field, nickname)
                         updated = True
-                    elif field in ['name', 'avatar_url', 'address', 'motto', 
+                    elif field in ['name', 'avatar_url', 'address', 'motto',
                                 'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_address']:
                         setattr(user, field, params[field])
                         updated = True
@@ -240,7 +240,7 @@ def upload_avatar(decoded):
 
         # 验证文件类型
         allowed_extensions = {'jpg', 'jpeg', 'png', 'gif'}
-        if not ('.' in file.filename and 
+        if not ('.' in file.filename and
                 file.filename.rsplit('.', 1)[1].lower() in allowed_extensions):
             return make_err_response({}, '不支持的文件格式')
 
@@ -255,18 +255,18 @@ def upload_avatar(decoded):
         import uuid
         file_extension = file.filename.rsplit('.', 1)[1].lower()
         filename = f"{uuid.uuid4().hex}.{file_extension}"
-        
+
         # 确保上传目录存在
         upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
         os.makedirs(upload_dir, exist_ok=True)
-        
+
         # 保存文件
         file_path = os.path.join(upload_dir, filename)
         file.save(file_path)
-        
+
         # 生成访问 URL
         avatar_url = f"/static/uploads/avatars/{filename}"
-        
+
         # 更新用户头像
         user = UserService.query_user_by_id(user_id)
         if user:
