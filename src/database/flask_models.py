@@ -609,7 +609,9 @@ class CommunityEvent(db.Model):
     event_type = Column(db.String(50), nullable=False, default='call_for_help', comment='事件类型')
     status = Column(db.Integer, default=1, comment='事件状态：1-进行中，2-已完成，3-已取消', index=True)
     target_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), comment='目标用户ID', index=True)
-    location = Column(db.String(200), comment='事件地点')
+    location = Column(db.String(200), comment='事件地点（格式：地址 | 纬度,经度）')
+    location_lat = Column(db.Float, comment='纬度')
+    location_lon = Column(db.Float, comment='经度')
     created_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='创建者ID', index=True)
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
@@ -671,6 +673,8 @@ class CommunityEvent(db.Model):
             'status_label': self.status_label,
             'target_user_id': self.target_user_id,
             'location': self.location,
+            'location_lat': self.location_lat,
+            'location_lon': self.location_lon,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,

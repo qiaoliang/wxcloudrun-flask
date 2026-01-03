@@ -170,6 +170,18 @@ class CommunityEventService:
             event_data = event.to_dict()
             event_data['supports'] = [support.to_dict() for support in supports]
             
+            # 获取发起人信息
+            if event.created_by:
+                creator = db.session.get(User, event.created_by)
+                if creator:
+                    event_data['creator_nickname'] = creator.nickname or creator.username or '未知用户'
+            
+            # 获取目标用户信息
+            if event.target_user_id:
+                target_user = db.session.get(User, event.target_user_id)
+                if target_user:
+                    event_data['target_user_nickname'] = target_user.nickname or target_user.username or '未知用户'
+            
             return {
                 'success': True,
                 'event': event_data
@@ -329,9 +341,23 @@ class CommunityEventService:
             
             messages = db.session.execute(stmt_messages).scalars().all()
             
+            event_data = event.to_dict()
+            
+            # 获取发起人信息
+            if event.created_by:
+                creator = db.session.get(User, event.created_by)
+                if creator:
+                    event_data['creator_nickname'] = creator.nickname or creator.username or '未知用户'
+            
+            # 获取目标用户信息
+            if event.target_user_id:
+                target_user = db.session.get(User, event.target_user_id)
+                if target_user:
+                    event_data['target_user_nickname'] = target_user.nickname or target_user.username or '未知用户'
+            
             return {
                 'success': True,
-                'event': event.to_dict(),
+                'event': event_data,
                 'messages': [msg.to_dict() for msg in messages]
             }
             
@@ -594,3 +620,51 @@ class CommunityEventService:
         except Exception as e:
             logger.error(f"添加工作人员回应失败: {str(e)}")
             return {'success': False, 'message': f'添加回应失败: {str(e)}'}
+
+    @staticmethod
+    def update_event_location(event_id: int, location: str = None, 
+                             location_lat: float = None, location_lon: float = None) -> Dict:
+        """
+        更新事件位置信息
+        
+        Args:
+            event_id: 事件ID
+            location: 地址字符串
+            location_lat: 纬度
+            location_lon: 经度
+            
+        Returns:
+            Dict: 更新结果
+        """
+        try:
+            # 验证事件存在
+            event = db.session.get(CommunityEvent, event_id)
+            if not event:
+                return {'success': False, 'message': '事件不存在'}
+            
+            # 验证事件状态
+            if event.status != 1:
+                return {'success': False, 'message': '事件已结束，无法更新位置'}
+            
+            # 更新位置信息
+            with transaction():
+                if location is not None:
+                    event.location = location
+                if location_lat is not None:
+                    event.location_lat = location_lat
+                if location_lon is not None:
+                    event.location_lon = location_lon
+                event.updated_at = datetime.now()
+                db.session.flush()
+            
+            logger.info(f"事件{event_id}的位置信息已更新")
+            
+            return {
+                'success': True,
+                'message': '位置信息更新成功',
+                'event': event.to_dict()
+            }
+            
+        except Exception as e:
+            logger.error(f"更新事件位置失败: {str(e)}")
+            return {'success': False, 'message': '更新位置失败'}

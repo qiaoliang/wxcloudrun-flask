@@ -208,3 +208,37 @@ def add_staff_response(decoded, event_id):
     except Exception as e:
         logger.error(f"添加工作人员回应API异常: {str(e)}")
         return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/events/<int:event_id>/location', methods=['PUT'])
+@require_community_membership()
+def update_event_location(decoded, event_id):
+    """更新事件位置信息"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response('请求数据不能为空')
+        
+        location = data.get('location', '')
+        location_lat = data.get('location_lat')
+        location_lon = data.get('location_lon')
+        
+        # 至少需要 location 或坐标信息
+        if not location and (location_lat is None or location_lon is None):
+            return make_err_response('请提供位置信息')
+        
+        result = CommunityEventService.update_event_location(
+            event_id=event_id,
+            location=location,
+            location_lat=location_lat,
+            location_lon=location_lon
+        )
+        
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+            
+    except Exception as e:
+        logger.error(f"更新事件位置API异常: {str(e)}")
+        return make_err_response('服务器内部错误')
