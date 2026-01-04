@@ -4,9 +4,16 @@
 import pytest
 from datetime import datetime
 from sqlalchemy import select
+from hashlib import sha256
 
 from database.flask_models import Community, User
 from wxcloudrun.community_service import CommunityService
+from test_data_generator import (
+    generate_unique_phone_number,
+    generate_unique_openid,
+    generate_unique_nickname
+)
+from test_constants import TEST_CONSTANTS
 
 
 class TestCommunityLocation:
@@ -15,9 +22,15 @@ class TestCommunityLocation:
     def test_create_community_with_location(self, test_session):
         """测试创建带位置信息的社区"""
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_create_community_with_location")
+        openid = generate_unique_openid(phone_number, "test_create_community_with_location")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            nickname='test_user',
-            phone_number='13800138000',
+            nickname=generate_unique_nickname("test_create_community_with_location"),
+            wechat_openid=openid,
+            phone_number=phone_number,
+            phone_hash=phone_hash,
             role=2,  # 普通用户
             status=1
         )
@@ -26,8 +39,8 @@ class TestCommunityLocation:
 
         # 创建带位置信息的社区
         community = CommunityService.create_community(
-            name='测试社区',
-            description='测试描述',
+            name=TEST_CONSTANTS.generate_community_name("with_location"),
+            description=TEST_CONSTANTS.generate_community_description("with_location"),
             creator_id=user.user_id,
             location='北京市朝阳区某某街道123号',
             location_lat=39.9042,
@@ -51,9 +64,15 @@ class TestCommunityLocation:
     def test_create_community_without_location(self, test_session):
         """测试创建不带位置信息的社区"""
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_create_community_without_location")
+        openid = generate_unique_openid(phone_number, "test_create_community_without_location")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            nickname='test_user',
-            phone_number='13800138001',
+            nickname=generate_unique_nickname("test_create_community_without_location"),
+            wechat_openid=openid,
+            phone_number=phone_number,
+            phone_hash=phone_hash,
             role=2,
             status=1
         )
@@ -62,8 +81,8 @@ class TestCommunityLocation:
 
         # 创建不带位置信息的社区
         community = CommunityService.create_community(
-            name='测试社区2',
-            description='测试描述2',
+            name=TEST_CONSTANTS.generate_community_name("without_location"),
+            description=TEST_CONSTANTS.generate_community_description("without_location"),
             creator_id=user.user_id
         )
 
@@ -80,9 +99,15 @@ class TestCommunityLocation:
     def test_update_community_location(self, test_session):
         """测试更新社区位置信息"""
         # 创建测试用户和社区
+        phone_number = generate_unique_phone_number("test_update_community_location")
+        openid = generate_unique_openid(phone_number, "test_update_community_location")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            nickname='test_user',
-            phone_number='13800138002',
+            nickname=generate_unique_nickname("test_update_community_location"),
+            wechat_openid=openid,
+            phone_number=phone_number,
+            phone_hash=phone_hash,
             role=2,
             status=1
         )
@@ -90,8 +115,8 @@ class TestCommunityLocation:
         test_session.flush()
 
         community = CommunityService.create_community(
-            name='测试社区3',
-            description='测试描述3',
+            name=TEST_CONSTANTS.generate_community_name("update_location"),
+            description=TEST_CONSTANTS.generate_community_description("update_location"),
             creator_id=user.user_id
         )
 
@@ -119,9 +144,15 @@ class TestCommunityLocation:
     def test_partial_update_community_location(self, test_session):
         """测试部分更新社区位置信息"""
         # 创建测试用户和社区
+        phone_number = generate_unique_phone_number("test_partial_update_community_location")
+        openid = generate_unique_openid(phone_number, "test_partial_update_community_location")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            nickname='test_user',
-            phone_number='13800138003',
+            nickname=generate_unique_nickname("test_partial_update_community_location"),
+            wechat_openid=openid,
+            phone_number=phone_number,
+            phone_hash=phone_hash,
             role=2,
             status=1
         )
@@ -129,8 +160,8 @@ class TestCommunityLocation:
         test_session.flush()
 
         community = CommunityService.create_community(
-            name='测试社区4',
-            description='测试描述4',
+            name=TEST_CONSTANTS.generate_community_name("partial_update"),
+            description=TEST_CONSTANTS.generate_community_description("partial_update"),
             creator_id=user.user_id,
             location='完整地址',
             location_lat=39.9042,
@@ -156,9 +187,15 @@ class TestCommunityLocation:
     def test_community_location_coordinates_validation(self, test_session):
         """测试社区位置坐标的有效性"""
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_community_location_coordinates_validation")
+        openid = generate_unique_openid(phone_number, "test_community_location_coordinates_validation")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            nickname='test_user',
-            phone_number='13800138004',
+            nickname=generate_unique_nickname("test_community_location_coordinates_validation"),
+            wechat_openid=openid,
+            phone_number=phone_number,
+            phone_hash=phone_hash,
             role=2,
             status=1
         )
@@ -170,8 +207,8 @@ class TestCommunityLocation:
         valid_lon = 116.4074  # 有效经度
 
         community = CommunityService.create_community(
-            name='测试社区5',
-            description='测试描述5',
+            name=TEST_CONSTANTS.generate_community_name("coordinates_validation"),
+            description=TEST_CONSTANTS.generate_community_description("coordinates_validation"),
             creator_id=user.user_id,
             location_lat=valid_lat,
             location_lon=valid_lon
@@ -184,9 +221,15 @@ class TestCommunityLocation:
     def test_query_communities_by_location(self, test_session):
         """测试按位置查询社区"""
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_query_communities_by_location")
+        openid = generate_unique_openid(phone_number, "test_query_communities_by_location")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            nickname='test_user',
-            phone_number='13800138005',
+            nickname=generate_unique_nickname("test_query_communities_by_location"),
+            wechat_openid=openid,
+            phone_number=phone_number,
+            phone_hash=phone_hash,
             role=2,
             status=1
         )
@@ -195,7 +238,7 @@ class TestCommunityLocation:
 
         # 创建多个社区
         community1 = CommunityService.create_community(
-            name='北京社区',
+            name=TEST_CONSTANTS.generate_community_name("beijing"),
             description='北京',
             creator_id=user.user_id,
             location='北京市朝阳区',
@@ -205,7 +248,7 @@ class TestCommunityLocation:
         )
 
         community2 = CommunityService.create_community(
-            name='上海社区',
+            name=TEST_CONSTANTS.generate_community_name("shanghai"),
             description='上海',
             creator_id=user.user_id,
             location='上海市浦东新区',
