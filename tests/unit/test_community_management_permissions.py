@@ -16,6 +16,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from database.flask_models import User, Community, CommunityStaff
 from wxcloudrun.community_service import CommunityService
 from const_default import DEFAULT_COMMUNITY_NAME
+from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
 
 
 def generate_random_community_name():
@@ -28,10 +29,15 @@ class TestCommunityManagementPermissions:
 
     def test_get_manageable_communities_super_admin(self, test_session):
         """测试超级管理员获取可管理社区列表"""
+        test_context = "test_super_admin"
+
         # 创建超级管理员
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         super_admin = User(
-            wechat_openid="super_admin_openid",
-            nickname="超级管理员",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=4,  # 超级管理员
             status=1
         )
@@ -51,7 +57,7 @@ class TestCommunityManagementPermissions:
         test_session.commit()
 
         # 重新查询用户以避免DetachedInstanceError
-        super_admin = test_session.query(User).filter_by(wechat_openid="super_admin_openid").first()
+        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试超级管理员可以获取所有社区
         result_communities, total = CommunityService.get_manageable_communities(super_admin, page=1, per_page=7)
@@ -62,10 +68,15 @@ class TestCommunityManagementPermissions:
 
     def test_get_manageable_communities_community_manager(self, test_session):
         """测试社区主管获取可管理社区列表"""
+        test_context = "test_manager_1"
+
         # 创建社区主管
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         manager = User(
-            wechat_openid="manager_openid",
-            nickname="社区主管",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=3,  # 社区主管
             status=1
         )
@@ -96,7 +107,7 @@ class TestCommunityManagementPermissions:
         test_session.commit()
 
         # 重新查询用户以避免DetachedInstanceError
-        manager = test_session.query(User).filter_by(wechat_openid="manager_openid").first()
+        manager = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试主管只能获取自己管理的社区
         result_communities, total = CommunityService.get_manageable_communities(manager, page=1, per_page=7)
@@ -107,10 +118,15 @@ class TestCommunityManagementPermissions:
 
     def test_get_manageable_communities_community_staff(self, test_session):
         """测试社区专员获取可管理社区列表"""
+        test_context = "test_staff_1"
+
         # 创建社区专员
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         staff_user = User(
-            wechat_openid="staff_openid",
-            nickname="社区专员",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=2,  # 社区专员
             status=1
         )
@@ -141,7 +157,7 @@ class TestCommunityManagementPermissions:
         test_session.commit()
 
         # 重新查询用户以避免DetachedInstanceError
-        staff_user = test_session.query(User).filter_by(wechat_openid="staff_openid").first()
+        staff_user = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试专员只能获取自己工作的社区
         result_communities, total = CommunityService.get_manageable_communities(staff_user, page=1, per_page=7)
@@ -152,10 +168,15 @@ class TestCommunityManagementPermissions:
 
     def test_get_manageable_communities_no_permission(self, test_session):
         """测试普通用户获取可管理社区列表（无权限）"""
+        test_context = "test_normal_user"
+
         # 创建普通用户
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         normal_user = User(
-            wechat_openid="normal_openid",
-            nickname="普通用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=1,  # 普通用户
             status=1
         )
@@ -178,10 +199,15 @@ class TestCommunityManagementPermissions:
 
     def test_search_communities_with_permission_super_admin(self, test_session):
         """测试超级管理员搜索社区"""
+        test_context = "test_search_super_admin"
+
         # 创建超级管理员
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         super_admin = User(
-            wechat_openid="super_admin_openid",
-            nickname="超级管理员",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=4,
             status=1
         )
@@ -189,17 +215,17 @@ class TestCommunityManagementPermissions:
 
         # 创建包含特定关键词的社区
         community1 = Community(
-            name="北京朝阳社区",
+            name=f"{test_context}_北京朝阳社区",
             description="朝阳区社区",
             status=1
         )
         community2 = Community(
-            name="上海浦东社区",
+            name=f"{test_context}_上海浦东社区",
             description="浦东新区社区",
             status=1
         )
         community3 = Community(
-            name="广州天河社区",
+            name=f"{test_context}_广州天河社区",
             description="天河区社区",
             status=2  # 停用状态
         )
@@ -207,20 +233,25 @@ class TestCommunityManagementPermissions:
         test_session.add_all([community1, community2, community3])
         test_session.commit()
 
-        # 搜索"社区"关键词
-        results = CommunityService.search_communities_with_permission(super_admin, "社区")
+        # 使用test_context作为搜索关键词，确保只匹配当前测试创建的社区
+        results = CommunityService.search_communities_with_permission(super_admin, test_context)
 
         # 超级管理员应该能看到所有启用状态的社区
         assert len(results) == 2  # 只有2个启用状态的社区
-        assert any(comm.name == "北京朝阳社区" for comm in results)
-        assert any(comm.name == "上海浦东社区" for comm in results)
+        assert any(comm.name == f"{test_context}_北京朝阳社区" for comm in results)
+        assert any(comm.name == f"{test_context}_上海浦东社区" for comm in results)
 
     def test_search_communities_with_permission_community_manager(self, test_session):
         """测试社区主管搜索社区"""
+        test_context = "test_search_manager"
+
         # 创建社区主管
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         manager = User(
-            wechat_openid="manager_openid",
-            nickname="社区主管",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=3,
             status=1
         )
@@ -228,12 +259,12 @@ class TestCommunityManagementPermissions:
 
         # 创建多个社区
         community1 = Community(
-            name="北京朝阳社区",
+            name=f"{test_context}_北京朝阳社区",
             description="朝阳区社区",
             status=1
         )
         community2 = Community(
-            name="上海浦东社区",
+            name=f"{test_context}_上海浦东社区",
             description="浦东新区社区",
             status=1
         )
@@ -255,32 +286,52 @@ class TestCommunityManagementPermissions:
 
         # 主管只能看到自己管理的社区
         assert len(results) == 1
-        assert results[0].name == "北京朝阳社区"
+        assert results[0].name == f"{test_context}_北京朝阳社区"
 
     def test_can_access_community_permissions(self, test_session):
         """测试社区访问权限检查"""
-        # 创建不同角色的用户
+        test_context = "test_access_permissions"
+
+        # 创建超级管理员
+        phone_number_super = generate_unique_phone_number(f"{test_context}_super")
+        openid_super = generate_unique_openid(phone_number_super, f"{test_context}_super")
         super_admin = User(
-            wechat_openid="super_admin_openid",
-            nickname="超级管理员",
+            wechat_openid=openid_super,
+            nickname=generate_unique_nickname(f"{test_context}_super"),
+            phone_number=phone_number_super,
             role=4,
             status=1
         )
+
+        # 创建社区主管
+        phone_number_manager = generate_unique_phone_number(f"{test_context}_manager")
+        openid_manager = generate_unique_openid(phone_number_manager, f"{test_context}_manager")
         manager = User(
-            wechat_openid="manager_openid",
-            nickname="社区主管",
+            wechat_openid=openid_manager,
+            nickname=generate_unique_nickname(f"{test_context}_manager"),
+            phone_number=phone_number_manager,
             role=3,
             status=1
         )
+
+        # 创建社区专员
+        phone_number_staff = generate_unique_phone_number(f"{test_context}_staff")
+        openid_staff = generate_unique_openid(phone_number_staff, f"{test_context}_staff")
         staff = User(
-            wechat_openid="staff_openid",
-            nickname="社区专员",
+            wechat_openid=openid_staff,
+            nickname=generate_unique_nickname(f"{test_context}_staff"),
+            phone_number=phone_number_staff,
             role=2,
             status=1
         )
+
+        # 创建普通用户
+        phone_number_normal = generate_unique_phone_number(f"{test_context}_normal")
+        openid_normal = generate_unique_openid(phone_number_normal, f"{test_context}_normal")
         normal_user = User(
-            wechat_openid="normal_openid",
-            nickname="普通用户",
+            wechat_openid=openid_normal,
+            nickname=generate_unique_nickname(f"{test_context}_normal"),
+            phone_number=phone_number_normal,
             role=1,
             status=1
         )
@@ -319,28 +370,48 @@ class TestCommunityManagementPermissions:
 
     def test_can_manage_users_permissions(self, test_session):
         """测试用户管理权限检查"""
-        # 创建不同角色的用户
+        test_context = "test_manage_users_permissions"
+
+        # 创建超级管理员
+        phone_number_super = generate_unique_phone_number(f"{test_context}_super")
+        openid_super = generate_unique_openid(phone_number_super, f"{test_context}_super")
         super_admin = User(
-            wechat_openid="super_admin_openid",
-            nickname="超级管理员",
+            wechat_openid=openid_super,
+            nickname=generate_unique_nickname(f"{test_context}_super"),
+            phone_number=phone_number_super,
             role=4,
             status=1
         )
+
+        # 创建社区主管
+        phone_number_manager = generate_unique_phone_number(f"{test_context}_manager")
+        openid_manager = generate_unique_openid(phone_number_manager, f"{test_context}_manager")
         manager = User(
-            wechat_openid="manager_openid",
-            nickname="社区主管",
+            wechat_openid=openid_manager,
+            nickname=generate_unique_nickname(f"{test_context}_manager"),
+            phone_number=phone_number_manager,
             role=3,
             status=1
         )
+
+        # 创建社区专员
+        phone_number_staff = generate_unique_phone_number(f"{test_context}_staff")
+        openid_staff = generate_unique_openid(phone_number_staff, f"{test_context}_staff")
         staff = User(
-            wechat_openid="staff_openid",
-            nickname="社区专员",
+            wechat_openid=openid_staff,
+            nickname=generate_unique_nickname(f"{test_context}_staff"),
+            phone_number=phone_number_staff,
             role=2,
             status=1
         )
+
+        # 创建普通用户
+        phone_number_normal = generate_unique_phone_number(f"{test_context}_normal")
+        openid_normal = generate_unique_openid(phone_number_normal, f"{test_context}_normal")
         normal_user = User(
-            wechat_openid="normal_openid",
-            nickname="普通用户",
+            wechat_openid=openid_normal,
+            nickname=generate_unique_nickname(f"{test_context}_normal"),
+            phone_number=phone_number_normal,
             role=1,
             status=1
         )
@@ -379,28 +450,48 @@ class TestCommunityManagementPermissions:
 
     def test_can_manage_staff_permissions(self, test_session):
         """测试工作人员管理权限检查"""
-        # 创建不同角色的用户
+        test_context = "test_manage_staff_permissions"
+
+        # 创建超级管理员
+        phone_number_super = generate_unique_phone_number(f"{test_context}_super")
+        openid_super = generate_unique_openid(phone_number_super, f"{test_context}_super")
         super_admin = User(
-            wechat_openid="super_admin_openid",
-            nickname="超级管理员",
+            wechat_openid=openid_super,
+            nickname=generate_unique_nickname(f"{test_context}_super"),
+            phone_number=phone_number_super,
             role=4,
             status=1
         )
+
+        # 创建社区主管
+        phone_number_manager = generate_unique_phone_number(f"{test_context}_manager")
+        openid_manager = generate_unique_openid(phone_number_manager, f"{test_context}_manager")
         manager = User(
-            wechat_openid="manager_openid",
-            nickname="社区主管",
+            wechat_openid=openid_manager,
+            nickname=generate_unique_nickname(f"{test_context}_manager"),
+            phone_number=phone_number_manager,
             role=3,
             status=1
         )
+
+        # 创建社区专员
+        phone_number_staff = generate_unique_phone_number(f"{test_context}_staff")
+        openid_staff = generate_unique_openid(phone_number_staff, f"{test_context}_staff")
         staff = User(
-            wechat_openid="staff_openid",
-            nickname="社区专员",
+            wechat_openid=openid_staff,
+            nickname=generate_unique_nickname(f"{test_context}_staff"),
+            phone_number=phone_number_staff,
             role=2,
             status=1
         )
+
+        # 创建普通用户
+        phone_number_normal = generate_unique_phone_number(f"{test_context}_normal")
+        openid_normal = generate_unique_openid(phone_number_normal, f"{test_context}_normal")
         normal_user = User(
-            wechat_openid="normal_openid",
-            nickname="普通用户",
+            wechat_openid=openid_normal,
+            nickname=generate_unique_nickname(f"{test_context}_normal"),
+            phone_number=phone_number_normal,
             role=1,
             status=1
         )
@@ -439,22 +530,37 @@ class TestCommunityManagementPermissions:
 
     def test_is_community_manager_permissions(self, test_session):
         """测试社区主管身份检查"""
-        # 创建不同角色的用户
+        test_context = "test_is_manager_permissions"
+
+        # 创建超级管理员
+        phone_number_super = generate_unique_phone_number(f"{test_context}_super")
+        openid_super = generate_unique_openid(phone_number_super, f"{test_context}_super")
         super_admin = User(
-            wechat_openid="super_admin_openid",
-            nickname="超级管理员",
+            wechat_openid=openid_super,
+            nickname=generate_unique_nickname(f"{test_context}_super"),
+            phone_number=phone_number_super,
             role=4,
             status=1
         )
+
+        # 创建社区主管
+        phone_number_manager = generate_unique_phone_number(f"{test_context}_manager")
+        openid_manager = generate_unique_openid(phone_number_manager, f"{test_context}_manager")
         manager = User(
-            wechat_openid="manager_openid",
-            nickname="社区主管",
+            wechat_openid=openid_manager,
+            nickname=generate_unique_nickname(f"{test_context}_manager"),
+            phone_number=phone_number_manager,
             role=3,
             status=1
         )
+
+        # 创建社区专员
+        phone_number_staff = generate_unique_phone_number(f"{test_context}_staff")
+        openid_staff = generate_unique_openid(phone_number_staff, f"{test_context}_staff")
         staff = User(
-            wechat_openid="staff_openid",
-            nickname="社区专员",
+            wechat_openid=openid_staff,
+            nickname=generate_unique_nickname(f"{test_context}_staff"),
+            phone_number=phone_number_staff,
             role=2,
             status=1
         )
@@ -492,14 +598,19 @@ class TestCommunityManagementPermissions:
 
     def test_validate_ankafamily_rule_success(self, test_session):
         """测试安卡大家庭规则验证（成功情况）"""
-        # 创建安卡大家庭社区
-        ankafamily = Community(
-            name=DEFAULT_COMMUNITY_NAME,
-            description="默认社区",
-            is_default=True,
-            status=1
-        )
-        test_session.add(ankafamily)
+        test_context = "test_ankafamily_success"
+
+        # 检查安卡大家庭社区是否已存在，如果不存在则创建
+        ankafamily = test_session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
+        if not ankafamily:
+            ankafamily = Community(
+                name=DEFAULT_COMMUNITY_NAME,
+                description="默认社区",
+                is_default=True,
+                status=1
+            )
+            test_session.add(ankafamily)
+            test_session.flush()
 
         # 创建普通社区
         target_community = Community(
@@ -513,9 +624,12 @@ class TestCommunityManagementPermissions:
         test_session.flush()
 
         # 创建用户（在安卡大家庭）
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         user = User(
-            wechat_openid="user_openid",
-            nickname="测试用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=1,
             status=1,
             community_id=ankafamily.community_id
@@ -535,14 +649,19 @@ class TestCommunityManagementPermissions:
 
     def test_validate_ankafamily_rule_user_not_in_ankafamily(self, test_session):
         """测试安卡大家庭规则验证（用户不在安卡大家庭）"""
-        # 创建安卡大家庭社区
-        ankafamily = Community(
-            name=DEFAULT_COMMUNITY_NAME,
-            description="默认社区",
-            is_default=True,
-            status=1
-        )
-        test_session.add(ankafamily)
+        test_context = "test_ankafamily_not_in"
+
+        # 检查安卡大家庭社区是否已存在，如果不存在则创建
+        ankafamily = test_session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
+        if not ankafamily:
+            ankafamily = Community(
+                name=DEFAULT_COMMUNITY_NAME,
+                description="默认社区",
+                is_default=True,
+                status=1
+            )
+            test_session.add(ankafamily)
+            test_session.flush()
 
         # 创建普通社区
         other_community = Community(
@@ -560,9 +679,12 @@ class TestCommunityManagementPermissions:
         test_session.add(target_community)
 
         # 创建用户（在其他社区，不在安卡大家庭）
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         user = User(
-            wechat_openid="user_openid",
-            nickname="测试用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=1,
             status=1,
             community_id=other_community.community_id
@@ -583,22 +705,30 @@ class TestCommunityManagementPermissions:
 
     def test_validate_ankafamily_rule_target_is_ankafamily(self, test_session):
         """测试安卡大家庭规则验证（目标社区是安卡大家庭）"""
-        # 创建安卡大家庭社区
-        ankafamily = Community(
-            name=DEFAULT_COMMUNITY_NAME,
-            description="默认社区",
-            is_default=True,
-            status=1
-        )
-        test_session.add(ankafamily)
+        test_context = "test_ankafamily_target_is_ankafamily"
+
+        # 检查安卡大家庭社区是否已存在，如果不存在则创建
+        ankafamily = test_session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
+        if not ankafamily:
+            ankafamily = Community(
+                name=DEFAULT_COMMUNITY_NAME,
+                description="默认社区",
+                is_default=True,
+                status=1
+            )
+            test_session.add(ankafamily)
+            test_session.flush()
 
         # 先flush获取社区ID
         test_session.flush()
 
         # 创建用户（在安卡大家庭）
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         user = User(
-            wechat_openid="user_openid",
-            nickname="测试用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=1,
             status=1,
             community_id=ankafamily.community_id
@@ -619,6 +749,14 @@ class TestCommunityManagementPermissions:
 
     def test_validate_ankafamily_rule_ankafamily_not_exist(self, test_session):
         """测试安卡大家庭规则验证（安卡大家庭不存在）"""
+        test_context = "test_ankafamily_not_exist"
+
+        # 删除可能存在的安卡大家庭社区
+        existing_ankafamily = test_session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
+        if existing_ankafamily:
+            test_session.delete(existing_ankafamily)
+            test_session.flush()
+
         # 创建普通社区（不创建安卡大家庭）
         target_community = Community(
             name=generate_random_community_name(),
@@ -628,9 +766,12 @@ class TestCommunityManagementPermissions:
         test_session.add(target_community)
 
         # 创建用户
+        phone_number = generate_unique_phone_number(test_context)
+        openid = generate_unique_openid(phone_number, test_context)
         user = User(
-            wechat_openid="user_openid",
-            nickname="测试用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname(test_context),
+            phone_number=phone_number,
             role=1,
             status=1,
             community_id=1  # 任意社区ID
@@ -651,14 +792,17 @@ class TestCommunityManagementPermissions:
 
     def test_validate_ankafamily_rule_user_not_exist(self, test_session):
         """测试安卡大家庭规则验证（用户不存在）"""
-        # 创建安卡大家庭社区
-        ankafamily = Community(
-            name=DEFAULT_COMMUNITY_NAME,
-            description="默认社区",
-            is_default=True,
-            status=1
-        )
-        test_session.add(ankafamily)
+        # 检查安卡大家庭社区是否已存在，如果不存在则创建
+        ankafamily = test_session.query(Community).filter_by(name=DEFAULT_COMMUNITY_NAME).first()
+        if not ankafamily:
+            ankafamily = Community(
+                name=DEFAULT_COMMUNITY_NAME,
+                description="默认社区",
+                is_default=True,
+                status=1
+            )
+            test_session.add(ankafamily)
+            test_session.flush()
 
         # 创建普通社区
         target_community = Community(
