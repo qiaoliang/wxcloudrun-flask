@@ -3,9 +3,12 @@
 """
 import pytest
 from datetime import datetime
+from hashlib import sha256
 from database.flask_models import db, User, Community, CommunityApplication, CommunityCheckinRule, UserCommunityRule
 from wxcloudrun.community_service import CommunityService
 from wxcloudrun.community_staff_service import CommunityStaffService
+from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+from test_constants import TEST_CONSTANTS
 
 
 class TestCommunityRuleSync:
@@ -15,8 +18,8 @@ class TestCommunityRuleSync:
         """测试批准社区申请时同步规则"""
         # 创建测试社区
         community = Community(
-            name="测试社区",
-            description="测试社区描述",
+            name=TEST_CONSTANTS.generate_community_name("process_application"),
+            description=TEST_CONSTANTS.generate_community_description("process_application"),
             location="测试地点",
             status=1
         )
@@ -44,9 +47,15 @@ class TestCommunityRuleSync:
         test_session.commit()
 
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_process_application")
+        openid = generate_unique_openid(phone_number, "test_process_application")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            phone_number="13800138000",
-            nickname="测试用户",
+            phone_number=phone_number,
+            phone_hash=phone_hash,
+            nickname=generate_unique_nickname("test_process_application"),
+            wechat_openid=openid,
             role=0
         )
         test_session.add(user)
@@ -85,8 +94,8 @@ class TestCommunityRuleSync:
         """测试批量添加用户到社区时同步规则"""
         # 创建测试社区
         community = Community(
-            name="测试社区2",
-            description="测试社区描述2",
+            name=TEST_CONSTANTS.generate_community_name("add_users"),
+            description=TEST_CONSTANTS.generate_community_description("add_users"),
             location="测试地点2",
             status=1
         )
@@ -106,14 +115,27 @@ class TestCommunityRuleSync:
         test_session.commit()
 
         # 创建测试用户
+        phone_number1 = generate_unique_phone_number("test_add_users_1")
+        openid1 = generate_unique_openid(phone_number1, "test_add_users_1")
+        phone_hash1 = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number1}".encode('utf-8')).hexdigest()
+        
         user1 = User(
-            phone_number="13800138001",
-            nickname="测试用户1",
+            phone_number=phone_number1,
+            phone_hash=phone_hash1,
+            nickname=generate_unique_nickname("test_add_users_1"),
+            wechat_openid=openid1,
             role=0
         )
+        
+        phone_number2 = generate_unique_phone_number("test_add_users_2")
+        openid2 = generate_unique_openid(phone_number2, "test_add_users_2")
+        phone_hash2 = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number2}".encode('utf-8')).hexdigest()
+        
         user2 = User(
-            phone_number="13800138002",
-            nickname="测试用户2",
+            phone_number=phone_number2,
+            phone_hash=phone_hash2,
+            nickname=generate_unique_nickname("test_add_users_2"),
+            wechat_openid=openid2,
             role=0
         )
         test_session.add_all([user1, user2])
@@ -140,8 +162,8 @@ class TestCommunityRuleSync:
         """测试规则同步时处理已存在的映射"""
         # 创建测试社区
         community = Community(
-            name="测试社区3",
-            description="测试社区描述3",
+            name=TEST_CONSTANTS.generate_community_name("existing_mappings"),
+            description=TEST_CONSTANTS.generate_community_description("existing_mappings"),
             location="测试地点3",
             status=1
         )
@@ -161,9 +183,15 @@ class TestCommunityRuleSync:
         test_session.commit()
 
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_existing_mappings")
+        openid = generate_unique_openid(phone_number, "test_existing_mappings")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            phone_number="13800138003",
-            nickname="测试用户3",
+            phone_number=phone_number,
+            phone_hash=phone_hash,
+            nickname=generate_unique_nickname("test_existing_mappings"),
+            wechat_openid=openid,
             role=0
         )
         test_session.add(user)
@@ -199,8 +227,8 @@ class TestCommunityRuleSync:
         """测试只同步启用的规则"""
         # 创建测试社区
         community = Community(
-            name="测试社区4",
-            description="测试社区描述4",
+            name=TEST_CONSTANTS.generate_community_name("inactive_rules"),
+            description=TEST_CONSTANTS.generate_community_description("inactive_rules"),
             location="测试地点4",
             status=1
         )
@@ -230,9 +258,15 @@ class TestCommunityRuleSync:
         test_session.commit()
 
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_inactive_rules")
+        openid = generate_unique_openid(phone_number, "test_inactive_rules")
+        phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
+        
         user = User(
-            phone_number="13800138004",
-            nickname="测试用户4",
+            phone_number=phone_number,
+            phone_hash=phone_hash,
+            nickname=generate_unique_nickname("test_inactive_rules"),
+            wechat_openid=openid,
             role=0
         )
         test_session.add(user)

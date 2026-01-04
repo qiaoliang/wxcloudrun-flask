@@ -11,6 +11,8 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..
 sys.path.insert(0, project_root)
 
 from database.flask_models import User, Community, CommunityStaff
+from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+from test_constants import TEST_CONSTANTS
 
 
 class TestManagedCommunities:
@@ -19,9 +21,13 @@ class TestManagedCommunities:
     def test_user_as_manager_in_community(self, test_session):
         """测试用户作为社区主管"""
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_manager")
+        openid = generate_unique_openid(phone_number, "test_manager")
+        
         user = User(
-            wechat_openid="manager_user",
-            nickname="主管用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_manager"),
+            phone_number=phone_number,
             role=1
         )
         test_session.add(user)
@@ -29,8 +35,8 @@ class TestManagedCommunities:
 
         # 创建社区
         community = Community(
-            name="测试社区",
-            description="测试社区描述",
+            name=TEST_CONSTANTS.generate_community_name("manager"),
+            description=TEST_CONSTANTS.generate_community_description("manager"),
             creator_id=1
         )
         test_session.add(community)
@@ -54,14 +60,18 @@ class TestManagedCommunities:
         # 验证结果
         assert len(managed_communities) == 1
         assert managed_communities[0].community_id == community.community_id
-        assert managed_communities[0].name == "测试社区"
+        assert managed_communities[0].name == community.name
 
     def test_user_as_staff_in_community(self, test_session):
         """测试用户作为社区专员"""
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_staff")
+        openid = generate_unique_openid(phone_number, "test_staff")
+        
         user = User(
-            wechat_openid="staff_user",
-            nickname="专员用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_staff"),
+            phone_number=phone_number,
             role=1
         )
         test_session.add(user)
@@ -69,8 +79,8 @@ class TestManagedCommunities:
 
         # 创建社区
         community = Community(
-            name="专员社区",
-            description="专员社区描述",
+            name=TEST_CONSTANTS.generate_community_name("staff"),
+            description=TEST_CONSTANTS.generate_community_description("staff"),
             creator_id=1
         )
         test_session.add(community)
@@ -93,24 +103,24 @@ class TestManagedCommunities:
 
         # 验证结果
         assert len(managed_communities) == 1
-        assert managed_communities[0].name == "专员社区"
+        assert managed_communities[0].name == community.name
 
     def test_user_multiple_roles_in_different_communities(self, test_session):
         """测试用户在不同社区中有不同角色"""
 
         # 创建三个社区
         community1 = Community(
-            name="主管社区",
+            name=TEST_CONSTANTS.generate_community_name("manager_role"),
             description="用户是主管的社区",
             creator_id=1
         )
         community2 = Community(
-            name="专员社区",
+            name=TEST_CONSTANTS.generate_community_name("staff_role"),
             description="用户是专员的社区",
             creator_id=1
         )
         community3 = Community(
-            name="成员社区",
+            name=TEST_CONSTANTS.generate_community_name("member_role"),
             description="用户只是成员的社区",
             creator_id=1
         )
@@ -118,9 +128,13 @@ class TestManagedCommunities:
         test_session.flush()
 
         # 创建测试用户, 在第三个社区中是普通用户
+        phone_number = generate_unique_phone_number("test_multi_role")
+        openid = generate_unique_openid(phone_number, "test_multi_role")
+        
         user = User(
-            wechat_openid="multi_role_user",
-            nickname="多角色用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_multi_role"),
+            phone_number=phone_number,
             role=1,
             community_id=community3.community_id
         )
@@ -157,14 +171,14 @@ class TestManagedCommunities:
         assert len(managed_communities) == 2
 
         community_names = [c.name for c in managed_communities]
-        assert "主管社区" in community_names
-        assert "专员社区" in community_names
+        assert community1.name in community_names
+        assert community2.name in community_names
 
     def test_get_user_role_in_community(self, test_session):
         """测试获取用户在特定社区中的角色"""
         # 创建社区
         community = Community(
-            name="角色测试社区",
+            name=TEST_CONSTANTS.generate_community_name("role_test"),
             description="用于测试角色的社区",
             creator_id=1
         )
@@ -172,9 +186,13 @@ class TestManagedCommunities:
         test_session.flush()
 
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_role")
+        openid = generate_unique_openid(phone_number, "test_role")
+        
         user = User(
-            wechat_openid="role_test_user",
-            nickname="角色测试用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_role"),
+            phone_number=phone_number,
             role=1,
             community_id=community.community_id
         )
@@ -204,9 +222,13 @@ class TestManagedCommunities:
     def test_inactive_communities_not_in_managed_list(self, test_session):
         """测试停用的社区不在管理列表中"""
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_inactive")
+        openid = generate_unique_openid(phone_number, "test_inactive")
+        
         user = User(
-            wechat_openid="inactive_test_user",
-            nickname="停用测试用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_inactive"),
+            phone_number=phone_number,
             role=1
         )
         test_session.add(user)
@@ -214,13 +236,13 @@ class TestManagedCommunities:
 
         # 创建两个社区：一个活跃，一个停用
         active_community = Community(
-            name="活跃社区",
+            name=TEST_CONSTANTS.generate_community_name("active"),
             description="活跃的社区",
             creator_id=1,
             status=1  # 活跃
         )
         inactive_community = Community(
-            name="停用社区",
+            name=TEST_CONSTANTS.generate_community_name("inactive"),
             description="已停用的社区",
             creator_id=1,
             status=0  # 停用
@@ -250,22 +272,27 @@ class TestManagedCommunities:
 
         # 验证只返回活跃社区
         assert len(managed_communities) == 1
-        assert managed_communities[0].name == "活跃社区"
+        assert managed_communities[0].name == active_community.name
 
     def test_user_with_no_managed_communities(self, test_session):
         """测试用户没有管理任何社区"""
         # 创建社区
         community = Community(
-            name="测试社区",
-            description="测试社区描述",
+            name=TEST_CONSTANTS.generate_community_name("no_manage"),
+            description=TEST_CONSTANTS.generate_community_description("no_manage"),
             creator_id=1
         )
         test_session.add(community)
         test_session.flush()
+        
         # 创建测试用户
+        phone_number = generate_unique_phone_number("test_no_manage")
+        openid = generate_unique_openid(phone_number, "test_no_manage")
+        
         user = User(
-            wechat_openid="no_manage_user",
-            nickname="无管理权限用户",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_no_manage"),
+            phone_number=phone_number,
             role=1,
             community_id=community.community_id
         )

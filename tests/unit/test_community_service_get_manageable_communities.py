@@ -16,6 +16,8 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 from database.flask_models import User, Community, CommunityStaff
 from wxcloudrun.community_service import CommunityService
 from const_default import DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID, DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME
+from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+from test_constants import TEST_CONSTANTS
 
 # 导入测试工具
 from community_test_utils import (
@@ -39,9 +41,13 @@ class TestGetManageableCommunitiesSpecialLogic:
         验证安卡大家庭和黑屋社区始终包含在结果中
         """
         # 创建超级管理员
+        phone_number = generate_unique_phone_number("test_super_admin_1")
+        openid = generate_unique_openid(phone_number, "test_super_admin_1")
+        
         super_admin = User(
-            wechat_openid="super_admin_openid",
-            nickname="超级管理员",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_super_admin_1"),
+            phone_number=phone_number,
             role=4,  # 超级管理员
             status=1
         )
@@ -63,7 +69,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         test_session.commit()
 
         # 重新查询用户以避免DetachedInstanceError
-        super_admin = test_session.query(User).filter_by(wechat_openid="super_admin_openid").first()
+        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试获取可管理社区列表
         result_communities, total = CommunityService.get_manageable_communities(super_admin, page=1, per_page=10)
@@ -95,9 +101,13 @@ class TestGetManageableCommunitiesSpecialLogic:
         验证只有启用状态的特殊社区才会被包含
         """
         # 创建超级管理员
+        phone_number = generate_unique_phone_number("test_super_admin_2")
+        openid = generate_unique_openid(phone_number, "test_super_admin_2")
+        
         super_admin = User(
-            wechat_openid="super_admin_openid_2",
-            nickname="超级管理员2",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_super_admin_2"),
+            phone_number=phone_number,
             role=4,
             status=1
         )
@@ -115,7 +125,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         test_session.commit()
 
         # 重新查询用户
-        super_admin = test_session.query(User).filter_by(wechat_openid="super_admin_openid_2").first()
+        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试获取可管理社区列表
         result_communities, total = CommunityService.get_manageable_communities(super_admin, page=1, per_page=10)
@@ -144,9 +154,13 @@ class TestGetManageableCommunitiesSpecialLogic:
         验证特殊社区在分页结果中的正确处理
         """
         # 创建超级管理员
+        phone_number = generate_unique_phone_number("test_super_admin_3")
+        openid = generate_unique_openid(phone_number, "test_super_admin_3")
+        
         super_admin = User(
-            wechat_openid="super_admin_openid_3",
-            nickname="超级管理员3",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_super_admin_3"),
+            phone_number=phone_number,
             role=4,
             status=1
         )
@@ -168,7 +182,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         test_session.commit()
 
         # 重新查询用户
-        super_admin = test_session.query(User).filter_by(wechat_openid="super_admin_openid_3").first()
+        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试第一页（per_page=5）
         result_communities_page1, total = CommunityService.get_manageable_communities(
@@ -209,9 +223,13 @@ class TestGetManageableCommunitiesSpecialLogic:
         验证只有超级管理员才会自动包含特殊社区
         """
         # 创建社区主管
+        phone_number = generate_unique_phone_number("test_manager")
+        openid = generate_unique_openid(phone_number, "test_manager")
+        
         manager = User(
-            wechat_openid="manager_openid",
-            nickname="社区主管",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_manager"),
+            phone_number=phone_number,
             role=3,  # 社区主管
             status=1
         )
@@ -234,7 +252,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         test_session.commit()
 
         # 重新查询用户
-        manager = test_session.query(User).filter_by(wechat_openid="manager_openid").first()
+        manager = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试获取可管理社区列表
         result_communities, total = CommunityService.get_manageable_communities(manager, page=1, per_page=10)
@@ -257,9 +275,13 @@ class TestGetManageableCommunitiesSpecialLogic:
         验证普通工作人员的权限限制
         """
         # 创建社区专员
+        phone_number = generate_unique_phone_number("test_staff")
+        openid = generate_unique_openid(phone_number, "test_staff")
+        
         staff_user = User(
-            wechat_openid="staff_openid",
-            nickname="社区专员",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_staff"),
+            phone_number=phone_number,
             role=2,  # 社区专员
             status=1
         )
@@ -290,7 +312,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         test_session.commit()
 
         # 重新查询用户
-        staff_user = test_session.query(User).filter_by(wechat_openid="staff_openid").first()
+        staff_user = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试获取可管理社区列表
         result_communities, total = CommunityService.get_manageable_communities(staff_user, page=1, per_page=10)
@@ -315,9 +337,13 @@ class TestGetManageableCommunitiesSpecialLogic:
         验证空结果的处理
         """
         # 创建社区主管但没有分配任何社区
+        phone_number = generate_unique_phone_number("test_manager_no_assign")
+        openid = generate_unique_openid(phone_number, "test_manager_no_assign")
+        
         manager = User(
-            wechat_openid="manager_openid_2",
-            nickname="社区主管2",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_manager_no_assign"),
+            phone_number=phone_number,
             role=3,
             status=1
         )
@@ -329,7 +355,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         test_session.commit()
 
         # 重新查询用户
-        manager = test_session.query(User).filter_by(wechat_openid="manager_openid_2").first()
+        manager = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试获取可管理社区列表
         result_communities, total = CommunityService.get_manageable_communities(manager, page=1, per_page=10)
@@ -344,9 +370,13 @@ class TestGetManageableCommunitiesSpecialLogic:
         验证按创建时间倒序排列的逻辑
         """
         # 创建超级管理员
+        phone_number = generate_unique_phone_number("test_super_admin_sort")
+        openid = generate_unique_openid(phone_number, "test_super_admin_sort")
+        
         super_admin = User(
-            wechat_openid="super_admin_openid_4",
-            nickname="超级管理员4",
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_super_admin_sort"),
+            phone_number=phone_number,
             role=4,
             status=1
         )
@@ -364,7 +394,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         test_session.commit()
 
         # 重新查询用户
-        super_admin = test_session.query(User).filter_by(wechat_openid="super_admin_openid_4").first()
+        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
 
         # 测试获取可管理社区列表
         result_communities, total = CommunityService.get_manageable_communities(super_admin, page=1, per_page=10)
