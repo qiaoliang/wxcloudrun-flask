@@ -115,6 +115,12 @@ class UserService:
             existing_user.password_salt = user.password_salt
         existing_user.updated_at = user.updated_at or datetime.now()
 
+        # 刷新到数据库，但不提交（由调用方决定是否提交）
+        db.session.flush()
+
+        # 刷新传入的user对象的属性，使其与数据库同步
+        db.session.refresh(user)
+
     @staticmethod
     def query_user_by_openid(openid):
         """
