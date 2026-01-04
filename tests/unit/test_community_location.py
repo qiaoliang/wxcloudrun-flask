@@ -5,8 +5,8 @@ import pytest
 from datetime import datetime
 from sqlalchemy import select
 
-from src.database.flask_models import Community, User
-from src.wxcloudrun.community_service import CommunityService
+from database.flask_models import Community, User
+from wxcloudrun.community_service import CommunityService
 
 
 class TestCommunityLocation:
@@ -17,7 +17,7 @@ class TestCommunityLocation:
         # 创建测试用户
         user = User(
             nickname='test_user',
-            phone='13800138000',
+            phone_number='13800138000',
             role=2,  # 普通用户
             status=1
         )
@@ -53,7 +53,7 @@ class TestCommunityLocation:
         # 创建测试用户
         user = User(
             nickname='test_user',
-            phone='13800138001',
+            phone_number='13800138001',
             role=2,
             status=1
         )
@@ -82,7 +82,7 @@ class TestCommunityLocation:
         # 创建测试用户和社区
         user = User(
             nickname='test_user',
-            phone='13800138002',
+            phone_number='13800138002',
             role=2,
             status=1
         )
@@ -121,7 +121,7 @@ class TestCommunityLocation:
         # 创建测试用户和社区
         user = User(
             nickname='test_user',
-            phone='13800138003',
+            phone_number='13800138003',
             role=2,
             status=1
         )
@@ -158,7 +158,7 @@ class TestCommunityLocation:
         # 创建测试用户
         user = User(
             nickname='test_user',
-            phone='13800138004',
+            phone_number='13800138004',
             role=2,
             status=1
         )
@@ -186,7 +186,7 @@ class TestCommunityLocation:
         # 创建测试用户
         user = User(
             nickname='test_user',
-            phone='13800138005',
+            phone_number='13800138005',
             role=2,
             status=1
         )

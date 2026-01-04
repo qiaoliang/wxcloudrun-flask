@@ -15,7 +15,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 # 导入Flask-SQLAlchemy相关模块
 from flask import Flask
-from database.flask_models import db, User, Community, CheckinRule, CheckinRecord, UserAuditLog
+from app.extensions import db
+
+# 延迟导入模型类，避免在模块级别导入导致表重复定义
+# 模型类将在需要时通过函数动态导入
 
 # 添加上级目录到路径以导入test_data_generator
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
@@ -44,6 +47,9 @@ def test_session(test_app):
 @pytest.fixture(scope='function')
 def test_user(test_session):
     """创建测试用户"""
+    # 延迟导入模型类，避免在模块级别导入导致表重复定义
+    from database.flask_models import User
+    
     phone_number = generate_unique_phone_number("test_user")
     user = User(
         wechat_openid=generate_unique_openid(phone_number, "test_user"),
@@ -63,6 +69,9 @@ def test_user(test_session):
 @pytest.fixture(scope='function')
 def test_rule(test_session, test_user):
     """创建测试打卡规则"""
+    # 延迟导入模型类，避免在模块级别导入导致表重复定义
+    from database.flask_models import Community, CheckinRule
+    
     # 先创建一个默认社区
     community = Community(
         name="默认测试社区",
@@ -86,6 +95,9 @@ def test_rule(test_session, test_user):
 @pytest.fixture(scope='function')
 def test_community(test_session):
     """创建测试社区"""
+    # 延迟导入模型类，避免在模块级别导入导致表重复定义
+    from database.flask_models import Community
+    
     community = Community(
         name=f"community_test_{datetime.now().strftime('%Y%m%d_%H%M%S')}",
         description="单元测试社区",
@@ -99,6 +111,9 @@ def test_community(test_session):
 @pytest.fixture(scope='function')
 def test_superuser(test_session):
     """创建测试超级用户"""
+    # 延迟导入模型类，避免在模块级别导入导致表重复定义
+    from database.flask_models import User
+    
     phone_number = generate_unique_phone_number("test_superuser")
     user = User(
         wechat_openid=generate_unique_openid(phone_number, "test_superuser"),
@@ -122,11 +137,12 @@ from test_utils import create_test_user, create_test_community
 
 # 为了向后兼容，保留原有的test_app fixture
 # 但它现在只提供最小的Flask应用，不包含数据库
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def test_app():
     """
     提供Flask应用上下文和数据库
     支持Flask-SQLAlchemy架构
+    使用 scope='session' 避免重复初始化 db 和创建表
     """
     app = Flask(__name__)
     app.config['TESTING'] = True
