@@ -76,11 +76,16 @@ class UserService:
         根据ID更新用户信息
         :param user: User实体
         """
+        logger.info(f"update_user_by_id: 开始更新用户 user_id={user.user_id}, community_id={user.community_id}")
+
         # 在数据库中查找现有用户
         stmt = select(User).where(User.user_id == user.user_id)
         existing_user = db.session.execute(stmt).scalar_one_or_none()
         if not existing_user:
+            logger.warning(f"update_user_by_id: 未找到用户 user_id={user.user_id}")
             return
+
+        logger.info(f"update_user_by_id: existing_user community_id={existing_user.community_id}")
 
         # 更新字段
         if user.nickname is not None:
@@ -102,6 +107,7 @@ class UserService:
             existing_user.verification_materials = user.verification_materials
         if user.community_id is not None:
             existing_user.community_id = user.community_id
+            logger.info(f"update_user_by_id: 更新 community_id={user.community_id}")
         if user.status is not None:
             if isinstance(user.status, int):
                 existing_user.status = user.status
@@ -120,6 +126,8 @@ class UserService:
 
         # 刷新传入的user对象的属性，使其与数据库同步
         db.session.refresh(user)
+
+        logger.info(f"update_user_by_id: 完成更新 user community_id={user.community_id}")
 
     @staticmethod
     def query_user_by_openid(openid):
@@ -150,6 +158,8 @@ class UserService:
                 User.phone_hash == phone_hash
             )
             user = db.session.execute(stmt).scalar_one_or_none()
+            if user:
+                logger.info(f"query_user_by_phone_hash: user_id={user.user_id}, community_id={user.community_id}, phone_number={user.phone_number}")
             return user
         except OperationalError as e:
             logger.info(f"query_user_by_phone_hash errorMsg= {e}")
