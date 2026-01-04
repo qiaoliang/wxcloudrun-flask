@@ -1063,72 +1063,68 @@ class CommunityService:
         }
 
     @staticmethod
+    @staticmethod
+    def _is_super_admin(user):
+        """检查用户是否是超级管理员"""
+        return user.role == 4
+
+    @staticmethod
+    def _get_user_community_ids(user):
+        """获取用户可管理的社区 ID 列表"""
+        from database.flask_models import CommunityStaff
+        
+        if CommunityService._is_super_admin(user):
+            return None  # 超级管理员可以访问所有社区
+        
+        stmt = select(CommunityStaff.community_id).where(
+            CommunityStaff.user_id == user.user_id,
+            CommunityStaff.removed_at.is_(None)
+        )
+        return [row[0] for row in db.session.execute(stmt).all()]
+
+    @staticmethod
     def get_manageable_communities(user, page=1, per_page=7):
         """获取用户可管理的社区列表"""
         from database.flask_models import CommunityStaff
         from const_default import DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID
-
-        if user.role == 4:  # 超级管理员
-            stmt = select(Community).where(Community.status == 1)  # 只显示启用状态
-
-            # 确保特殊社区（安卡大家庭和黑屋）包含在结果中
-            # 获取特殊社区
-            stmt_special = select(Community).where(
+        
+        community_ids = CommunityService._get_user_community_ids(user)
+        
+        if CommunityService._is_super_admin(user):
+            # 超级管理员：查询所有启用状态的社区（包括特殊社区）
+            # 使用 UNION 查询确保特殊社区始终包含在结果中
+            stmt_special = select(Community.community_id).where(
                 Community.community_id.in_([DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID]),
                 Community.status == 1
             )
-            special_communities = db.session.execute(stmt_special).scalars().all()
-
-            # 获取特殊社区ID列表
-            special_community_ids = [c.community_id for c in special_communities]
-
-            # 如果特殊社区没有被包含在正常查询中，需要确保它们出现在结果中
-            all_communities = db.session.execute(stmt).scalars().all()
-            existing_ids = [c.community_id for c in all_communities]
-
-            # 添加缺失的特殊社区
-            for special_community in special_communities:
-                if special_community.community_id not in existing_ids:
-                    all_communities.append(special_community)
-
-            # 按创建时间排序
-            all_communities.sort(key=lambda x: x.created_at, reverse=True)
-
-            # 手动分页
-            total = len(all_communities)
-            offset = (page - 1) * per_page
-            communities = all_communities[offset:offset + per_page]
-
-            return communities, total
-        else:
-            # 获取用户作为工作人员的社区
-            stmt_staff = select(CommunityStaff).where(
-                CommunityStaff.user_id == user.user_id,
-                CommunityStaff.removed_at.is_(None)
+            
+            stmt_normal = select(Community.community_id).where(Community.status == 1)
+            
+            # 使用 UNION 合并查询，然后去重
+            stmt_union = stmt_special.union(stmt_normal)
+            
+            stmt = select(Community).where(
+                Community.community_id.in_(stmt_union)
             )
-            staff_communities = db.session.execute(stmt_staff).scalars().all()
-            community_ids = [sc.community_id for sc in staff_communities]
-
+        else:
+            # 普通用户：只查询有权限的社区
             if not community_ids:
                 return [], 0
-
+            
             stmt = select(Community).where(
-                Community.community_id.in_(community_ids),
-                Community.status == 1  # 启用状态
-            )
-
-            # 分页查询
-            stmt_count = select(func.count()).select_from(Community).where(
                 Community.community_id.in_(community_ids),
                 Community.status == 1
             )
-            total = db.session.execute(stmt_count).scalar()
-
-            offset = (page - 1) * per_page
-            stmt = stmt.order_by(Community.created_at.desc()).offset(offset).limit(per_page)
-            communities = db.session.execute(stmt).scalars().all()
-
-            return communities, total
+        
+        # 统一的分页和排序逻辑
+        stmt_count = select(func.count()).select_from(stmt.subquery())
+        total = db.session.execute(stmt_count).scalar()
+        
+        offset = (page - 1) * per_page
+        stmt = stmt.order_by(Community.created_at.desc()).offset(offset).limit(per_page)
+        communities = db.session.execute(stmt).scalars().all()
+        
+        return communities, total
 
     @staticmethod
     def search_communities_with_permission(user, keyword):
