@@ -1,3 +1,4 @@
+pytest-coverage-impact/
 src/data/*.db
 src/alembic/versions/
 debug/
