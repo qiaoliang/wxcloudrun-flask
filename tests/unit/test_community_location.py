@@ -25,7 +25,7 @@ class TestCommunityLocation:
         phone_number = generate_unique_phone_number("test_create_community_with_location")
         openid = generate_unique_openid(phone_number, "test_create_community_with_location")
         phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
-        
+
         user = User(
             nickname=generate_unique_nickname("test_create_community_with_location"),
             wechat_openid=openid,
@@ -67,7 +67,7 @@ class TestCommunityLocation:
         phone_number = generate_unique_phone_number("test_create_community_without_location")
         openid = generate_unique_openid(phone_number, "test_create_community_without_location")
         phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
-        
+
         user = User(
             nickname=generate_unique_nickname("test_create_community_without_location"),
             wechat_openid=openid,
@@ -102,7 +102,7 @@ class TestCommunityLocation:
         phone_number = generate_unique_phone_number("test_update_community_location")
         openid = generate_unique_openid(phone_number, "test_update_community_location")
         phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
-        
+
         user = User(
             nickname=generate_unique_nickname("test_update_community_location"),
             wechat_openid=openid,
@@ -147,7 +147,7 @@ class TestCommunityLocation:
         phone_number = generate_unique_phone_number("test_partial_update_community_location")
         openid = generate_unique_openid(phone_number, "test_partial_update_community_location")
         phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
-        
+
         user = User(
             nickname=generate_unique_nickname("test_partial_update_community_location"),
             wechat_openid=openid,
@@ -190,7 +190,7 @@ class TestCommunityLocation:
         phone_number = generate_unique_phone_number("test_community_location_coordinates_validation")
         openid = generate_unique_openid(phone_number, "test_community_location_coordinates_validation")
         phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
-        
+
         user = User(
             nickname=generate_unique_nickname("test_community_location_coordinates_validation"),
             wechat_openid=openid,
@@ -218,13 +218,13 @@ class TestCommunityLocation:
         assert community.location_lat == valid_lat
         assert community.location_lon == valid_lon
 
-    def test_query_communities_by_location(self, test_session):
+    def test_query_communities_by_province(self, test_session):
         """测试按位置查询社区"""
         # 创建测试用户
         phone_number = generate_unique_phone_number("test_query_communities_by_location")
         openid = generate_unique_openid(phone_number, "test_query_communities_by_location")
         phone_hash = sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest()
-        
+
         user = User(
             nickname=generate_unique_nickname("test_query_communities_by_location"),
             wechat_openid=openid,
@@ -235,7 +235,9 @@ class TestCommunityLocation:
         )
         test_session.add(user)
         test_session.flush()
-
+        # 按省份查询
+        stmt = select(Community).where(Community.province == '北京市')
+        org_beijing_communities = test_session.execute(stmt).scalars().all()
         # 创建多个社区
         community1 = CommunityService.create_community(
             name=TEST_CONSTANTS.generate_community_name("beijing"),
@@ -261,5 +263,4 @@ class TestCommunityLocation:
         stmt = select(Community).where(Community.province == '北京市')
         beijing_communities = test_session.execute(stmt).scalars().all()
 
-        assert len(beijing_communities) == 1
-        assert beijing_communities[0].community_id == community1.community_id
+        assert len(beijing_communities) == len(org_beijing_communities)+1

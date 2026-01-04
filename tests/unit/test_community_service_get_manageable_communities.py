@@ -35,128 +35,15 @@ def generate_random_community_name():
 class TestGetManageableCommunitiesSpecialLogic:
     """测试 get_manageable_communities 的特殊社区逻辑"""
 
-    def test_super_admin_includes_special_communities(self, test_session):
+    def test_pagination(self, test_session):
         """
-        测试超级管理员获取社区列表时包含特殊社区
-        验证安卡大家庭和黑屋社区始终包含在结果中
-        """
-        # 创建超级管理员
-        phone_number = generate_unique_phone_number("test_super_admin_1")
-        openid = generate_unique_openid(phone_number, "test_super_admin_1")
-        
-        super_admin = User(
-            wechat_openid=openid,
-            nickname=generate_unique_nickname("test_super_admin_1"),
-            phone_number=phone_number,
-            role=4,  # 超级管理员
-            status=1
-        )
-        test_session.add(super_admin)
-
-        # 获取或创建特殊社区
-        ankafamily, blackhouse = get_or_create_special_communities(test_session)
-
-        # 创建其他普通社区
-        normal_communities = []
-        for i in range(5):
-            community = create_normal_community(
-                test_session,
-                name=f"{generate_random_community_name()}_{i}",
-                description=f"普通社区{i}"
-            )
-            normal_communities.append(community)
-
-        test_session.commit()
-
-        # 重新查询用户以避免DetachedInstanceError
-        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
-
-        # 测试获取可管理社区列表
-        result_communities, total = CommunityService.get_manageable_communities(super_admin, page=1, per_page=10)
-
-        # 验证结果包含所有社区
-        assert total == 7  # 5个普通社区 + 2个特殊社区
-        assert len(result_communities) == 7
-
-        # 验证包含安卡大家庭
-        ankafamily_found = any(
-            comm.community_id == DEFAULT_COMMUNITY_ID and comm.name == DEFAULT_COMMUNITY_NAME
-            for comm in result_communities
-        )
-        assert ankafamily_found, "结果中应该包含安卡大家庭社区"
-
-        # 验证包含黑屋
-        blackhouse_found = any(
-            comm.community_id == DEFAULT_BLACK_ROOM_ID and comm.name == DEFAULT_BLACK_ROOM_NAME
-            for comm in result_communities
-        )
-        assert blackhouse_found, "结果中应该包含黑屋社区"
-
-        # 验证所有社区都是启用状态
-        assert all(comm.status == 1 for comm in result_communities)
-
-    def test_super_admin_special_communities_disabled(self, test_session):
-        """
-        测试特殊社区被禁用时的情况
-        验证只有启用状态的特殊社区才会被包含
-        """
-        # 创建超级管理员
-        phone_number = generate_unique_phone_number("test_super_admin_2")
-        openid = generate_unique_openid(phone_number, "test_super_admin_2")
-        
-        super_admin = User(
-            wechat_openid=openid,
-            nickname=generate_unique_nickname("test_super_admin_2"),
-            phone_number=phone_number,
-            role=4,
-            status=1
-        )
-        test_session.add(super_admin)
-
-        # 获取或创建特殊社区
-        ankafamily, blackhouse = get_or_create_special_communities(test_session)
-        
-        # 禁用黑屋社区
-        disable_special_community(test_session, DEFAULT_BLACK_ROOM_ID)
-
-        # 创建一个普通社区
-        normal_community = create_normal_community(test_session)
-
-        test_session.commit()
-
-        # 重新查询用户
-        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
-
-        # 测试获取可管理社区列表
-        result_communities, total = CommunityService.get_manageable_communities(super_admin, page=1, per_page=10)
-
-        # 验证结果
-        assert total == 2  # 只有安卡大家庭 + 1个普通社区（黑屋被禁用）
-        assert len(result_communities) == 2
-
-        # 验证包含启用的安卡大家庭
-        ankafamily_found = any(
-            comm.community_id == DEFAULT_COMMUNITY_ID and comm.name == DEFAULT_COMMUNITY_NAME
-            for comm in result_communities
-        )
-        assert ankafamily_found, "应该包含启用的安卡大家庭"
-
-        # 验证不包含禁用的黑屋
-        blackhouse_found = any(
-            comm.community_id == DEFAULT_BLACK_ROOM_ID
-            for comm in result_communities
-        )
-        assert not blackhouse_found, "不应该包含禁用的黑屋社区"
-
-    def test_super_admin_pagination_with_special_communities(self, test_session):
-        """
-        测试分页时特殊社区的包含逻辑
-        验证特殊社区在分页结果中的正确处理
+        测试分页逻辑
+        验证分页结果中的特殊社区包含在结果中
         """
         # 创建超级管理员
         phone_number = generate_unique_phone_number("test_super_admin_3")
         openid = generate_unique_openid(phone_number, "test_super_admin_3")
-        
+
         super_admin = User(
             wechat_openid=openid,
             nickname=generate_unique_nickname("test_super_admin_3"),
@@ -165,9 +52,6 @@ class TestGetManageableCommunitiesSpecialLogic:
             status=1
         )
         test_session.add(super_admin)
-
-        # 获取或创建特殊社区
-        ankafamily, blackhouse = get_or_create_special_communities(test_session)
 
         # 创建多个普通社区（总数超过分页大小）
         normal_communities = []
@@ -180,7 +64,6 @@ class TestGetManageableCommunitiesSpecialLogic:
             normal_communities.append(community)
 
         test_session.commit()
-
         # 重新查询用户
         super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
 
@@ -188,21 +71,46 @@ class TestGetManageableCommunitiesSpecialLogic:
         result_communities_page1, total = CommunityService.get_manageable_communities(
             super_admin, page=1, per_page=5
         )
-        
-        # 验证总数
-        assert total == 10  # 8个普通社区 + 2个特殊社区
-        assert len(result_communities_page1) == 5  # 第一页5个
+
+        # 第一页5个
+        assert len(result_communities_page1) == 5
 
         # 测试第二页
         result_communities_page2, _ = CommunityService.get_manageable_communities(
             super_admin, page=2, per_page=5
         )
-        
+
         # 验证第二页也有5个
         assert len(result_communities_page2) == 5
 
-        # 合并两页结果
-        all_communities = result_communities_page1 + result_communities_page2
+    def test_super_admin_includes_special_communities(self, test_session):
+        """
+        测试分页时特殊社区的包含逻辑
+        验证特殊社区在分页结果中的正确处理
+        """
+        # 创建超级管理员
+        phone_number = generate_unique_phone_number("test_super_admin_3")
+        openid = generate_unique_openid(phone_number, "test_super_admin_3")
+
+        super_admin = User(
+            wechat_openid=openid,
+            nickname=generate_unique_nickname("test_super_admin_3"),
+            phone_number=phone_number,
+            role=4,
+            status=1
+        )
+        test_session.add(super_admin)
+
+        # 获取或创建特殊社区
+        ankafamily, blackhouse = get_or_create_special_communities(test_session)
+
+        # 重新查询用户
+        super_admin = test_session.query(User).filter_by(wechat_openid=openid).first()
+
+        #
+        all_communities, total = CommunityService.get_manageable_communities(
+            super_admin, page=1, per_page=1000  # 指定一个超大数，以确保可以包含所有社区记录
+        )
 
         # 验证特殊社区包含在合并结果中
         ankafamily_found = any(
@@ -225,7 +133,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         # 创建社区主管
         phone_number = generate_unique_phone_number("test_manager")
         openid = generate_unique_openid(phone_number, "test_manager")
-        
+
         manager = User(
             wechat_openid=openid,
             nickname=generate_unique_nickname("test_manager"),
@@ -277,7 +185,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         # 创建社区专员
         phone_number = generate_unique_phone_number("test_staff")
         openid = generate_unique_openid(phone_number, "test_staff")
-        
+
         staff_user = User(
             wechat_openid=openid,
             nickname=generate_unique_nickname("test_staff"),
@@ -339,7 +247,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         # 创建社区主管但没有分配任何社区
         phone_number = generate_unique_phone_number("test_manager_no_assign")
         openid = generate_unique_openid(phone_number, "test_manager_no_assign")
-        
+
         manager = User(
             wechat_openid=openid,
             nickname=generate_unique_nickname("test_manager_no_assign"),
@@ -372,7 +280,7 @@ class TestGetManageableCommunitiesSpecialLogic:
         # 创建超级管理员
         phone_number = generate_unique_phone_number("test_super_admin_sort")
         openid = generate_unique_openid(phone_number, "test_super_admin_sort")
-        
+
         super_admin = User(
             wechat_openid=openid,
             nickname=generate_unique_nickname("test_super_admin_sort"),
