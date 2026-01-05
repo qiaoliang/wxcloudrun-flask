@@ -124,9 +124,6 @@ class UserService:
         # 刷新到数据库，但不提交（由调用方决定是否提交）
         db.session.flush()
 
-        # 刷新传入的user对象的属性，使其与数据库同步
-        db.session.refresh(user)
-
         logger.info(f"update_user_by_id: 完成更新 user community_id={user.community_id}")
 
     @staticmethod
