@@ -194,9 +194,9 @@ def add_staff_response(decoded, event_id):
         media_url = data.get('media_url')
         message_tags = data.get('message_tags', [])
 
-        # 至少要有文字内容或媒体文件
-        if not content.strip() and not media_url:
-            return make_err_response('请至少提供文字内容或媒体文件')
+        # 至少要有文字内容、媒体文件或快捷指令
+        if not content.strip() and not media_url and not message_tags:
+            return make_err_response('请至少提供文字内容、媒体文件或快捷指令')
 
         result = CommunityEventService.add_staff_response(
             event_id=event_id,
