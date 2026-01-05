@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from sqlalchemy import select, func
 
-from database.flask_models import db, CommunityEvent, EventSupport, User, Community
+from database.flask_models import db, CommunityEvent, EventMessage, User, Community
 from wxcloudrun.community_service import CommunityService
 from app.shared.utils.transaction import transactional, transaction
 
@@ -161,20 +161,20 @@ class CommunityEventService:
             
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 获取应援记录
-            stmt = select(EventSupport).where(
-                EventSupport.event_id == event_id,
-                EventSupport.status == 1
-            ).order_by(EventSupport.created_at.desc())
+            stmt = select(EventMessage).where(
+                EventMessage.event_id == event_id,
+                EventMessage.status == 1
+            ).order_by(EventMessage.created_at.desc())
             supports = db.session.execute(stmt).scalars().all()
 
             # 为每条消息添加发送人信息
             messages = []
             for support in supports:
                 support_data = support.to_dict()
-                if support.supporter_id:
-                    supporter = db.session.get(User, support.supporter_id)
-                    if supporter:
-                        support_data['sender_name'] = supporter.nickname or supporter.username or '工作人员'
+                if support.sender_id:
+                    sender = db.session.get(User, support.sender_id)
+                    if sender:
+                        support_data['sender_name'] = sender.nickname or sender.username or '工作人员'
                     else:
                         support_data['sender_name'] = '工作人员'
                 else:
@@ -206,14 +206,14 @@ class CommunityEventService:
             return {'success': False, 'message': f'获取事件详情失败: {str(e)}'}
 
     @staticmethod
-    def create_support(event_id: int, supporter_id: int, support_content: str) -> Dict:
+    def create_support(event_id: int, sender_id: int, message_content: str) -> Dict:
         """
         创建应援记录
         
         Args:
             event_id: 事件ID
-            supporter_id: 应援者ID
-            support_content: 应援内容
+            sender_id: 发送者ID
+            message_content: 消息内容
             
         Returns:
             Dict: 创建结果
@@ -228,21 +228,21 @@ class CommunityEventService:
             if event.status != 1:  # 不是进行中状态
                 return {'success': False, 'message': '事件已结束，无法应援'}
 
-            # 验证应援者
-            supporter = db.session.get(User, supporter_id)
-            if not supporter:
-                return {'success': False, 'message': '应援者不存在'}
+            # 验证发送者
+            sender = db.session.get(User, sender_id)
+            if not sender:
+                return {'success': False, 'message': '发送者不存在'}
 
-            # 验证应援者是否为社区工作人员
-            if not CommunityService.has_community_permission(supporter_id, event.community_id):
+            # 验证发送者是否为社区工作人员
+            if not CommunityService.has_community_permission(sender_id, event.community_id):
                 return {'success': False, 'message': '无权限进行应援操作'}
 
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 检查是否已经应援过
-            stmt = select(EventSupport).where(
-                EventSupport.event_id == event_id,
-                EventSupport.supporter_id == supporter_id,
-                EventSupport.status == 1
+            stmt = select(EventMessage).where(
+                EventMessage.event_id == event_id,
+                EventMessage.sender_id == sender_id,
+                EventMessage.status == 1
             )
             existing_support = db.session.execute(stmt).scalar_one_or_none()
 
@@ -250,17 +250,17 @@ class CommunityEventService:
                 return {'success': False, 'message': '您已经应援过该事件'}
 
             # 创建应援记录
-            support = EventSupport(
+            support = EventMessage(
                 event_id=event_id,
-                supporter_id=supporter_id,
-                support_content=support_content
+                sender_id=sender_id,
+                message_content=message_content
             )
 
             with transaction():
                 db.session.add(support)
                 db.session.flush()
 
-            logger.info(f"用户{supporter_id}对事件{event_id}进行了应援")
+            logger.info(f"用户{sender_id}对事件{event_id}进行了应援")
 
             return {
                 'success': True,
@@ -347,11 +347,11 @@ class CommunityEventService:
                     'messages': []
                 }
             
-            # 获取事件消息（EventSupport记录）
-            stmt_messages = select(EventSupport).where(
-                EventSupport.event_id == event.event_id,
-                EventSupport.status == 1
-            ).order_by(EventSupport.created_at.desc())
+            # 获取事件消息（EventMessage记录）
+            stmt_messages = select(EventMessage).where(
+                EventMessage.event_id == event.event_id,
+                EventMessage.status == 1
+            ).order_by(EventMessage.created_at.desc())
             
             messages = db.session.execute(stmt_messages).scalars().all()
             
@@ -381,11 +381,11 @@ class CommunityEventService:
 
     @staticmethod
     def add_event_message(event_id: int, user_id: int, message_type: str = 'text',
-                        content: str = '', media_url: str = None, 
-                        media_duration: int = None, support_tags: list = None) -> Dict:
+                        content: str = '', media_url: str = None,
+                        media_duration: int = None, message_tags: list = None) -> Dict:
         """
         添加事件消息
-        
+
         Args:
             event_id: 事件ID
             user_id: 用户ID
@@ -393,8 +393,8 @@ class CommunityEventService:
             content: 文字内容
             media_url: 媒体文件URL
             media_duration: 语音时长（秒）
-            support_tags: 回应标签（工作人员使用）
-            
+            message_tags: 回应标签（工作人员使用）
+
         Returns:
             Dict: 添加结果
         """
@@ -403,32 +403,32 @@ class CommunityEventService:
             event = db.session.get(CommunityEvent, event_id)
             if not event:
                 return {'success': False, 'message': '事件不存在'}
-            
+
             # 验证事件状态
             if event.status != 1:
                 return {'success': False, 'message': '事件已结束，无法添加消息'}
-            
+
             # 验证用户权限
             user = db.session.get(User, user_id)
             if not user:
                 return {'success': False, 'message': '用户不存在'}
-            
+
             # 检查用户是否为事件相关人员（发起者或目标用户或社区工作人员）
             is_event_user = (event.created_by == user_id or event.target_user_id == user_id)
             is_staff = CommunityService.has_community_permission(user_id, event.community_id)
-            
+
             if not is_event_user and not is_staff:
                 return {'success': False, 'message': '无权限添加消息'}
-            
+
             # 创建消息记录
-            message = EventSupport(
+            message = EventMessage(
                 event_id=event_id,
-                supporter_id=user_id,
-                support_content=content,
+                sender_id=user_id,
+                message_content=content,
                 message_type=message_type,
                 media_url=media_url,
                 media_duration=media_duration,
-                support_tags=support_tags
+                message_tags=message_tags
             )
             
             with transaction():
@@ -524,10 +524,10 @@ class CommunityEventService:
                 return {'success': False, 'message': '事件不存在'}
             
             # 获取事件消息
-            stmt = select(EventSupport).where(
-                EventSupport.event_id == event_id,
-                EventSupport.status == 1
-            ).order_by(EventSupport.created_at.desc()).limit(limit)
+            stmt = select(EventMessage).where(
+                EventMessage.event_id == event_id,
+                EventMessage.status == 1
+            ).order_by(EventMessage.created_at.desc()).limit(limit)
             
             messages = db.session.execute(stmt).scalars().all()
             
@@ -581,17 +581,17 @@ class CommunityEventService:
 
     @staticmethod
     def add_staff_response(event_id: int, staff_id: int, content: str = '',
-                          media_url: str = None, support_tags: list = None) -> Dict:
+                          media_url: str = None, message_tags: list = None) -> Dict:
         """
         工作人员添加回应
-        
+
         Args:
             event_id: 事件ID
             staff_id: 工作人员ID
             content: 文字内容
             media_url: 媒体文件URL
-            support_tags: 回应标签
-            
+            message_tags: 回应标签
+
         Returns:
             Dict: 添加结果
         """
@@ -600,26 +600,26 @@ class CommunityEventService:
             event = db.session.get(CommunityEvent, event_id)
             if not event:
                 return {'success': False, 'message': '事件不存在'}
-            
+
             # 验证事件状态
             if event.status != 1:
                 return {'success': False, 'message': '事件已结束'}
-            
+
             # 验证工作人员权限
             if not CommunityService.has_community_permission(staff_id, event.community_id):
                 return {'success': False, 'message': '无权限进行此操作'}
 
             # 获取发送人信息
-            supporter = db.session.get(User, staff_id)
+            sender = db.session.get(User, staff_id)
 
             # 创建回应记录
-            message = EventSupport(
+            message = EventMessage(
                 event_id=event_id,
-                supporter_id=staff_id,
-                support_content=content,
+                sender_id=staff_id,
+                message_content=content,
                 message_type='text',
                 media_url=media_url,
-                support_tags=support_tags
+                message_tags=message_tags
             )
 
             with transaction():
@@ -629,7 +629,7 @@ class CommunityEventService:
             logger.info(f"工作人员{staff_id}对事件{event_id}添加了回应")
 
             message_data = message.to_dict()
-            message_data['sender_name'] = supporter.nickname or supporter.username or '工作人员' if supporter else '工作人员'
+            message_data['sender_name'] = sender.nickname or sender.username or '工作人员' if sender else '工作人员'
 
             return {
                 'success': True,

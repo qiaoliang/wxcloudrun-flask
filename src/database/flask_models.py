@@ -66,7 +66,7 @@ class User(db.Model):
     created_communities = db.relationship('Community', foreign_keys='Community.creator_id', back_populates='creator', lazy='dynamic')
     created_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.created_by', back_populates='creator', lazy='dynamic')
     targeted_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.target_user_id', back_populates='target_user', lazy='dynamic')
-    supports = db.relationship('EventSupport', back_populates='supporter', lazy='dynamic')
+    supports = db.relationship('EventMessage', back_populates='sender', lazy='dynamic')
     user_community_rules = db.relationship('UserCommunityRule', back_populates='user', lazy='selectin')
 
     # 角色映射
@@ -635,7 +635,7 @@ class CommunityEvent(db.Model):
     community = db.relationship('Community', back_populates='events', lazy='selectin')
     creator = db.relationship('User', foreign_keys=[created_by], back_populates='created_events', lazy='selectin')
     target_user = db.relationship('User', foreign_keys=[target_user_id], back_populates='targeted_events', lazy='selectin')
-    supports = db.relationship('EventSupport', back_populates='event', cascade='all, delete-orphan', lazy='selectin')
+    supports = db.relationship('EventMessage', back_populates='event', cascade='all, delete-orphan', lazy='selectin')
 
     # 事件类型映射
     EVENT_TYPE_MAPPING = {
@@ -685,15 +685,15 @@ class CommunityEvent(db.Model):
         return result
 
 
-class EventSupport(db.Model):
-    """事件应援记录表"""
-    __tablename__ = 'event_supports'
+class EventMessage(db.Model):
+    """事件消息记录表"""
+    __tablename__ = 'event_messages'
 
-    support_id = Column(db.Integer, primary_key=True, autoincrement=True)
+    message_id = Column(db.Integer, primary_key=True, autoincrement=True)
     event_id = Column(db.Integer, db.ForeignKey('community_events.event_id'), nullable=False, index=True)
-    supporter_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
-    support_content = Column(db.Text, comment='应援内容')
-    status = Column(db.Integer, default=1, comment='应援状态：1-有效，2-已取消', index=True)
+    sender_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    message_content = Column(db.Text, comment='消息内容')
+    status = Column(db.Integer, default=1, comment='消息状态：1-有效，2-已取消', index=True)
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -701,12 +701,12 @@ class EventSupport(db.Model):
     message_type = Column(db.String(20), default='text', comment='消息类型：text/voice/image')
     media_url = Column(db.String(500), comment='媒体文件URL（语音或图片）')
     media_duration = Column(db.Integer, comment='语音时长（秒）')
-    support_tags = Column(db.JSON, comment='回应标签数组，如["已电话联系", "正在前往"]')
+    message_tags = Column(db.JSON, comment='回应标签数组，如["已电话联系", "正在前往"]')
 
     # 索引优化和约束
     __table_args__ = (
         db.Index('idx_event_support_event_id', 'event_id'),
-        db.Index('idx_event_support_supporter_id', 'supporter_id'),
+        db.Index('idx_event_support_sender_id', 'sender_id'),
         db.Index('idx_event_support_status', 'status'),
         db.Index('idx_event_support_event_status', 'event_id', 'status'),
         db.Index('idx_event_support_created_at', 'created_at'),
@@ -715,7 +715,7 @@ class EventSupport(db.Model):
     )
 
     # 关系 - 使用 back_populates 替代 backref
-    supporter = db.relationship('User', back_populates='supports', lazy='selectin')
+    sender = db.relationship('User', back_populates='supports', lazy='selectin')
     event = db.relationship('CommunityEvent', back_populates='supports', lazy='selectin')
 
     # 状态映射
@@ -744,10 +744,10 @@ class EventSupport(db.Model):
     def to_dict(self):
         """将模型对象转换为字典"""
         result = {
-            'support_id': self.support_id,
+            'message_id': self.message_id,
             'event_id': self.event_id,
-            'supporter_id': self.supporter_id,
-            'support_content': self.support_content,
+            'sender_id': self.sender_id,
+            'message_content': self.message_content,
             'status': self.status,
             'status_label': self.status_label,
             'created_at': self.created_at.isoformat() if self.created_at else None,
@@ -756,7 +756,7 @@ class EventSupport(db.Model):
             'message_type_label': self.message_type_label,
             'media_url': self.media_url,
             'media_duration': self.media_duration,
-            'support_tags': self.support_tags or []
+            'message_tags': self.message_tags or []
         }
 
         return result

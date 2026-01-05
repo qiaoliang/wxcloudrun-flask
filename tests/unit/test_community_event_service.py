@@ -33,9 +33,9 @@ class TestCommunityEventService:
         with test_app.app_context():
             result = CommunityEventService.create_support(
                 event_id=9999,
-                supporter_id=1,
-                support_content="测试应援"
+                sender_id=1,
+                message_content="测试应援"
             )
-            
+
             assert result['success'] is False
             assert '事件不存在' in result['message']

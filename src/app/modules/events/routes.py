@@ -123,24 +123,24 @@ def create_event_support(decoded, event_id):
     """创建事件应援"""
     try:
         data = request.get_json()
-        if not data or 'support_content' not in data:
+        if not data or 'message_content' not in data:
             return make_err_response('缺少应援内容')
-        
-        support_content = data['support_content']
-        if not support_content.strip():
+
+        message_content = data['message_content']
+        if not message_content.strip():
             return make_err_response('应援内容不能为空')
-        
+
         result = CommunityEventService.create_support(
             event_id=event_id,
-            supporter_id=decoded['user_id'],
-            support_content=support_content.strip()
+            sender_id=decoded['user_id'],
+            message_content=message_content.strip()
         )
-        
+
         if result['success']:
             return make_succ_response(result)
         else:
             return make_err_response(result['message'])
-            
+
     except Exception as e:
         logger.error(f"创建应援API异常: {str(e)}")
         return make_err_response('服务器内部错误')
@@ -192,7 +192,7 @@ def add_staff_response(decoded, event_id):
         staff_id = decoded['user_id']
         content = data.get('content', '')
         media_url = data.get('media_url')
-        support_tags = data.get('support_tags', [])
+        message_tags = data.get('message_tags', [])
 
         # 至少要有文字内容或媒体文件
         if not content.strip() and not media_url:
@@ -203,7 +203,7 @@ def add_staff_response(decoded, event_id):
             staff_id=staff_id,
             content=content,
             media_url=media_url,
-            support_tags=support_tags
+            message_tags=message_tags
         )
 
         if result['success']:
