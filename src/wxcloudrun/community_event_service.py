@@ -166,9 +166,23 @@ class CommunityEventService:
                 EventSupport.status == 1
             ).order_by(EventSupport.created_at.desc())
             supports = db.session.execute(stmt).scalars().all()
-            
+
+            # 为每条消息添加发送人信息
+            messages = []
+            for support in supports:
+                support_data = support.to_dict()
+                if support.supporter_id:
+                    supporter = db.session.get(User, support.supporter_id)
+                    if supporter:
+                        support_data['sender_name'] = supporter.nickname or supporter.username or '工作人员'
+                    else:
+                        support_data['sender_name'] = '工作人员'
+                else:
+                    support_data['sender_name'] = '工作人员'
+                messages.append(support_data)
+
             event_data = event.to_dict()
-            event_data['supports'] = [support.to_dict() for support in supports]
+            event_data['supports'] = messages
             
             # 获取发起人信息
             if event.created_by:
@@ -594,7 +608,10 @@ class CommunityEventService:
             # 验证工作人员权限
             if not CommunityService.has_community_permission(staff_id, event.community_id):
                 return {'success': False, 'message': '无权限进行此操作'}
-            
+
+            # 获取发送人信息
+            supporter = db.session.get(User, staff_id)
+
             # 创建回应记录
             message = EventSupport(
                 event_id=event_id,
@@ -604,17 +621,20 @@ class CommunityEventService:
                 media_url=media_url,
                 support_tags=support_tags
             )
-            
+
             with transaction():
                 db.session.add(message)
                 db.session.flush()
-            
+
             logger.info(f"工作人员{staff_id}对事件{event_id}添加了回应")
-            
+
+            message_data = message.to_dict()
+            message_data['sender_name'] = supporter.nickname or supporter.username or '工作人员' if supporter else '工作人员'
+
             return {
                 'success': True,
                 'message': '回应添加成功',
-                'message_data': message.to_dict()
+                'message_data': message_data
             }
             
         except Exception as e:

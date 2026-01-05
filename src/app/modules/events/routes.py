@@ -104,7 +104,13 @@ def get_event_detail(decoded, event_id):
         if not result['success']:
             return make_err_response(result['message'])
         
-        return make_succ_response(result)
+        # 兼容前端：将 supports 字段改为 messages
+        result_data = {
+            'event': result.get('event'),
+            'messages': result.get('supports', [])
+        }
+        
+        return make_succ_response(result_data)
             
     except Exception as e:
         logger.error(f"获取事件详情API异常: {str(e)}")
