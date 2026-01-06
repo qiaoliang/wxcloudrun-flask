@@ -146,10 +146,9 @@ def main():
         else:
             flask_app.logger.info("跳过超级管理员和默认社区注入")
 
-    # 5. 启动 Flask 应用
+# 5. 启动 Flask 应用
     host = '0.0.0.0'
-    #port = int(sys.argv[2]) if len(sys.argv) > 2 else 8080
-    port = 8080
+    port = int(os.environ.get("EXPOSE_PORT", 9999))
 
     flask_app.run(host=host, port=port)
 

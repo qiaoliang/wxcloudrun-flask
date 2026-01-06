@@ -34,6 +34,26 @@ def create_superadmin_and_default_community():
             logger.info("超级系统管理员已存在，跳过创建")
         else:
             logger.info("开始创建超级系统管理员...")
+
+            # 先检查或创建默认社区'安卡大家庭'
+            stmt_community = select(Community).where(Community.name == '安卡大家庭')
+            default_community = db.session.execute(stmt_community).scalar_one_or_none()
+
+            if not default_community:
+                logger.info("默认社区'安卡大家庭'不存在，先创建...")
+                # 创建默认社区
+                default_community = Community(
+                    name='安卡大家庭',
+                    description='系统默认社区，新注册用户自动加入',
+                    creator_id=None,  # 暂时设置为None，稍后更新
+                    status=1,  # 启用状态
+                    is_default=True
+                )
+
+                db.session.add(default_community)
+                db.session.flush()  # 获取新创建的社区ID
+                logger.info(f"默认社区'安卡大家庭'创建成功，ID: {default_community.community_id}")
+
             # 创建超级系统管理员
             salt = secrets.token_hex(8)
             password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
@@ -52,12 +72,24 @@ def create_superadmin_and_default_community():
                 role=4,  # 超级系统管理员角色
                 status=1,  # 正常状态
                 verification_status=2,  # 已通过验证
-                _is_community_worker=True
+                _is_community_worker=True,
+                community_id=default_community.community_id  # 归属于'安卡大家庭'社区
             )
 
             db.session.add(superadmin)
             db.session.flush()  # 获取新创建的用户ID
-            logger.info(f"超级系统管理员创建成功，ID: {superadmin.user_id}")
+
+            # 更新默认社区的创建者为超级系统管理员
+            default_community.creator_id = superadmin.user_id
+
+            # 设置超级系统管理员为'安卡大家庭'社区主管
+            staff_relation = CommunityStaff(
+                community_id=default_community.community_id,
+                user_id=superadmin.user_id,
+                role='manager'
+            )
+            db.session.add(staff_relation)
+            logger.info(f"超级系统管理员创建成功，ID: {superadmin.user_id}，归属于'安卡大家庭'社区并设置为社区主管")
 
         # 检查默认社区是否已存在
         logger.info("检查默认社区是否存在...")
@@ -69,11 +101,16 @@ def create_superadmin_and_default_community():
             logger.info("默认社区'安卡大家庭'已存在，跳过创建")
 
             # 使用 SQLAlchemy 2.0 的 select() 语句
-            # 确保超级系统管理员是社区主管
+            # 确保超级系统管理员归属于'安卡大家庭'社区并设置为社区主管
             stmt_superadmin = select(User).where(User.phone_number == '13141516171')
             superadmin_user = db.session.execute(stmt_superadmin).scalar_one_or_none()
 
             if superadmin_user:
+                # 确保超级系统管理员归属于'安卡大家庭'社区
+                if superadmin_user.community_id != existing_community.community_id:
+                    superadmin_user.community_id = existing_community.community_id
+                    logger.info(f"超级系统管理员归属于'安卡大家庭'社区，社区ID: {existing_community.community_id}")
+
                 # 使用 SQLAlchemy 2.0 的 select() 语句
                 stmt_staff = select(CommunityStaff).where(
                     CommunityStaff.community_id == existing_community.community_id,
@@ -91,39 +128,9 @@ def create_superadmin_and_default_community():
                         role='manager'
                     )
                     db.session.add(staff_relation)
-                    logger.info(f"超级系统管理员设置为社区主管，社区ID: {existing_community.community_id}")
+                    logger.info(f"超级系统管理员设置为'安卡大家庭'社区主管，社区ID: {existing_community.community_id}")
         else:
-            logger.info("开始创建默认社区...")
-            # 使用 SQLAlchemy 2.0 的 select() 语句
-            # 获取或创建超级系统管理员（用于关联）
-            stmt = select(User).where(User.phone_number == '13141516171')
-            superadmin_user = db.session.execute(stmt).scalar_one_or_none()
-
-            if not superadmin_user:
-                logger.error("超级系统管理员不存在，无法创建默认社区")
-                raise Exception("超级系统管理员不存在，无法创建默认社区")
-
-            # 创建默认社区
-            default_community = Community(
-                name='安卡大家庭',
-                description='系统默认社区，新注册用户自动加入',
-                creator_id=superadmin_user.user_id,
-                status=1,  # 启用状态
-                is_default=True
-            )
-
-            db.session.add(default_community)
-            db.session.flush()  # 获取新创建的社区ID
-            logger.info(f"默认社区'安卡大家庭'创建成功，ID: {default_community.community_id}")
-
-            # 设置超级系统管理员为社区主管
-            staff_relation = CommunityStaff(
-                community_id=default_community.community_id,
-                user_id=superadmin_user.user_id,
-                role='manager'
-            )
-            db.session.add(staff_relation)
-            logger.info(f"超级系统管理员设置为社区主管，社区ID: {default_community.community_id}")
+            logger.info("默认社区'安卡大家庭'已在超级系统管理员创建时创建，跳过重复创建")
 
         # 检查黑屋社区是否已存在
         logger.info("检查黑屋社区是否存在...")

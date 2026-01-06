@@ -459,6 +459,9 @@ def register_phone():
         # 使用辅助函数自动分配到默认社区
         assign_user_to_default_community(user, current_app.logger)
 
+        # 刷新用户的 community 关系，确保能获取到 community_name
+        db.session.refresh(user)
+        db.session.expire(user, ['community'])
 
         # 使用辅助函数生成token
         token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
