@@ -248,3 +248,34 @@ def update_event_location(decoded, event_id):
     except Exception as e:
         logger.error(f"更新事件位置API异常: {str(e)}")
         return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/events/<int:event_id>/close', methods=['PUT'])
+@require_token()
+def close_event(decoded, event_id):
+    """关闭事件（通用接口）"""
+    try:
+        data = request.get_json()
+        if not data or 'closure_reason' not in data:
+            return make_err_response('缺少关闭原因')
+
+        closure_reason = data.get('closure_reason', '').strip()
+        if not closure_reason:
+            return make_err_response('关闭原因不能为空')
+
+        user_id = decoded.get('user_id')
+
+        result = CommunityEventService.close_event(
+            event_id=event_id,
+            user_id=user_id,
+            closure_reason=closure_reason
+        )
+
+        if result['code'] == 1:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['msg'], result.get('data'))
+
+    except Exception as e:
+        logger.error(f"关闭事件API异常: {str(e)}", exc_info=True)
+        return make_err_response('服务器内部错误')

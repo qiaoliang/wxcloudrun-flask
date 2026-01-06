@@ -616,6 +616,12 @@ class CommunityEvent(db.Model):
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     completed_at = Column(db.DateTime, comment='完成时间')
+    
+    # 新增字段：事件关闭信息
+    closed_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='关闭人ID')
+    closed_at = Column(db.DateTime, nullable=True, comment='关闭时间')
+    closure_type = Column(db.Integer, nullable=True, comment='关闭类型：1-用户关闭，2-工作人员关闭')
+    closure_reason = Column(db.String(500), nullable=True, comment='关闭原因（10-500字符）')
 
     # 索引优化和约束
     __table_args__ = (
@@ -627,6 +633,9 @@ class CommunityEvent(db.Model):
         db.Index('idx_community_event_community_status', 'community_id', 'status'),
         db.Index('idx_community_event_type_status', 'event_type', 'status'),
         db.Index('idx_community_event_created_at', 'created_at'),
+        db.Index('idx_community_event_closed_by', 'closed_by'),
+        db.Index('idx_community_event_closed_at', 'closed_at'),
+        db.Index('idx_community_event_closure_type', 'closure_type'),
         db.CheckConstraint("event_type IN ('call_for_help', 'supporting')", name='ck_community_event_type'),
         db.CheckConstraint('status IN (1, 2, 3)', name='ck_community_event_status'),  # 1=进行中, 2=已完成, 3=已取消
     )
@@ -636,6 +645,7 @@ class CommunityEvent(db.Model):
     creator = db.relationship('User', foreign_keys=[created_by], back_populates='created_events', lazy='selectin')
     target_user = db.relationship('User', foreign_keys=[target_user_id], back_populates='targeted_events', lazy='selectin')
     supports = db.relationship('EventMessage', back_populates='event', cascade='all, delete-orphan', lazy='selectin')
+    closer = db.relationship('User', foreign_keys=[closed_by], backref='closed_events', lazy='selectin')
 
     # 事件类型映射
     EVENT_TYPE_MAPPING = {
@@ -650,6 +660,12 @@ class CommunityEvent(db.Model):
         3: '已取消'
     }
 
+    # 关闭类型映射
+    CLOSURE_TYPE_MAPPING = {
+        1: '用户关闭',
+        2: '工作人员关闭'
+    }
+
     @property
     def event_type_label(self):
         """获取事件类型标签"""
@@ -659,6 +675,11 @@ class CommunityEvent(db.Model):
     def status_label(self):
         """获取状态标签"""
         return self.STATUS_MAPPING.get(self.status, '未知')
+
+    @property
+    def closure_type_label(self):
+        """获取关闭类型标签"""
+        return self.CLOSURE_TYPE_MAPPING.get(self.closure_type, '未知')
 
     def to_dict(self):
         """将模型对象转换为字典"""
@@ -679,6 +700,11 @@ class CommunityEvent(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'closed_by': self.closed_by,
+            'closed_at': self.closed_at.isoformat() if self.closed_at else None,
+            'closure_type': self.closure_type,
+            'closure_type_label': self.closure_type_label if self.closure_type else None,
+            'closure_reason': self.closure_reason,
             'support_count': len([s for s in self.supports if s.status == 1])
         }
 
@@ -757,56 +783,6 @@ class EventMessage(db.Model):
             'media_url': self.media_url,
             'media_duration': self.media_duration,
             'message_tags': self.message_tags or []
-        }
-
-        return result
-
-
-class EventClosure(db.Model):
-    """事件关闭记录表"""
-    __tablename__ = 'event_closures'
-
-    closure_id = Column(db.Integer, primary_key=True, autoincrement=True)
-    event_id = Column(db.Integer, db.ForeignKey('community_events.event_id'), nullable=False, index=True)
-    closed_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
-    closed_at = Column(db.DateTime, default=datetime.now, index=True)
-    closure_reason = Column(db.Text, nullable=False, comment='关闭原因/备注')
-    closure_status = Column(db.String(20), default='user_closed', comment='关闭类型：user_closed/resolved/cancelled')
-
-    # 索引优化和约束
-    __table_args__ = (
-        db.Index('idx_event_closure_event_id', 'event_id'),
-        db.Index('idx_event_closure_closed_by', 'closed_by'),
-        db.Index('idx_event_closure_closed_at', 'closed_at'),
-        db.CheckConstraint("closure_status IN ('user_closed', 'resolved', 'cancelled')", name='ck_event_closure_status'),
-    )
-
-    # 关系
-    event = db.relationship('CommunityEvent', backref='closure')
-    closer = db.relationship('User', backref='closed_events')
-
-    # 关闭状态映射
-    CLOSURE_STATUS_MAPPING = {
-        'user_closed': '用户关闭',
-        'resolved': '已解决',
-        'cancelled': '已取消'
-    }
-
-    @property
-    def closure_status_label(self):
-        """获取关闭状态标签"""
-        return self.CLOSURE_STATUS_MAPPING.get(self.closure_status, '未知')
-
-    def to_dict(self):
-        """将模型对象转换为字典"""
-        result = {
-            'closure_id': self.closure_id,
-            'event_id': self.event_id,
-            'closed_by': self.closed_by,
-            'closed_at': self.closed_at.isoformat() if self.closed_at else None,
-            'closure_reason': self.closure_reason,
-            'closure_status': self.closure_status,
-            'closure_status_label': self.closure_status_label
         }
 
         return result

@@ -699,38 +699,6 @@ def add_event_message(decoded, event_id):
         return make_err_response('服务器内部错误')
 
 
-@user_bp.route('/user/events/<int:event_id>/close', methods=['POST'])
-@login_required
-def close_event(decoded, event_id):
-    """关闭事件"""
-    try:
-        data = request.get_json()
-        if not data or 'closure_reason' not in data:
-            return make_err_response('缺少关闭原因')
-
-        closure_reason = data.get('closure_reason', '').strip()
-        if len(closure_reason) < 5:
-            return make_err_response('关闭原因至少需要5个字符')
-
-        user_id = decoded.get('user_id')
-
-        from wxcloudrun.community_event_service import CommunityEventService
-        result = CommunityEventService.close_event(
-            event_id=event_id,
-            user_id=user_id,
-            closure_reason=closure_reason
-        )
-
-        if result['success']:
-            return make_succ_response(result)
-        else:
-            return make_err_response(result['message'])
-
-    except Exception as e:
-        current_app.logger.error(f"关闭事件API异常: {str(e)}", exc_info=True)
-        return make_err_response('服务器内部错误')
-
-
 @user_bp.route('/user/events/<int:event_id>/history', methods=['GET'])
 @login_required
 def get_event_history(decoded, event_id):
@@ -747,4 +715,3 @@ def get_event_history(decoded, event_id):
     except Exception as e:
         current_app.logger.error(f"获取事件历史API异常: {str(e)}", exc_info=True)
         return make_err_response('服务器内部错误')
-        return make_err_response({}, '验证失败')

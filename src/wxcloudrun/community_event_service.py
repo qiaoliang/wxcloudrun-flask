@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 from sqlalchemy import select, func
 
-from database.flask_models import db, CommunityEvent, EventMessage, User, Community
+from database.flask_models import db, CommunityEvent, EventMessage, User, Community, CommunityStaff
 from wxcloudrun.community_service import CommunityService
 from app.shared.utils.transaction import transactional, transaction
 
@@ -450,60 +450,97 @@ class CommunityEventService:
     @staticmethod
     def close_event(event_id: int, user_id: int, closure_reason: str) -> Dict:
         """
-        关闭事件
+        关闭事件（通用接口）
         
         Args:
             event_id: 事件ID
-            user_id: 用户ID
-            closure_reason: 关闭原因
-            
+            user_id: 当前用户ID
+            closure_reason: 关闭原因（10-500字符）
+        
         Returns:
             Dict: 关闭结果
         """
         try:
-            # 导入 EventClosure 模型
-            from database.flask_models import EventClosure
-            
             # 验证事件存在
             event = db.session.get(CommunityEvent, event_id)
             if not event:
-                return {'success': False, 'message': '事件不存在'}
+                return {
+                    'code': 0,
+                    'msg': '事件不存在',
+                    'data': {'error': f'事件ID {event_id} 不存在'}
+                }
             
             # 验证事件状态
             if event.status != 1:
-                return {'success': False, 'message': '事件已关闭'}
+                return {
+                    'code': 0,
+                    'msg': '事件已关闭',
+                    'data': {'error': f'事件当前状态为 {event.status_label}，无法关闭'}
+                }
             
-            # 验证用户权限（只有事件发起者或目标用户可以关闭）
-            if event.created_by != user_id and event.target_user_id != user_id:
-                return {'success': False, 'message': '只有事件发起者或目标用户可以关闭事件'}
+            # 验证关闭原因长度
+            if not closure_reason or len(closure_reason) < 10 or len(closure_reason) > 500:
+                return {
+                    'code': 0,
+                    'msg': '关闭原因格式错误',
+                    'data': {'error': '关闭原因长度必须在10-500字符之间'}
+                }
             
-            with transaction():
-                # 创建关闭记录
-                closure = EventClosure(
-                    event_id=event_id,
-                    closed_by=user_id,
-                    closure_reason=closure_reason,
-                    closure_status='resolved'  # 已解决
+            # 验证权限（事件发起者、目标用户、社区工作人员）
+            is_creator = (event.created_by == user_id)
+            is_target_user = (event.target_user_id == user_id)
+            
+            # 检查是否为社区工作人员
+            is_staff = db.session.execute(
+                select(CommunityStaff).where(
+                    CommunityStaff.community_id == event.community_id,
+                    CommunityStaff.user_id == user_id,
+                    CommunityStaff.removed_at.is_(None)
                 )
-                db.session.add(closure)
-                
-                # 更新事件状态
+            ).scalar_one_or_none() is not None
+            
+            if not (is_creator or is_target_user or is_staff):
+                return {
+                    'code': 0,
+                    'msg': '无权限关闭事件',
+                    'data': {'error': '只有事件发起者、目标用户或社区工作人员可以关闭事件'}
+                }
+            
+            # 确定关闭类型
+            closure_type = 2 if is_staff else 1
+            
+            # 更新事件
+            with transaction():
                 event.status = 2  # 已完成
                 event.completed_at = datetime.now()
-                
+                event.closed_by = user_id
+                event.closed_at = datetime.now()
+                event.closure_type = closure_type
+                event.closure_reason = closure_reason
                 db.session.flush()
             
-            logger.info(f"用户{user_id}解决了事件{event_id}，原因：{closure_reason}")
+            logger.info(f"用户{user_id}关闭了事件{event_id}，类型：{closure_type}，原因：{closure_reason}")
             
             return {
-                'success': True,
-                'message': '事件已解决',
-                'closure': closure.to_dict()
+                'code': 1,
+                'msg': '事件已关闭',
+                'data': {
+                    'event_id': event.event_id,
+                    'closed_by': event.closed_by,
+                    'closed_at': event.closed_at.isoformat() if event.closed_at else None,
+                    'closure_type': event.closure_type,
+                    'closure_type_label': event.closure_type_label,
+                    'closure_reason': event.closure_reason
+                }
             }
             
         except Exception as e:
             logger.error(f"关闭事件失败: {str(e)}")
-            return {'success': False, 'message': f'关闭事件失败: {str(e)}'}
+            return {
+                'code': 0,
+                'msg': '关闭事件失败',
+                'data': {'error': str(e)}
+            }
 
     @staticmethod
     def get_event_history(event_id: int, limit: int = 50) -> Dict:
