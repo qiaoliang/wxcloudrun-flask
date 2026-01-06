@@ -52,7 +52,8 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
                 'nickname': cls.test_user.nickname,
                 'name': cls.test_user.name,
                 'avatar_url': cls.test_user.avatar_url,
-                'role': '普通用户',  # role=1 对应的角色名
+                'role': 1,  # role=1 对应整数类型
+                'role_name': '普通用户',  # role_name=1 对应的角色名（字符串）
                 'community_id': cls.test_community.community_id,
                 'community_name': '测试社区',
                 'login_type': 'existing_user'
@@ -94,7 +95,8 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         # 验证数据类型正确性
         assert isinstance(response_data['user_id'], int)
         assert isinstance(response_data['community_id'], int)
-        assert isinstance(response_data['role'], str)
+        assert isinstance(response_data['role'], int)  # role 是整数类型
+        assert isinstance(response_data['role_name'], str)  # role_name 是字符串类型
         assert isinstance(response_data['login_type'], str)
         assert isinstance(response_data['token'], str)
         assert isinstance(response_data['refresh_token'], str)
@@ -107,7 +109,8 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
 
         # 验证关键业务逻辑
         assert response_data['user_id'] == self.test_user.user_id
-        assert response_data['role'] == '普通用户'
+        assert response_data['role'] == 1  # role 是整数类型
+        assert response_data['role_name'] == '普通用户'  # role_name 是字符串类型
         assert response_data['login_type'] == 'existing_user'
         assert response_data['community_name'] == '测试社区'
 
@@ -211,8 +214,8 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
                              content_type='application/json')
 
         data = self.assert_api_success(response, expected_data_keys=[
-            'user_id', 'wechat_openid', 'phone_number', 'nickname', 'name', 
-            'avatar_url', 'role', 'community_id', 'community_name', 'login_type',
+            'user_id', 'wechat_openid', 'phone_number', 'nickname', 'name',
+            'avatar_url', 'role', 'role_name', 'community_id', 'community_name', 'login_type',
             'token', 'refresh_token'
         ])
         
@@ -226,7 +229,8 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
             'nickname': str,
             'name': str,
             'avatar_url': (type(None), str),  # 允许None或字符串
-            'role': str,
+            'role': int,  # role 是整数类型（1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员）
+            'role_name': str,  # role_name 是字符串类型
             'community_id': int,
             'community_name': str,
             'login_type': str,
