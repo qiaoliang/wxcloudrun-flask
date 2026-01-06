@@ -24,7 +24,7 @@ from app.shared.utils.auth_helpers import (
     query_user_by_phone_hash_with_timing
 )
 from wxcloudrun.user_service import UserService
-from database.flask_models import User
+from database.flask_models import db, User
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname
 from const_default import DEFAULT_COMMUNITY_NAME
 from error_code import INVALID_CAPTCHA
