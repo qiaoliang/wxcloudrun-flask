@@ -31,7 +31,15 @@ def require_token():
     Token验证装饰器
     验证请求中的JWT token，返回解码后的用户信息和错误响应
     """
-    return verify_token()
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            decoded, error_response = verify_token()
+            if error_response:
+                return error_response
+            return f(decoded, *args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 def require_community_staff_member():
