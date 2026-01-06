@@ -26,7 +26,10 @@ class CommunityStaffService:
         Returns:
             bool: 如果是工作人员返回True，否则返回False
         """
-        stmt = select(CommunityStaff).where(CommunityStaff.user_id == user_id)
+        stmt = select(CommunityStaff).where(
+            CommunityStaff.user_id == user_id,
+            CommunityStaff.removed_at.is_(None)
+        )
         staff_record = db.session.execute(stmt).scalar_one_or_none()
         return staff_record is not None
 
@@ -76,7 +79,8 @@ class CommunityStaffService:
         if operator_user.role != 4:  # 不是超级管理员
             stmt_staff = select(CommunityStaff).where(
                 CommunityStaff.community_id == community_id,
-                CommunityStaff.user_id == operator_user_id
+                CommunityStaff.user_id == operator_user_id,
+                CommunityStaff.removed_at.is_(None)
             )
             staff_record = db.session.execute(stmt_staff).scalar_one_or_none()
             if not staff_record:
@@ -94,7 +98,8 @@ class CommunityStaffService:
         if role == 'manager':
             stmt_manager = select(CommunityStaff).where(
                 CommunityStaff.community_id == community_id,
-                CommunityStaff.role == 'manager'
+                CommunityStaff.role == 'manager',
+                CommunityStaff.removed_at.is_(None)
             )
             existing_manager = db.session.execute(stmt_manager).scalar_one_or_none()
             if existing_manager:
@@ -144,7 +149,8 @@ class CommunityStaffService:
                 # 检查用户是否已在当前社区任职
                 stmt_existing = select(CommunityStaff).where(
                     CommunityStaff.community_id == community_id,
-                    CommunityStaff.user_id == uid
+                    CommunityStaff.user_id == uid,
+                    CommunityStaff.removed_at.is_(None)
                 )
                 existing_in_current_community = db.session.execute(stmt_existing).scalar_one_or_none()
 
@@ -226,9 +232,8 @@ class CommunityStaffService:
             else:
                 logger.error(f'Layer 4调试仪表 - 社区{community_id}不存在，无法更新manager_id')
 
-        # 提交事务
-        with transaction():
-            pass  # 事务上下文，确保所有修改在事务中完成
+        # Flask-SQLAlchemy 会在请求结束时自动提交事务
+        # 不需要手动提交或使用事务上下文管理器
 
         return {
             'success_count': added_count,
@@ -254,7 +259,8 @@ class CommunityStaffService:
         # 检查是否已经是工作人员
         stmt_existing = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
-            CommunityStaff.user_id == user_id
+            CommunityStaff.user_id == user_id,
+            CommunityStaff.removed_at.is_(None)
         )
         existing = db.session.execute(stmt_existing).scalar_one_or_none()
 
@@ -285,8 +291,7 @@ class CommunityStaffService:
         )
         db.session.add(audit_log)
 
-        with transaction():
-            pass  # 事务上下文，确保所有修改在事务中完成
+        # Flask-SQLAlchemy 会在请求结束时自动提交事务
         logger.info(f"社区工作人员添加成功: 社区ID={community_id}, 用户ID={user_id}")
         return staff
 
@@ -317,7 +322,8 @@ class CommunityStaffService:
         removed_role = staff.role
         logger.info(f'Layer 2验证 - 准备移除工作人员: 社区{community_id}, 用户{user_id}, 角色{removed_role}')
 
-        db.session.delete(staff)
+        # 软删除：设置 removed_at 时间戳
+        staff.removed_at = datetime.now()
 
         # Layer 3: 环境守卫 - 如果移除的是主管，清理Community表的manager_id字段
         if removed_role == 'manager':
@@ -327,10 +333,13 @@ class CommunityStaffService:
                 community.manager_id = None
                 logger.info(f'Layer 3环境守卫 - 成功清理社区{community_id}的manager_id字段')
 
-        # Layer 3: 环境守卫 - 检查用户是否还在其他社区担任工作人员
+        # Layer 3: 环境守卫 - 检查用户是否还在其他社区担任工作人员（不包括已删除的）
         target_user = db.session.get(User, user_id)
         if target_user:
-            stmt_count = select(func.count()).select_from(CommunityStaff).where(CommunityStaff.user_id == user_id)
+            stmt_count = select(func.count()).select_from(CommunityStaff).where(
+                CommunityStaff.user_id == user_id,
+                CommunityStaff.removed_at.is_(None)
+            )
             other_staff_records = db.session.execute(stmt_count).scalar()
             if other_staff_records == 0:
                 # 用户不在任何社区担任工作人员，重置为普通用户
@@ -347,8 +356,7 @@ class CommunityStaffService:
         )
         db.session.add(audit_log)
 
-        with transaction():
-            pass  # 事务上下文，确保所有修改在事务中完成
+        # Flask-SQLAlchemy 会在请求结束时自动提交事务
         logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={user_id}, 角色={removed_role}")
         return True
 
@@ -364,12 +372,54 @@ class CommunityStaffService:
         Returns:
             list: 工作人员列表
         """
-        stmt = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        stmt = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
 
         if role:
             stmt = stmt.where(CommunityStaff.role == role)
 
         return db.session.execute(stmt).scalars().all()
+
+    @staticmethod
+    def get_community_staff_with_pagination(community_id, role=None, page=1, limit=20):
+        """
+        获取社区工作人员列表（带分页）
+
+        Args:
+            community_id (int): 社区ID
+            role (str): 角色筛选 (可选)
+            page (int): 页码，从1开始
+            limit (int): 每页数量
+
+        Returns:
+            tuple: (工作人员列表, 总数)
+        """
+        # 构建基础查询
+        stmt = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
+
+        if role:
+            stmt = stmt.where(CommunityStaff.role == role)
+
+        # 获取总数
+        count_stmt = select(func.count()).select_from(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        if role:
+            count_stmt = count_stmt.where(CommunityStaff.role == role)
+        
+        total_count = db.session.execute(count_stmt).scalar()
+
+        # 添加排序和分页
+        stmt = stmt.order_by(CommunityStaff.added_at.desc())
+        stmt = stmt.offset((page - 1) * limit).limit(limit)
+
+        # 执行查询
+        staff_list = db.session.execute(stmt).scalars().all()
+
+        return staff_list, total_count
 
     @staticmethod
     def handle_user_community_change(user_id, old_community_id, new_community_id):

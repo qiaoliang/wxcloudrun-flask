@@ -14,7 +14,7 @@ class TestConstants:
     # ==================== 认证相关常量 ====================
     
     # 默认测试密码
-    DEFAULT_PASSWORD = "Firefox0820"
+    DEFAULT_PASSWORD = "F1234567"
     
     # 默认密码盐（用于测试）
     @classmethod
@@ -102,7 +102,7 @@ class TestConstants:
     # ==================== 系统用户常量 ====================
     
     # 超级管理员固定信息（不可更改）
-    SUPER_ADMIN_PHONE = "13900007997"
+    SUPER_ADMIN_PHONE = "13141516171"
     SUPER_ADMIN_NICKNAME = "系统超级管理员"
     SUPER_ADMIN_NAME = "系统超级管理员"
     SUPER_ADMIN_ROLE = 4

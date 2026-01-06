@@ -4,11 +4,6 @@
 """
 import logging
 from flask import current_app
-from wxcloudrun.user_service import UserService
-from database.flask_models import User
-from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname, _hash_code, normalize_phone_number
-from config_manager import get_token_secret
-from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
 
 app_logger = logging.getLogger('log')
 
@@ -42,7 +37,8 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
         'nickname': user.nickname,
         'name': user.name,
         'avatar_url': user.avatar_url,
-        'role': user.role_name,
+        'role': user.role,  # 角色数字ID：1-普通用户，2-社区专员，3-社区主管，4-超级系统管理员
+        'role_name': user.role_name,  # 角色中文名称
         'community_id': user.community_id,
         'community_name': community_name,
         'login_type': 'new_user' if is_new_user else 'existing_user'

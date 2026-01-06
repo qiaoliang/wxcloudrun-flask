@@ -31,7 +31,15 @@ def require_token():
     Token验证装饰器
     验证请求中的JWT token，返回解码后的用户信息和错误响应
     """
-    return verify_token()
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            decoded, error_response = verify_token()
+            if error_response:
+                return error_response
+            return f(decoded, *args, **kwargs)
+        return decorated_function
+    return decorator
 
 
 def require_community_staff_member():
@@ -64,7 +72,12 @@ def require_community_staff_member():
             # 优先从路径参数、查询参数、请求体中获取community_id
             view_args_community_id = request.view_args.get('community_id')
             args_community_id = request.args.get('community_id')
-            json_community_id = request.json.get('community_id') if request.is_json else None
+            
+            # 只在 POST/PUT 等有请求体的方法中访问 request.json
+            json_community_id = None
+            if request.method in ['POST', 'PUT', 'PATCH'] and request.is_json:
+                json_community_id = request.json.get('community_id')
+            
             community_id = (view_args_community_id or args_community_id or json_community_id)
 
             # 如果没有community_id，尝试从rule_id获取

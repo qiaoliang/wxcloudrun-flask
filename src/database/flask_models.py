@@ -66,7 +66,7 @@ class User(db.Model):
     created_communities = db.relationship('Community', foreign_keys='Community.creator_id', back_populates='creator', lazy='dynamic')
     created_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.created_by', back_populates='creator', lazy='dynamic')
     targeted_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.target_user_id', back_populates='target_user', lazy='dynamic')
-    supports = db.relationship('EventSupport', back_populates='supporter', lazy='dynamic')
+    supports = db.relationship('EventMessage', back_populates='sender', lazy='dynamic')
     user_community_rules = db.relationship('UserCommunityRule', back_populates='user', lazy='selectin')
 
     # 角色映射
@@ -125,6 +125,10 @@ class Community(db.Model):
     location = Column(db.String(200), comment='地理位置')
     location_lat = Column(db.Float, comment='纬度')
     location_lon = Column(db.Float, comment='经度')
+    province = Column(db.String(50), comment='省份')
+    city = Column(db.String(50), comment='城市')
+    district = Column(db.String(50), comment='区县')
+    street = Column(db.String(200), comment='街道')
     is_default = Column(db.Boolean, default=False, nullable=False, comment='是否默认社区', index=True)
     is_blackhouse = Column(db.Boolean, default=False, nullable=False, comment='是否黑屋社区', index=True)
     created_at = Column(db.DateTime, default=datetime.now, index=True)
@@ -362,6 +366,7 @@ class CommunityStaff(db.Model):
     scope = Column(db.String(200), comment='负责范围')
     added_at = Column(db.DateTime, default=datetime.now)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+    removed_at = Column(db.DateTime, nullable=True, comment='移除时间（软删除标记）')
 
     # 索引优化和约束
     __table_args__ = (
@@ -369,6 +374,7 @@ class CommunityStaff(db.Model):
         db.Index('idx_community_staff_user_id', 'user_id'),
         db.Index('idx_community_staff_role', 'role'),
         db.Index('idx_community_staff_community_role', 'community_id', 'role'),
+        db.Index('idx_community_staff_removed_at', 'removed_at'),
         db.CheckConstraint("role IN ('staff', 'manager')", name='ck_community_staff_role'),
     )
 
@@ -603,11 +609,19 @@ class CommunityEvent(db.Model):
     event_type = Column(db.String(50), nullable=False, default='call_for_help', comment='事件类型')
     status = Column(db.Integer, default=1, comment='事件状态：1-进行中，2-已完成，3-已取消', index=True)
     target_user_id = Column(db.Integer, db.ForeignKey('users.user_id'), comment='目标用户ID', index=True)
-    location = Column(db.String(200), comment='事件地点')
+    location = Column(db.String(200), comment='事件地点（格式：地址 | 纬度,经度）')
+    location_lat = Column(db.Float, comment='纬度')
+    location_lon = Column(db.Float, comment='经度')
     created_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, comment='创建者ID', index=True)
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     completed_at = Column(db.DateTime, comment='完成时间')
+    
+    # 新增字段：事件关闭信息
+    closed_by = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True, comment='关闭人ID')
+    closed_at = Column(db.DateTime, nullable=True, comment='关闭时间')
+    closure_type = Column(db.Integer, nullable=True, comment='关闭类型：1-用户关闭，2-工作人员关闭')
+    closure_reason = Column(db.String(500), nullable=True, comment='关闭原因（10-500字符）')
 
     # 索引优化和约束
     __table_args__ = (
@@ -619,6 +633,9 @@ class CommunityEvent(db.Model):
         db.Index('idx_community_event_community_status', 'community_id', 'status'),
         db.Index('idx_community_event_type_status', 'event_type', 'status'),
         db.Index('idx_community_event_created_at', 'created_at'),
+        db.Index('idx_community_event_closed_by', 'closed_by'),
+        db.Index('idx_community_event_closed_at', 'closed_at'),
+        db.Index('idx_community_event_closure_type', 'closure_type'),
         db.CheckConstraint("event_type IN ('call_for_help', 'supporting')", name='ck_community_event_type'),
         db.CheckConstraint('status IN (1, 2, 3)', name='ck_community_event_status'),  # 1=进行中, 2=已完成, 3=已取消
     )
@@ -627,7 +644,8 @@ class CommunityEvent(db.Model):
     community = db.relationship('Community', back_populates='events', lazy='selectin')
     creator = db.relationship('User', foreign_keys=[created_by], back_populates='created_events', lazy='selectin')
     target_user = db.relationship('User', foreign_keys=[target_user_id], back_populates='targeted_events', lazy='selectin')
-    supports = db.relationship('EventSupport', back_populates='event', cascade='all, delete-orphan', lazy='selectin')
+    supports = db.relationship('EventMessage', back_populates='event', cascade='all, delete-orphan', lazy='selectin')
+    closer = db.relationship('User', foreign_keys=[closed_by], backref='closed_events', lazy='selectin')
 
     # 事件类型映射
     EVENT_TYPE_MAPPING = {
@@ -642,6 +660,12 @@ class CommunityEvent(db.Model):
         3: '已取消'
     }
 
+    # 关闭类型映射
+    CLOSURE_TYPE_MAPPING = {
+        1: '用户关闭',
+        2: '工作人员关闭'
+    }
+
     @property
     def event_type_label(self):
         """获取事件类型标签"""
@@ -651,6 +675,11 @@ class CommunityEvent(db.Model):
     def status_label(self):
         """获取状态标签"""
         return self.STATUS_MAPPING.get(self.status, '未知')
+
+    @property
+    def closure_type_label(self):
+        """获取关闭类型标签"""
+        return self.CLOSURE_TYPE_MAPPING.get(self.closure_type, '未知')
 
     def to_dict(self):
         """将模型对象转换为字典"""
@@ -665,40 +694,54 @@ class CommunityEvent(db.Model):
             'status_label': self.status_label,
             'target_user_id': self.target_user_id,
             'location': self.location,
+            'location_lat': self.location_lat,
+            'location_lon': self.location_lon,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
             'completed_at': self.completed_at.isoformat() if self.completed_at else None,
+            'closed_by': self.closed_by,
+            'closed_at': self.closed_at.isoformat() if self.closed_at else None,
+            'closure_type': self.closure_type,
+            'closure_type_label': self.closure_type_label if self.closure_type else None,
+            'closure_reason': self.closure_reason,
             'support_count': len([s for s in self.supports if s.status == 1])
         }
 
         return result
 
 
-class EventSupport(db.Model):
-    """事件应援记录表"""
-    __tablename__ = 'event_supports'
+class EventMessage(db.Model):
+    """事件消息记录表"""
+    __tablename__ = 'event_messages'
 
-    support_id = Column(db.Integer, primary_key=True, autoincrement=True)
+    message_id = Column(db.Integer, primary_key=True, autoincrement=True)
     event_id = Column(db.Integer, db.ForeignKey('community_events.event_id'), nullable=False, index=True)
-    supporter_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
-    support_content = Column(db.Text, comment='应援内容')
-    status = Column(db.Integer, default=1, comment='应援状态：1-有效，2-已取消', index=True)
+    sender_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True)
+    message_content = Column(db.Text, comment='消息内容')
+    status = Column(db.Integer, default=1, comment='消息状态：1-有效，2-已取消', index=True)
     created_at = Column(db.DateTime, default=datetime.now, index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 新增字段：支持多媒体消息和回应标签
+    message_type = Column(db.String(20), default='text', comment='消息类型：text/voice/image')
+    media_url = Column(db.String(500), comment='媒体文件URL（语音或图片）')
+    media_duration = Column(db.Integer, comment='语音时长（秒）')
+    message_tags = Column(db.JSON, comment='回应标签数组，如["已电话联系", "正在前往"]')
 
     # 索引优化和约束
     __table_args__ = (
         db.Index('idx_event_support_event_id', 'event_id'),
-        db.Index('idx_event_support_supporter_id', 'supporter_id'),
+        db.Index('idx_event_support_sender_id', 'sender_id'),
         db.Index('idx_event_support_status', 'status'),
         db.Index('idx_event_support_event_status', 'event_id', 'status'),
         db.Index('idx_event_support_created_at', 'created_at'),
         db.CheckConstraint('status IN (1, 2)', name='ck_event_support_status'),  # 1=有效, 2=已取消
+        db.CheckConstraint("message_type IN ('text', 'voice', 'image')", name='ck_event_support_message_type'),
     )
 
     # 关系 - 使用 back_populates 替代 backref
-    supporter = db.relationship('User', back_populates='supports', lazy='selectin')
+    sender = db.relationship('User', back_populates='supports', lazy='selectin')
     event = db.relationship('CommunityEvent', back_populates='supports', lazy='selectin')
 
     # 状态映射
@@ -707,22 +750,39 @@ class EventSupport(db.Model):
         2: '已取消'
     }
 
+    # 消息类型映射
+    MESSAGE_TYPE_MAPPING = {
+        'text': '文字',
+        'voice': '语音',
+        'image': '图片'
+    }
+
     @property
     def status_label(self):
         """获取状态标签"""
         return self.STATUS_MAPPING.get(self.status, '未知')
 
+    @property
+    def message_type_label(self):
+        """获取消息类型标签"""
+        return self.MESSAGE_TYPE_MAPPING.get(self.message_type, '未知')
+
     def to_dict(self):
         """将模型对象转换为字典"""
         result = {
-            'support_id': self.support_id,
+            'message_id': self.message_id,
             'event_id': self.event_id,
-            'supporter_id': self.supporter_id,
-            'support_content': self.support_content,
+            'sender_id': self.sender_id,
+            'message_content': self.message_content,
             'status': self.status,
             'status_label': self.status_label,
             'created_at': self.created_at.isoformat() if self.created_at else None,
-            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+            'message_type': self.message_type,
+            'message_type_label': self.message_type_label,
+            'media_url': self.media_url,
+            'media_duration': self.media_duration,
+            'message_tags': self.message_tags or []
         }
 
         return result

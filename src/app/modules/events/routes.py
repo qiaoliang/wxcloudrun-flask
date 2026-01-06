@@ -8,6 +8,7 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import require_token, require_community_staff_member, require_community_membership
 from wxcloudrun.community_event_service import CommunityEventService
 from wxcloudrun.community_service import CommunityService
+from database.flask_models import db, User
 
 logger = logging.getLogger(__name__)
 
@@ -68,10 +69,18 @@ def get_community_events(decoded, community_id):
         status_filter = request.args.get('status', type=int)
         event_type_filter = request.args.get('event_type')
         
+        # 获取当前用户信息
+        user_id = decoded.get('user_id')
+        user = db.session.get(User, user_id)
+        
+        if not user:
+            return make_err_response('用户不存在')
+        
         result = CommunityEventService.get_community_events(
             community_id=community_id,
             status_filter=status_filter,
-            event_type_filter=event_type_filter
+            event_type_filter=event_type_filter,
+            current_user=user
         )
         
         if result['success']:
@@ -95,7 +104,13 @@ def get_event_detail(decoded, event_id):
         if not result['success']:
             return make_err_response(result['message'])
         
-        return make_succ_response(result)
+        # 兼容前端：将 supports 字段改为 messages
+        result_data = {
+            'event': result.get('event'),
+            'messages': result.get('supports', [])
+        }
+        
+        return make_succ_response(result_data)
             
     except Exception as e:
         logger.error(f"获取事件详情API异常: {str(e)}")
@@ -108,24 +123,24 @@ def create_event_support(decoded, event_id):
     """创建事件应援"""
     try:
         data = request.get_json()
-        if not data or 'support_content' not in data:
+        if not data or 'message_content' not in data:
             return make_err_response('缺少应援内容')
-        
-        support_content = data['support_content']
-        if not support_content.strip():
+
+        message_content = data['message_content']
+        if not message_content.strip():
             return make_err_response('应援内容不能为空')
-        
+
         result = CommunityEventService.create_support(
             event_id=event_id,
-            supporter_id=decoded['user_id'],
-            support_content=support_content.strip()
+            sender_id=decoded['user_id'],
+            message_content=message_content.strip()
         )
-        
+
         if result['success']:
             return make_succ_response(result)
         else:
             return make_err_response(result['message'])
-            
+
     except Exception as e:
         logger.error(f"创建应援API异常: {str(e)}")
         return make_err_response('服务器内部错误')
@@ -137,6 +152,93 @@ def get_community_stats(decoded, community_id):
     """获取社区事件统计"""
     try:
         result = CommunityEventService.get_community_stats(community_id)
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        logger.error(f"获取社区统计API异常: {str(e)}")
+        return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/communities/<int:community_id>/pending-events', methods=['GET'])
+@require_community_staff_member()
+def get_pending_events(decoded, community_id):
+    """获取社区未处理的求助事件"""
+    try:
+        result = CommunityEventService.get_pending_events(community_id)
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        logger.error(f"获取未处理事件API异常: {str(e)}")
+        return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/events/<int:event_id>/respond', methods=['POST'])
+@require_community_staff_member()
+def add_staff_response(decoded, event_id):
+    """工作人员添加回应"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response('请求数据不能为空')
+
+        staff_id = decoded['user_id']
+        content = data.get('content', '')
+        media_url = data.get('media_url')
+        message_tags = data.get('message_tags', [])
+
+        # 至少要有文字内容、媒体文件或快捷指令
+        if not content.strip() and not media_url and not message_tags:
+            return make_err_response('请至少提供文字内容、媒体文件或快捷指令')
+
+        result = CommunityEventService.add_staff_response(
+            event_id=event_id,
+            staff_id=staff_id,
+            content=content,
+            media_url=media_url,
+            message_tags=message_tags
+        )
+
+        if result['success']:
+            return make_succ_response(result)
+        else:
+            return make_err_response(result['message'])
+
+    except Exception as e:
+        logger.error(f"添加工作人员回应API异常: {str(e)}")
+        return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/events/<int:event_id>/location', methods=['PUT'])
+@require_community_membership()
+def update_event_location(decoded, event_id):
+    """更新事件位置信息"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response('请求数据不能为空')
+        
+        location = data.get('location', '')
+        location_lat = data.get('location_lat')
+        location_lon = data.get('location_lon')
+        
+        # 至少需要 location 或坐标信息
+        if not location and (location_lat is None or location_lon is None):
+            return make_err_response('请提供位置信息')
+        
+        result = CommunityEventService.update_event_location(
+            event_id=event_id,
+            location=location,
+            location_lat=location_lat,
+            location_lon=location_lon
+        )
         
         if result['success']:
             return make_succ_response(result)
@@ -144,5 +246,36 @@ def get_community_stats(decoded, community_id):
             return make_err_response(result['message'])
             
     except Exception as e:
-        logger.error(f"获取社区统计API异常: {str(e)}")
+        logger.error(f"更新事件位置API异常: {str(e)}")
+        return make_err_response('服务器内部错误')
+
+
+@events_bp.route('/events/<int:event_id>/close', methods=['PUT'])
+@require_token()
+def close_event(decoded, event_id):
+    """关闭事件（通用接口）"""
+    try:
+        data = request.get_json()
+        if not data or 'closure_reason' not in data:
+            return make_err_response('缺少关闭原因')
+
+        closure_reason = data.get('closure_reason', '').strip()
+        if not closure_reason:
+            return make_err_response('关闭原因不能为空')
+
+        user_id = decoded.get('user_id')
+
+        result = CommunityEventService.close_event(
+            event_id=event_id,
+            user_id=user_id,
+            closure_reason=closure_reason
+        )
+
+        if result['code'] == 1:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['msg'], result.get('data'))
+
+    except Exception as e:
+        logger.error(f"关闭事件API异常: {str(e)}", exc_info=True)
         return make_err_response('服务器内部错误')

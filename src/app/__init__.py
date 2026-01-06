@@ -65,6 +65,10 @@ def create_app(config_name=None):
     # 4. 初始化扩展
     db.init_app(app)
     
+    # 4.5 初始化CORS（支持跨域请求）
+    from flask_cors import CORS
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+    
     # 5. 导入Flask-SQLAlchemy模型（确保在db.init_app之后）
     # 注意：模型导入必须在db.init_app之后，但在注册蓝图之前
     from database.flask_models import (
@@ -155,8 +159,30 @@ def register_session_cleanup(app):
     if not config_manager.is_unit_environment():
         @app.teardown_appcontext
         def shutdown_session(exception=None):
-            """请求结束后清理数据库会话"""
-            db.session.remove()
+            """请求结束后清理数据库会话
+            
+            Layer 4: 调试仪表 - 事务管理
+            - 如果没有异常，提交事务
+            - 如果有异常，回滚事务
+            - 然后移除会话，释放资源
+            """
+            try:
+                if exception is None:
+                    # 没有异常，提交事务
+                    db.session.commit()
+                else:
+                    # 有异常，回滚事务
+                    db.session.rollback()
+            except Exception as e:
+                # 提交或回滚失败，记录错误并强制移除会话
+                app.logger.error(f'会话清理失败: {str(e)}')
+                try:
+                    db.session.rollback()
+                except:
+                    pass
+            finally:
+                # 无论成功与否，都移除会话
+                db.session.remove()
 
 
 def start_background_tasks(app):

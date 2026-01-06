@@ -231,16 +231,16 @@ class TestEventsOperations(IntegrationTestBase):
         response = client.post(
             f'/api/events/{event_id}/support',
             data=json.dumps({
-                'support_content': '我马上过去帮忙',
+                'message_content': '我马上过去帮忙',
                 'community_id': community_id
             }),
             content_type='application/json',
             headers={'Authorization': f'Bearer {token}'}
         )
-    
+
         # 验证响应
         data = self.assert_api_success(response, ['support'])
-        assert data['data']['support']['support_content'] == '我马上过去帮忙'
+        assert data['data']['support']['message_content'] == '我马上过去帮忙'
     def test_get_community_stats_success(self):
         """测试成功获取社区事件统计"""
         user_phone_number = None

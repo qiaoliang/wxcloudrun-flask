@@ -27,7 +27,7 @@ def create_superadmin_and_default_community():
         # 检查超级系统管理员是否已存在
         logger.info("检查超级系统管理员是否存在...")
         # 使用 SQLAlchemy 2.0 的 select() 语句
-        stmt = select(User).where(User.phone_number == '13900007997')
+        stmt = select(User).where(User.phone_number == '13141516171')
         existing_superadmin = db.session.execute(stmt).scalar_one_or_none()
 
         if existing_superadmin:
@@ -36,14 +36,14 @@ def create_superadmin_and_default_community():
             logger.info("开始创建超级系统管理员...")
             # 创建超级系统管理员
             salt = secrets.token_hex(8)
-            password_hash = sha256(f"Firefox0820:{salt}".encode('utf-8')).hexdigest()
+            password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
 
             # 使用与auth.py相同的手机号哈希方法
             phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-            phone_hash = generate_phone_hash("13900007997")
+            phone_hash = generate_phone_hash("13141516171")
             superadmin = User(
                 wechat_openid=f"superadmin_{secrets.token_hex(16)}",  # 生成唯一openid
-                phone_number='13900007997',
+                phone_number='13141516171',
                 phone_hash=phone_hash,
                 nickname='系统超级系统管理员',
                 name='系统超级系统管理员',
@@ -70,7 +70,7 @@ def create_superadmin_and_default_community():
 
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 确保超级系统管理员是社区主管
-            stmt_superadmin = select(User).where(User.phone_number == '13900007997')
+            stmt_superadmin = select(User).where(User.phone_number == '13141516171')
             superadmin_user = db.session.execute(stmt_superadmin).scalar_one_or_none()
 
             if superadmin_user:
@@ -78,7 +78,8 @@ def create_superadmin_and_default_community():
                 stmt_staff = select(CommunityStaff).where(
                     CommunityStaff.community_id == existing_community.community_id,
                     CommunityStaff.user_id == superadmin_user.user_id,
-                    CommunityStaff.role == 'manager'
+                    CommunityStaff.role == 'manager',
+                    CommunityStaff.removed_at.is_(None)
                 )
                 existing_staff = db.session.execute(stmt_staff).scalar_one_or_none()
 
@@ -95,7 +96,7 @@ def create_superadmin_and_default_community():
             logger.info("开始创建默认社区...")
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 获取或创建超级系统管理员（用于关联）
-            stmt = select(User).where(User.phone_number == '13900007997')
+            stmt = select(User).where(User.phone_number == '13141516171')
             superadmin_user = db.session.execute(stmt).scalar_one_or_none()
 
             if not superadmin_user:
@@ -135,7 +136,7 @@ def create_superadmin_and_default_community():
 
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 确保超级系统管理员是黑屋社区主管
-            stmt_superadmin = select(User).where(User.phone_number == '13900007997')
+            stmt_superadmin = select(User).where(User.phone_number == '13141516171')
             superadmin_user = db.session.execute(stmt_superadmin).scalar_one_or_none()
 
             if superadmin_user:
@@ -143,7 +144,8 @@ def create_superadmin_and_default_community():
                 stmt_staff = select(CommunityStaff).where(
                     CommunityStaff.community_id == existing_blackhouse.community_id,
                     CommunityStaff.user_id == superadmin_user.user_id,
-                    CommunityStaff.role == 'manager'
+                    CommunityStaff.role == 'manager',
+                    CommunityStaff.removed_at.is_(None)
                 )
                 existing_staff = db.session.execute(stmt_staff).scalar_one_or_none()
 
@@ -160,7 +162,7 @@ def create_superadmin_and_default_community():
             logger.info("开始创建黑屋社区...")
             # 使用 SQLAlchemy 2.0 的 select() 语句
             # 获取超级系统管理员（应该已存在）
-            stmt = select(User).where(User.phone_number == '13900007997')
+            stmt = select(User).where(User.phone_number == '13141516171')
             superadmin_user = db.session.execute(stmt).scalar_one_or_none()
 
             if not superadmin_user:

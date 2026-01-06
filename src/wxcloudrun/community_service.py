@@ -9,7 +9,8 @@ import json
 from datetime import datetime
 from hashlib import sha256
 from typing import Dict
-from sqlalchemy import select, func, delete, and_, or_, not_
+from flask import current_app
+from sqlalchemy import select, func, delete, and_, or_, not_, update
 from database.flask_models import db, User, Community, CommunityApplication, UserAuditLog
 from wxcloudrun.utils.validators import generate_phone_hash
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
@@ -56,7 +57,7 @@ class CommunityService:
 
     @staticmethod
     @transactional
-    def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None):
+    def create_community(name, description, creator_id, location=None, settings=None, manager_id=None, location_lat=None, location_lon=None, province=None, city=None, district=None, street=None):
         """创建新社区"""
         # 检查社区名称是否已存在
         stmt = select(Community).where(Community.name == name)
@@ -82,6 +83,10 @@ class CommunityService:
             manager_id=manager_id,
             location_lat=location_lat,
             location_lon=location_lon,
+            province=province,
+            city=city,
+            district=district,
+            street=street,
             status=1,
             created_at=datetime.now()
         )
@@ -375,7 +380,7 @@ class CommunityService:
         }
 
     @staticmethod
-    def update_community_info(community_id, name=None, description=None, location=None, status=None, manager_id=None, location_lat=None, location_lon=None):
+    def update_community_info(community_id, name=None, description=None, location=None, status=None, manager_id=None, location_lat=None, location_lon=None, province=None, city=None, district=None, street=None):
         """更新社区信息"""
         community = db.session.get(Community, community_id)
         if not community:
@@ -405,6 +410,18 @@ class CommunityService:
 
             if location_lon is not None:
                 community.location_lon = location_lon
+
+            if province is not None:
+                community.province = province
+
+            if city is not None:
+                community.city = city
+
+            if district is not None:
+                community.district = district
+
+            if street is not None:
+                community.street = street
 
             if status is not None:
                 community.status = status
@@ -466,7 +483,10 @@ class CommunityService:
         from datetime import date
 
         # 获取该社区所有工作人员的用户ID列表
-        stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
         staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
         # 分页查询社区成员 - 使用User表查询，排除工作人员
@@ -494,7 +514,6 @@ class CommunityService:
 
         # 使用子查询一次性获取所有成员的未完成打卡记录，避免 N+1 查询问题
         # 使用 joinedload 预加载 rule 关系
-        from sqlalchemy import and_, func
         from sqlalchemy.orm import joinedload
         member_user_ids = [m.user_id for m in members if m]
 
@@ -699,14 +718,22 @@ class CommunityService:
             }, '社区内还有用户，无法删除')
 
         with transaction():
-            # 删除相关数据
-            stmt_staff = delete(CommunityStaff).where(CommunityStaff.community_id == community_id)
-            db.session.execute(stmt_staff)
+            # 软删除社区：设置 status = 2
+            community.status = 2
+
+            # 软删除该社区所有工作人员：设置 removed_at
+            from datetime import datetime
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.community_id == community_id,
+                CommunityStaff.removed_at.is_(None)
+            )
+            staff_list = db.session.execute(stmt_staff).scalars().all()
+            for staff in staff_list:
+                staff.removed_at = datetime.now()
+
+            # 删除社区申请（物理删除，因为申请记录不需要保留）
             stmt_app = delete(CommunityApplication).where(CommunityApplication.target_community_id == community_id)
             db.session.execute(stmt_app)
-
-            # 删除社区
-            db.session.delete(community)
 
     @staticmethod
     def get_community_daily_stats(community_id):
@@ -716,7 +743,10 @@ class CommunityService:
         from sqlalchemy import and_, func
 
         # 获取该社区所有工作人员的用户ID列表
-        stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
         staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
         # 获取社区所有用户（排除工作人员）
@@ -810,7 +840,10 @@ class CommunityService:
         date_range = [start_date + timedelta(days=i) for i in range(days)]
 
         # 获取该社区所有工作人员的用户ID列表（排除）
-        stmt_staff = select(CommunityStaff).where(CommunityStaff.community_id == community_id)
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
         staff_user_ids = [s.user_id for s in db.session.execute(stmt_staff).scalars().all()]
 
         # Layer 2: 业务逻辑验证 - 获取启用的规则
@@ -912,8 +945,29 @@ class CommunityService:
             raise ValueError("特殊社区不能停用")
 
         with transaction():
-            # 更新状态
+            # 更新社区状态
             community.status = 1 if status == 'active' else 2
+
+            # 如果停用社区，同时停用所有启用的社区打卡规则
+            if status == 'inactive':
+                from database.flask_models import CommunityCheckinRule
+
+                # 批量更新该社区下所有启用的打卡规则
+                stmt = update(CommunityCheckinRule).where(
+                    CommunityCheckinRule.community_id == community_id,
+                    CommunityCheckinRule.status == 1  # 启用状态
+                ).values(
+                    status=0,  # 停用
+                    disabled_by=None,  # 可以从上下文获取操作人
+                    disabled_at=datetime.now()
+                )
+                result = db.session.execute(stmt)
+
+                # 记录停用的规则数量
+                if result.rowcount > 0:
+                    current_app.logger.info(
+                        f'停用社区 {community_id} 时，停用了 {result.rowcount} 个社区打卡规则'
+                    )
 
         return {
             'community_id': community_id,
@@ -940,7 +994,10 @@ class CommunityService:
         result = []
         for u in users:
             # 检查是否已是任何社区的工作人员
-            stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.user_id == u.user_id,
+                CommunityStaff.removed_at.is_(None)
+            )
             is_staff = db.session.execute(stmt_staff).scalar_one_or_none() is not None
 
             user_data = {
@@ -1006,69 +1063,68 @@ class CommunityService:
         }
 
     @staticmethod
+    @staticmethod
+    def _is_super_admin(user):
+        """检查用户是否是超级管理员"""
+        return user.role == 4
+
+    @staticmethod
+    def _get_user_community_ids(user):
+        """获取用户可管理的社区 ID 列表"""
+        from database.flask_models import CommunityStaff
+        
+        if CommunityService._is_super_admin(user):
+            return None  # 超级管理员可以访问所有社区
+        
+        stmt = select(CommunityStaff.community_id).where(
+            CommunityStaff.user_id == user.user_id,
+            CommunityStaff.removed_at.is_(None)
+        )
+        return [row[0] for row in db.session.execute(stmt).all()]
+
+    @staticmethod
     def get_manageable_communities(user, page=1, per_page=7):
         """获取用户可管理的社区列表"""
         from database.flask_models import CommunityStaff
         from const_default import DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID
-
-        if user.role == 4:  # 超级管理员
-            stmt = select(Community).where(Community.status == 1)  # 只显示启用状态
-
-            # 确保特殊社区（安卡大家庭和黑屋）包含在结果中
-            # 获取特殊社区
-            stmt_special = select(Community).where(
+        
+        community_ids = CommunityService._get_user_community_ids(user)
+        
+        if CommunityService._is_super_admin(user):
+            # 超级管理员：查询所有启用状态的社区（包括特殊社区）
+            # 使用 UNION 查询确保特殊社区始终包含在结果中
+            stmt_special = select(Community.community_id).where(
                 Community.community_id.in_([DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID]),
                 Community.status == 1
             )
-            special_communities = db.session.execute(stmt_special).scalars().all()
-
-            # 获取特殊社区ID列表
-            special_community_ids = [c.community_id for c in special_communities]
-
-            # 如果特殊社区没有被包含在正常查询中，需要确保它们出现在结果中
-            all_communities = db.session.execute(stmt).scalars().all()
-            existing_ids = [c.community_id for c in all_communities]
-
-            # 添加缺失的特殊社区
-            for special_community in special_communities:
-                if special_community.community_id not in existing_ids:
-                    all_communities.append(special_community)
-
-            # 按创建时间排序
-            all_communities.sort(key=lambda x: x.created_at, reverse=True)
-
-            # 手动分页
-            total = len(all_communities)
-            offset = (page - 1) * per_page
-            communities = all_communities[offset:offset + per_page]
-
-            return communities, total
+            
+            stmt_normal = select(Community.community_id).where(Community.status == 1)
+            
+            # 使用 UNION 合并查询，然后去重
+            stmt_union = stmt_special.union(stmt_normal)
+            
+            stmt = select(Community).where(
+                Community.community_id.in_(stmt_union)
+            )
         else:
-            # 获取用户作为工作人员的社区
-            stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == user.user_id)
-            staff_communities = db.session.execute(stmt_staff).scalars().all()
-            community_ids = [sc.community_id for sc in staff_communities]
-
+            # 普通用户：只查询有权限的社区
             if not community_ids:
                 return [], 0
-
+            
             stmt = select(Community).where(
-                Community.community_id.in_(community_ids),
-                Community.status == 1  # 启用状态
-            )
-
-            # 分页查询
-            stmt_count = select(func.count()).select_from(Community).where(
                 Community.community_id.in_(community_ids),
                 Community.status == 1
             )
-            total = db.session.execute(stmt_count).scalar()
-
-            offset = (page - 1) * per_page
-            stmt = stmt.order_by(Community.created_at.desc()).offset(offset).limit(per_page)
-            communities = db.session.execute(stmt).scalars().all()
-
-            return communities, total
+        
+        # 统一的分页和排序逻辑
+        stmt_count = select(func.count()).select_from(stmt.subquery())
+        total = db.session.execute(stmt_count).scalar()
+        
+        offset = (page - 1) * per_page
+        stmt = stmt.order_by(Community.created_at.desc()).offset(offset).limit(per_page)
+        communities = db.session.execute(stmt).scalars().all()
+        
+        return communities, total
 
     @staticmethod
     def search_communities_with_permission(user, keyword):
@@ -1082,7 +1138,10 @@ class CommunityService:
             )
         else:
             # 获取用户有权限的社区
-            stmt_staff = select(CommunityStaff).where(CommunityStaff.user_id == user.user_id)
+            stmt_staff = select(CommunityStaff).where(
+                CommunityStaff.user_id == user.user_id,
+                CommunityStaff.removed_at.is_(None)
+            )
             staff_communities = db.session.execute(stmt_staff).scalars().all()
             community_ids = [sc.community_id for sc in staff_communities]
 
@@ -1110,7 +1169,8 @@ class CommunityService:
         # 检查是否是社区工作人员
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
-            CommunityStaff.user_id == user.user_id
+            CommunityStaff.user_id == user.user_id,
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1127,7 +1187,8 @@ class CommunityService:
         # 检查是否是社区工作人员（主管或专员都可以管理用户）
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
-            CommunityStaff.user_id == user.user_id
+            CommunityStaff.user_id == user.user_id,
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1145,7 +1206,8 @@ class CommunityService:
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
             CommunityStaff.user_id == user.user_id,
-            CommunityStaff.role == 'manager'
+            CommunityStaff.role == 'manager',
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1162,7 +1224,8 @@ class CommunityService:
         stmt = select(CommunityStaff).where(
             CommunityStaff.community_id == community_id,
             CommunityStaff.user_id == user.user_id,
-            CommunityStaff.role == 'manager'  # 主管角色
+            CommunityStaff.role == 'manager',  # 主管角色
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 
@@ -1226,7 +1289,8 @@ class CommunityService:
         # 检查用户是否是该社区的工作人员
         stmt = select(CommunityStaff).where(
             CommunityStaff.user_id == user_id,
-            CommunityStaff.community_id == community_id
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
         )
         staff = db.session.execute(stmt).scalar_one_or_none()
 

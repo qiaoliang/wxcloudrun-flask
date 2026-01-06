@@ -16,6 +16,7 @@ sys.path.insert(0, src_path)
 from database.flask_models import User, Community, CommunityStaff
 from wxcloudrun.community_staff_service import CommunityStaffService
 from test_constants import TEST_CONSTANTS
+from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
 from hashlib import sha256
 
 
@@ -24,10 +25,11 @@ class TestCommunityStaffService:
 
     def test_add_staff_single_success(self, test_session, test_app):
         """测试成功添加单个社区工作人员"""
+        test_context = "test_add_staff_single_success"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
-                name='测试社区',
+                name=f'{test_context}_测试社区',
                 description='测试社区描述',
                 creator_id=1
             )
@@ -35,9 +37,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建测试用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='test_openid_123',
-                nickname='测试用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -69,10 +74,11 @@ class TestCommunityStaffService:
 
     def test_add_staff_single_manager_success(self, test_session, test_app):
         """测试成功添加社区主管"""
+        test_context = "test_add_staff_single_manager_success"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
-                name='测试社区',
+                name=f'{test_context}_测试社区',
                 description='测试社区描述',
                 creator_id=1
             )
@@ -80,9 +86,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建测试用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='test_openid_456',
-                nickname='测试主管',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -114,10 +123,11 @@ class TestCommunityStaffService:
 
     def test_add_staff_single_duplicate_fails(self, test_session, test_app):
         """测试添加重复工作人员应该失败"""
+        test_context = "test_add_staff_single_duplicate_fails"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
-                name='测试社区',
+                name=f'{test_context}_测试社区',
                 description='测试社区描述',
                 creator_id=1
             )
@@ -125,9 +135,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建测试用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='test_openid_789',
-                nickname='重复用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -153,21 +166,25 @@ class TestCommunityStaffService:
 
     def test_add_staff_single_invalid_community_fails(self, test_session, test_app):
             """测试为不存在的社区添加工作人员的行为"""
+            test_context = "test_add_staff_single_invalid_community_fails"
             with test_app.app_context():
                 # 创建测试用户
+                phone_number = generate_unique_phone_number(test_context)
+                openid = generate_unique_openid(phone_number, test_context)
                 user = User(
-                    wechat_openid='test_openid_invalid',
-                    nickname='无效社区用户',
+                    wechat_openid=openid,
+                    nickname=generate_unique_nickname(test_context),
+                    phone_number=phone_number,
                     role=1,
                     status=1
                 )
                 test_session.add(user)
                 test_session.commit()
-                
+
                 # 测试真实行为：add_staff_single对不存在社区的处理
                 # 根据实际实现，这个方法可能不会检查社区是否存在
                 # 我们测试它实际做了什么，而不是假设它应该做什么
-                
+
                 # 调用方法并观察实际行为
                 try:
                     result = CommunityStaffService.add_staff_single(
@@ -176,23 +193,23 @@ class TestCommunityStaffService:
                         role='staff',
                         operator_id=user.user_id
                     )
-                    
+
                     # 如果没有抛出异常，验证返回的结果
                     assert result is not None
                     assert result.community_id == 99999
                     assert result.user_id == user.user_id
                     assert result.role == 'staff'
-                    
+
                     # 验证数据库中确实创建了记录
                     staff_record = test_session.query(CommunityStaff).filter_by(
                         community_id=99999,
                         user_id=user.user_id
                     ).first()
                     assert staff_record is not None
-                    
+
                     # 验证社区关系（由于社区不存在，这可能是None）
                     assert staff_record.community is None  # 外键关系应该为None
-                    
+
                 except Exception as e:
                     # 如果确实抛出了异常（比如外键约束），这也是可接受的行为
                     # 我们验证异常类型和消息
@@ -200,10 +217,11 @@ class TestCommunityStaffService:
                     print(f"预期的异常: {e}")
     def test_check_user_is_staff_true(self, test_session, test_app):
         """测试检查用户是工作人员的情况"""
+        test_context = "test_check_user_is_staff_true"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
-                name='测试社区',
+                name=f'{test_context}_测试社区',
                 description='测试社区描述',
                 creator_id=1
             )
@@ -211,9 +229,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建测试用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='test_openid_staff_check',
-                nickname='工作人员检查用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -234,11 +255,15 @@ class TestCommunityStaffService:
 
     def test_check_user_is_staff_false(self, test_session, test_app):
         """测试检查用户不是工作人员的情况"""
+        test_context = "test_check_user_is_staff_false"
         with test_app.app_context():
             # 创建测试用户（无工作人员身份）
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='test_openid_not_staff',
-                nickname='非工作人员用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -251,10 +276,11 @@ class TestCommunityStaffService:
 
     def test_get_community_staff(self, test_session, test_app):
         """测试获取社区工作人员列表"""
+        test_context = "test_get_community_staff"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
-                name='测试社区',
+                name=f'{test_context}_测试社区',
                 description='测试社区描述',
                 creator_id=1
             )
@@ -262,15 +288,22 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建多个测试用户
+            phone_number_staff = generate_unique_phone_number(f"{test_context}_staff")
+            openid_staff = generate_unique_openid(phone_number_staff, f"{test_context}_staff")
             staff_user = User(
-                wechat_openid='test_openid_staff_1',
-                nickname='工作人员1',
+                wechat_openid=openid_staff,
+                nickname=generate_unique_nickname(f"{test_context}_staff"),
+                phone_number=phone_number_staff,
                 role=1,
                 status=1
             )
+
+            phone_number_manager = generate_unique_phone_number(f"{test_context}_manager")
+            openid_manager = generate_unique_openid(phone_number_manager, f"{test_context}_manager")
             manager_user = User(
-                wechat_openid='test_openid_manager_1',
-                nickname='主管1',
+                wechat_openid=openid_manager,
+                nickname=generate_unique_nickname(f"{test_context}_manager"),
+                phone_number=phone_number_manager,
                 role=1,
                 status=1
             )
@@ -308,11 +341,15 @@ class TestCommunityStaffService:
 
     def test_is_admin_of_commu_super_admin(self, test_session, test_app):
         """测试超级管理员被识别为社区管理员"""
+        test_context = "test_is_admin_of_commu_super_admin"
         with test_app.app_context():
             # 创建超级管理员用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             super_admin = User(
-                wechat_openid='super_admin_openid',
-                nickname='超级管理员',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=4,  # 超级管理员角色
                 status=1
             )
@@ -341,6 +378,7 @@ class TestCommunityStaffService:
 
     def test_is_admin_of_commu_manager(self, test_session, test_app):
         """测试社区主管被识别为社区管理员"""
+        test_context = "test_is_admin_of_commu_manager"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
@@ -352,9 +390,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建主管用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             manager_user = User(
-                wechat_openid='manager_openid',
-                nickname='社区主管',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,  # 普通用户角色
                 status=1
             )
@@ -385,6 +426,7 @@ class TestCommunityStaffService:
 
     def test_is_admin_of_commu_staff_not_admin(self, test_session, test_app):
         """测试社区专员不被识别为社区管理员"""
+        test_context = "test_is_admin_of_commu_staff_not_admin"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
@@ -396,9 +438,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建专员用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             staff_user = User(
-                wechat_openid='staff_openid',
-                nickname='社区专员',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,  # 普通用户角色
                 status=1
             )
@@ -432,24 +477,28 @@ class TestCommunityStaffService:
 
     def test_is_admin_of_commu_invalid_community_id(self, test_session, test_app):
         """测试无效社区ID的处理"""
+        test_context = "test_is_admin_of_commu_invalid_community_id"
         with test_app.app_context():
             # 创建普通用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='normal_user_openid',
-                nickname='普通用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
             test_session.add(user)
             test_session.commit()
-            
+
             # 由于UserService.query_user_by_id存在问题，我们直接测试数据库层面的验证逻辑
             # 验证无效社区ID在数据库查询中的行为
-            
+
             # 测试None社区ID：在真实场景中，这会导致查询失败或返回None
             # 我们验证这种情况下管理员检查的逻辑
             from database.flask_models import CommunityStaff
-            
+
             # 尝试用None查询CommunityStaff应该返回None或抛出异常
             try:
                 result = test_session.query(CommunityStaff).filter_by(
@@ -461,7 +510,7 @@ class TestCommunityStaffService:
             except Exception:
                 # 或者抛出异常也是可接受的行为
                 pass
-            
+
             # 测试无效的社区ID（不存在的社区）
             result = test_session.query(CommunityStaff).filter_by(
                 community_id=99999,  # 不存在的社区ID
@@ -469,12 +518,13 @@ class TestCommunityStaffService:
             ).first()
             # 应该返回None，表示没有管理员权限
             assert result is None
-            
+
             # 验证用户角色不是超级管理员
             assert user.role == 1  # 普通用户，不是管理员
 
     def test_add_staff_batch_success(self, test_session, test_app):
         """测试批量添加工作人员成功"""
+        test_context = "test_add_staff_batch_success"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
@@ -486,9 +536,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建操作者（超级管理员）
+            phone_number_operator = generate_unique_phone_number(f"{test_context}_operator")
+            openid_operator = generate_unique_openid(phone_number_operator, f"{test_context}_operator")
             operator = User(
-                wechat_openid='batch_operator_openid',
-                nickname='批量操作者',
+                wechat_openid=openid_operator,
+                nickname=generate_unique_nickname(f"{test_context}_operator"),
+                phone_number=phone_number_operator,
                 role=4,  # 超级管理员
                 status=1
             )
@@ -498,9 +551,12 @@ class TestCommunityStaffService:
             # 创建多个用户
             users = []
             for i in range(3):
+                phone_number = generate_unique_phone_number(f"{test_context}_user_{i}")
+                openid = generate_unique_openid(phone_number, f"{test_context}_user_{i}")
                 user = User(
-                    wechat_openid=f'batch_user_{i}_openid',
-                    nickname=f'批量用户{i}',
+                    wechat_openid=openid,
+                    nickname=generate_unique_nickname(f"{test_context}_user_{i}"),
+                    phone_number=phone_number,
                     role=1,
                     status=1
                 )
@@ -531,6 +587,7 @@ class TestCommunityStaffService:
 
     def test_add_staff_batch_partial_failure(self, test_session, test_app):
         """测试批量添加部分失败的情况"""
+        test_context = "test_add_staff_batch_partial_failure"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
@@ -542,9 +599,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建操作者（超级管理员）
+            phone_number_operator = generate_unique_phone_number(f"{test_context}_operator")
+            openid_operator = generate_unique_openid(phone_number_operator, f"{test_context}_operator")
             operator = User(
-                wechat_openid='partial_operator_openid',
-                nickname='部分操作者',
+                wechat_openid=openid_operator,
+                nickname=generate_unique_nickname(f"{test_context}_operator"),
+                phone_number=phone_number_operator,
                 role=4,  # 超级管理员
                 status=1
             )
@@ -552,9 +612,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建一个有效用户
+            phone_number = generate_unique_phone_number(f"{test_context}_valid")
+            openid = generate_unique_openid(phone_number, f"{test_context}_valid")
             valid_user = User(
-                wechat_openid='valid_user_openid',
-                nickname='有效用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(f"{test_context}_valid"),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -578,11 +641,15 @@ class TestCommunityStaffService:
 
     def test_add_staff_batch_invalid_params(self, test_session, test_app):
         """测试批量添加的无效参数"""
+        test_context = "test_add_staff_batch_invalid_params"
         with test_app.app_context():
             # 创建操作者
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             operator = User(
-                wechat_openid='param_operator_openid',
-                nickname='参数操作者',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=4,
                 status=1
             )
@@ -618,6 +685,7 @@ class TestCommunityStaffService:
 
     def test_remove_staff_success(self, test_session, test_app):
         """测试成功移除工作人员"""
+        test_context = "test_remove_staff_success"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
@@ -629,9 +697,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='remove_user_openid',
-                nickname='被移除用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -663,15 +734,17 @@ class TestCommunityStaffService:
             # 验证移除成功
             assert result is True
 
-            # 验证工作人员已被移除
+            # 验证工作人员已被软删除（removed_at不为空）
             staff_after = test_session.query(CommunityStaff).filter_by(
                 community_id=community.community_id,
                 user_id=user.user_id
             ).first()
-            assert staff_after is None
+            assert staff_after is not None
+            assert staff_after.removed_at is not None
 
     def test_remove_staff_not_exist(self, test_session, test_app):
         """测试移除不存在的工作人员"""
+        test_context = "test_remove_staff_not_exist"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
@@ -683,9 +756,12 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建用户
+            phone_number = generate_unique_phone_number(test_context)
+            openid = generate_unique_openid(phone_number, test_context)
             user = User(
-                wechat_openid='not_exist_user_openid',
-                nickname='不存在用户',
+                wechat_openid=openid,
+                nickname=generate_unique_nickname(test_context),
+                phone_number=phone_number,
                 role=1,
                 status=1
             )
@@ -702,6 +778,7 @@ class TestCommunityStaffService:
 
     def test_remove_staff_with_audit_log(self, test_session, test_app):
         """测试移除工作人员时创建审计日志"""
+        test_context = "test_remove_staff_with_audit_log"
         with test_app.app_context():
             # 创建测试社区
             community = Community(
@@ -713,15 +790,22 @@ class TestCommunityStaffService:
             test_session.commit()
 
             # 创建用户和操作者
+            phone_number_user = generate_unique_phone_number(f"{test_context}_user")
+            openid_user = generate_unique_openid(phone_number_user, f"{test_context}_user")
             user = User(
-                wechat_openid='audit_user_openid',
-                nickname='审计用户',
+                wechat_openid=openid_user,
+                nickname=generate_unique_nickname(f"{test_context}_user"),
+                phone_number=phone_number_user,
                 role=1,
                 status=1
             )
+
+            phone_number_operator = generate_unique_phone_number(f"{test_context}_operator")
+            openid_operator = generate_unique_openid(phone_number_operator, f"{test_context}_operator")
             operator = User(
-                wechat_openid='audit_operator_openid',
-                nickname='审计操作者',
+                wechat_openid=openid_operator,
+                nickname=generate_unique_nickname(f"{test_context}_operator"),
+                phone_number=phone_number_operator,
                 role=4,
                 status=1
             )

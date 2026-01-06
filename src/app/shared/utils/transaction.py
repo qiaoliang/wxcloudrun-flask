@@ -203,13 +203,12 @@ def transaction():
 
     class TransactionContext:
         def __enter__(self):
-            # 检查是否在测试环境中
-            if config_manager.is_unit_environment():
-                # 测试环境：使用 begin_nested() + commit()
-                self.session = db.session.begin_nested()
-            else:
-                # 生产环境：使用 begin_nested 支持 SAVEPOINT
-                self.session = db.session.begin_nested()
+            # 在所有环境下都使用 begin_nested()
+            # begin_nested() 会智能地检查 Session 是否已有事务：
+            # - 如果已有事务，则创建 SAVEPOINT
+            # - 如果没有事务，则创建新事务
+            # 这样可以避免 "A transaction is already begun on this Session" 错误
+            self.session = db.session.begin_nested()
             return self.session
 
         def __exit__(self, exc_type, exc_val, exc_tb):

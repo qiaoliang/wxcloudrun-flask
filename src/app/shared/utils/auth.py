@@ -24,7 +24,7 @@ def verify_token():
         else:
             params = {}  # GET请求通常没有请求体
     except Exception as e:
-        current_app.logger.warning(f'解析请求JSON失败: {str(e)}')
+        app_logger.warning(f'解析请求JSON失败: {str(e)}')
         params = {}
 
     # 验证token
@@ -36,27 +36,27 @@ def verify_token():
     token = params.get('token') or header_token
 
     if not token:
-        current_app.logger.warning('请求中缺少token参数')
+        app_logger.warning('请求中缺少token参数')
         return None, make_err_response({}, '缺少token参数')
 
     # 检查token是否包含额外的引号并去除
     if token and token.startswith('"') and token.endswith('"'):
-        current_app.logger.info('检测到token包含额外引号，正在去除...')
+        app_logger.info('检测到token包含额外引号，正在去除...')
         token = token[1:-1]  # 去除首尾的引号
-        current_app.logger.info(f'去除引号后的token: {token[:50]}...')
+        app_logger.info(f'去除引号后的token: {token[:50]}...')
     else:
-        current_app.logger.info(f'token不包含额外引号或为空，无需处理')
+        app_logger.info(f'token不包含额外引号或为空，无需处理')
 
     try:
         # 从配置管理器获取TOKEN_SECRET
         try:
             token_secret = get_token_secret()
         except ValueError as e:
-            current_app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+            app_logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
             return None, make_err_response({}, '服务器配置错误')
 
-        current_app.logger.debug(f'使用TOKEN_SECRET进行token验证')
-        current_app.logger.info(f'开始解码token，token长度: {len(token)}')
+        app_logger.debug(f'使用TOKEN_SECRET进行token验证')
+        app_logger.info(f'开始解码token，token长度: {len(token)}')
 
         # 解码token
         decoded = jwt.decode(
@@ -64,20 +64,20 @@ def verify_token():
             token_secret,
             algorithms=['HS256']
         )
-        current_app.logger.info(f'Token解码成功: {decoded}')
+        app_logger.info(f'Token解码成功: {decoded}')
 
         openid = decoded.get('openid')
         user_id = decoded.get('user_id')
-        current_app.logger.info(f'从token中提取: user_id={user_id} (类型: {type(user_id)}), openid={openid}')
+        app_logger.info(f'从token中提取: user_id={user_id} (类型: {type(user_id)}), openid={openid}')
 
         # 对于手机号注册的用户，openid可能为空，但user_id必须存在
         if not user_id:
-            current_app.logger.error('解码后的token中未找到user_id')
+            app_logger.error('解码后的token中未找到user_id')
             return None, make_err_response({}, 'token无效')
 
         # 如果openid为空，记录日志但不阻止验证（手机号注册用户）
         if not openid:
-            current_app.logger.info(f'用户{user_id}使用手机号注册，openid为空')
+            app_logger.info(f'用户{user_id}使用手机号注册，openid为空')
 
         return decoded, None
     except jwt.ExpiredSignatureError:
@@ -89,7 +89,7 @@ def verify_token():
     except jwt.InvalidTokenError:
         return None, make_err_response({}, 'token无效')
     except Exception as e:
-        current_app.logger.error(f'JWT验证时发生错误: {str(e)}', exc_info=True)
+        app_logger.error(f'JWT验证时发生错误: {str(e)}', exc_info=True)
         return None, make_err_response({}, f'JWT验证失败: {str(e)}')
 
 def require_role(required_role):
@@ -301,16 +301,16 @@ def generate_jwt_token(user, expires_hours=2):
         'exp': datetime.datetime.now(datetime.UTC) + datetime.timedelta(hours=expires_hours),
         'jti': f"{int(time.time())}_{random.randint(1000, 9999)}"  # JWT ID for uniqueness
     }
-    current_app.logger.info(f'JWT token payload: {token_payload}')
+    app_logger.info(f'JWT token payload: {token_payload}')
 
     # 从配置管理器获取 TOKEN_SECRET
     try:
         token_secret = get_token_secret()
     except ValueError as e:
-        current_app.logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
+        app_logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
         return None, make_err_response({}, '服务器配置错误')
 
-    current_app.logger.info(f'使用配置的TOKEN_SECRET: {token_secret[:20]}...')
+    app_logger.info(f'使用配置的TOKEN_SECRET: {token_secret[:20]}...')
 
     # 生成 JWT token
     token = jwt.encode(token_payload, token_secret, algorithm='HS256')
@@ -336,7 +336,7 @@ def generate_refresh_token(user, expires_days=7):
 
     # 生成 refresh token
     refresh_token = secrets.token_urlsafe(32)
-    current_app.logger.info(f'生成的refresh_token: {refresh_token[:20]}...')
+    app_logger.info(f'生成的refresh_token: {refresh_token[:20]}...')
 
     # 设置过期时间
     refresh_token_expire = datetime.datetime.now() + datetime.timedelta(days=expires_days)

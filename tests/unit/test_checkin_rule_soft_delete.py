@@ -10,11 +10,8 @@ from datetime import datetime, timedelta
 # 添加项目根目录到 Python 路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-# from wxcloudrun import app
-# from database import get_database
-
 from database.flask_models import CheckinRule, CheckinRecord, User, Community
-# from wxcloudrun.dao import delete_checkin_rule_by_id, query_checkin_rule_by_id, query_checkin_rules_by_user_id
+from test_constants import TEST_CONSTANTS
 
 
 class TestDeleteRuleCoreLogic:
@@ -23,7 +20,7 @@ class TestDeleteRuleCoreLogic:
         """测试有打卡记录的规则软删除"""
         # 创建测试社区
         community = Community(
-            name="测试社区",
+            name=TEST_CONSTANTS.generate_community_name("soft_delete_records"),
             status=1
         )
         test_session.add(community)
@@ -65,7 +62,7 @@ class TestDeleteRuleCoreLogic:
         """测试查询规则时排除已删除的规则"""
         # 创建测试社区
         community = Community(
-            name="测试社区",
+            name=TEST_CONSTANTS.generate_community_name("query_exclude_deleted"),
             status=1
         )
         test_session.add(community)
@@ -117,7 +114,7 @@ class TestDeleteRuleCoreLogic:
         """测试软删除保持数据完整性"""
         # 创建测试社区
         community = Community(
-            name="测试社区",
+            name=TEST_CONSTANTS.generate_community_name("data_integrity"),
             status=1
         )
         test_session.add(community)

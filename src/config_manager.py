@@ -129,8 +129,20 @@ def should_use_mock_wechat() -> bool:
 def should_use_real_sms() -> bool:
     """
     判断是否应该使用真实短信服务
-    只有prod和uat环境使用真实短信服务
+    根据 SMS_PROVIDER 环境变量决定：
+    - 'real'（不区分大小写）: 使用真实短信服务
+    - 'mock'（不区分大小写）: 使用模拟短信服务
+    - 其他或未设置：根据环境判断（prod和uat使用真实，其他使用模拟）
     """
+    sms_provider = os.getenv('SMS_PROVIDER', '').lower()
+    
+    # 优先使用明确的配置（不区分大小写）
+    if sms_provider == 'real':
+        return True
+    elif sms_provider == 'mock':
+        return False
+    
+    # 如果没有明确配置，根据环境判断
     env_type = os.getenv('ENV_TYPE', 'unit')
     return env_type in ['uat', 'prod']
 

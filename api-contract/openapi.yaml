@@ -2444,3 +2444,70 @@ tags:
       description: 打卡分享相关接口
     - name: 杂项模块
       description: 系统辅助功能相关接口
+    - name: 事件管理模块
+      description: 社区事件管理相关接口
+
+# ==========================================
+# 事件管理模块 (events)
+# ==========================================
+/api/events/{event_id}/close:
+  put:
+    tags:
+      - 事件管理模块
+    summary: 关闭事件
+    description: 关闭进行中的事件，支持用户和社区工作人员关闭
+    security:
+      - BearerAuth: []
+    parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+          description: 事件ID
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - closure_reason
+            properties:
+              closure_reason:
+                type: string
+                minLength: 10
+                maxLength: 500
+                description: 关闭原因（10-500字符）
+    responses:
+      "200":
+        description: 操作成功
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: "#/components/schemas/StandardResponse"
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        event_id:
+                          type: integer
+                          description: 事件ID
+                        closed_by:
+                          type: integer
+                          description: 关闭人ID
+                        closed_at:
+                          type: string
+                          format: date-time
+                          description: 关闭时间
+                        closure_type:
+                          type: integer
+                          description: 关闭类型（1-用户关闭，2-工作人员关闭）
+                        closure_type_label:
+                          type: string
+                          description: 关闭类型标签
+                        closure_reason:
+                          type: string
+                          description: 关闭原因

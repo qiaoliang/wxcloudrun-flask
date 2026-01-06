@@ -283,7 +283,7 @@ class TestUserService:
         # Arrange - 创建一个不存在的用户对象
         test_user = User(
             wechat_openid="nonexistent_openid",
-            phone_number="13800138000"
+            phone_number="13100000000"
         )
         test_user.password = "test_password"
 

@@ -27,7 +27,7 @@ _phone_counter = 0
 _phone_counter_lock = threading.Lock()
 
 # 超级系统管理员手机号，需要避免生成这个号码
-SUPER_ADMIN_PHONE = '13900007997'
+SUPER_ADMIN_PHONE = '13141516171'
 
 # 哈希相关常量
 PWD_SALT = secrets.token_hex(8)
@@ -76,11 +76,16 @@ class UserService:
         根据ID更新用户信息
         :param user: User实体
         """
+        logger.info(f"update_user_by_id: 开始更新用户 user_id={user.user_id}, community_id={user.community_id}")
+
         # 在数据库中查找现有用户
         stmt = select(User).where(User.user_id == user.user_id)
         existing_user = db.session.execute(stmt).scalar_one_or_none()
         if not existing_user:
+            logger.warning(f"update_user_by_id: 未找到用户 user_id={user.user_id}")
             return
+
+        logger.info(f"update_user_by_id: existing_user community_id={existing_user.community_id}")
 
         # 更新字段
         if user.nickname is not None:
@@ -102,6 +107,7 @@ class UserService:
             existing_user.verification_materials = user.verification_materials
         if user.community_id is not None:
             existing_user.community_id = user.community_id
+            logger.info(f"update_user_by_id: 更新 community_id={user.community_id}")
         if user.status is not None:
             if isinstance(user.status, int):
                 existing_user.status = user.status
@@ -114,6 +120,11 @@ class UserService:
         if user.password_salt is not None:
             existing_user.password_salt = user.password_salt
         existing_user.updated_at = user.updated_at or datetime.now()
+
+        # 刷新到数据库，但不提交（由调用方决定是否提交）
+        db.session.flush()
+
+        logger.info(f"update_user_by_id: 完成更新 user community_id={user.community_id}")
 
     @staticmethod
     def query_user_by_openid(openid):
@@ -144,6 +155,8 @@ class UserService:
                 User.phone_hash == phone_hash
             )
             user = db.session.execute(stmt).scalar_one_or_none()
+            if user:
+                logger.info(f"query_user_by_phone_hash: user_id={user.user_id}, community_id={user.community_id}, phone_number={user.phone_number}")
             return user
         except OperationalError as e:
             logger.info(f"query_user_by_phone_hash errorMsg= {e}")
@@ -485,7 +498,10 @@ class UserService:
                     'is_current_community_staff': is_current_community_staff,
                     'is_current_community_manager': current_community_manager,
                     'is_other_community_manager': other_community_manager,
-                    'is_staff': db.session.execute(select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)).scalar_one_or_none() is not None
+                    'is_staff': db.session.execute(select(CommunityStaff).where(
+                        CommunityStaff.user_id == u.user_id,
+                        CommunityStaff.removed_at.is_(None)
+                    )).scalar_one_or_none() is not None
                 }
 
                 result.append(user_data)
@@ -562,7 +578,10 @@ class UserService:
                     'community_id': str(u.community_id) if u.community_id else None,
                     'status': u.status,
                     'created_at': u.created_at.isoformat() if u.created_at else None,
-                    'is_staff': db.session.execute(select(CommunityStaff).where(CommunityStaff.user_id == u.user_id)).scalar_one_or_none() is not None
+                    'is_staff': db.session.execute(select(CommunityStaff).where(
+                        CommunityStaff.user_id == u.user_id,
+                        CommunityStaff.removed_at.is_(None)
+                    )).scalar_one_or_none() is not None
                 }
 
                 result.append(user_data)
