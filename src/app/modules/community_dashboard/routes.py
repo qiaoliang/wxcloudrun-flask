@@ -6,14 +6,14 @@ import logging
 from flask import request, current_app
 from . import community_dashboard_bp
 from app.shared import make_succ_response, make_err_response
-from app.shared.decorators import login_required, require_community_staff_member
+from app.shared.decorators import login_required
 from wxcloudrun.community_dashboard_service import CommunityDashboardService
 
 logger = logging.getLogger('CommunityDashboardRoutes')
 
 
 @community_dashboard_bp.route('/community-dashboard/<int:community_id>/stats', methods=['GET'])
-@require_community_staff_member()
+@login_required
 def get_community_stats(decoded, community_id):
     """
     获取社区统计数据
@@ -46,7 +46,7 @@ def get_community_stats(decoded, community_id):
 
 
 @community_dashboard_bp.route('/community-dashboard/<int:community_id>/abnormal-users', methods=['GET'])
-@require_community_staff_member()
+@login_required
 def get_abnormal_users(decoded, community_id):
     """
     获取异常用户列表
@@ -92,7 +92,7 @@ def get_abnormal_users(decoded, community_id):
 
 
 @community_dashboard_bp.route('/community-dashboard/<int:community_id>/trends', methods=['GET'])
-@require_community_staff_member()
+@login_required
 def get_trend_data(decoded, community_id):
     """
     获取历史趋势数据
@@ -133,7 +133,7 @@ def get_trend_data(decoded, community_id):
 
 
 @community_dashboard_bp.route('/community-dashboard/<int:community_id>/pending-events', methods=['GET'])
-@require_community_staff_member()
+@login_required
 def get_pending_events(decoded, community_id):
     """
     获取未处理事件列表
@@ -174,7 +174,7 @@ def get_pending_events(decoded, community_id):
 
 
 @community_dashboard_bp.route('/community-dashboard/<int:community_id>/user-abnormality/<int:user_id>', methods=['GET'])
-@require_community_staff_member()
+@login_required
 def get_user_abnormality_detail(decoded, community_id, user_id):
     """
     获取用户异常值详情

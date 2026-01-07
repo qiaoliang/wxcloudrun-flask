@@ -159,10 +159,14 @@ class AbnormalityCalculator:
                         user_id = mapping.user_id
 
                         # 计算当天的计划打卡时间
-                        scheduled_time = datetime.combine(
-                            target_date,
-                            rule.scheduled_time
-                        )
+                        # CommunityCheckinRule has custom_time (Time field), combine with target_date
+                        if rule.custom_time:
+                            scheduled_time = datetime.combine(target_date, rule.custom_time)
+                        else:
+                            # If no custom_time, skip this rule
+                            logger.warning(f"规则 {rule.community_rule_id} 没有设置自定义时间，跳过")
+                            stats['skipped'] += 1
+                            continue
 
                         # 检查用户今天是否已打卡
                         checkin_stmt = select(CheckinRecord).where(

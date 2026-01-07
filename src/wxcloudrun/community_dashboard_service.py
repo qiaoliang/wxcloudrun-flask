@@ -89,10 +89,13 @@ class CommunityDashboardService:
             # 应打卡总数 = 用户数 × 规则数
             expected_checkins = total_users * total_rules
 
-            # 实际打卡总数
-            checkin_stmt = select(func.count(CheckinRecord.record_id)).where(
+            # 实际打卡总数 - 通过join获取community_id
+            checkin_stmt = select(func.count(CheckinRecord.record_id)).join(
+                CommunityCheckinRule,
+                CheckinRecord.community_rule_id == CommunityCheckinRule.community_rule_id
+            ).where(
                 and_(
-                    CheckinRecord.community_id == community_id,
+                    CommunityCheckinRule.community_id == community_id,
                     func.date(CheckinRecord.checkin_time) == today
                 )
             )
@@ -102,9 +105,12 @@ class CommunityDashboardService:
 
             # 未打卡人数 = 至少有一个规则未打卡的用户数
             # 使用子查询找出已完成所有规则打卡的用户
-            completed_users_stmt = select(CheckinRecord.user_id).where(
+            completed_users_stmt = select(CheckinRecord.user_id).join(
+                CommunityCheckinRule,
+                CheckinRecord.community_rule_id == CommunityCheckinRule.community_rule_id
+            ).where(
                 and_(
-                    CheckinRecord.community_id == community_id,
+                    CommunityCheckinRule.community_id == community_id,
                     func.date(CheckinRecord.checkin_time) == today
                 )
             ).group_by(CheckinRecord.user_id).having(
@@ -319,9 +325,12 @@ class CommunityDashboardService:
             else:
                 expected_checkins = total_users * total_rules
 
-                checkin_stmt = select(func.count(CheckinRecord.record_id)).where(
+                checkin_stmt = select(func.count(CheckinRecord.record_id)).join(
+                    CommunityCheckinRule,
+                    CheckinRecord.community_rule_id == CommunityCheckinRule.community_rule_id
+                ).where(
                     and_(
-                        CheckinRecord.community_id == community_id,
+                        CommunityCheckinRule.community_id == community_id,
                         func.date(CheckinRecord.checkin_time) == date_obj
                     )
                 )
@@ -336,7 +345,7 @@ class CommunityDashboardService:
         rule_missed_stmt = select(
             CommunityCheckinRule.community_rule_id,
             CommunityCheckinRule.rule_name,
-            CommunityCheckinRule.rule_icon,
+            CommunityCheckinRule.icon_url,
             func.count().label('missed_count')
         ).outerjoin(
             UserCommunityRule,
@@ -357,7 +366,7 @@ class CommunityDashboardService:
         ).group_by(
             CommunityCheckinRule.community_rule_id,
             CommunityCheckinRule.rule_name,
-            CommunityCheckinRule.rule_icon
+            CommunityCheckinRule.icon_url
         ).order_by(
             desc('missed_count')
         )
@@ -369,7 +378,7 @@ class CommunityDashboardService:
             rule_missed_stats.append({
                 'rule_id': row.community_rule_id,
                 'rule_name': row.rule_name,
-                'rule_icon': row.rule_icon or '📋',
+                'rule_icon': row.icon_url or '📋',
                 'missed_count': row.missed_count
             })
 
@@ -461,9 +470,9 @@ class CommunityDashboardService:
         # 获取用户的所有规则异常值
         stmt = select(
             CommunityCheckinRule.rule_name,
-            CommunityCheckinRule.scheduled_time,
             UserDailyAbnormality.total_abnormality,
             UserDailyAbnormality.last_checkin_time,
+            UserDailyAbnormality.last_scheduled_time,
             UserDailyAbnormality.is_completed
         ).join(
             UserDailyAbnormality,
@@ -485,7 +494,7 @@ class CommunityDashboardService:
         for row in results:
             rule_details.append({
                 'rule_name': row.rule_name,
-                'scheduled_time': row.scheduled_time.strftime('%H:%M') if row.scheduled_time else None,
+                'scheduled_time': row.last_scheduled_time.strftime('%H:%M') if row.last_scheduled_time else None,
                 'abnormality': int(row.total_abnormality),
                 'last_checkin_time': row.last_checkin_time.isoformat() if row.last_checkin_time else None,
                 'is_completed': row.is_completed

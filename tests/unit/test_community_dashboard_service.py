@@ -157,19 +157,25 @@ class TestCommunityDashboardService:
             # 创建2个启用的规则
             rule1 = self._create_community_rule(comm.community_id, admin.user_id, test_session, '晨间问候')
             rule2 = self._create_community_rule(comm.community_id, admin.user_id, test_session, '晚间报平安')
-            CommunityCheckinRuleService.enable_community_rule(rule1['community_rule_id'], admin.user_id)
-            CommunityCheckinRuleService.enable_community_rule(rule2['community_rule_id'], admin.user_id)
+            CommunityCheckinRuleService.enable_community_rule(rule1.community_rule_id, admin.user_id)
+            CommunityCheckinRuleService.enable_community_rule(rule2.community_rule_id, admin.user_id)
             test_session.commit()
 
             # 为用户创建规则关联
             for user in [user1, user2, user3]:
-                for rule_id in [rule1['community_rule_id'], rule2['community_rule_id']]:
-                    mapping = UserCommunityRule(
+                for rule_obj in [rule1, rule2]:
+                    # 检查是否已存在关联
+                    existing = test_session.query(UserCommunityRule).filter_by(
                         user_id=user.user_id,
-                        community_rule_id=rule_id,
-                        is_active=True
-                    )
-                    test_session.add(mapping)
+                        community_rule_id=rule_obj.community_rule_id
+                    ).first()
+                    if not existing:
+                        mapping = UserCommunityRule(
+                            user_id=user.user_id,
+                            community_rule_id=rule_obj.community_rule_id,
+                            is_active=True
+                        )
+                        test_session.add(mapping)
             test_session.commit()
 
             # 获取统计数据
@@ -214,17 +220,22 @@ class TestCommunityDashboardService:
             test_session.commit()
 
             rule = self._create_community_rule(comm.community_id, admin.user_id, test_session)
-            CommunityCheckinRuleService.enable_community_rule(rule['community_rule_id'], admin.user_id)
+            CommunityCheckinRuleService.enable_community_rule(rule.community_rule_id, admin.user_id)
             test_session.commit()
 
-            # 创建用户规则关联
-            mapping = UserCommunityRule(
+            # 创建用户规则关联（检查是否已存在）
+            existing = test_session.query(UserCommunityRule).filter_by(
                 user_id=user1.user_id,
-                community_rule_id=rule['community_rule_id'],
-                is_active=True
-            )
-            test_session.add(mapping)
-            test_session.commit()
+                community_rule_id=rule.community_rule_id
+            ).first()
+            if not existing:
+                mapping = UserCommunityRule(
+                    user_id=user1.user_id,
+                    community_rule_id=rule.community_rule_id,
+                    is_active=True
+                )
+                test_session.add(mapping)
+                test_session.commit()
 
             # 获取7天趋势数据
             trends = CommunityDashboardService.get_trend_data(comm.community_id, days=7)
@@ -285,23 +296,28 @@ class TestCommunityDashboardService:
 
             # 创建规则
             rule = self._create_community_rule(comm.community_id, admin.user_id, test_session)
-            CommunityCheckinRuleService.enable_community_rule(rule['community_rule_id'], admin.user_id)
+            CommunityCheckinRuleService.enable_community_rule(rule.community_rule_id, admin.user_id)
             test_session.commit()
 
-            # 创建用户规则关联
-            mapping = UserCommunityRule(
+            # 创建用户规则关联（检查是否已存在）
+            existing = test_session.query(UserCommunityRule).filter_by(
                 user_id=user.user_id,
-                community_rule_id=rule['community_rule_id'],
-                is_active=True
-            )
-            test_session.add(mapping)
-            test_session.commit()
+                community_rule_id=rule.community_rule_id
+            ).first()
+            if not existing:
+                mapping = UserCommunityRule(
+                    user_id=user.user_id,
+                    community_rule_id=rule.community_rule_id,
+                    is_active=True
+                )
+                test_session.add(mapping)
+                test_session.commit()
 
             # 创建异常值记录
             today = date.today()
             abnormality = UserDailyAbnormality(
                 user_id=user.user_id,
-                rule_id=rule['community_rule_id'],
+                rule_id=rule.community_rule_id,
                 date=today,
                 total_abnormality=5,
                 is_completed=False
