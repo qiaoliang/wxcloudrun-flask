@@ -11,7 +11,7 @@ from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, Community, CommunityStaff, CommunityApplication, UserAuditLog
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
 from app.shared.utils.transaction import transaction
-from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES
+from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES, STAFF_ROLE_STAFF, STAFF_ROLE_MANAGER
 logger = logging.getLogger('CommunityService')
 
 
@@ -63,7 +63,7 @@ class CommunityStaffService:
         if not user_ids or not isinstance(user_ids, list):
             raise ValueError('用户ID列表不能为空')
 
-        if role not in ['manager', 'staff']:
+        if role not in [STAFF_ROLE_MANAGER, STAFF_ROLE_STAFF]:
             raise ValueError('角色参数错误，必须是manager或staff')
 
         # 检查社区是否存在
@@ -87,19 +87,19 @@ class CommunityStaffService:
             if not staff_record:
                 raise ValueError('权限不足，需要社区工作人员权限')
 
-            # 如果是专员（非主管）尝试添加主管，则拒绝
-            if staff_record.role == 'staff' and role == 'manager':
-                raise ValueError('专员不能添加主管，需要主管权限')
+            # 如果是专员（非主管）尝试添加任何工作人员，则拒绝
+            if staff_record.role == STAFF_ROLE_STAFF:
+                raise ValueError('专员不能添加工作人员，需要主管权限')
 
         # 如果是添加主管,只能添加一个
-        if role == 'manager' and len(user_ids) > 1:
+        if role == STAFF_ROLE_MANAGER and len(user_ids) > 1:
             raise ValueError('主管只能添加一个')
 
         # 检查是否已有主管
-        if role == 'manager':
+        if role == STAFF_ROLE_MANAGER:
             stmt_manager = select(CommunityStaff).where(
                 CommunityStaff.community_id == community_id,
-                CommunityStaff.role == 'manager',
+                CommunityStaff.role == STAFF_ROLE_MANAGER,
                 CommunityStaff.removed_at.is_(None)
             )
             existing_manager = db.session.execute(stmt_manager).scalar_one_or_none()
@@ -170,10 +170,10 @@ class CommunityStaffService:
                 db.session.add(staff)
 
                 # 更新用户的 role 字段
-                if role == 'manager':
-                    target_user.role = 3  # 社区主管
-                elif role == 'staff':
-                    target_user.role = 2  # 社区专员
+                if role == STAFF_ROLE_MANAGER:
+                    target_user.role = Role.MANAGER
+                elif role == STAFF_ROLE_STAFF:
+                    target_user.role = Role.STAFF
 
                 # 记录审计日志
                 audit_log = UserAuditLog(
@@ -219,7 +219,7 @@ class CommunityStaffService:
                 raise ValueError('添加失败: 未知错误')
 
         # Layer 4: 调试仪表 - 如果添加的是主管，更新Community表的manager_id字段
-        if role == 'manager' and added_count > 0:
+        if role == STAFF_ROLE_MANAGER and added_count > 0:
             # 获取添加的主管用户ID（只取第一个，因为前面已经验证只能添加一个）
             manager_user_id = processed_user_ids[0]
             logger.info(f'Layer 4调试仪表 - 准备更新社区{community_id}的主管ID为{manager_user_id}')
@@ -244,7 +244,7 @@ class CommunityStaffService:
         }
 
     @staticmethod
-    def add_staff_single(community_id, user_id, role='staff', operator_id=None):
+    def add_staff_single(community_id, user_id, role=STAFF_ROLE_STAFF, operator_id=None):
         """
         添加单个社区工作人员（保持向后兼容）
 
@@ -279,10 +279,10 @@ class CommunityStaffService:
         # 更新用户的 role 字段
         target_user = db.session.get(User, user_id)
         if target_user:
-            if role == 'manager':
-                target_user.role = 3  # 社区主管
-            elif role == 'staff':
-                target_user.role = 2  # 社区专员
+            if role == STAFF_ROLE_MANAGER:
+                target_user.role = Role.MANAGER
+            elif role == STAFF_ROLE_STAFF:
+                target_user.role = Role.STAFF
 
         # 记录审计日志
         audit_log = UserAuditLog(
@@ -327,7 +327,7 @@ class CommunityStaffService:
         staff.removed_at = datetime.now()
 
         # Layer 3: 环境守卫 - 如果移除的是主管，清理Community表的manager_id字段
-        if removed_role == 'manager':
+        if removed_role == STAFF_ROLE_MANAGER:
             logger.info(f'Layer 3环境守卫 - 移除的是主管，清理社区{community_id}的manager_id字段')
             community = db.session.get(Community, community_id)
             if community and community.manager_id == user_id:
@@ -477,7 +477,7 @@ class CommunityStaffService:
                         staff = CommunityStaff(
                             community_id=new_community_id,
                             user_id=user_id,
-                            role='manager' if user.role in ADMIN_ROLES else 'staff'
+                            role=STAFF_ROLE_MANAGER if user.role in ADMIN_ROLES else STAFF_ROLE_STAFF
                         )
                         db.session.add(staff)
 
