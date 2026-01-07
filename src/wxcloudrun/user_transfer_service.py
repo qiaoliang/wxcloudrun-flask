@@ -4,6 +4,7 @@
 """
 import logging
 from datetime import datetime
+from typing import List, Dict, TypedDict
 from sqlalchemy import select
 from database.flask_models import db, User, Community, CommunityStaff, CommunityEvent, UserAuditLog
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, STAFF_ROLE_MANAGER
@@ -12,11 +13,32 @@ from wxcloudrun.community_staff_service import CommunityStaffService
 
 logger = logging.getLogger(__name__)
 
+# 事件状态常量
+EVENT_STATUS_ONGOING = 1
+EVENT_STATUS_COMPLETED = 2
+EVENT_STATUS_CANCELLED = 3
+
+
+class TransferResult(TypedDict):
+    """转移结果类型定义"""
+    success_count: int
+    skipped_count: int
+    failed: List[Dict[str, str]]
+    transferred_users: List[Dict[str, str]]
+    events_transferred: int
+    rules_updated: int
+
+
 class UserTransferService:
     """用户批量转移服务"""
 
     @staticmethod
-    def transfer_users_batch(operator_user_id, source_community_id, target_community_id, user_ids):
+    def transfer_users_batch(
+        operator_user_id: int,
+        source_community_id: int,
+        target_community_id: int,
+        user_ids: List[int]
+    ) -> TransferResult:
         """
         批量转移用户到目标社区
 
@@ -27,14 +49,7 @@ class UserTransferService:
             user_ids: 待转移用户ID列表（最多10个）
 
         Returns:
-            dict: {
-                'success_count': int,          # 成功转移数量
-                'skipped_count': int,          # 静默跳过数量
-                'failed': list,                # 失败列表
-                'transferred_users': list,     # 成功用户信息
-                'events_transferred': int,     # 转移的事件数
-                'rules_updated': int           # 规则更新数
-            }
+            TransferResult: 转移结果字典
 
         Raises:
             ValueError: 权限不足、参数错误等不可恢复错误
@@ -54,6 +69,11 @@ class UserTransferService:
 
         if len(user_ids) > 10:
             raise ValueError('一次最多转移10个用户')
+
+        # 验证用户ID格式
+        for user_id in user_ids:
+            if not isinstance(user_id, int) or user_id <= 0:
+                raise ValueError(f'无效的用户ID: {user_id}')
 
         # 去重用户ID
         user_ids = list(set(user_ids))
@@ -120,7 +140,7 @@ class UserTransferService:
                     # 检查用户是否在源社区
                     if user.community_id != source_community_id:
                         # 用户已离开源社区，静默跳过
-                        logger.info(f'用户{user_id}已不在源社区{source_community_id}，跳过转移')
+                        logger.debug(f'用户{user_id}已不在源社区{source_community_id}，跳过转移')
                         skipped_count += 1
                         continue
 
@@ -157,28 +177,32 @@ class UserTransferService:
                     rules_updated += result.get('activated_count', 0)
                 except Exception as e:
                     logger.error(f'切换用户{user_id}的打卡规则失败: {str(e)}')
+                    failed.append({
+                        'user_id': user_id,
+                        'reason': f'规则切换失败: {str(e)}'
+                    })
 
             # 5. 转移未完成事件
             events_transferred = 0
             if transferred_user_ids:
-                stmt_events = select(CommunityEvent).where(
+                # 使用批量更新提高性能
+                events_transferred = db.session.query(CommunityEvent).filter(
                     CommunityEvent.community_id == source_community_id,
                     CommunityEvent.target_user_id.in_(transferred_user_ids),
-                    CommunityEvent.status == 1  # 仅转移进行中的事件
+                    CommunityEvent.status == EVENT_STATUS_ONGOING  # 仅转移进行中的事件
+                ).update(
+                    {'community_id': target_community_id},
+                    synchronize_session=False
                 )
-                events = db.session.execute(stmt_events).scalars().all()
-
-                for event in events:
-                    event.community_id = target_community_id
-                    events_transferred += 1
 
                 logger.info(f'转移了{events_transferred}个未完成事件')
 
             # 6. 记录审计日志
+            transferred_user_ids_str = ",".join(map(str, transferred_user_ids))
             audit_log = UserAuditLog(
                 user_id=operator_user_id,
                 action="batch_transfer_users",
-                detail=f"批量转移{success_count}个用户：从社区{source_community_id}到{target_community_id}，跳过{skipped_count}个，失败{len(failed)}个"
+                detail=f"批量转移{success_count}个用户：从社区{source_community_id}到{target_community_id}，用户ID[{transferred_user_ids_str}]，跳过{skipped_count}个，失败{len(failed)}个"
             )
             db.session.add(audit_log)
 
