@@ -426,8 +426,9 @@ class TestTransactionManager:
         验证：刷新但不提交，可以获取生成的ID
         """
         # Arrange
+        community_name = generate_unique_nickname("flush_test")
         community = Community(
-            name="测试社区",
+            name=community_name,
             status=1
         )
         test_session.add(community)
@@ -442,6 +443,6 @@ class TestTransactionManager:
         test_session.commit()
 
         test_session.expire_all()
-        saved_community = test_session.query(Community).filter_by(name="测试社区").first()
+        saved_community = test_session.query(Community).filter_by(name=community_name).first()
         assert saved_community is not None
         assert saved_community.community_id == community.community_id
