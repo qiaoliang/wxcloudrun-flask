@@ -8,6 +8,35 @@ from datetime import datetime
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float, CheckConstraint, UniqueConstraint, Index
 from app.extensions import db
 
+# 角色常量 - 定义在这里避免循环导入
+class Role:
+    """角色 ID 常量 - 用于代码判断"""
+    UNSET = 0  # 未设置
+    SOLO = 1  # 普通用户 (独居者)
+    STAFF = 2  # 社区专员
+    MANAGER = 3  # 社区主管
+    SUPER_ADMIN = 4  # 超级系统管理员
+
+class RoleName:
+    """角色名称常量 - 用于显示"""
+    UNSET = "未设置"
+    SOLO = "普通用户"
+    STAFF = "社区专员"
+    MANAGER = "社区主管"
+    SUPER_ADMIN = "超级系统管理员"
+
+# role_id 到 role_name 的映射（用于显示）
+ROLE_ID_TO_NAME = {
+    Role.UNSET: RoleName.UNSET,
+    Role.SOLO: RoleName.SOLO,
+    Role.STAFF: RoleName.STAFF,
+    Role.MANAGER: RoleName.MANAGER,
+    Role.SUPER_ADMIN: RoleName.SUPER_ADMIN,
+}
+
+# 数据库约束使用的角色值列表（用于 CheckConstraint）
+DB_ROLE_CONSTRAINT_VALUES = [Role.UNSET, Role.SOLO, Role.STAFF, Role.MANAGER, Role.SUPER_ADMIN]
+
 class User(db.Model):
     """用户表 - Flask-SQLAlchemy版本"""
     __tablename__ = 'users'
@@ -47,7 +76,7 @@ class User(db.Model):
         db.Index('idx_user_created_at', 'created_at'),
         db.Index('idx_user_community_status', 'community_id', 'status'),
         db.Index('idx_user_role_status', 'role', 'status'),
-        db.CheckConstraint('role IN (0, 1, 2, 3, 4)', name='ck_user_role'),  # 0=未设置, 1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员
+        db.CheckConstraint(f'role IN ({", ".join(map(str, DB_ROLE_CONSTRAINT_VALUES))})', name='ck_user_role'),  # 0=未设置, 1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员
         db.CheckConstraint('status IN (0, 1, 2)', name='ck_user_status'),  # 0=禁用, 1=正常, 2=待验证
     )
 
@@ -69,13 +98,8 @@ class User(db.Model):
     supports = db.relationship('EventMessage', back_populates='sender', lazy='dynamic')
     user_community_rules = db.relationship('UserCommunityRule', back_populates='user', lazy='selectin')
 
-    # 角色映射
-    ROLE_MAPPING = {
-        1: '普通用户',
-        2: '社区专员',
-        3: '社区主管',
-        4: '超级系统管理员'
-    }
+    # 角色映射 - 使用统一常量
+    ROLE_MAPPING = ROLE_ID_TO_NAME
 
     # 状态映射
     STATUS_MAPPING = {

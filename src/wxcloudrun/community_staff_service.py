@@ -11,6 +11,7 @@ from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, Community, CommunityStaff, CommunityApplication, UserAuditLog
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
 from app.shared.utils.transaction import transaction
+from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES
 logger = logging.getLogger('CommunityService')
 
 
@@ -76,7 +77,7 @@ class CommunityStaffService:
             raise ValueError('操作者用户不存在')
 
         # 检查操作者权限
-        if operator_user.role != 4:  # 不是超级管理员
+        if operator_user.role != Role.SUPER_ADMIN:  # 不是超级管理员
             stmt_staff = select(CommunityStaff).where(
                 CommunityStaff.community_id == community_id,
                 CommunityStaff.user_id == operator_user_id,
@@ -472,11 +473,11 @@ class CommunityStaffService:
 
                 # 如果新社区存在，检查是否需要添加工作人员关系
                 if new_community_id:
-                    if user and user.role >= 2:  # 如果是管理员或以上
+                    if user and user.role in COMMUNITY_STAFF_ROLES:  # 如果是管理员或以上
                         staff = CommunityStaff(
                             community_id=new_community_id,
                             user_id=user_id,
-                            role='manager' if user.role >= 3 else 'staff'
+                            role='manager' if user.role in ADMIN_ROLES else 'staff'
                         )
                         db.session.add(staff)
 

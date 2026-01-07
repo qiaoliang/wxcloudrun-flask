@@ -15,6 +15,7 @@ from database.flask_models import db, User, Community, CommunityApplication, Use
 from wxcloudrun.utils.validators import generate_phone_hash
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,DEFAULT_BLACK_ROOM_NAME,DEFAULT_BLACK_ROOM_ID
 from app.shared.utils.transaction import transactional, transaction
+from app.shared.constants.roles import Role
 
 logger = logging.getLogger('CommunityService')
 
@@ -181,7 +182,7 @@ class CommunityService:
         )
 
         # 如果用户不是超级管理员，只显示其社区的申请
-        if user.role != 4:
+        if user.role != Role.SUPER_ADMIN:
             # 获取用户管理的社区
             from database.flask_models import CommunityStaff
             stmt_staff = select(CommunityStaff.community_id).where(CommunityStaff.user_id == user_id)
@@ -208,7 +209,7 @@ class CommunityService:
         # 分页
         # 计算总数
         stmt_count = select(func.count()).select_from(CommunityApplication)
-        if user.role != 4:
+        if user.role != Role.SUPER_ADMIN:
             stmt_count = stmt_count.where(CommunityApplication.target_community_id.in_(managed_community_ids))
         if status_filter is not None:
             stmt_count = stmt_count.where(CommunityApplication.status == status)
@@ -1066,7 +1067,7 @@ class CommunityService:
     @staticmethod
     def _is_super_admin(user):
         """检查用户是否是超级管理员"""
-        return user.role == 4
+        return user.role == Role.SUPER_ADMIN
 
     @staticmethod
     def _get_user_community_ids(user):
@@ -1131,7 +1132,7 @@ class CommunityService:
         """搜索社区（根据权限过滤）"""
         from database.flask_models import CommunityStaff
 
-        if user.role == 4:  # 超级管理员
+        if user.role == Role.SUPER_ADMIN:  # 超级管理员
             stmt = select(Community).where(
                 Community.name.like(f'%{keyword}%'),
                 Community.status == 1
@@ -1163,7 +1164,7 @@ class CommunityService:
         """检查用户是否可以访问社区（查看详情）"""
         from database.flask_models import CommunityStaff
 
-        if user.role == 4:  # 超级管理员
+        if user.role == Role.SUPER_ADMIN:  # 超级管理员
             return True
 
         # 检查是否是社区工作人员
@@ -1181,7 +1182,7 @@ class CommunityService:
         """检查用户是否可以管理社区用户（增删普通用户）"""
         from database.flask_models import CommunityStaff
 
-        if user.role == 4:  # 超级管理员
+        if user.role == Role.SUPER_ADMIN:  # 超级管理员
             return True
 
         # 检查是否是社区工作人员（主管或专员都可以管理用户）
@@ -1199,7 +1200,7 @@ class CommunityService:
         """检查用户是否可以管理社区工作人员（增删专员）"""
         from database.flask_models import CommunityStaff
 
-        if user.role == 4:  # 超级管理员
+        if user.role == Role.SUPER_ADMIN:  # 超级管理员
             return True
 
         # 只有社区主管可以管理工作人员
@@ -1218,7 +1219,7 @@ class CommunityService:
         """检查用户是否是社区主管"""
         from database.flask_models import CommunityStaff
 
-        if user.role == 4:  # 超级管理员
+        if user.role == Role.SUPER_ADMIN:  # 超级管理员
             return True
 
         stmt = select(CommunityStaff).where(
@@ -1282,7 +1283,7 @@ class CommunityService:
             return False
 
         # 超级管理员有所有社区权限
-        if user.role == 4:  # 超级管理员
+        if user.role == Role.SUPER_ADMIN:  # 超级管理员
             logger.info(f"超级管理员 {user_id} 有所有社区权限")
             return True
 

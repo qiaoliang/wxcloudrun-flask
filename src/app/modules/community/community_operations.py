@@ -11,6 +11,7 @@ from app.shared.utils.auth import verify_token
 from database.flask_models import db, User, Community
 from wxcloudrun.community_service import CommunityService
 from wxcloudrun.utils.validators import _audit
+from app.shared.constants.roles import Role
 
 app_logger = logging.getLogger('log')
 
@@ -170,7 +171,7 @@ def toggle_community_status():
     user = db.session.get(User, user_id)
 
     # 检查权限
-    if not user or user.role == 1:  # 只有超级管理员可以切换状态
+    if not user or user.role == Role.SOLO:  # 只有超级管理员可以切换状态
         return make_err_response({}, '无权限执行此操作')
 
     try:

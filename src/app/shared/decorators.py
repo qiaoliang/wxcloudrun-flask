@@ -5,9 +5,10 @@
 
 from functools import wraps
 import logging
-from flask import request
+from flask import request, current_app
 from database.flask_models import db
 from app.shared.utils.auth import verify_token
+from app.shared.constants.roles import Role
 
 app_logger = logging.getLogger('log')
 
@@ -62,7 +63,7 @@ def require_community_staff_member():
             # 检查是否为超级系统管理员
             from database.flask_models import User
             user = db.session.get(User, user_id)
-            if user and user.role == 4:  # 超级系统管理员
+            if user and user.role == Role.SUPER_ADMIN:  # 超级系统管理员
                 return f(decoded, *args, **kwargs)
 
             # 从请求中获取community_id

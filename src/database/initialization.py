@@ -10,6 +10,7 @@ from hashlib import sha256
 from sqlalchemy import select
 from database.flask_models import User, Community, CommunityStaff, db
 from wxcloudrun.utils.validators import generate_phone_hash
+from app.shared.constants.roles import Role
 
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,BLACKHOUSE_COMMUNITY_NAME
 
@@ -69,7 +70,7 @@ def create_superadmin_and_default_community():
                 name='系统超级系统管理员',
                 password_hash=password_hash,
                 password_salt=salt,
-                role=4,  # 超级系统管理员角色
+                role=Role.SUPER_ADMIN,  # 超级系统管理员角色
                 status=1,  # 正常状态
                 verification_status=2,  # 已通过验证
                 _is_community_worker=True,

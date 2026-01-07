@@ -21,6 +21,7 @@ from database.flask_models import db, User, UserAuditLog
 # 导入工具函数
 from wxcloudrun.utils.validators import generate_phone_hash
 from app.shared.utils.transaction import transactional
+from app.shared.constants.roles import Role
 
 # 全局计数器，用于生成唯一的测试手机号
 _phone_counter = 0
@@ -436,7 +437,7 @@ class UserService:
             )
 
             # 角色过滤：排除超级管理员 (role=4)
-            stmt_count = stmt_count.where(User.role != 4)
+            stmt_count = stmt_count.where(User.role != Role.SUPER_ADMIN)
 
             total_count = db.session.execute(stmt_count).scalar()
 
@@ -448,7 +449,7 @@ class UserService:
                     User.phone_number.ilike(f'%{keyword}%')
                 )
             )
-            stmt = stmt.where(User.role != 4)
+            stmt = stmt.where(User.role != Role.SUPER_ADMIN)
             stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
             users = db.session.execute(stmt).scalars().all()
 
@@ -551,7 +552,7 @@ class UserService:
             stmt_count = select(func.count()).select_from(User).where(
                 User.phone_number.ilike(f'%{normalized_phone}%')
             )
-            stmt_count = stmt_count.where(User.role != 4)  # 排除超级管理员
+            stmt_count = stmt_count.where(User.role != Role.SUPER_ADMIN)  # 排除超级管理员
 
             total_count = db.session.execute(stmt_count).scalar()
 
@@ -560,7 +561,7 @@ class UserService:
             stmt = select(User).where(
                 User.phone_number.ilike(f'%{normalized_phone}%')
             )
-            stmt = stmt.where(User.role != 4)  # 排除超级管理员
+            stmt = stmt.where(User.role != Role.SUPER_ADMIN)  # 排除超级管理员
             stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
             users = db.session.execute(stmt).scalars().all()
 
@@ -628,7 +629,7 @@ class UserService:
             stmt_count = select(func.count()).select_from(User).where(
                 User.nickname.ilike(f'%{keyword}%')
             )
-            stmt_count = stmt_count.where(User.role != 4)  # 排除超级管理员
+            stmt_count = stmt_count.where(User.role != Role.SUPER_ADMIN)  # 排除超级管理员
 
             total_count = db.session.execute(stmt_count).scalar()
 
@@ -637,7 +638,7 @@ class UserService:
             stmt = select(User).where(
                 User.nickname.ilike(f'%{keyword}%')
             )
-            stmt = stmt.where(User.role != 4)  # 排除超级管理员
+            stmt = stmt.where(User.role != Role.SUPER_ADMIN)  # 排除超级管理员
             stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
             users = db.session.execute(stmt).scalars().all()
 
