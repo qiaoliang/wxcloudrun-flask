@@ -76,7 +76,10 @@ class CommunityCheckinRuleService:
             if not CommunityService.has_community_permission(created_by_int, community_id_int):
                 raise ValueError('无权限在此社区创建规则')
 
-            # 创建规则对象
+            # 获取 is_enabled 参数，默认为 False
+            is_enabled = rule_data.get('is_enabled', False)
+
+            # 创建规则对象，根据 is_enabled 设置初始状态
             new_rule = CommunityCheckinRule(
                 community_id=community_id_int,
                 rule_name=rule_name.strip(),
@@ -87,7 +90,7 @@ class CommunityCheckinRuleService:
                 custom_start_date=custom_start_date,
                 custom_end_date=custom_end_date,
                 week_days=rule_data.get('week_days', 127),
-                status=0,  # 默认停用状态
+                status=1 if is_enabled else 0,  # 根据 is_enabled 设置状态
                 created_by=created_by_int,
                 created_at=datetime.now(),
                 updated_at=datetime.now()
@@ -97,7 +100,13 @@ class CommunityCheckinRuleService:
             with transaction():
                 db.session.flush()
 
-            logger.info(f"创建社区规则成功: 社区ID={community_id_int}, 规则ID={new_rule.community_rule_id}, 创建者={created_by_int}")
+            # 如果需要立即启用，为所有用户创建映射
+            if is_enabled:
+                CommunityCheckinRuleService._enable_rule_for_all_users(
+                    new_rule, created_by_int
+                )
+
+            logger.info(f"创建社区规则成功: 社区ID={community_id_int}, 规则ID={new_rule.community_rule_id}, 启用状态={is_enabled}")
             return new_rule
 
         except SQLAlchemyError as e:
@@ -267,6 +276,67 @@ class CommunityCheckinRuleService:
 
         except SQLAlchemyError as e:
             logger.error(f"启用社区规则失败: {str(e)}")
+            raise
+
+    @staticmethod
+    def _enable_rule_for_all_users(rule, enabled_by):
+        """
+        为所有社区用户创建规则映射（内部方法）
+
+        复用 enable_community_rule 的用户映射逻辑，
+        但不修改规则状态（因为创建时已设置）。
+
+        Args:
+            rule: CommunityCheckinRule 对象
+            enabled_by: 启用人用户ID
+
+        Raises:
+            SQLAlchemyError: 数据库错误
+        """
+        try:
+            # Layer 4: 调试仪表 - 记录启用上下文
+            logger.debug(f"为规则创建用户映射: 规则ID={rule.community_rule_id}, 启用人={enabled_by}")
+
+            # 使用 SQLAlchemy 2.0 的 select() 语句
+            # 获取社区所有用户
+            stmt_users = select(User).where(User.community_id == rule.community_id)
+            community_users = db.session.execute(stmt_users).scalars().all()
+
+            logger.debug(f"找到社区用户: {len(community_users)}人")
+
+            # 为每个用户创建或更新映射记录
+            for user in community_users:
+                # 使用 SQLAlchemy 2.0 的 select() 语句
+                # 查找是否已有映射记录
+                stmt_mapping = select(UserCommunityRule).where(
+                    UserCommunityRule.user_id == user.user_id,
+                    UserCommunityRule.community_rule_id == rule.community_rule_id
+                )
+                existing_mapping = db.session.execute(stmt_mapping).scalar_one_or_none()
+
+                if existing_mapping:
+                    # 如果已有记录，更新为激活状态
+                    existing_mapping.is_active = True
+                else:
+                    # 如果没有记录，创建新记录
+                    mapping = UserCommunityRule(
+                        user_id=user.user_id,
+                        community_rule_id=rule.community_rule_id,
+                        is_active=True,
+                        created_at=datetime.now()
+                    )
+                    db.session.add(mapping)
+                    db.session.flush()  # 确保新记录立即生效
+
+            # 设置启用相关字段（不修改 status，因为创建时已设置）
+            rule.enabled_at = datetime.now()
+            rule.enabled_by = enabled_by
+            rule.updated_at = datetime.now()
+
+            logger.debug(f"用户映射创建完成: 规则ID={rule.community_rule_id}")
+
+        except SQLAlchemyError as e:
+            logger.error(f"创建用户映射失败: {str(e)}")
             raise
 
     @staticmethod
