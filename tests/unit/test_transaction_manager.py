@@ -10,7 +10,8 @@ from test_data_generator import (
     generate_unique_phone_number,
     generate_unique_openid,
     generate_unique_nickname,
-    generate_unique_username
+    generate_unique_username,
+    TestDataManager
 )
 from test_constants import TEST_CONSTANTS
 from hashlib import sha256
