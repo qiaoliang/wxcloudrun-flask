@@ -849,5 +849,51 @@ class UserCommunityRule(db.Model):
         }
 
 
+class UserDailyAbnormality(db.Model):
+    """用户每日异常值表 - 用于社区数字看板"""
+    __tablename__ = 'user_daily_abnormality'
+
+    id = Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False, index=True, comment='用户ID')
+    rule_id = Column(db.Integer, db.ForeignKey('community_checkin_rules.community_rule_id'), nullable=False, index=True, comment='社区规则ID')
+    date = Column(db.Date, nullable=False, index=True, comment='日期')
+    total_abnormality = Column(db.Integer, default=0, comment='当日累计异常值')
+    last_checkin_time = Column(db.DateTime, comment='当日最后一次打卡时间')
+    last_scheduled_time = Column(db.DateTime, comment='当日最后一次计划打卡时间')
+    is_completed = Column(db.Boolean, default=False, comment='当日是否已完成打卡')
+    created_at = Column(db.DateTime, default=datetime.now, comment='创建时间')
+    updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
+
+    # 组合唯一索引和优化索引
+    __table_args__ = (
+        db.UniqueConstraint('user_id', 'rule_id', 'date', name='uk_user_rule_date'),
+        db.Index('idx_user_daily_abnormality_user_date', 'user_id', 'date'),
+        db.Index('idx_user_daily_abnormality_rule_date', 'rule_id', 'date'),
+        db.Index('idx_user_daily_abnormality_date', 'date'),
+    )
+
+    # 关系 - 使用 back_populates 替代 backref
+    user = db.relationship('User', backref='daily_abnormalities', lazy='selectin')
+    rule = db.relationship('CommunityCheckinRule', backref='daily_abnormalities', lazy='selectin')
+
+    def __repr__(self):
+        return f'<UserDailyAbnormality {self.id}: User{self.user_id}-Rule{self.rule_id}-{self.date}>'
+
+    def to_dict(self):
+        """将模型对象转换为字典"""
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'rule_id': self.rule_id,
+            'date': self.date.isoformat() if self.date else None,
+            'total_abnormality': self.total_abnormality,
+            'last_checkin_time': self.last_checkin_time.isoformat() if self.last_checkin_time else None,
+            'last_scheduled_time': self.last_scheduled_time.isoformat() if self.last_scheduled_time else None,
+            'is_completed': self.is_completed,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
 # 导出 Base 供 Alembic 使用
 Base = db.Model

@@ -111,7 +111,8 @@ def register_blueprints(app):
     from .modules.community_checkin import community_checkin_bp
     from .modules.user_checkin import user_checkin_bp
     from .modules.misc import misc_bp
-    
+    from .modules.community_dashboard import community_dashboard_bp
+
     # 注册蓝图，统一添加/api前缀
     app.register_blueprint(auth_bp, url_prefix='/api')
     app.register_blueprint(user_bp, url_prefix='/api')
@@ -124,6 +125,7 @@ def register_blueprints(app):
     app.register_blueprint(community_checkin_bp, url_prefix='/api/community_checkin')
     app.register_blueprint(user_checkin_bp, url_prefix='/api')
     app.register_blueprint(misc_bp, url_prefix='/api')
+    app.register_blueprint(community_dashboard_bp, url_prefix='/api')
     
     # 只在主进程中记录此日志，避免 Flask 重启时重复
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
@@ -198,7 +200,44 @@ def start_background_tasks(app):
                 # 导入并启动后台任务
                 from wxcloudrun.background_tasks import start_missing_check_service
                 start_missing_check_service(app)
+
+                # 启动异常值计算定时任务
+                app.logger.info("# 启动异常值计算定时任务")
+                start_abnormality_scheduler(app)
         except Exception as e:
             app.logger.error(f"启动后台missing服务失败: {str(e)}")
     else:
         app.logger.info("unit 环境下不启动后台服务")
+
+
+def start_abnormality_scheduler(app):
+    """启动异常值计算定时任务"""
+    try:
+        from flask_apscheduler import APScheduler
+        from app.shared.utils.abnormality_calculator import AbnormalityCalculator
+
+        # 配置 APScheduler
+        app.config['SCHEDULER_API_ENABLED'] = True
+        app.config['SCHEDULER_TIMEZONE'] = 'Asia/Shanghai'
+
+        scheduler = APScheduler()
+        scheduler.init_app(app)
+
+        # 定义定时任务
+        @scheduler.task('cron', id='update_abnormality_values', minute='*')
+        def update_abnormality_values():
+            """每分钟执行一次异常值计算"""
+            try:
+                app.logger.info("开始执行异常值计算任务")
+                stats = AbnormalityCalculator.calculate_all_pending_users()
+                app.logger.info(f"异常值计算完成: {stats}")
+            except Exception as e:
+                app.logger.error(f"异常值计算任务执行失败: {str(e)}", exc_info=True)
+
+        # 启动调度器
+        scheduler.start()
+
+        app.logger.info("异常值计算定时任务已启动（每分钟执行一次）")
+
+    except Exception as e:
+        app.logger.error(f"启动异常值计算定时任务失败: {str(e)}", exc_info=True)
