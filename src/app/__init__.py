@@ -6,6 +6,7 @@ Flask应用工厂模块
 import os
 import sys
 import logging
+from datetime import datetime
 from flask import Flask
 
 # 添加父目录到路径，以便导入config模块
@@ -196,25 +197,25 @@ def start_background_tasks(app):
             app.logger.info(f"app.debug={app.debug}")
         try:
             if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
-                app.logger.info(f"# 启动后台的打卡扫描检测服务")
-                # 导入并启动后台任务
-                from wxcloudrun.background_tasks import start_missing_check_service
-                start_missing_check_service(app)
-
-                # 启动异常值计算定时任务
-                app.logger.info("# 启动异常值计算定时任务")
-                start_abnormality_scheduler(app)
+                # 启动所有定时任务（使用 APScheduler）
+                app.logger.info("# 启动定时任务调度器")
+                start_all_schedulers(app)
         except Exception as e:
-            app.logger.error(f"启动后台missing服务失败: {str(e)}")
+            app.logger.error(f"启动定时任务失败: {str(e)}")
     else:
         app.logger.info("unit 环境下不启动后台服务")
 
 
-def start_abnormality_scheduler(app):
-    """启动异常值计算定时任务"""
+def start_all_schedulers(app):
+    """启动所有定时任务（使用 APScheduler 统一管理）"""
     try:
         from flask_apscheduler import APScheduler
         from app.shared.utils.abnormality_calculator import AbnormalityCalculator
+        from wxcloudrun.background_tasks import (
+            daily_check,
+            _process_missed_for_today,
+            _process_community_missed_for_today
+        )
 
         # 配置 APScheduler
         app.config['SCHEDULER_API_ENABLED'] = True
@@ -223,10 +224,9 @@ def start_abnormality_scheduler(app):
         scheduler = APScheduler()
         scheduler.init_app(app)
 
-        # 定义定时任务
-        @scheduler.task('cron', id='update_abnormality_values', minute='*')
-        def update_abnormality_values():
-            """每分钟执行一次异常值计算"""
+        # 定义任务函数（供调度器和启动时调用）
+        def run_abnormality_calculation():
+            """执行异常值计算"""
             with app.app_context():
                 try:
                     app.logger.info("开始执行异常值计算任务")
@@ -235,10 +235,58 @@ def start_abnormality_scheduler(app):
                 except Exception as e:
                     app.logger.error(f"异常值计算任务执行失败: {str(e)}", exc_info=True)
 
+        def run_daily_check():
+            """执行全天规则检查"""
+            with app.app_context():
+                try:
+                    app.logger.info("开始执行全天规则检查任务")
+                    daily_check()
+                except Exception as e:
+                    app.logger.error(f"全天规则检查任务执行失败: {str(e)}", exc_info=True)
+
+        def run_missing_check():
+            """执行缺失打卡检查"""
+            with app.app_context():
+                try:
+                    app.logger.info("开始执行缺失打卡检查任务")
+                    now = datetime.now()
+                    # 常规规则检查（非全天规则）
+                    _process_missed_for_today(now)
+                    _process_community_missed_for_today(now)
+                    app.logger.info("缺失打卡检查任务完成")
+                except Exception as e:
+                    app.logger.error(f"缺失打卡检查任务执行失败: {str(e)}", exc_info=True)
+
+        # 任务 1: 异常值计算（每分钟执行一次）
+        @scheduler.task('cron', id='update_abnormality_values', minute='*')
+        def update_abnormality_values():
+            """每分钟执行一次异常值计算"""
+            run_abnormality_calculation()
+
+        # 任务 2: 全天规则检查（每天凌晨执行一次）
+        @scheduler.task('cron', id='daily_check', hour=0, minute=0)
+        def scheduled_daily_check():
+            """每天凌晨执行全天规则检查"""
+            run_daily_check()
+
+        # 任务 3: 缺失打卡检查（每 5 分钟执行一次）
+        interval_minutes = int(os.getenv('MISS_CHECK_INTERVAL_MINUTES', '5'))
+        @scheduler.task('interval', id='missing_check', minutes=interval_minutes)
+        def scheduled_missing_check():
+            """每 5 分钟执行缺失打卡检查"""
+            run_missing_check()
+
         # 启动调度器
         scheduler.start()
 
-        app.logger.info("异常值计算定时任务已启动（每分钟执行一次）")
+        app.logger.info("定时任务调度器已启动（3个任务：异常值计算、全天规则检查、缺失打卡检查）")
+
+        # 启动时立即执行所有任务
+        app.logger.info("启动时立即执行所有定时任务...")
+        run_abnormality_calculation()
+        run_daily_check()
+        run_missing_check()
+        app.logger.info("启动时任务执行完成")
 
     except Exception as e:
-        app.logger.error(f"启动异常值计算定时任务失败: {str(e)}", exc_info=True)
+        app.logger.error(f"启动定时任务调度器失败: {str(e)}", exc_info=True)
