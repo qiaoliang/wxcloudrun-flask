@@ -227,12 +227,13 @@ def start_abnormality_scheduler(app):
         @scheduler.task('cron', id='update_abnormality_values', minute='*')
         def update_abnormality_values():
             """每分钟执行一次异常值计算"""
-            try:
-                app.logger.info("开始执行异常值计算任务")
-                stats = AbnormalityCalculator.calculate_all_pending_users()
-                app.logger.info(f"异常值计算完成: {stats}")
-            except Exception as e:
-                app.logger.error(f"异常值计算任务执行失败: {str(e)}", exc_info=True)
+            with app.app_context():
+                try:
+                    app.logger.info("开始执行异常值计算任务")
+                    stats = AbnormalityCalculator.calculate_all_pending_users()
+                    app.logger.info(f"异常值计算完成: {stats}")
+                except Exception as e:
+                    app.logger.error(f"异常值计算任务执行失败: {str(e)}", exc_info=True)
 
         # 启动调度器
         scheduler.start()
