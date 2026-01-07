@@ -33,6 +33,9 @@ from . import user_community_ops
 # 权限检查
 from . import permissions
 
+# 用户批量转移
+from . import user_transfer
+
 # 导出所有模块，确保路由被注册
 __all__ = [
     'utils',
@@ -43,5 +46,6 @@ __all__ = [
     'community_members',
     'user_search',
     'user_community_ops',
-    'permissions'
+    'permissions',
+    'user_transfer'
 ]
