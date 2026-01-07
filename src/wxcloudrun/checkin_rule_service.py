@@ -326,8 +326,15 @@ class CheckinRuleService:
         """
         try:
             from sqlalchemy import func
+            from sqlalchemy.orm import noload
+            
             # 使用 SQLAlchemy 2.0 的 select() 语句
-            stmt = select(CheckinRecord).where(
+            # 显式指定不加载关系，避免递归 eager loading 导致的查询深度警告
+            stmt = select(CheckinRecord).options(
+                noload(CheckinRecord.user),
+                noload(CheckinRecord.solo_user),
+                noload(CheckinRecord.rule)
+            ).where(
                 func.date(CheckinRecord.planned_time) == today
             )
 

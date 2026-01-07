@@ -230,7 +230,13 @@ class UserCheckinRuleService:
                 # 使用 SQLAlchemy 2.0 的 select() 语句
                 # 获取今日打卡记录
                 from sqlalchemy import func
-                stmt = select(CheckinRecord).where(
+                from sqlalchemy.orm import noload
+                
+                stmt = select(CheckinRecord).options(
+                    noload(CheckinRecord.user),
+                    noload(CheckinRecord.solo_user),
+                    noload(CheckinRecord.rule)
+                ).where(
                     CheckinRecord.rule_id == rule.community_rule_id,
                     func.date(CheckinRecord.checkin_time) == today,  # 更新字段名
                     CheckinRecord.user_id == user_id  # 更新字段名
