@@ -924,5 +924,38 @@ class UserDailyAbnormality(db.Model):
         }
 
 
+class ProfileViewLog(db.Model):
+    """用户信息浏览记录表"""
+    __tablename__ = 'profile_view_logs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    viewer_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)  # 查看者
+    viewed_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)  # 被查看者
+    ward_user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=True)  # 被监护人（查看监护人信息时）
+    community_id = db.Column(db.Integer, db.ForeignKey('communities.community_id'), nullable=False)
+    view_type = db.Column(db.String(50), nullable=False)  # 'profile' 或 'guardian_info'
+    created_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+    # 关系
+    viewer = db.relationship('User', foreign_keys=[viewer_id], backref='profile_views_made')
+    viewed_user = db.relationship('User', foreign_keys=[viewed_user_id], backref='profile_views_received')
+    ward_user = db.relationship('User', foreign_keys=[ward_user_id])
+    community = db.relationship('Community', backref='profile_view_logs')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'viewer_id': self.viewer_id,
+            'viewer_name': self.viewer.nickname if self.viewer else None,
+            'viewed_user_id': self.viewed_user_id,
+            'viewed_user_name': self.viewed_user.nickname if self.viewed_user else None,
+            'ward_user_id': self.ward_user_id,
+            'ward_user_name': self.ward_user.nickname if self.ward_user else None,
+            'community_id': self.community_id,
+            'view_type': self.view_type,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
 # 导出 Base 供 Alembic 使用
 Base = db.Model
