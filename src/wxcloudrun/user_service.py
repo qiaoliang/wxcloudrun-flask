@@ -310,6 +310,7 @@ class UserService:
 
             # 如果关键词为空，返回空结果
             if not keyword or len(keyword) < 1:
+                logger.info(f'搜索关键词为空，返回空结果')
                 return {
                     'users': [],
                     'pagination': {
@@ -324,6 +325,8 @@ class UserService:
             from const_default import DEFAULT_COMMUNITY_ID
             from sqlalchemy import or_, func
 
+            logger.info(f'开始搜索安卡大家庭用户: keyword="{keyword}", page={page}, per_page={per_page}, DEFAULT_COMMUNITY_ID={DEFAULT_COMMUNITY_ID}')
+
             stmt_count = select(func.count()).select_from(User).where(User.community_id == DEFAULT_COMMUNITY_ID)
 
             # 关键词搜索（昵称或手机号）
@@ -336,10 +339,11 @@ class UserService:
 
             # 计算总数
             total_count = db.session.execute(stmt_count).scalar()
+            logger.info(f'符合条件的用户总数: {total_count}')
 
-            # 分页查询 - 使用 join 获取社区名称
+            # 分页查询 - 使用 left join 获取社区名称（即使社区不存在也能返回用户）
             offset = (page - 1) * per_page
-            stmt = select(User, Community).join(Community, User.community_id == Community.community_id)
+            stmt = select(User, Community).outerjoin(Community, User.community_id == Community.community_id)
             stmt = stmt.where(User.community_id == DEFAULT_COMMUNITY_ID)
             stmt = stmt.where(
                 or_(
@@ -349,6 +353,7 @@ class UserService:
             )
             stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
             results = db.session.execute(stmt).all()
+            logger.info(f'数据库查询返回 {len(results)} 条记录')
 
             # 格式化响应数据
             # 使用子查询一次性获取所有工作人员的用户ID，避免 N+1 查询问题
@@ -359,7 +364,14 @@ class UserService:
             staff_user_ids_set = set(staff_user_ids)
 
             result = []
-            for u, community in results:
+            for row in results:
+                # 处理查询结果：row 可能是 (User, Community) 元组，或者是 User 对象
+                if isinstance(row, tuple):
+                    u, community = row
+                else:
+                    u = row
+                    community = None
+
                 # 使用集合查找，避免循环查询
                 is_staff = u.user_id in staff_user_ids_set
 
@@ -369,7 +381,7 @@ class UserService:
                     'avatar_url': u.avatar_url,
                     'phone_number': u.phone_number or '未设置手机号',
                     'community_id': str(u.community_id) if u.community_id else None,
-                    'community_name': community.name if community else None,
+                    'community_name': community.name if community else '未知社区',
                     'created_at': u.created_at.isoformat() if u.created_at else None,
                     'is_staff': is_staff
                 }
