@@ -447,3 +447,144 @@ class TestRemoveStaffRoleRecalculation:
             # 角色应该重新计算为普通用户
             test_session.refresh(user)
             assert user.role == Role.SOLO
+
+class TestSetSuperAdmin:
+    """测试超级管理员设置功能"""
+
+    def test_set_super_admin(self, test_session, test_app):
+        """测试设置超级管理员"""
+        test_context = "test_set_super_admin"
+        with test_app.app_context():
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}6001",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            manager = User(
+                wechat_openid=f"openid_{test_context}_manager",
+                nickname=f"manager_{test_context}",
+                phone_number=f"138{test_context}6002",
+                role=Role.MANAGER,
+                status=1
+            )
+
+            test_session.add_all([super_admin, manager])
+            test_session.commit()
+
+            result = CommunityStaffService.set_super_admin(
+                operator_user_id=super_admin.user_id,
+                target_user_id=manager.user_id,
+                is_super_admin=True
+            )
+
+            assert result['success'] == True
+            test_session.refresh(manager)
+            assert manager.role == Role.SUPER_ADMIN
+
+    def test_remove_super_admin(self, test_session, test_app):
+        """测试取消超级管理员"""
+        test_context = "test_remove_super_admin"
+        with test_app.app_context():
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}7001",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            other_super = User(
+                wechat_openid=f"openid_{test_context}_other",
+                nickname=f"other_{test_context}",
+                phone_number=f"138{test_context}7002",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            community = Community(
+                community_id=700,
+                name=f'{test_context}_社区',
+                description='测试',
+                creator_id=1
+            )
+
+            test_session.add_all([super_admin, other_super, community])
+            test_session.commit()
+
+            # 添加另一个超级管理员为主管
+            staff = CommunityStaff(
+                community_id=community.community_id,
+                user_id=other_super.user_id,
+                role=STAFF_ROLE_MANAGER
+            )
+            test_session.add(staff)
+            test_session.commit()
+
+            result = CommunityStaffService.set_super_admin(
+                operator_user_id=super_admin.user_id,
+                target_user_id=other_super.user_id,
+                is_super_admin=False
+            )
+
+            assert result['success'] == True
+            test_session.refresh(other_super)
+            assert other_super.role == Role.MANAGER  # 降级为主管
+
+    def test_cannot_modify_own_super_admin_role(self, test_session, test_app):
+        """测试不能修改自己的超级管理员身份"""
+        test_context = "test_own_role"
+        with test_app.app_context():
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}8001",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            test_session.add(super_admin)
+            test_session.commit()
+
+            with pytest.raises(ValueError) as exc_info:
+                CommunityStaffService.set_super_admin(
+                    operator_user_id=super_admin.user_id,
+                    target_user_id=super_admin.user_id,
+                    is_super_admin=False
+                )
+
+            assert '不能修改自己' in str(exc_info.value)
+
+    def test_only_super_admin_can_set_super_admin(self, test_session, test_app):
+        """测试只有超级管理员可以设置其他超级管理员"""
+        test_context = "test_permission"
+        with test_app.app_context():
+            regular_manager = User(
+                wechat_openid=f"openid_{test_context}_manager",
+                nickname=f"manager_{test_context}",
+                phone_number=f"138{test_context}9001",
+                role=Role.MANAGER,
+                status=1
+            )
+
+            target_user = User(
+                wechat_openid=f"openid_{test_context}_target",
+                nickname=f"target_{test_context}",
+                phone_number=f"138{test_context}9002",
+                role=Role.SOLO,
+                status=1
+            )
+
+            test_session.add_all([regular_manager, target_user])
+            test_session.commit()
+
+            with pytest.raises(ValueError) as exc_info:
+                CommunityStaffService.set_super_admin(
+                    operator_user_id=regular_manager.user_id,
+                    target_user_id=target_user.user_id,
+                    is_super_admin=True
+                )
+
+            assert '只有超级管理员' in str(exc_info.value)

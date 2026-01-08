@@ -667,3 +667,75 @@ class CommunityStaffService:
                 user.role = Role.STAFF
             db.session.flush()
             return Role.STAFF
+
+    @staticmethod
+    def set_super_admin(operator_user_id, target_user_id, is_super_admin):
+        """
+        设置或取消用户的超级管理员角色
+
+        Args:
+            operator_user_id: 操作者用户ID
+            target_user_id: 目标用户ID
+            is_super_admin: True设置为超级管理员，False取消超级管理员
+
+        Returns:
+            dict: 操作结果
+
+        Raises:
+            ValueError: 权限不足或参数错误
+        """
+        # 检查操作者权限
+        operator = db.session.get(User, operator_user_id)
+        if not operator or operator.role != Role.SUPER_ADMIN:
+            raise ValueError('只有超级管理员才能设置其他超级管理员')
+
+        # 检查目标用户是否存在
+        target_user = db.session.get(User, target_user_id)
+        if not target_user:
+            raise ValueError('目标用户不存在')
+
+        # 不能修改自己的超级管理员身份
+        if operator_user_id == target_user_id:
+            raise ValueError('不能修改自己的超级管理员身份')
+
+        if is_super_admin:
+            # 设置为超级管理员
+            if target_user.role == Role.SUPER_ADMIN:
+                return {'success': True, 'message': '该用户已经是超级管理员'}
+
+            target_user.role = Role.SUPER_ADMIN
+            db.session.flush()
+
+            # 记录审计日志
+            audit_log = UserAuditLog(
+                user_id=operator_user_id,
+                action="set_super_admin",
+                detail=f"将用户{target_user_id}设置为超级管理员"
+            )
+            db.session.add(audit_log)
+
+            logger.info(f'用户{operator_user_id}将用户{target_user_id}设置为超级管理员')
+            return {'success': True, 'message': '已设置为超级管理员'}
+
+        else:
+            # 取消超级管理员
+            if target_user.role != Role.SUPER_ADMIN:
+                return {'success': True, 'message': '该用户不是超级管理员'}
+
+            # 先临时将角色改为普通用户，以便 _recalculate_user_role 可以正确计算
+            target_user.role = Role.SOLO
+            db.session.flush()
+
+            # 取消超级管理员身份，根据工作人员身份重新计算role
+            new_role = CommunityStaffService._recalculate_user_role(target_user_id)
+
+            # 记录审计日志
+            audit_log = UserAuditLog(
+                user_id=operator_user_id,
+                action="remove_super_admin",
+                detail=f"取消用户{target_user_id}的超级管理员身份，新角色为{new_role}"
+            )
+            db.session.add(audit_log)
+
+            logger.info(f'用户{operator_user_id}取消用户{target_user_id}的超级管理员身份，新角色为{new_role}')
+            return {'success': True, 'message': f'已取消超级管理员，当前角色为{new_role}'}
