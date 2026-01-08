@@ -148,7 +148,7 @@ def main():
 
 # 5. 启动 Flask 应用
     host = '0.0.0.0'
-    port = int(os.environ.get("EXPOSE_PORT", 9999))
+    port = int(os.environ.get("EXPOSE_PORT", 8080))
 
     flask_app.run(host=host, port=port)
 
