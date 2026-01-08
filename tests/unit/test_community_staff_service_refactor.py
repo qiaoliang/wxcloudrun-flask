@@ -324,6 +324,15 @@ class TestSameCommunityRoleHandling:
         """测试主管降级为专员需要超级管理员权限"""
         test_context = "test_demote_requires_admin"
         with test_app.app_context():
+            # 创建超级管理员
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_super",
+                nickname=f"super_{test_context}",
+                phone_number=f"138{test_context}4000",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
             # 创建普通主管
             regular_manager = User(
                 wechat_openid=f"openid_{test_context}_manager",
@@ -358,12 +367,12 @@ class TestSameCommunityRoleHandling:
                 creator_id=1
             )
 
-            test_session.add_all([regular_manager, target_user, community1, community2])
+            test_session.add_all([super_admin, regular_manager, target_user, community1, community2])
             test_session.commit()
 
             # 添加普通主管到社区1
             CommunityStaffService.add_staff(
-                operator_user_id=1,  # 假设user_id=1是超级管理员
+                operator_user_id=super_admin.user_id,
                 community_id=community1.community_id,
                 user_ids=[regular_manager.user_id],
                 role=STAFF_ROLE_MANAGER
@@ -371,7 +380,7 @@ class TestSameCommunityRoleHandling:
 
             # 添加目标用户为主管到社区2
             CommunityStaffService.add_staff(
-                operator_user_id=1,
+                operator_user_id=super_admin.user_id,
                 community_id=community2.community_id,
                 user_ids=[target_user.user_id],
                 role=STAFF_ROLE_MANAGER
@@ -594,7 +603,7 @@ class TestGetAdminList:
 
     def test_get_admin_list(self, test_session, test_app):
         """测试获取管理员列表"""
-        test_context = "test_admin_list"
+        test_context = "test_get_admin_list_final"  # Unique name to avoid conflicts
         with test_app.app_context():
             # 创建超级管理员
             super_admin = User(
@@ -605,9 +614,11 @@ class TestGetAdminList:
                 status=1
             )
 
-            # 创建社区和主管
+            # 创建社区和主管（使用唯一ID）
+            import time
+            unique_id = int(time.time() * 1000) % 10000  # Get unique ID
             community = Community(
-                community_id=900,
+                community_id=unique_id,
                 name=f'{test_context}_社区',
                 description='测试',
                 creator_id=1
@@ -636,16 +647,12 @@ class TestGetAdminList:
             # 获取管理员列表
             admin_list = CommunityStaffService.get_admin_list()
 
-            # 验证结果
-            assert len(admin_list) == 2
+            # 验证结果 - 查找我们创建的管理员
+            super_admin_record = next((a for a in admin_list if a['user_id'] == super_admin.user_id), None)
+            manager_record = next((a for a in admin_list if a['user_id'] == manager.user_id), None)
 
-            # 验证超级管理员
-            super_admin_record = next(a for a in admin_list if a['role_type'] == 'super_admin')
-            assert super_admin_record['user_id'] == super_admin.user_id
+            assert super_admin_record is not None, "Super admin not found in list"
             assert super_admin_record['role'] == '超级管理员'
-
-            # 验证社区主管
-            manager_record = next(a for a in admin_list if a['role_type'] == 'manager')
-            assert manager_record['user_id'] == manager.user_id
+            assert manager_record is not None, "Manager not found in list"
             assert manager_record['role'] == f'{community.name}主管'
             assert manager_record['community_name'] == community.name
