@@ -1243,6 +1243,122 @@ paths:
                             schema:
                                 $ref: "#/components/schemas/StandardResponse"
 
+    /community/transfer-users:
+        post:
+            tags:
+                - 社区模块
+            summary: 批量转移用户到目标社区
+            description: |
+                允许社区主管批量转移普通用户到其他社区。
+
+                业务规则：
+                - 操作者必须是源社区和目标社区的主管
+                - 只能转移普通用户（role=1）
+                - 一次最多转移10个用户
+                - 自动切换打卡规则和转移未完成事件
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - source_community_id
+                                - target_community_id
+                                - user_ids
+                            properties:
+                                source_community_id:
+                                    type: integer
+                                    description: 源社区ID
+                                    example: 1
+                                target_community_id:
+                                    type: integer
+                                    description: 目标社区ID
+                                    example: 2
+                                user_ids:
+                                    type: array
+                                    description: 用户ID列表（最多10个）
+                                    items:
+                                        type: integer
+                                    maxItems: 10
+                                    minItems: 1
+                                    example: [101, 102, 103]
+            responses:
+                "200":
+                    description: 转移成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  success_count:
+                                                      type: integer
+                                                      description: 成功转移数量
+                                                      example: 2
+                                                  skipped_count:
+                                                      type: integer
+                                                      description: 静默跳过数量
+                                                      example: 1
+                                                  failed:
+                                                      type: array
+                                                      description: 失败列表
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              user_id:
+                                                                  type: integer
+                                                                  description: 失败的用户ID
+                                                                  example: 104
+                                                              reason:
+                                                                  type: string
+                                                                  description: 失败原因
+                                                                  example: 用户不是普通用户
+                                                  transferred_users:
+                                                      type: array
+                                                      description: 成功用户信息列表
+                                                      items:
+                                                          type: object
+                                                          properties:
+                                                              user_id:
+                                                                  type: integer
+                                                                  description: 用户ID
+                                                                  example: 101
+                                                              nickname:
+                                                                  type: string
+                                                                  description: 用户昵称
+                                                                  example: 张三
+                                                              phone_number:
+                                                                  type: string
+                                                                  description: 用户手机号
+                                                                  example: 138****1234
+                                                  events_transferred:
+                                                      type: integer
+                                                      description: 转移的事件数
+                                                      example: 3
+                                                  rules_updated:
+                                                      type: integer
+                                                      description: 规则更新数
+                                                      example: 4
+                "400":
+                    description: 参数错误
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+                "403":
+                    description: 权限不足
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/ErrorResponse"
+
     # ==========================================
     # 用户打卡模块 (user-checkin)
     # ==========================================
