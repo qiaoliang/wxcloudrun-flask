@@ -574,3 +574,49 @@ class CommunityStaffService:
 
         logger.info(f"用户{user_id}已激活{activated_count}个新社区规则")
         return activated_count
+
+    @staticmethod
+    def _recalculate_user_role(user_id):
+        """
+        重新计算用户的角色（role字段）
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            int: 计算后的角色ID
+        """
+        # 如果用户当前是超级管理员，保持不变
+        user = db.session.get(User, user_id)
+        if user and user.role == Role.SUPER_ADMIN:
+            return Role.SUPER_ADMIN
+
+        # 查询用户在所有社区的工作人员角色
+        stmt = select(CommunityStaff).where(
+            CommunityStaff.user_id == user_id,
+            CommunityStaff.removed_at.is_(None)
+        )
+        staff_records = db.session.execute(stmt).scalars().all()
+
+        # 如果没有任何工作人员记录，设为普通用户
+        if not staff_records:
+            if user:
+                user.role = Role.SOLO
+            db.session.flush()
+            return Role.SOLO
+
+        # 检查是否有主管角色
+        has_manager = any(record.role == STAFF_ROLE_MANAGER for record in staff_records)
+
+        if has_manager:
+            # 有主管角色，设为主管（role=3）
+            if user:
+                user.role = Role.MANAGER
+            db.session.flush()
+            return Role.MANAGER
+        else:
+            # 只有专员角色，设为专员（role=2）
+            if user:
+                user.role = Role.STAFF
+            db.session.flush()
+            return Role.STAFF
