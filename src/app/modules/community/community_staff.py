@@ -300,3 +300,44 @@ def remove_community_staff():
     except Exception as e:
         current_app.logger.error(f'移除社区工作人员失败: {str(e)}', exc_info=True)
         return make_err_response({}, '移除失败')
+
+
+@community_bp.route('/community/set-super-admin', methods=['POST'])
+def set_super_admin():
+    """设置或取消超级管理员"""
+    current_app.logger.info('=== 开始设置/取消超级管理员 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    operator_id = decoded.get('user_id')
+    current_app.logger.info(f'操作用户ID: {operator_id}')
+
+    try:
+        params = request.get_json()
+        if not params:
+            return make_err_response({}, '缺少请求参数')
+
+        target_user_id = params.get('target_user_id')
+        is_super_admin = params.get('is_super_admin')
+
+        if target_user_id is None or is_super_admin is None:
+            return make_err_response({}, '缺少必要参数')
+
+        result = CommunityStaffService.set_super_admin(
+            operator_user_id=operator_id,
+            target_user_id=int(target_user_id),
+            is_super_admin=is_super_admin
+        )
+
+        current_app.logger.info(f'设置超级管理员操作完成: {result}')
+        return make_succ_response(result)
+
+    except ValueError as e:
+        current_app.logger.warning(f'设置超级管理员失败: {str(e)}')
+        return make_err_response({}, str(e))
+    except Exception as e:
+        current_app.logger.error(f'设置超级管理员失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '设置超级管理员失败')
