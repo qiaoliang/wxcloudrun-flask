@@ -150,6 +150,14 @@ class CommunityStaffService:
                     failed.append({'user_id': uid, 'reason': '用户不存在'})
                     continue
 
+                # Check if user has phone number
+                if not target_user.phone_number or not target_user.phone_number.strip():
+                    failed.append({
+                        'user_id': uid,
+                        'reason': '该用户未绑定电话号码，无法添加为工作人员'
+                    })
+                    continue
+
                 # 检查是否需要更新用户的社区归属
                 if target_user and target_user.community_id == DEFAULT_COMMUNITY_ID:
                     target_user.community_id = community_id
