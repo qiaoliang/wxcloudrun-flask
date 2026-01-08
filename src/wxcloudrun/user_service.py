@@ -337,9 +337,10 @@ class UserService:
             # 计算总数
             total_count = db.session.execute(stmt_count).scalar()
 
-            # 分页查询
+            # 分页查询 - 使用 join 获取社区名称
             offset = (page - 1) * per_page
-            stmt = select(User).where(User.community_id == DEFAULT_COMMUNITY_ID)
+            stmt = select(User, Community).join(Community, User.community_id == Community.community_id)
+            stmt = stmt.where(User.community_id == DEFAULT_COMMUNITY_ID)
             stmt = stmt.where(
                 or_(
                     User.nickname.ilike(f'%{keyword}%'),
@@ -347,7 +348,7 @@ class UserService:
                 )
             )
             stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
-            users = db.session.execute(stmt).scalars().all()
+            results = db.session.execute(stmt).all()
 
             # 格式化响应数据
             # 使用子查询一次性获取所有工作人员的用户ID，避免 N+1 查询问题
@@ -358,7 +359,7 @@ class UserService:
             staff_user_ids_set = set(staff_user_ids)
 
             result = []
-            for u in users:
+            for u, community in results:
                 # 使用集合查找，避免循环查询
                 is_staff = u.user_id in staff_user_ids_set
 
@@ -368,6 +369,7 @@ class UserService:
                     'avatar_url': u.avatar_url,
                     'phone_number': u.phone_number or '未设置手机号',
                     'community_id': str(u.community_id) if u.community_id else None,
+                    'community_name': community.name if community else None,
                     'created_at': u.created_at.isoformat() if u.created_at else None,
                     'is_staff': is_staff
                 }
