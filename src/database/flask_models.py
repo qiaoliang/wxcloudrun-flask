@@ -5,6 +5,7 @@ Flask-SQLAlchemy模型定义
 优化数据库索引：为外键字段和常用查询字段添加索引
 """
 from datetime import datetime
+import json
 from sqlalchemy import Column, Integer, String, DateTime, Text, Boolean, ForeignKey, Date, Time, Float, CheckConstraint, UniqueConstraint, Index
 from app.extensions import db
 
@@ -97,6 +98,7 @@ class User(db.Model):
     targeted_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.target_user_id', back_populates='target_user', lazy='dynamic')
     supports = db.relationship('EventMessage', back_populates='sender', lazy='dynamic')
     user_community_rules = db.relationship('UserCommunityRule', back_populates='user', lazy='selectin')
+    medical_histories = db.relationship('UserMedicalHistory', backref='user', lazy='dynamic')
 
     # 角色映射 - 使用统一常量
     ROLE_MAPPING = ROLE_ID_TO_NAME
@@ -134,6 +136,33 @@ class User(db.Model):
             return False
         salted_password = f"{password}:{self.password_salt}"
         return self.password_hash == hashlib.sha256(salted_password.encode()).hexdigest()
+
+
+class UserMedicalHistory(db.Model):
+    """用户病史记录表"""
+    __tablename__ = 'user_medical_history'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.user_id'), nullable=False)
+    condition_name = db.Column(db.String(100), nullable=False)  # 疾病名称
+    treatment_plan = db.Column(db.Text)  # 治疗方案 JSON
+    visibility = db.Column(db.Integer, default=1, nullable=False)  # 可见性: 1=仅工作人员, 2=工作人员和监护人
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
+
+    # 关系
+    user = db.relationship('User', backref=db.backref('medical_histories', lazy='dynamic', cascade='all, delete-orphan'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'user_id': self.user_id,
+            'condition_name': self.condition_name,
+            'treatment_plan': json.loads(self.treatment_plan) if self.treatment_plan else None,
+            'visibility': self.visibility,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
 
 
 class Community(db.Model):
