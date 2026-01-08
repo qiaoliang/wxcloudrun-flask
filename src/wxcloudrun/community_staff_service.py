@@ -739,3 +739,56 @@ class CommunityStaffService:
 
             logger.info(f'用户{operator_user_id}取消用户{target_user_id}的超级管理员身份，新角色为{new_role}')
             return {'success': True, 'message': f'已取消超级管理员，当前角色为{new_role}'}
+
+    @staticmethod
+    def get_admin_list():
+        """
+        获取所有管理员列表（超级管理员和社区主管）
+
+        Returns:
+            list: 管理员列表，包含用户信息和角色
+        """
+        # 查询所有超级管理员
+        stmt_super_admin = select(User).where(User.role == Role.SUPER_ADMIN)
+        super_admins = db.session.execute(stmt_super_admin).scalars().all()
+
+        # 查询所有社区主管
+        stmt_managers = select(CommunityStaff, User, Community).join(
+            User, CommunityStaff.user_id == User.user_id
+        ).join(
+            Community, CommunityStaff.community_id == Community.community_id
+        ).where(
+            CommunityStaff.role == STAFF_ROLE_MANAGER,
+            CommunityStaff.removed_at.is_(None)
+        )
+        manager_records = db.session.execute(stmt_managers).all()
+
+        # 构建结果列表
+        admin_list = []
+
+        # 添加超级管理员
+        for admin in super_admins:
+            admin_list.append({
+                'user_id': admin.user_id,
+                'nickname': admin.nickname,
+                'phone_number': admin.phone_number,
+                'role': '超级管理员',
+                'role_type': 'super_admin',
+                'community_name': None
+            })
+
+        # 添加社区主管
+        for staff, user, community in manager_records:
+            # 排除已经是超级管理员的
+            if user.role != Role.SUPER_ADMIN:
+                admin_list.append({
+                    'user_id': user.user_id,
+                    'nickname': user.nickname,
+                    'phone_number': user.phone_number,
+                    'role': f'{community.name}主管',
+                    'role_type': 'manager',
+                    'community_name': community.name,
+                    'community_id': community.community_id
+                })
+
+        return admin_list

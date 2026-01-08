@@ -341,3 +341,22 @@ def set_super_admin():
     except Exception as e:
         current_app.logger.error(f'设置超级管理员失败: {str(e)}', exc_info=True)
         return make_err_response({}, '设置超级管理员失败')
+
+
+@community_bp.route('/community/admin-list', methods=['GET'])
+def get_admin_list():
+    """获取管理员列表"""
+    current_app.logger.info('=== 开始获取管理员列表 ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    try:
+        admin_list = CommunityStaffService.get_admin_list()
+        current_app.logger.info(f'获取管理员列表成功: 共{len(admin_list)}个管理员')
+        return make_succ_response({'admins': admin_list})
+    except Exception as e:
+        current_app.logger.error(f'获取管理员列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '获取管理员列表失败')

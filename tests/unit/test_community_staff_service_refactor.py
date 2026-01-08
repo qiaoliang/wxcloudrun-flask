@@ -588,3 +588,64 @@ class TestSetSuperAdmin:
                 )
 
             assert '只有超级管理员' in str(exc_info.value)
+
+class TestGetAdminList:
+    """测试获取管理员列表功能"""
+
+    def test_get_admin_list(self, test_session, test_app):
+        """测试获取管理员列表"""
+        test_context = "test_admin_list"
+        with test_app.app_context():
+            # 创建超级管理员
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}0001",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            # 创建社区和主管
+            community = Community(
+                community_id=900,
+                name=f'{test_context}_社区',
+                description='测试',
+                creator_id=1
+            )
+
+            manager = User(
+                wechat_openid=f"openid_{test_context}_manager",
+                nickname=f"manager_{test_context}",
+                phone_number=f"138{test_context}0002",
+                role=Role.MANAGER,
+                status=1
+            )
+
+            test_session.add_all([super_admin, community, manager])
+            test_session.commit()
+
+            # 添加主管到社区
+            staff = CommunityStaff(
+                community_id=community.community_id,
+                user_id=manager.user_id,
+                role=STAFF_ROLE_MANAGER
+            )
+            test_session.add(staff)
+            test_session.commit()
+
+            # 获取管理员列表
+            admin_list = CommunityStaffService.get_admin_list()
+
+            # 验证结果
+            assert len(admin_list) == 2
+
+            # 验证超级管理员
+            super_admin_record = next(a for a in admin_list if a['role_type'] == 'super_admin')
+            assert super_admin_record['user_id'] == super_admin.user_id
+            assert super_admin_record['role'] == '超级管理员'
+
+            # 验证社区主管
+            manager_record = next(a for a in admin_list if a['role_type'] == 'manager')
+            assert manager_record['user_id'] == manager.user_id
+            assert manager_record['role'] == f'{community.name}主管'
+            assert manager_record['community_name'] == community.name
