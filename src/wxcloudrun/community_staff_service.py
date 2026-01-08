@@ -147,6 +147,14 @@ class CommunityStaffService:
                     failed.append({'user_id': uid, 'reason': '用户不存在'})
                     continue
 
+                # 检查是否需要更新用户的社区归属
+                if target_user and target_user.community_id == DEFAULT_COMMUNITY_ID:
+                    target_user.community_id = community_id
+                    target_user.community_joined_at = datetime.now()
+                    logger.info(f'用户{uid}从安卡大家庭转入社区{community_id}')
+                elif target_user and target_user.community_id != community_id:
+                    logger.info(f'用户{uid}不在安卡大家庭，保持当前社区{target_user.community_id}')
+
                 # 检查用户是否已在当前社区任职
                 stmt_existing = select(CommunityStaff).where(
                     CommunityStaff.community_id == community_id,

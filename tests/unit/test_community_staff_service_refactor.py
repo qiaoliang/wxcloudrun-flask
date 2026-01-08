@@ -138,3 +138,78 @@ class TestRoleRecalculation:
             assert new_role == Role.SOLO
             test_session.refresh(user)
             assert user.role == Role.SOLO
+
+class TestCommunityIdUpdate:
+    """测试社区ID变更逻辑"""
+
+    def test_community_id_update_only_from_anka(self, test_session, test_app):
+        """测试只有安卡大家庭的用户才会更新社区ID"""
+        test_context = "test_anka_update"
+        with test_app.app_context():
+            # 创建一个非1的社区作为目标社区（避免与DEFAULT_COMMUNITY_ID=1冲突）
+            community = Community(
+                community_id=100,  # 显式设置一个非1的ID
+                name=f'{test_context}_幸福社区',
+                description='测试社区',
+                creator_id=1
+            )
+            test_session.add(community)
+            test_session.flush()  # 确保community被添加
+
+            # 创建安卡大家庭用户
+            anka_user = User(
+                wechat_openid=f"openid_{test_context}_anka",
+                nickname=f"anka_{test_context}",
+                phone_number=f"138{test_context}1001",
+                role=Role.SOLO,
+                status=1,
+                community_id=DEFAULT_COMMUNITY_ID
+            )
+
+            # 创建其他社区用户
+            other_user = User(
+                wechat_openid=f"openid_{test_context}_other",
+                nickname=f"other_{test_context}",
+                phone_number=f"138{test_context}1002",
+                role=Role.SOLO,
+                status=1,
+                community_id=999  # 其他社区
+            )
+
+            # 创建超级管理员
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}1003",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            test_session.add_all([anka_user, other_user, super_admin])
+            test_session.commit()
+
+            # 添加安卡大家庭用户为工作人员
+            result1 = CommunityStaffService.add_staff(
+                operator_user_id=super_admin.user_id,
+                community_id=community.community_id,
+                user_ids=[anka_user.user_id],
+                role=STAFF_ROLE_STAFF
+            )
+
+            assert result1['success_count'] == 1
+            test_session.commit()  # 提交更改
+            test_session.refresh(anka_user)
+            assert anka_user.community_id == 100, f"Expected community_id=100, got {anka_user.community_id}"
+
+            # 添加其他社区用户为工作人员
+            result2 = CommunityStaffService.add_staff(
+                operator_user_id=super_admin.user_id,
+                community_id=community.community_id,
+                user_ids=[other_user.user_id],
+                role=STAFF_ROLE_STAFF
+            )
+
+            assert result2['success_count'] == 1
+            test_session.commit()  # 提交更改
+            test_session.refresh(other_user)
+            assert other_user.community_id == 999, f"Expected community_id=999, got {other_user.community_id}"  # 保持不变
