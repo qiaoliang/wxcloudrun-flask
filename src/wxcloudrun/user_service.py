@@ -327,13 +327,21 @@ class UserService:
 
             logger.info(f'开始搜索安卡大家庭用户: keyword="{keyword}", page={page}, per_page={per_page}, DEFAULT_COMMUNITY_ID={DEFAULT_COMMUNITY_ID}')
 
+            # 处理搜索关键词：如果是完整手机号（11位数字），需要脱敏后搜索
+            # 因为数据库中存储的是脱敏后的手机号（如 138****1234）
+            search_keyword = keyword
+            if keyword and len(keyword) == 11 and keyword.isdigit():
+                from wxcloudrun.utils.validators import _mask_phone_number
+                search_keyword = _mask_phone_number(keyword)
+                logger.info(f'检测到完整手机号搜索，转换为脱敏号码搜索: "{keyword}" -> "{search_keyword}"')
+
             stmt_count = select(func.count()).select_from(User).where(User.community_id == DEFAULT_COMMUNITY_ID)
 
             # 关键词搜索（昵称或手机号）
             stmt_count = stmt_count.where(
                 or_(
-                    User.nickname.ilike(f'%{keyword}%'),
-                    User.phone_number.ilike(f'%{keyword}%')
+                    User.nickname.ilike(f'%{search_keyword}%'),
+                    User.phone_number.ilike(f'%{search_keyword}%')
                 )
             )
 
@@ -347,8 +355,8 @@ class UserService:
             stmt = stmt.where(User.community_id == DEFAULT_COMMUNITY_ID)
             stmt = stmt.where(
                 or_(
-                    User.nickname.ilike(f'%{keyword}%'),
-                    User.phone_number.ilike(f'%{keyword}%')
+                    User.nickname.ilike(f'%{search_keyword}%'),
+                    User.phone_number.ilike(f'%{search_keyword}%')
                 )
             )
             stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
