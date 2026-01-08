@@ -351,8 +351,9 @@ class UserService:
 
             # 分页查询 - 使用 left join 获取社区名称（即使社区不存在也能返回用户）
             offset = (page - 1) * per_page
-            stmt = select(User, Community).outerjoin(Community, User.community_id == Community.community_id)
-            stmt = stmt.where(User.community_id == DEFAULT_COMMUNITY_ID)
+
+            # 先查询用户，然后再批量获取社区信息（避免 N+1 问题）
+            stmt = select(User).where(User.community_id == DEFAULT_COMMUNITY_ID)
             stmt = stmt.where(
                 or_(
                     User.nickname.ilike(f'%{search_keyword}%'),
@@ -360,8 +361,16 @@ class UserService:
                 )
             )
             stmt = stmt.order_by(User.created_at.desc()).offset(offset).limit(per_page)
-            results = db.session.execute(stmt).all()
-            logger.info(f'数据库查询返回 {len(results)} 条记录')
+            users = db.session.execute(stmt).scalars().all()
+            logger.info(f'数据库查询返回 {len(users)} 条用户记录')
+
+            # 批量获取所有相关的社区信息
+            community_ids = list(set([u.community_id for u in users if u.community_id]))
+            communities = {}
+            if community_ids:
+                community_stmt = select(Community).where(Community.community_id.in_(community_ids))
+                for c in db.session.execute(community_stmt).scalars():
+                    communities[c.community_id] = c
 
             # 格式化响应数据
             # 使用子查询一次性获取所有工作人员的用户ID，避免 N+1 查询问题
@@ -372,15 +381,8 @@ class UserService:
             staff_user_ids_set = set(staff_user_ids)
 
             result = []
-            for row in results:
-                # 处理查询结果：row 可能是 (User, Community) 元组，或者是 User 对象
-                if isinstance(row, tuple):
-                    u, community = row
-                else:
-                    u = row
-                    community = None
-
-                # 使用集合查找，避免循环查询
+            for u in users:
+                community = communities.get(u.community_id)
                 is_staff = u.user_id in staff_user_ids_set
 
                 user_data = {
