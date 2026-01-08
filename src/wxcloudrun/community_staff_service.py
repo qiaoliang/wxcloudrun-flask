@@ -95,17 +95,6 @@ class CommunityStaffService:
         if role == STAFF_ROLE_MANAGER and len(user_ids) > 1:
             raise ValueError('主管只能添加一个')
 
-        # 检查是否已有主管
-        if role == STAFF_ROLE_MANAGER:
-            stmt_manager = select(CommunityStaff).where(
-                CommunityStaff.community_id == community_id,
-                CommunityStaff.role == STAFF_ROLE_MANAGER,
-                CommunityStaff.removed_at.is_(None)
-            )
-            existing_manager = db.session.execute(stmt_manager).scalar_one_or_none()
-            if existing_manager:
-                raise ValueError('该社区已有主管')
-
         added_count = 0
         failed = []
         skipped_count = 0  # 跟踪静默跳过的用户数量
@@ -137,7 +126,21 @@ class CommunityStaffService:
         if not processed_user_ids:
             raise ValueError(f'所有用户ID都无效: {failed}')
 
+        # 检查是否已有主管（但排除正在升级的情况）
+        if role == STAFF_ROLE_MANAGER:
+            stmt_manager = select(CommunityStaff).where(
+                CommunityStaff.community_id == community_id,
+                CommunityStaff.role == STAFF_ROLE_MANAGER,
+                CommunityStaff.removed_at.is_(None)
+            )
+            existing_manager = db.session.execute(stmt_manager).scalar_one_or_none()
+            # 如果已有主管，且不是正在升级的这些用户之一，则拒绝
+            if existing_manager and existing_manager.user_id not in processed_user_ids:
+                raise ValueError('该社区已有主管')
+
         added_users_info = []
+
+        success_count = 0  # 成功升级/降级的数量
 
         for uid in processed_user_ids:
             try:
@@ -164,10 +167,45 @@ class CommunityStaffService:
                 existing_in_current_community = db.session.execute(stmt_existing).scalar_one_or_none()
 
                 if existing_in_current_community:
-                    # 静默跳过已任职用户，不计入失败
-                    logger.info(f'用户{uid}已在社区{community_id}任职，跳过添加')
-                    skipped_count += 1
-                    continue
+                    # 用户已在该社区有角色
+                    if existing_in_current_community.role == role:
+                        # 尝试添加相同角色，静默跳过
+                        logger.info(f'用户{uid}已在社区{community_id}担任{role}角色，跳过')
+                        skipped_count += 1
+                        continue
+                    elif existing_in_current_community.role == STAFF_ROLE_STAFF and role == STAFF_ROLE_MANAGER:
+                        # 专员升级为主管：允许，更新角色记录
+                        existing_in_current_community.role = STAFF_ROLE_MANAGER
+                        logger.info(f'用户{uid}在社区{community_id}从专员升级为主管')
+                        CommunityStaffService._recalculate_user_role(uid)
+                        success_count += 1
+
+                        # 更新用户的 role 字段
+                        if target_user:
+                            target_user.role = Role.MANAGER
+
+                        continue
+                    elif existing_in_current_community.role == STAFF_ROLE_MANAGER and role == STAFF_ROLE_STAFF:
+                        # 主管降级为专员：只有超级管理员可以操作
+                        if operator_user.role == Role.SUPER_ADMIN:
+                            # 允许降级
+                            existing_in_current_community.role = STAFF_ROLE_STAFF
+                            logger.info(f'超级管理员将用户{uid}在社区{community_id}从主管降级为专员')
+                            CommunityStaffService._recalculate_user_role(uid)
+                            success_count += 1
+
+                            # 更新用户的 role 字段
+                            if target_user:
+                                target_user.role = Role.STAFF
+
+                            continue
+                        else:
+                            # 非超级管理员，拒绝降级
+                            failed.append({
+                                'user_id': uid,
+                                'reason': '该用户已是该社区的主管，只有超级管理员可以降级为专员'
+                            })
+                            continue
 
                 # 添加工作人员
                 staff = CommunityStaff(
@@ -212,6 +250,15 @@ class CommunityStaffService:
                 # 有真正的失败，报错
                 error_details = "; ".join([f"用户{f['user_id']}: {f['reason']}" for f in failed])
                 raise ValueError(f'添加失败: {error_details}')
+            elif success_count > 0:
+                # 只有升级/降级操作，没有新添加
+                logger.info(f'社区{community_id}有{success_count}个用户角色升级/降级')
+                return {
+                    'success_count': success_count,
+                    'failed': [],
+                    'added_users': [],
+                    'skipped_count': skipped_count
+                }
             elif skipped_count > 0:
                 # 所有用户都已被任职，这是正常情况，返回成功
                 logger.info(f'所有{skipped_count}个用户都已在社区{community_id}任职，无需添加')
@@ -245,7 +292,7 @@ class CommunityStaffService:
         # 不需要手动提交或使用事务上下文管理器
 
         return {
-            'success_count': added_count,
+            'success_count': added_count + success_count,  # 新增 + 升级/降级的总数
             'failed': failed,
             'added_users': added_users_info,
             'skipped_count': skipped_count

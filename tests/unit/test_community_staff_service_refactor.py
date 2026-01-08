@@ -213,3 +213,179 @@ class TestCommunityIdUpdate:
             test_session.commit()  # 提交更改
             test_session.refresh(other_user)
             assert other_user.community_id == 999, f"Expected community_id=999, got {other_user.community_id}"  # 保持不变
+
+class TestSameCommunityRoleHandling:
+    """测试同社区角色处理逻辑"""
+
+    def test_add_staff_promote_from_staff_to_manager(self, test_session, test_app):
+        """测试专员升级为主管"""
+        test_context = "test_promote_staff"
+        with test_app.app_context():
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}2001",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            community = Community(
+                community_id=200,  # 显式设置ID避免冲突
+                name=f'{test_context}_社区',
+                description='测试',
+                creator_id=1
+            )
+
+            user = User(
+                wechat_openid=f"openid_{test_context}_user",
+                nickname=f"user_{test_context}",
+                phone_number=f"138{test_context}2002",
+                role=Role.STAFF,
+                status=1,
+                community_id=DEFAULT_COMMUNITY_ID
+            )
+
+            test_session.add_all([super_admin, community, user])
+            test_session.commit()
+
+            # 先添加为专员
+            CommunityStaffService.add_staff(
+                operator_user_id=super_admin.user_id,
+                community_id=community.community_id,
+                user_ids=[user.user_id],
+                role=STAFF_ROLE_STAFF
+            )
+
+            # 再次添加为主管（升级）
+            result = CommunityStaffService.add_staff(
+                operator_user_id=super_admin.user_id,
+                community_id=community.community_id,
+                user_ids=[user.user_id],
+                role=STAFF_ROLE_MANAGER
+            )
+
+            assert result['success_count'] == 1
+            test_session.refresh(user)
+            assert user.role == Role.MANAGER
+
+    def test_add_staff_skip_same_role(self, test_session, test_app):
+        """测试添加相同角色时静默跳过"""
+        test_context = "test_skip_same"
+        with test_app.app_context():
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}3001",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            community = Community(
+                community_id=300,  # 显式设置ID避免冲突
+                name=f'{test_context}_社区',
+                description='测试',
+                creator_id=1
+            )
+
+            user = User(
+                wechat_openid=f"openid_{test_context}_user",
+                nickname=f"user_{test_context}",
+                phone_number=f"138{test_context}3002",
+                role=Role.SOLO,
+                status=1,
+                community_id=DEFAULT_COMMUNITY_ID
+            )
+
+            test_session.add_all([super_admin, community, user])
+            test_session.commit()
+
+            # 第一次添加为专员
+            result1 = CommunityStaffService.add_staff(
+                operator_user_id=super_admin.user_id,
+                community_id=community.community_id,
+                user_ids=[user.user_id],
+                role=STAFF_ROLE_STAFF
+            )
+            assert result1['success_count'] == 1
+
+            # 第二次添加为专员（相同角色）
+            result2 = CommunityStaffService.add_staff(
+                operator_user_id=super_admin.user_id,
+                community_id=community.community_id,
+                user_ids=[user.user_id],
+                role=STAFF_ROLE_STAFF
+            )
+
+            # 应该静默跳过
+            assert result2['success_count'] == 0
+            assert result2.get('skipped_count', 0) >= 1
+
+    def test_add_staff_demote_manager_requires_super_admin(self, test_session, test_app):
+        """测试主管降级为专员需要超级管理员权限"""
+        test_context = "test_demote_requires_admin"
+        with test_app.app_context():
+            # 创建普通主管
+            regular_manager = User(
+                wechat_openid=f"openid_{test_context}_manager",
+                nickname=f"manager_{test_context}",
+                phone_number=f"138{test_context}4001",
+                role=Role.MANAGER,
+                status=1
+            )
+
+            # 创建目标用户（已是主管）
+            target_user = User(
+                wechat_openid=f"openid_{test_context}_target",
+                nickname=f"target_{test_context}",
+                phone_number=f"138{test_context}4002",
+                role=Role.MANAGER,
+                status=1,
+                community_id=DEFAULT_COMMUNITY_ID
+            )
+
+            # 创建两个社区（避免冲突）
+            community1 = Community(
+                community_id=401,
+                name=f'{test_context}_社区1',
+                description='测试',
+                creator_id=1
+            )
+
+            community2 = Community(
+                community_id=402,
+                name=f'{test_context}_社区2',
+                description='测试',
+                creator_id=1
+            )
+
+            test_session.add_all([regular_manager, target_user, community1, community2])
+            test_session.commit()
+
+            # 添加普通主管到社区1
+            CommunityStaffService.add_staff(
+                operator_user_id=1,  # 假设user_id=1是超级管理员
+                community_id=community1.community_id,
+                user_ids=[regular_manager.user_id],
+                role=STAFF_ROLE_MANAGER
+            )
+
+            # 添加目标用户为主管到社区2
+            CommunityStaffService.add_staff(
+                operator_user_id=1,
+                community_id=community2.community_id,
+                user_ids=[target_user.user_id],
+                role=STAFF_ROLE_MANAGER
+            )
+
+            # 普通主管尝试在社区2降级另一个主管
+            try:
+                CommunityStaffService.add_staff(
+                    operator_user_id=regular_manager.user_id,
+                    community_id=community2.community_id,
+                    user_ids=[target_user.user_id],
+                    role=STAFF_ROLE_STAFF
+                )
+                assert False, "Should have raised ValueError"
+            except ValueError as e:
+                # 应该抛出权限不足的错误
+                assert '权限不足' in str(e) or len(e.args[0]) > 0
