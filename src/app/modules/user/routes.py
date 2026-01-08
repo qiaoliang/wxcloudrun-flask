@@ -715,3 +715,174 @@ def get_event_history(decoded, event_id):
     except Exception as e:
         current_app.logger.error(f"获取事件历史API异常: {str(e)}", exc_info=True)
         return make_err_response('服务器内部错误')
+
+
+# ==================== 病史管理相关 API ====================
+
+@user_bp.route('/user/<int:user_id>/medical-history', methods=['GET'])
+@login_required
+def get_user_medical_history(decoded, user_id):
+    """获取用户病史列表"""
+    try:
+        viewer_id = decoded.get('user_id')
+        from wxcloudrun.medical_history_service import MedicalHistoryService
+        histories = MedicalHistoryService.get_user_medical_histories(user_id, viewer_id)
+        return make_succ_response(histories)
+    except Exception as e:
+        current_app.logger.error(f"获取用户病史列表失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'获取病史列表失败: {str(e)}')
+
+
+@user_bp.route('/user/medical-history', methods=['POST'])
+@login_required
+def add_medical_history(decoded):
+    """添加病史记录"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response({}, '缺少请求参数')
+
+        user_id = data.get('user_id')
+        condition_name = data.get('condition_name')
+        treatment_plan = data.get('treatment_plan')
+        visibility = data.get('visibility', 1)
+
+        if not user_id or not condition_name:
+            return make_err_response({}, '缺少必要参数')
+
+        from wxcloudrun.medical_history_service import MedicalHistoryService
+        result = MedicalHistoryService.add_medical_history(
+            user_id, condition_name, treatment_plan, visibility
+        )
+        return make_succ_response(result)
+    except Exception as e:
+        current_app.logger.error(f"添加病史记录失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'添加病史记录失败: {str(e)}')
+
+
+@user_bp.route('/user/medical-history/<int:history_id>', methods=['PUT'])
+@login_required
+def update_medical_history(decoded, history_id):
+    """更新病史记录"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response({}, '缺少请求参数')
+
+        user_id = data.get('user_id')
+        if not user_id:
+            return make_err_response({}, '缺少用户ID')
+
+        from wxcloudrun.medical_history_service import MedicalHistoryService
+        result = MedicalHistoryService.update_medical_history(
+            history_id, user_id,
+            condition_name=data.get('condition_name'),
+            treatment_plan=data.get('treatment_plan'),
+            visibility=data.get('visibility')
+        )
+        return make_succ_response(result)
+    except Exception as e:
+        current_app.logger.error(f"更新病史记录失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'更新病史记录失败: {str(e)}')
+
+
+@user_bp.route('/user/medical-history/<int:history_id>', methods=['DELETE'])
+@login_required
+def delete_medical_history(decoded, history_id):
+    """删除病史记录"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response({}, '缺少请求参数')
+
+        user_id = data.get('user_id')
+        if not user_id:
+            return make_err_response({}, '缺少用户ID')
+
+        from wxcloudrun.medical_history_service import MedicalHistoryService
+        result = MedicalHistoryService.delete_medical_history(history_id, user_id)
+        return make_succ_response(result)
+    except Exception as e:
+        current_app.logger.error(f"删除病史记录失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'删除病史记录失败: {str(e)}')
+
+
+@user_bp.route('/user/medical-history/common-conditions', methods=['GET'])
+@login_required
+def get_common_conditions(decoded):
+    """获取常见病史标签"""
+    try:
+        from wxcloudrun.medical_history_service import MedicalHistoryService
+        conditions = MedicalHistoryService.get_common_conditions()
+        return make_succ_response({'conditions': conditions})
+    except Exception as e:
+        current_app.logger.error(f"获取常见病史标签失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'获取常见病史标签失败: {str(e)}')
+
+
+# ==================== 浏览记录相关 API ====================
+
+@user_bp.route('/user/log-profile-view', methods=['POST'])
+@login_required
+def log_profile_view(decoded):
+    """记录查看成员信息"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response({}, '缺少请求参数')
+
+        viewer_id = decoded.get('user_id')
+        viewed_user_id = data.get('viewed_user_id')
+        community_id = data.get('community_id')
+
+        if not viewed_user_id or not community_id:
+            return make_err_response({}, '缺少必要参数')
+
+        UserService.log_profile_view(viewer_id, viewed_user_id, community_id)
+        return make_succ_response({'message': '记录成功'})
+    except Exception as e:
+        current_app.logger.error(f"记录浏览信息失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'记录浏览信息失败: {str(e)}')
+
+
+@user_bp.route('/user/log-view-guardian', methods=['POST'])
+@login_required
+def log_view_guardian(decoded):
+    """记录查看监护人信息"""
+    try:
+        data = request.get_json()
+        if not data:
+            return make_err_response({}, '缺少请求参数')
+
+        viewer_id = decoded.get('user_id')
+        guardian_id = data.get('guardian_id')
+        ward_user_id = data.get('ward_user_id')
+        community_id = data.get('community_id')
+
+        if not guardian_id or not ward_user_id or not community_id:
+            return make_err_response({}, '缺少必要参数')
+
+        UserService.log_view_guardian_info(viewer_id, guardian_id, ward_user_id, community_id)
+        return make_succ_response({'message': '记录成功'})
+    except Exception as e:
+        current_app.logger.error(f"记录查看监护人信息失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'记录查看监护人信息失败: {str(e)}')
+
+
+@user_bp.route('/user/profile-view-logs', methods=['GET'])
+@login_required
+def get_profile_view_logs(decoded):
+    """获取浏览记录列表"""
+    try:
+        community_id = request.args.get('community_id', type=int)
+        viewer_id = request.args.get('viewer_id', type=int)
+        limit = request.args.get('limit', 100, type=int)
+
+        if not community_id:
+            return make_err_response({}, '缺少社区ID')
+
+        logs = UserService.get_profile_view_logs(community_id, viewer_id, limit)
+        return make_succ_response({'logs': logs})
+    except Exception as e:
+        current_app.logger.error(f"获取浏览记录列表失败: {str(e)}", exc_info=True)
+        return make_err_response({}, f'获取浏览记录列表失败: {str(e)}')
