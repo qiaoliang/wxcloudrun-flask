@@ -98,7 +98,7 @@ class User(db.Model):
     targeted_events = db.relationship('CommunityEvent', foreign_keys='CommunityEvent.target_user_id', back_populates='target_user', lazy='dynamic')
     supports = db.relationship('EventMessage', back_populates='sender', lazy='dynamic')
     user_community_rules = db.relationship('UserCommunityRule', back_populates='user', lazy='selectin')
-    medical_histories = db.relationship('UserMedicalHistory', backref='user', lazy='dynamic')
+    medical_histories = db.relationship('UserMedicalHistory', back_populates='user', lazy='dynamic')
 
     # 角色映射 - 使用统一常量
     ROLE_MAPPING = ROLE_ID_TO_NAME
@@ -151,7 +151,7 @@ class UserMedicalHistory(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
     # 关系
-    user = db.relationship('User', backref=db.backref('medical_histories', lazy='dynamic', cascade='all, delete-orphan'))
+    user = db.relationship('User', back_populates='medical_histories', lazy='selectin')
 
     def to_dict(self):
         return {
