@@ -206,9 +206,10 @@ def search_ankafamily_users():
                 'avatar_url': user.get('avatar_url'),
                 'role': user.get('role'),
                 'community_id': user.get('community_id'),
-                'community_name': None,  # 需要额外查询获取社区名称
+                'community_name': user.get('community_name'),  # UserService 已返回社区名称
                 'status': user.get('status'),
-                'created_at': user.get('created_at')
+                'created_at': user.get('created_at'),
+                'is_staff': user.get('is_staff')
             }
             users.append(user_data)
 
