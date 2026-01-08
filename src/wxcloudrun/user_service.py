@@ -16,7 +16,7 @@ from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import joinedload
 
 # 导入Flask-SQLAlchemy模型和实例
-from database.flask_models import db, User, UserAuditLog
+from database.flask_models import db, User, UserAuditLog, Community
 
 # 导入工具函数
 from wxcloudrun.utils.validators import generate_phone_hash
