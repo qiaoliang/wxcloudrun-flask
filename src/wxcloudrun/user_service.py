@@ -676,3 +676,77 @@ class UserService:
         except Exception as e:
             logger.error(f'按昵称搜索用户失败: {str(e)}', exc_info=True)
             raise
+
+    @staticmethod
+    def log_profile_view(viewer_id, viewed_user_id, community_id):
+        """记录查看成员信息
+
+        Args:
+            viewer_id: 查看者ID
+            viewed_user_id: 被查看用户ID
+            community_id: 社区ID
+        """
+        from database.flask_models import ProfileViewLog
+
+        # 本人查看自己不记录
+        if viewer_id == viewed_user_id:
+            return
+
+        log = ProfileViewLog(
+            viewer_id=viewer_id,
+            viewed_user_id=viewed_user_id,
+            community_id=community_id,
+            view_type='profile'
+        )
+        db.session.add(log)
+        db.session.flush()
+
+    @staticmethod
+    def log_view_guardian_info(viewer_id, guardian_id, ward_user_id, community_id):
+        """记录查看监护人信息
+
+        Args:
+            viewer_id: 查看者ID
+            guardian_id: 监护人ID
+            ward_user_id: 被监护人ID
+            community_id: 社区ID
+        """
+        from database.flask_models import ProfileViewLog
+
+        log = ProfileViewLog(
+            viewer_id=viewer_id,
+            viewed_user_id=guardian_id,
+            ward_user_id=ward_user_id,
+            community_id=community_id,
+            view_type='guardian_info'
+        )
+        db.session.add(log)
+        db.session.flush()
+
+    @staticmethod
+    def get_profile_view_logs(community_id, viewer_id=None, limit=100):
+        """获取浏览记录列表
+
+        Args:
+            community_id: 社区ID
+            viewer_id: 查看者ID（可选，用于筛选）
+            limit: 返回数量限制
+
+        Returns:
+            list: 浏览记录列表
+        """
+        from database.flask_models import ProfileViewLog
+        from sqlalchemy import select, desc
+
+        stmt = select(ProfileViewLog).where(
+            ProfileViewLog.community_id == community_id
+        )
+
+        if viewer_id:
+            stmt = stmt.where(ProfileViewLog.viewer_id == viewer_id)
+
+        stmt = stmt.order_by(desc(ProfileViewLog.created_at)).limit(limit)
+
+        logs = db.session.execute(stmt).scalars().all()
+
+        return [log.to_dict() for log in logs]
