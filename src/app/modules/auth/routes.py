@@ -175,9 +175,6 @@ def login_wechat():
                 created_user = UserService.create_user(user_data)
                 user = created_user
                 current_app.logger.warning(f'使用fallback信息创建用户成功，用户ID: {created_user.user_id}')
-
-            # 使用辅助函数自动分配到默认社区
-            assign_user_to_default_community(user, current_app.logger)
         else:
             current_app.logger.info('用户已存在，检查是否需要更新用户信息...')
             # 更新现有用户信息（如果提供了新的头像或昵称）
@@ -455,9 +452,6 @@ def register_phone():
         # Use UserService.create_user to properly handle sessions
         user = UserService.create_user(user)
         _audit(user.user_id, 'register_phone', {'phone': normalized_phone})
-
-        # 使用辅助函数自动分配到默认社区
-        assign_user_to_default_community(user, current_app.logger)
 
         # 刷新用户的 community 关系，确保能获取到 community_name
         db.session.refresh(user)
