@@ -389,20 +389,12 @@ class CommunityStaffService:
                 community.manager_id = None
                 logger.info(f'Layer 3环境守卫 - 成功清理社区{community_id}的manager_id字段')
 
-        # Layer 3: 环境守卫 - 检查用户是否还在其他社区担任工作人员（不包括已删除的）
+        # Layer 3: 环境守卫 - 使用统一的角色重新计算方法
         target_user = db.session.get(User, user_id)
         if target_user:
-            stmt_count = select(func.count()).select_from(CommunityStaff).where(
-                CommunityStaff.user_id == user_id,
-                CommunityStaff.removed_at.is_(None)
-            )
-            other_staff_records = db.session.execute(stmt_count).scalar()
-            if other_staff_records == 0:
-                # 用户不在任何社区担任工作人员，重置为普通用户
-                logger.info(f'Layer 3环境守卫 - 用户{user_id}不在任何社区担任工作人员，重置为普通用户')
-                target_user.role = 1  # 普通用户
-            else:
-                logger.info(f'Layer 3环境守卫 - 用户{user_id}还在{other_staff_records}个社区担任工作人员，保持当前角色')
+            # 使用统一的角色重新计算方法
+            new_role = CommunityStaffService._recalculate_user_role(user_id)
+            logger.info(f'Layer 3环境守卫 - 用户{user_id}的角色重新计算为: {new_role}')
 
         # 记录审计日志
         audit_log = UserAuditLog(

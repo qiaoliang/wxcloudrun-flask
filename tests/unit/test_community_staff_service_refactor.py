@@ -389,3 +389,61 @@ class TestSameCommunityRoleHandling:
             except ValueError as e:
                 # 应该抛出权限不足的错误
                 assert '权限不足' in str(e) or len(e.args[0]) > 0
+
+class TestRemoveStaffRoleRecalculation:
+    """测试移除工作人员后角色重新计算"""
+
+    def test_remove_staff_recalculates_role(self, test_session, test_app):
+        """测试移除工作人员后重新计算角色"""
+        test_context = "test_remove_recalculate"
+        with test_app.app_context():
+            super_admin = User(
+                wechat_openid=f"openid_{test_context}_admin",
+                nickname=f"admin_{test_context}",
+                phone_number=f"138{test_context}5001",
+                role=Role.SUPER_ADMIN,
+                status=1
+            )
+
+            user = User(
+                wechat_openid=f"openid_{test_context}_user",
+                nickname=f"user_{test_context}",
+                phone_number=f"138{test_context}5002",
+                role=Role.SOLO,
+                status=1,
+                community_id=DEFAULT_COMMUNITY_ID
+            )
+
+            community = Community(
+                community_id=500,
+                name=f'{test_context}_社区',
+                description='测试',
+                creator_id=1
+            )
+
+            test_session.add_all([super_admin, user, community])
+            test_session.commit()
+
+            # 添加为专员
+            CommunityStaffService.add_staff(
+                operator_user_id=super_admin.user_id,
+                community_id=community.community_id,
+                user_ids=[user.user_id],
+                role=STAFF_ROLE_STAFF
+            )
+
+            test_session.commit()
+            test_session.refresh(user)
+            assert user.role == Role.STAFF
+
+            # 移除工作人员
+            CommunityStaffService.remove_staff(
+                community_id=community.community_id,
+                user_id=user.user_id,
+                operator_id=super_admin.user_id
+            )
+
+            test_session.commit()
+            # 角色应该重新计算为普通用户
+            test_session.refresh(user)
+            assert user.role == Role.SOLO
