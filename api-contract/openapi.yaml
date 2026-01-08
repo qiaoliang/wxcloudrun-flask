@@ -93,6 +93,83 @@ components:
                     type: boolean
                     description: 是否有下一页
 
+        # 病史记录
+        MedicalHistory:
+            type: object
+            properties:
+                id:
+                    type: integer
+                    description: 病史记录ID
+                user_id:
+                    type: integer
+                    description: 用户ID
+                condition_name:
+                    type: string
+                    description: 疾病名称
+                treatment_plan:
+                    type: object
+                    description: 治疗方案（JSON格式）
+                    properties:
+                        type:
+                            type: string
+                            enum: [medication, injection, other]
+                            description: 治疗类型
+                        medications:
+                            type: array
+                            items:
+                                type: string
+                            description: 药物列表（吃药时使用）
+                        medication:
+                            type: string
+                            description: 药物名称（打针时使用）
+                        frequency:
+                            type: string
+                            description: 频率
+                        note:
+                            type: string
+                            description: 备注
+                visibility:
+                    type: integer
+                    description: 可见性（1=仅工作人员，2=工作人员和监护人）
+                    enum: [1, 2]
+                created_at:
+                    type: string
+                    format: date-time
+                    description: 创建时间
+                updated_at:
+                    type: string
+                    format: date-time
+                    description: 更新时间
+
+        # 浏览记录
+        ProfileViewLog:
+            type: object
+            properties:
+                id:
+                    type: integer
+                    description: 记录ID
+                viewer_id:
+                    type: integer
+                    description: 查看者用户ID
+                viewed_user_id:
+                    type: integer
+                    description: 被查看用户ID
+                ward_user_id:
+                    type: integer
+                    description: 被监护人用户ID（查看监护人信息时）
+                    nullable: true
+                community_id:
+                    type: integer
+                    description: 社区ID
+                view_type:
+                    type: string
+                    enum: [profile, guardian]
+                    description: 浏览类型（profile=成员信息，guardian=监护人信息）
+                created_at:
+                    type: string
+                    format: date-time
+                    description: 浏览时间
+
     # 认证方案
     securitySchemes:
         BearerAuth:
@@ -396,6 +473,289 @@ paths:
                         application/json:
                             schema:
                                 $ref: "#/components/schemas/StandardResponse"
+
+    /user/{user_id}/medical-history:
+        get:
+            tags:
+                - 用户模块
+            summary: 获取用户病史列表
+            description: 获取指定用户的病史记录，根据权限过滤可见性
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: user_id
+                  in: path
+                  required: true
+                  schema:
+                    type: integer
+                  description: 用户ID
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: array
+                                              items:
+                                                  $ref: "#/components/schemas/MedicalHistory"
+
+    /user/medical-history:
+        post:
+            tags:
+                - 用户模块
+            summary: 添加病史记录
+            description: 为指定用户添加病史记录
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - user_id
+                                - condition_name
+                            properties:
+                                user_id:
+                                    type: integer
+                                    description: 用户ID
+                                condition_name:
+                                    type: string
+                                    description: 疾病名称
+                                treatment_plan:
+                                    type: object
+                                    description: 治疗方案（JSON格式）
+                                visibility:
+                                    type: integer
+                                    description: 可见性（1=仅工作人员，2=工作人员和监护人）
+                                    default: 1
+            responses:
+                "200":
+                    description: 添加成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+    /user/medical-history/{history_id}:
+        put:
+            tags:
+                - 用户模块
+            summary: 更新病史记录
+            description: 更新指定的病史记录
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: history_id
+                  in: path
+                  required: true
+                  schema:
+                    type: integer
+                  description: 病史记录ID
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            properties:
+                                condition_name:
+                                    type: string
+                                    description: 疾病名称
+                                treatment_plan:
+                                    type: object
+                                    description: 治疗方案（JSON格式）
+                                visibility:
+                                    type: integer
+                                    description: 可见性（1=仅工作人员，2=工作人员和监护人）
+            responses:
+                "200":
+                    description: 更新成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+        delete:
+            tags:
+                - 用户模块
+            summary: 删除病史记录
+            description: 删除指定的病史记录
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: history_id
+                  in: path
+                  required: true
+                  schema:
+                    type: integer
+                  description: 病史记录ID
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - user_id
+                            properties:
+                                user_id:
+                                    type: integer
+                                    description: 用户ID（用于权限验证）
+            responses:
+                "200":
+                    description: 删除成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+    /user/medical-history/common-conditions:
+        get:
+            tags:
+                - 用户模块
+            summary: 获取常见疾病列表
+            description: 获取预设的常见老年疾病列表
+            security:
+                - BearerAuth: []
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: array
+                                              items:
+                                                  type: string
+                                              description: 常见疾病名称列表
+                                              example: ["高血压", "糖尿病", "心脏病"]
+
+    /user/log-profile-view:
+        post:
+            tags:
+                - 用户模块
+            summary: 记录查看成员信息
+            description: 记录工作人员查看成员信息的行为
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - viewed_user_id
+                                - community_id
+                            properties:
+                                viewed_user_id:
+                                    type: integer
+                                    description: 被查看的用户ID
+                                community_id:
+                                    type: integer
+                                    description: 社区ID
+            responses:
+                "200":
+                    description: 记录成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+    /user/log-view-guardian:
+        post:
+            tags:
+                - 用户模块
+            summary: 记录查看监护人信息
+            description: 记录工作人员查看监护人信息的行为
+            security:
+                - BearerAuth: []
+            requestBody:
+                required: true
+                content:
+                    application/json:
+                        schema:
+                            type: object
+                            required:
+                                - guardian_id
+                                - ward_user_id
+                                - community_id
+                            properties:
+                                guardian_id:
+                                    type: integer
+                                    description: 监护人用户ID
+                                ward_user_id:
+                                    type: integer
+                                    description: 被监护人用户ID
+                                community_id:
+                                    type: integer
+                                    description: 社区ID
+            responses:
+                "200":
+                    description: 记录成功
+                    content:
+                        application/json:
+                            schema:
+                                $ref: "#/components/schemas/StandardResponse"
+
+    /user/profile-view-logs:
+        get:
+            tags:
+                - 用户模块
+            summary: 获取浏览记录列表
+            description: 获取社区内的用户信息浏览记录，支持按查看者筛选
+            security:
+                - BearerAuth: []
+            parameters:
+                - name: community_id
+                  in: query
+                  required: true
+                  schema:
+                    type: integer
+                  description: 社区ID
+                - name: viewer_id
+                  in: query
+                  required: false
+                  schema:
+                    type: integer
+                  description: 查看者用户ID（可选，用于筛选）
+                - name: limit
+                  in: query
+                  required: false
+                  schema:
+                    type: integer
+                    default: 100
+                  description: 返回记录数量限制
+            responses:
+                "200":
+                    description: 获取成功
+                    content:
+                        application/json:
+                            schema:
+                                allOf:
+                                    - $ref: "#/components/schemas/StandardResponse"
+                                    - type: object
+                                      properties:
+                                          data:
+                                              type: object
+                                              properties:
+                                                  logs:
+                                                      type: array
+                                                      items:
+                                                          $ref: "#/components/schemas/ProfileViewLog"
+                                                  total:
+                                                      type: integer
 
     # ==========================================
     # 监督模块 (supervision) - 统一使用 /api/supervision/
