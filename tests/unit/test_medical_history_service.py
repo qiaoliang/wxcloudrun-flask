@@ -5,6 +5,7 @@ MedicalHistoryService 单元测试
 import pytest
 from database.flask_models import User, UserMedicalHistory
 from test_constants import TEST_CONSTANTS
+from test_data_generator import generate_unique_phone_number, generate_unique_openid
 from hashlib import sha256
 
 
@@ -17,9 +18,9 @@ class TestMedicalHistoryService:
         验证病史记录能正确保存到数据库
         """
         # Arrange - 创建测试用户
-        phone_number = TEST_CONSTANTS.generate_phone("medical_add")
+        phone_number = generate_unique_phone_number("medical_add")
         user = User(
-            wechat_openid=TEST_CONSTANTS.generate_openid(phone_number, "medical_add"),
+            wechat_openid=generate_unique_openid(phone_number, "medical_add"),
             phone_number=phone_number,
             phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest(),
             nickname=TEST_CONSTANTS.generate_nickname("medical_add"),
@@ -59,9 +60,9 @@ class TestMedicalHistoryService:
         验证能正确返回用户的所有病史记录
         """
         # Arrange - 创建测试用户并添加多条病史记录
-        phone_number = TEST_CONSTANTS.generate_phone("medical_get")
+        phone_number = generate_unique_phone_number("medical_get")
         user = User(
-            wechat_openid=TEST_CONSTANTS.generate_openid(phone_number, "medical_get"),
+            wechat_openid=generate_unique_openid(phone_number, "medical_get"),
             phone_number=phone_number,
             phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest(),
             nickname=TEST_CONSTANTS.generate_nickname("medical_get"),
@@ -98,9 +99,9 @@ class TestMedicalHistoryService:
         验证能正确更新病史信息
         """
         # Arrange - 创建测试用户并添加病史记录
-        phone_number = TEST_CONSTANTS.generate_phone("medical_update")
+        phone_number = generate_unique_phone_number("medical_update")
         user = User(
-            wechat_openid=TEST_CONSTANTS.generate_openid(phone_number, "medical_update"),
+            wechat_openid=generate_unique_openid(phone_number, "medical_update"),
             phone_number=phone_number,
             phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest(),
             nickname=TEST_CONSTANTS.generate_nickname("medical_update"),
@@ -147,9 +148,9 @@ class TestMedicalHistoryService:
         验证能正确删除病史记录
         """
         # Arrange - 创建测试用户并添加病史记录
-        phone_number = TEST_CONSTANTS.generate_phone("medical_delete")
+        phone_number = generate_unique_phone_number("medical_delete")
         user = User(
-            wechat_openid=TEST_CONSTANTS.generate_openid(phone_number, "medical_delete"),
+            wechat_openid=generate_unique_openid(phone_number, "medical_delete"),
             phone_number=phone_number,
             phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest(),
             nickname=TEST_CONSTANTS.generate_nickname("medical_delete"),
@@ -208,9 +209,9 @@ class TestMedicalHistoryService:
         验证不同可见性设置下的访问控制
         """
         # Arrange - 创建两个测试用户
-        phone_number1 = TEST_CONSTANTS.generate_phone("medical_visible_user")
+        phone_number1 = generate_unique_phone_number("medical_visible_user")
         user1 = User(
-            wechat_openid=TEST_CONSTANTS.generate_openid(phone_number1, "medical_visible_user"),
+            wechat_openid=generate_unique_openid(phone_number1, "medical_visible_user"),
             phone_number=phone_number1,
             phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number1}".encode('utf-8')).hexdigest(),
             nickname=TEST_CONSTANTS.generate_nickname("medical_visible_user"),
@@ -221,9 +222,9 @@ class TestMedicalHistoryService:
         )
         test_session.add(user1)
 
-        phone_number2 = TEST_CONSTANTS.generate_phone("medical_viewer")
+        phone_number2 = generate_unique_phone_number("medical_viewer")
         user2 = User(
-            wechat_openid=TEST_CONSTANTS.generate_openid(phone_number2, "medical_viewer"),
+            wechat_openid=generate_unique_openid(phone_number2, "medical_viewer"),
             phone_number=phone_number2,
             phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number2}".encode('utf-8')).hexdigest(),
             nickname=TEST_CONSTANTS.generate_nickname("medical_viewer"),
