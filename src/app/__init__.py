@@ -23,6 +23,7 @@ def configure_logging(app):
     if not os.path.exists(logs_dir):
         os.makedirs(logs_dir, exist_ok=True)
 
+    # 创建根日志配置
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -31,6 +32,31 @@ def configure_logging(app):
             logging.StreamHandler()
         ]
     )
+
+    # 为不同的组件创建独立的 logger
+    # 1. App 服务 logger
+    app_logger = logging.getLogger('app')
+    app_logger.setLevel(logging.INFO)
+    app_handler = logging.FileHandler(os.path.join(logs_dir, 'app_service.log'))
+    app_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    app_logger.addHandler(app_handler)
+    app_logger.propagate = False  # 防止重复日志
+
+    # 2. 定时任务 logger
+    scheduler_logger = logging.getLogger('scheduler')
+    scheduler_logger.setLevel(logging.INFO)
+    scheduler_handler = logging.FileHandler(os.path.join(logs_dir, 'scheduler.log'))
+    scheduler_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    scheduler_logger.addHandler(scheduler_handler)
+    scheduler_logger.propagate = False  # 防止重复日志
+
+    # 3. 数据库迁移 logger（在 alembic_migration.py 中配置）
+    # migration_logger = logging.getLogger('migration')
+    # migration_logger.setLevel(logging.INFO)
+    # migration_handler = logging.FileHandler(os.path.join(logs_dir, 'migration.log'))
+    # migration_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+    # migration_logger.addHandler(migration_handler)
+    # migration_logger.propagate = False  # 防止重复日志
 
 def create_app(config_name=None):
     """
@@ -85,16 +111,16 @@ def create_app(config_name=None):
     
     # 8. 注册会话清理
     register_session_cleanup(app)
-    
-    # 9. 启动后台任务（非unit环境）
-    start_background_tasks(app)
-    
+
     # 9. 在 unit 环境下初始化默认数据
     import config_manager
     if config_manager.is_unit_environment():
         with app.app_context():
             app.logger.info("默认社区初始化已在数据库迁移完成后自动执行")
-    
+
+    # 注意：定时任务将在数据库迁移完成后启动（在 run.py 中调用）
+    # 这样可以确保数据库表已经创建完成，避免定时任务查询失败
+
     return app
 
 
@@ -188,26 +214,14 @@ def register_session_cleanup(app):
                 db.session.remove()
 
 
-def start_background_tasks(app):
-    """启动后台任务"""
-    import config_manager
-    if not config_manager.is_unit_environment():
-        # 只在主进程中记录此日志，避免 Flask 重启时重复
-        if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
-            app.logger.info(f"app.debug={app.debug}")
-        try:
-            if os.environ.get('WERKZEUG_RUN_MAIN') == 'true' or not app.debug:
-                # 启动所有定时任务（使用 APScheduler）
-                app.logger.info("# 启动定时任务调度器")
-                start_all_schedulers(app)
-        except Exception as e:
-            app.logger.error(f"启动定时任务失败: {str(e)}")
-    else:
-        app.logger.info("unit 环境下不启动后台服务")
+
 
 
 def start_all_schedulers(app):
     """启动所有定时任务（使用 APScheduler 统一管理）"""
+    # 使用独立的 scheduler logger
+    scheduler_logger = logging.getLogger('scheduler')
+    
     try:
         from flask_apscheduler import APScheduler
         from app.shared.utils.abnormality_calculator import AbnormalityCalculator
@@ -229,33 +243,33 @@ def start_all_schedulers(app):
             """执行异常值计算"""
             with app.app_context():
                 try:
-                    app.logger.info("开始执行异常值计算任务")
+                    scheduler_logger.info("开始执行异常值计算任务")
                     stats = AbnormalityCalculator.calculate_all_pending_users()
-                    app.logger.info(f"异常值计算完成: {stats}")
+                    scheduler_logger.info(f"异常值计算完成: {stats}")
                 except Exception as e:
-                    app.logger.error(f"异常值计算任务执行失败: {str(e)}", exc_info=True)
+                    scheduler_logger.error(f"异常值计算任务执行失败: {str(e)}", exc_info=True)
 
         def run_daily_check():
             """执行全天规则检查"""
             with app.app_context():
                 try:
-                    app.logger.info("开始执行全天规则检查任务")
+                    scheduler_logger.info("开始执行全天规则检查任务")
                     daily_check()
                 except Exception as e:
-                    app.logger.error(f"全天规则检查任务执行失败: {str(e)}", exc_info=True)
+                    scheduler_logger.error(f"全天规则检查任务执行失败: {str(e)}", exc_info=True)
 
         def run_missing_check():
             """执行缺失打卡检查"""
             with app.app_context():
                 try:
-                    app.logger.info("开始执行缺失打卡检查任务")
+                    scheduler_logger.info("开始执行缺失打卡检查任务")
                     now = datetime.now()
                     # 常规规则检查（非全天规则）
                     _process_missed_for_today(now)
                     _process_community_missed_for_today(now)
-                    app.logger.info("缺失打卡检查任务完成")
+                    scheduler_logger.info("缺失打卡检查任务完成")
                 except Exception as e:
-                    app.logger.error(f"缺失打卡检查任务执行失败: {str(e)}", exc_info=True)
+                    scheduler_logger.error(f"缺失打卡检查任务执行失败: {str(e)}", exc_info=True)
 
         # 任务 1: 异常值计算（每分钟执行一次）
         @scheduler.task('cron', id='update_abnormality_values', minute='*')
@@ -279,14 +293,14 @@ def start_all_schedulers(app):
         # 启动调度器
         scheduler.start()
 
-        app.logger.info("定时任务调度器已启动（3个任务：异常值计算、全天规则检查、缺失打卡检查）")
+        scheduler_logger.info("定时任务调度器已启动（3个任务：异常值计算、全天规则检查、缺失打卡检查）")
 
         # 启动时立即执行所有任务
-        app.logger.info("启动时立即执行所有定时任务...")
+        scheduler_logger.info("启动时立即执行所有定时任务...")
         run_abnormality_calculation()
         run_daily_check()
         run_missing_check()
-        app.logger.info("启动时任务执行完成")
+        scheduler_logger.info("启动时任务执行完成")
 
     except Exception as e:
-        app.logger.error(f"启动定时任务调度器失败: {str(e)}", exc_info=True)
+        scheduler_logger.error(f"启动定时任务调度器失败: {str(e)}", exc_info=True)

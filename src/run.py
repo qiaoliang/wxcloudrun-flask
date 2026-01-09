@@ -72,8 +72,10 @@ if env_type is None or env_type == '':
 def run_migration():
     """执行数据库迁移，返回是否成功"""
     try:
+        migration_logger.info("开始调用 migrate_database()...")
         from alembic_migration import migrate_database
         success = migrate_database()
+        migration_logger.info(f"migrate_database() 返回: {success}")
         if not success:
             migration_logger.error("数据库迁移失败")
             return False
@@ -121,7 +123,9 @@ def main():
             migration_success = True
         else:
             # 生产模式，正常执行迁移
+            migration_logger.info("生产模式：开始执行数据库迁移")
             migration_success = run_migration()
+            migration_logger.info(f"数据库迁移结果: {migration_success}")
             if not migration_success:
                 migration_logger.error("数据库迁移失败，程序退出")
                 sys.exit(1)
@@ -146,7 +150,18 @@ def main():
         else:
             flask_app.logger.info("跳过超级管理员和默认社区注入")
 
-# 5. 启动 Flask 应用
+    # 5. 启动定时任务（数据库迁移完成后）
+    # 注意：定时任务必须在数据库表创建完成后启动，否则会查询失败
+    flask_app.logger.info(f"准备启动定时任务，env_type={env_type}")
+    if env_type != 'unit':
+        flask_app.logger.info("启动定时任务调度器...")
+        from app import start_all_schedulers
+        start_all_schedulers(flask_app)
+        flask_app.logger.info("定时任务调度器启动完成")
+    else:
+        flask_app.logger.info("unit 环境下不启动定时任务")
+
+    # 6. 启动 Flask 应用
     host = '0.0.0.0'
     port = int(os.environ.get("EXPOSE_PORT", 8080))
 

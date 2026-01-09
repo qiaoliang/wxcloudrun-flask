@@ -332,6 +332,9 @@ def migrate_database():
             conn.close()
 
         logger.info("数据库迁移完成")
+        # 强制刷新日志处理器
+        for handler in logger.handlers:
+            handler.flush()
         return True
 
     except Exception as e:
@@ -341,6 +344,10 @@ def migrate_database():
         # 记录详细的错误堆栈
         import traceback
         logger.error(f"错误详情:\n{traceback.format_exc()}")
+
+        # 强制刷新日志处理器
+        for handler in logger.handlers:
+            handler.flush()
 
         return False
 
