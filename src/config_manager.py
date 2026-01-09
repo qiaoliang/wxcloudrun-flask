@@ -42,6 +42,29 @@ def load_environment_config():
         load_dotenv('.env', override=False)
 
 
+def is_running_in_docker() -> bool:
+    """
+    检测是否在 Docker 容器中运行
+    
+    Returns:
+        bool: 如果在 Docker 容器中返回 True，否则返回 False
+    """
+    # 方法1: 检查 /.dockerenv 文件是否存在
+    if os.path.exists('/.dockerenv'):
+        return True
+    
+    # 方法2: 检查 /proc/1/cgroup 文件
+    try:
+        with open('/proc/1/cgroup', 'r') as f:
+            cgroup_content = f.read()
+            if 'docker' in cgroup_content or 'kubepods' in cgroup_content:
+                return True
+    except (FileNotFoundError, PermissionError):
+        pass
+    
+    return False
+
+
 def get_database_config() -> Dict[str, Any]:
     """
     根据环境类型获取数据库配置
@@ -56,11 +79,19 @@ def get_database_config() -> Dict[str, Any]:
         'DATABASE_PATH': None
     }
 
-    if env_type != 'unit':        # 根据环境类型设置不同的默认路径，可被环境变量 SQLITE_DB_PATH 覆盖
+    if env_type != 'unit':
+        # 根据环境类型设置不同的默认路径，可被环境变量 SQLITE_DB_PATH 覆盖
         if env_type == 'prod':
-            default_path = '/app/data/prod.db'
+            # 检测是否在 Docker 容器中运行
+            if is_running_in_docker():
+                # Docker 环境：使用容器内路径
+                default_path = '/app/data/prod.db'
+            else:
+                # 非 Docker 环境：使用相对路径
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                default_path = os.path.join(script_dir, 'data', 'prod.db')
         else:
-            # 获取当前脚本所在目录的绝对路径，确保数据库路径固定
+            # 其他环境：使用脚本所在目录
             script_dir = os.path.dirname(os.path.abspath(__file__))
             default_path = os.path.join(script_dir, 'data', f'{env_type}.db')
 
@@ -70,9 +101,9 @@ def get_database_config() -> Dict[str, Any]:
         if not os.path.isabs(db_path):
             db_path = os.path.abspath(db_path)
 
-        # 在非prod环境中确保目录存在（prod环境的目录由容器创建）
+        # 确保数据库目录存在
         db_dir = os.path.dirname(db_path)
-        if db_dir and not os.path.exists(db_dir) and env_type != 'prod':
+        if db_dir and not os.path.exists(db_dir):
             os.makedirs(db_dir, exist_ok=True)
 
         db_cfg = {
@@ -83,6 +114,7 @@ def get_database_config() -> Dict[str, Any]:
             'DATABASE_TYPE': 'sqlite',
             'DATABASE_PATH': db_path
         }
+    
     # 注意：此时 app 可能还未初始化，不能使用 app.logger
     # print(f"数据库信息：\n    {json.dumps(db_cfg)}")  # 调试时可取消注释
     return db_cfg
