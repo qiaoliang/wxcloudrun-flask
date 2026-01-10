@@ -345,7 +345,7 @@ After=network.target
 Type=simple
 User=ubuntu
 Group=safeguard-group
-WorkingDirectory=/opt/safeguard/backend
+WorkingDirectory=/opt/safeguard/backend/src
 Environment="PATH=/opt/safeguard/backend/venv_py312/bin"
 Environment="ENV_TYPE=prod"
 Environment="EXPOSE_PORT=9999"
@@ -364,8 +364,11 @@ WantedBy=multi-user.target
 **重要配置说明**：
 - `User=ubuntu`：使用普通用户运行服务（不要使用 root）
 - `Group=safeguard-group`：使用专用组
+- `WorkingDirectory=/opt/safeguard/backend/src`：**关键！必须设置为 src 目录**，因为 alembic.ini 和其他配置文件都在 src 目录下
 - `NoNewPrivileges=true`：防止进程获取额外权限
 - `PrivateTmp=true`：使用独立的临时目录
+
+**注意**：如果 WorkingDirectory 设置错误（如设置为 `/opt/safeguard/backend`），服务启动时会找不到 `alembic.ini` 文件，导致启动失败。
 
 ```bash
 # 2. 启动服务前，确保所有文件权限正确
@@ -615,6 +618,7 @@ python3 run.py 0.0.0.0 9999
 - **环境变量未设置**：检查 `.env.prod` 文件配置
 - **依赖缺失**：重新安装依赖 `pip install -r requirements.txt`
 - **SQLite 支持问题**：参考"SQLite 支持问题"章节
+- **找不到 alembic.ini 文件**：检查 Systemd 服务的 WorkingDirectory 是否正确设置为 `/opt/safeguard/backend/src`，而不是 `/opt/safeguard/backend`
 
 ### Nginx 配置问题
 
