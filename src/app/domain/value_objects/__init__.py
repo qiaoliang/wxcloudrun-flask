@@ -1,6 +1,23 @@
 """
-值对象（Value Objects）
-
-值对象是不可变的、没有身份标识的对象。
-值对象通过属性值相等性来判断相等。
+值对象导出
 """
+from .role import Role, RoleType
+from .phone_number import PhoneNumber
+from .frequency_type import Frequency, FrequencyType
+from .time_slot_type import TimeSlot, TimeSlotType
+from .event_type import CommunityEventType, EventType
+from .event_status import CommunityEventStatus, EventStatus
+
+__all__ = [
+    'Role',
+    'RoleType',
+    'PhoneNumber',
+    'Frequency',
+    'FrequencyType',
+    'TimeSlot',
+    'TimeSlotType',
+    'CommunityEventType',
+    'EventType',
+    'CommunityEventStatus',
+    'EventStatus',
+]
