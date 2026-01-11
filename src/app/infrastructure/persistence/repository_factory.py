@@ -12,6 +12,8 @@ from app.domain.repositories.checkin_record_repository import CheckinRecordRepos
 from app.domain.repositories.community_event_repository import CommunityEventRepository
 from app.domain.repositories.event_message_repository import EventMessageRepository
 from app.domain.repositories.community_staff_repository import CommunityStaffRepository
+from app.domain.repositories.share_link_repository import ShareLinkRepository
+from app.domain.repositories.share_link_access_log_repository import ShareLinkAccessLogRepository
 
 from app.infrastructure.persistence.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from app.infrastructure.persistence.sqlalchemy_community_repository import SQLAlchemyCommunityRepository
@@ -20,6 +22,8 @@ from app.infrastructure.persistence.sqlalchemy_checkin_record_repository import 
 from app.infrastructure.persistence.sqlalchemy_community_event_repository import SQLAlchemyCommunityEventRepository
 from app.infrastructure.persistence.sqlalchemy_event_message_repository import SQLAlchemyEventMessageRepository
 from app.infrastructure.persistence.sqlalchemy_community_staff_repository import SQLAlchemyCommunityStaffRepository
+from app.infrastructure.persistence.sqlalchemy_share_link_repository import SQLAlchemyShareLinkRepository
+from app.infrastructure.persistence.sqlalchemy_share_link_access_log_repository import SQLAlchemyShareLinkAccessLogRepository
 
 
 class RepositoryFactory:
@@ -32,6 +36,8 @@ class RepositoryFactory:
     _community_event_repository: Optional[CommunityEventRepository] = None
     _event_message_repository: Optional[EventMessageRepository] = None
     _community_staff_repository: Optional[CommunityStaffRepository] = None
+    _share_link_repository: Optional[ShareLinkRepository] = None
+    _share_link_access_log_repository: Optional[ShareLinkAccessLogRepository] = None
 
     @classmethod
     def get_user_repository(cls) -> UserRepository:
@@ -118,6 +124,30 @@ class RepositoryFactory:
         return cls._community_staff_repository
 
     @classmethod
+    def get_share_link_repository(cls) -> ShareLinkRepository:
+        """
+        获取分享链接仓储实例
+
+        Returns:
+            ShareLinkRepository: 分享链接仓储实例
+        """
+        if cls._share_link_repository is None:
+            cls._share_link_repository = SQLAlchemyShareLinkRepository()
+        return cls._share_link_repository
+
+    @classmethod
+    def get_share_link_access_log_repository(cls) -> ShareLinkAccessLogRepository:
+        """
+        获取分享链接访问日志仓储实例
+
+        Returns:
+            ShareLinkAccessLogRepository: 分享链接访问日志仓储实例
+        """
+        if cls._share_link_access_log_repository is None:
+            cls._share_link_access_log_repository = SQLAlchemyShareLinkAccessLogRepository()
+        return cls._share_link_access_log_repository
+
+    @classmethod
     def reset(cls):
         """重置仓储实例（主要用于测试）"""
         cls._user_repository = None
@@ -127,3 +157,5 @@ class RepositoryFactory:
         cls._community_event_repository = None
         cls._event_message_repository = None
         cls._community_staff_repository = None
+        cls._share_link_repository = None
+        cls._share_link_access_log_repository = None

@@ -44,35 +44,32 @@ def create_share_checkin_link():
         if not rule_id:
             return make_err_response({}, '缺少rule_id参数')
 
-        rule = CheckinRuleService.query_rule_by_id(rule_id)
-        if not rule or rule.user_id != user.user_id:
-            return make_err_response({}, '打卡规则不存在或无权限')
+        # 使用应用服务用例创建分享链接
+        from app.application.use_cases.share import CreateShareLinkUseCase
 
-        token = secrets.token_urlsafe(16)
-        expires_at = datetime.now() + timedelta(hours=expire_hours)
+        use_case = CreateShareLinkUseCase()
+        result = use_case.execute(
+            user_id=user.user_id,
+            rule_id=rule_id,
+            expire_hours=expire_hours
+        )
 
-        # 使用事务管理器确保数据一致性
-        with transaction():
-            link = ShareLink(
-                token=token,
-                solo_user_id=user.user_id,
-                rule_id=rule.rule_id,
-                expires_at=expires_at
-            )
-            db.session.add(link)
+        if result.is_success:
+            # 构建分享链接
+            base_url = request.host_url.rstrip('/')
+            token = result.data.get('token')
+            full_url = f"{base_url}/share/check-in?token={token}"
+            mini_path = f"/share/check-in?token={token}"
 
-        # 构建分享链接
-        base_url = request.host_url.rstrip('/')
-        full_url = f"{base_url}/share/check-in?token={token}"
-        mini_path = f"/share/check-in?token={token}"
-
-        current_app.logger.info(f'用户 {user.user_id} 创建分享链接成功，token: {token}')
-        return make_succ_response({
-            'token': token,
-            'url': full_url,
-            'mini_path': mini_path,
-            'expire_at': expires_at.isoformat()
-        })
+            current_app.logger.info(f'用户 {user.user_id} 创建分享链接成功，token: {token}')
+            return make_succ_response({
+                'token': token,
+                'url': full_url,
+                'mini_path': mini_path,
+                'expire_at': result.data.get('expires_at')
+            })
+        else:
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'创建分享链接失败: {str(e)}', exc_info=True)
@@ -91,52 +88,21 @@ def resolve_share_checkin_link():
         if not token:
             return make_err_response({}, '缺少token参数')
 
-        link = db.session.execute(select(ShareLink).filter_by(token=token)).scalar_one_or_none()
-        if not link or link.expires_at < datetime.now():
-            return make_err_response({}, '分享链接无效或已过期')
+        # 使用应用服务用例解析分享链接
+        from app.application.use_cases.share import ResolveShareLinkUseCase
 
-        # 记录访问日志（使用事务管理器）
-        with transaction():
-            access_log = ShareLinkAccessLog(
-                token=link.token,
-                ip_address=request.remote_addr,
-                user_agent=request.headers.get('User-Agent', ''),
-                accessed_at=datetime.now()
-            )
-            db.session.add(access_log)
+        use_case = ResolveShareLinkUseCase()
+        result = use_case.execute(
+            token=token,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', '')
+        )
 
-        # 获取规则信息
-        rule = CheckinRuleService.query_rule_by_id(link.rule_id)
-        if not rule:
-            return make_err_response({}, '关联的打卡规则不存在')
-
-        # 获取用户信息
-        user = UserService.query_user_by_id(link.solo_user_id)
-        if not user:
-            return make_err_response({}, '分享用户不存在')
-
-        rule_info = {
-            'rule_id': rule.rule_id,
-            'title': rule.rule_name,
-            'description': '',  # CheckinRule 模型没有 description 字段
-            'checkin_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else None,
-            'repeat_days': rule.week_days,
-            'is_enabled': rule.status == 1
-        }
-
-        share_info = {
-            'share_user_id': user.user_id,
-            'share_user_nickname': user.nickname,
-            'share_user_avatar': user.avatar_url,
-            'created_at': link.created_at.isoformat(),
-            'expires_at': link.expires_at.isoformat()
-        }
-
-        current_app.logger.info(f'解析分享链接成功，token: {token}')
-        return make_succ_response({
-            'rule_info': rule_info,
-            'share_info': share_info
-        })
+        if result.is_success:
+            current_app.logger.info(f'解析分享链接成功，token: {token}')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'解析分享链接失败: {str(e)}', exc_info=True)
