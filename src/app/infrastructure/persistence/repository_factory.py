@@ -14,6 +14,7 @@ from app.domain.repositories.event_message_repository import EventMessageReposit
 from app.domain.repositories.community_staff_repository import CommunityStaffRepository
 from app.domain.repositories.share_link_repository import ShareLinkRepository
 from app.domain.repositories.share_link_access_log_repository import ShareLinkAccessLogRepository
+from app.domain.repositories.supervision_relation_repository import SupervisionRelationRepository
 
 from app.infrastructure.persistence.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from app.infrastructure.persistence.sqlalchemy_community_repository import SQLAlchemyCommunityRepository
@@ -24,6 +25,7 @@ from app.infrastructure.persistence.sqlalchemy_event_message_repository import S
 from app.infrastructure.persistence.sqlalchemy_community_staff_repository import SQLAlchemyCommunityStaffRepository
 from app.infrastructure.persistence.sqlalchemy_share_link_repository import SQLAlchemyShareLinkRepository
 from app.infrastructure.persistence.sqlalchemy_share_link_access_log_repository import SQLAlchemyShareLinkAccessLogRepository
+from app.infrastructure.persistence.sqlalchemy_supervision_relation_repository import SQLAlchemySupervisionRelationRepository
 
 
 class RepositoryFactory:
@@ -38,6 +40,7 @@ class RepositoryFactory:
     _community_staff_repository: Optional[CommunityStaffRepository] = None
     _share_link_repository: Optional[ShareLinkRepository] = None
     _share_link_access_log_repository: Optional[ShareLinkAccessLogRepository] = None
+    _supervision_relation_repository: Optional[SupervisionRelationRepository] = None
 
     @classmethod
     def get_user_repository(cls) -> UserRepository:
@@ -148,6 +151,18 @@ class RepositoryFactory:
         return cls._share_link_access_log_repository
 
     @classmethod
+    def get_supervision_relation_repository(cls) -> SupervisionRelationRepository:
+        """
+        获取监督关系仓储实例
+
+        Returns:
+            SupervisionRelationRepository: 监督关系仓储实例
+        """
+        if cls._supervision_relation_repository is None:
+            cls._supervision_relation_repository = SQLAlchemySupervisionRelationRepository()
+        return cls._supervision_relation_repository
+
+    @classmethod
     def reset(cls):
         """重置仓储实例（主要用于测试）"""
         cls._user_repository = None
@@ -159,3 +174,4 @@ class RepositoryFactory:
         cls._community_staff_repository = None
         cls._share_link_repository = None
         cls._share_link_access_log_repository = None
+        cls._supervision_relation_repository = None

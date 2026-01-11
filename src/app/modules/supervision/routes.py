@@ -36,8 +36,6 @@ def invite_supervisor(decoded):
     try:
         # 获取请求参数
         params = request.get_json()
-        invite_type = params.get(
-            'invite_type', 'wechat')  # 邀请类型：wechat, phone等
         rule_ids = params.get('rule_ids', [])  # 要监督的规则ID列表，空表示监督所有规则
         target_openid = params.get('target_openid')  # 被邀请用户的openid
 
@@ -49,47 +47,21 @@ def invite_supervisor(decoded):
         if not target_user:
             return make_err_response({}, '被邀请用户不存在')
 
-        # 检查规则是否都属于当前用户
-        if rule_ids:
-            for rule_id in rule_ids:
-                rule = CheckinRuleService.query_rule_by_id(rule_id)
-                if not rule or rule.user_id != user.user_id:
-                    return make_err_response({}, f'规则ID {rule_id} 不存在或无权限')
+        # 使用应用服务用例邀请监督者
+        from app.application.use_cases.supervision import InviteSupervisorUseCase
 
-        # 创建监督关系
-        relations = []
-        if rule_ids:
-            # 监督指定规则
-            for rule_id in rule_ids:
-                relation = SupervisionRuleRelation(
-                    solo_user_id=target_user.user_id,
-                    supervisor_user_id=user.user_id,
-                    rule_id=rule_id,
-                    status=1
-                )
-                relations.append(relation)
+        use_case = InviteSupervisorUseCase()
+        result = use_case.execute(
+            inviter_id=user.user_id,
+            target_user_id=target_user.user_id,
+            rule_ids=rule_ids
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 成功邀请用户 {target_user.user_id} 监督')
+            return make_succ_response(result.data)
         else:
-            # 监督所有规则
-            user_rules = CheckinRuleService.get_user_rules(user.user_id)
-            for rule in user_rules.get('rules', []):
-                relation = SupervisionRuleRelation(
-                    solo_user_id=target_user.user_id,
-                    supervisor_user_id=user.user_id,
-                    rule_id=rule['rule_id'],
-                    status=1
-                )
-                relations.append(relation)
-
-        # 批量保存（使用事务管理器确保原子性）
-        with transaction():
-            for relation in relations:
-                db.session.add(relation)
-
-        current_app.logger.info(f'用户 {user.user_id} 成功邀请用户 {target_user.user_id} 监督，共 {len(relations)} 个规则')
-        return make_succ_response({
-            'message': '邀请发送成功',
-            'relations_count': len(relations)
-        })
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'邀请监督者失败: {str(e)}', exc_info=True)
@@ -298,25 +270,21 @@ def get_my_supervised_users(decoded):
         page = int(request.args.get('page', 1))
         per_page = min(int(request.args.get('per_page', 20)), 100)
 
-        # 这里简化处理，实际应该从数据库查询
-        supervised_users = [
-            {
-                'user_id': 2,
-                'nickname': '李四',
-                'avatar_url': 'https://example.com/avatar2.jpg',
-                'supervision_count': 3,
-                'last_checkin': '2025-12-24 09:00:00',
-                'status': 'active'
-            }
-        ]
+        # 使用应用服务用例获取被监督用户列表
+        from app.application.use_cases.supervision import GetSupervisedUsersUseCase
 
-        current_app.logger.info(f'用户 {user.user_id} 获取监督用户列表成功，共 {len(supervised_users)} 个用户')
-        return make_succ_response({
-            'supervised_users': supervised_users,
-            'total': len(supervised_users),
-            'page': page,
-            'per_page': per_page
-        })
+        use_case = GetSupervisedUsersUseCase()
+        result = use_case.execute(
+            supervisor_id=user.user_id,
+            page=page,
+            page_size=per_page
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 获取监督用户列表成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取监督用户列表失败: {str(e)}', exc_info=True)
@@ -342,25 +310,21 @@ def get_my_guardians(decoded):
         page = int(request.args.get('page', 1))
         per_page = min(int(request.args.get('per_page', 20)), 100)
 
-        # 这里简化处理，实际应该从数据库查询
-        guardians = [
-            {
-                'user_id': 1,
-                'nickname': '张三',
-                'avatar_url': 'https://example.com/avatar1.jpg',
-                'supervision_count': 2,
-                'last_checkin': '2025-12-24 08:30:00',
-                'status': 'active'
-            }
-        ]
+        # 使用应用服务用例获取监督者列表
+        from app.application.use_cases.supervision import GetGuardiansUseCase
 
-        current_app.logger.info(f'用户 {user.user_id} 获取监督者列表成功，共 {len(guardians)} 个监督者')
-        return make_succ_response({
-            'guardians': guardians,
-            'total': len(guardians),
-            'page': page,
-            'per_page': per_page
-        })
+        use_case = GetGuardiansUseCase()
+        result = use_case.execute(
+            supervised_id=user.user_id,
+            page=page,
+            page_size=per_page
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 获取监督者列表成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取监督者列表失败: {str(e)}', exc_info=True)
@@ -388,29 +352,23 @@ def get_supervision_records(decoded):
         page = int(request.args.get('page', 1))
         per_page = min(int(request.args.get('per_page', 20)), 100)
 
-        # 这里简化处理，实际应该从数据库查询
-        records = [
-            {
-                'record_id': 1,
-                'supervisor_id': 1,
-                'supervisor_nickname': '张三',
-                'supervised_id': 2,
-                'supervised_nickname': '李四',
-                'rule_id': 1,
-                'rule_name': '每日阅读',
-                'checkin_time': '2025-12-24 09:00:00',
-                'status': 'completed',
-                'created_at': '2025-12-24 09:00:00'
-            }
-        ]
+        # 使用应用服务用例获取监督记录
+        from app.application.use_cases.supervision import GetSupervisionRecordsUseCase
 
-        current_app.logger.info(f'用户 {user.user_id} 获取监督记录成功，共 {len(records)} 条记录')
-        return make_succ_response({
-            'records': records,
-            'total': len(records),
-            'page': page,
-            'per_page': per_page
-        })
+        use_case = GetSupervisionRecordsUseCase()
+        result = use_case.execute(
+            user_id=user.user_id,
+            start_date=start_date,
+            end_date=end_date,
+            page=page,
+            page_size=per_page
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 获取监督记录成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取监督记录失败: {str(e)}', exc_info=True)
