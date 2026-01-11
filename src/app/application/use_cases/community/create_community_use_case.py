@@ -16,6 +16,7 @@ class CreateCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.community_repository = RepositoryFactory.get_community_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
@@ -62,11 +63,9 @@ class CreateCommunityUseCase(BaseUseCase):
                     message='社区名称不能为空'
                 )
 
+            # description 是可选的，如果为空则使用默认值
             if not description:
-                return UseCaseResult(
-                    status=UseCaseStatus.VALIDATION_ERROR,
-                    message='社区描述不能为空'
-                )
+                description = f'{name}的描述'
 
             # 2. 验证创建者是否存在
             creator = self.user_repository.find_by_id(creator_id)

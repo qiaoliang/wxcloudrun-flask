@@ -26,6 +26,7 @@ class SQLAlchemyCommunityRepository(CommunityRepository):
         """
         db.session.add(entity)
         db.session.flush()
+        db.session.commit()
         return entity
 
     def delete(self, entity: Community) -> None:

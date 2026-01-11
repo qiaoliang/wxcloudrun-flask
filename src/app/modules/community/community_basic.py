@@ -253,25 +253,26 @@ def get_community_detail(community_id):
         if not CommunityService.has_community_permission(user_id, community_id):
             return make_err_response({}, '无权限访问该社区')
 
-        # 获取社区详情
-        community = db.session.get(Community, community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
+        # 使用应用服务用例获取社区详情
+        from app.application.use_cases.community import GetCommunityDetailsUseCase
 
-        # 格式化社区信息
-        community_data = _format_community_info(community, include_worker_stats=True)
+        use_case = GetCommunityDetailsUseCase()
+        result = use_case.execute(community_id=community_id)
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         # 获取社区统计信息
         event_stats = CommunityEventService.get_community_stats(community_id)
 
         # 构建响应数据结构
         response_data = {
-            'community': community_data,
+            'community': result.data,
             'stats': {
-                'staff_count': community_data.get('staff_count', 0),  # 专员数量
-                'worker_count': community_data.get('worker_count', 0),  # 工作人员总数
-                'user_count': community_data.get('user_count', 0),  # 普通成员数量（不包括工作人员）
-                'manager_count': community_data.get('manager_count', 0),  # 主管数量
+                'staff_count': result.data.get('staff_count', 0),  # 专员数量
+                'worker_count': result.data.get('staff_count', 0),  # 工作人员总数
+                'user_count': result.data.get('user_count', 0),  # 普通成员数量（不包括工作人员）
+                'manager_count': 1 if result.data.get('manager') else 0,  # 主管数量
                 'support_count': event_stats.get('support_count', 0) if event_stats.get('success') else 0,
                 'active_events': event_stats.get('active_events', 0) if event_stats.get('success') else 0,
                 'checkin_rate': 0  # TODO: 计算打卡率
