@@ -13,6 +13,7 @@ class SearchUsersUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
 
     def execute(

@@ -15,6 +15,7 @@ class UploadAvatarUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
 
     def execute(
@@ -80,18 +81,18 @@ class UploadAvatarUseCase(BaseUseCase):
                     message='用户不存在'
                 )
 
-            # 5. 生成文件名
+            # 6. 生成文件名
             file_ext = os.path.splitext(file_name)[1]
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
             new_file_name = f"avatar_{user_id}_{timestamp}{file_ext}"
 
-            # 6. 保存文件（这里简化处理，实际应该保存到云存储或本地文件系统）
+            # 7. 保存文件（这里简化处理，实际应该保存到云存储或本地文件系统）
             # 注意：这里只是示例，实际项目中应该使用云存储服务（如 AWS S3、阿里云 OSS 等）
             # 或者保存到本地文件系统，并返回可访问的 URL
 
             # 模拟保存文件并生成 URL
             # 在实际项目中，这里应该调用文件存储服务
-            avatar_url = f"/static/avatars/{new_file_name}"
+            avatar_url = f"/static/uploads/avatars/{new_file_name}"
 
             # 7. 更新用户头像
             user.avatar_url = avatar_url

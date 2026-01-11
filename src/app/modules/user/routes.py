@@ -173,45 +173,21 @@ def user_profile():
             if not params:
                 return make_err_response({}, '缺少请求参数')
 
-            current_app.logger.info(f'开始查询用户进行更新，user_id={user_id}, type={type(user_id)}')
-            user = UserService.query_user_by_id(user_id)
-            current_app.logger.info(f'查询结果: {user}')
-            if not user:
-                current_app.logger.error(f'用户不存在，user_id={user_id}')
-                # 使用 SQLAlchemy 2.0 的 select() 语句
-                # 检查数据库中是否有任何用户
-                stmt = select(User)
-                all_users = db.session.execute(stmt).scalars().all()
-                current_app.logger.info(f'数据库中的所有用户: {[u.user_id for u in all_users]}')
-                return make_err_response({}, '用户不存在，请重新登录')
+            # 使用应用服务用例更新用户信息
+            from app.application.use_cases.user import UpdateProfileUseCase
 
-            # 更新允许的字段
-            update_fields = ['nickname', 'name', 'avatar_url', 'address', 'motto',
-                           'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_address']
-            updated = False
+            use_case = UpdateProfileUseCase()
+            result = use_case.execute(
+                user_id=user_id,
+                nickname=params.get('nickname'),
+                name=params.get('name'),
+                avatar_url=params.get('avatar_url')
+            )
 
-            for field in update_fields:
-                if field in params and params[field] is not None:
-                    if field == 'nickname' and params[field].strip():
-                        # 昵称长度限制
-                        nickname = params[field].strip()
-                        if len(nickname) > 50:
-                            nickname = nickname[:50] + "..."
-                            current_app.logger.warning(f'昵称过长，截断处理: {params[field][:30]}... -> {nickname[:30]}...')
-                        setattr(user, field, nickname)
-                        updated = True
-                    elif field in ['name', 'avatar_url', 'address', 'motto',
-                                'emergency_contact_name', 'emergency_contact_phone', 'emergency_contact_address']:
-                        setattr(user, field, params[field])
-                        updated = True
-
-            if updated:
-                UserService.update_user_by_id(user)
-                current_app.logger.info(f'用户信息更新成功: {user_id}')
-                return make_succ_response({'message': '更新成功'})
+            if result.is_success:
+                return make_succ_response({'message': result.message})
             else:
-                current_app.logger.info('用户信息无变化')
-                return make_succ_response({'message': '无需更新'})
+                return make_err_response({}, result.message)
 
         except Exception as e:
             current_app.logger.error(f'更新用户信息失败: {str(e)}', exc_info=True)
@@ -251,35 +227,37 @@ def upload_avatar(decoded):
         if file_size > 5 * 1024 * 1024:
             return make_err_response({}, '文件大小超过限制（最大 5MB）')
 
-        # 生成唯一文件名
-        import uuid
+        # 读取文件数据
+        file_data = file.read()
+
+        # 确定内容类型
         file_extension = file.filename.rsplit('.', 1)[1].lower()
-        filename = f"{uuid.uuid4().hex}.{file_extension}"
+        content_type_map = {
+            'jpg': 'image/jpeg',
+            'jpeg': 'image/jpeg',
+            'png': 'image/png',
+            'gif': 'image/gif'
+        }
+        content_type = content_type_map.get(file_extension, 'image/jpeg')
 
-        # 确保上传目录存在
-        upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
-        os.makedirs(upload_dir, exist_ok=True)
+        # 使用应用服务用例上传头像
+        from app.application.use_cases.user import UploadAvatarUseCase
 
-        # 保存文件
-        file_path = os.path.join(upload_dir, filename)
-        file.save(file_path)
+        use_case = UploadAvatarUseCase()
+        result = use_case.execute(
+            user_id=user_id,
+            file_data=file_data,
+            file_name=file.filename,
+            content_type=content_type
+        )
 
-        # 生成访问 URL
-        avatar_url = f"/static/uploads/avatars/{filename}"
-
-        # 更新用户头像
-        user = UserService.query_user_by_id(user_id)
-        if user:
-            user.avatar_url = avatar_url
-            UserService.update_user_by_id(user)
-            current_app.logger.info(f'用户头像更新成功: {user_id}')
+        if result.is_success:
+            return make_succ_response({
+                'avatar_url': result.data.get('avatar_url'),
+                'message': result.message
+            })
         else:
-            current_app.logger.warning(f'用户不存在: {user_id}')
-
-        return make_succ_response({
-            'avatar_url': avatar_url,
-            'message': '头像上传成功'
-        })
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'上传头像失败: {str(e)}', exc_info=True)
@@ -305,34 +283,20 @@ def change_password(decoded):
         old_password = params.get('old_password')
         new_password = params.get('new_password')
 
-        # 验证参数
-        if not old_password or not new_password:
-            return make_err_response({}, '缺少必要参数')
+        # 使用应用服务用例修改密码
+        from app.application.use_cases.user import ChangePasswordUseCase
 
-        # 验证密码长度
-        if len(new_password) < 6 or len(new_password) > 20:
-            return make_err_response({}, '新密码长度必须在 6-20 个字符之间')
+        use_case = ChangePasswordUseCase()
+        result = use_case.execute(
+            user_id=user_id,
+            old_password=old_password,
+            new_password=new_password
+        )
 
-        # 获取用户
-        user = UserService.query_user_by_id(user_id)
-        if not user:
-            return make_err_response({}, '用户不存在')
-
-        # 验证旧密码
-        if not user.verify_password(old_password):
-            current_app.logger.warning(f'用户 {user_id} 原密码错误')
-            return make_err_response({}, '原密码错误')
-
-        # 验证新密码不能与旧密码相同
-        if old_password == new_password:
-            return make_err_response({}, '新密码不能与原密码相同')
-
-        # 更新密码
-        user.set_password(new_password)
-        UserService.update_user_by_id(user)
-        current_app.logger.info(f'用户密码修改成功: {user_id}')
-
-        return make_succ_response({'message': '密码修改成功'})
+        if result.is_success:
+            return make_succ_response({'message': result.message})
+        else:
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'修改密码失败: {str(e)}', exc_info=True)
@@ -352,10 +316,10 @@ def search_users(decoded):
     try:
         # 获取搜索参数
         keyword = request.args.get('keyword', '').strip()
-        search_type = request.args.get('type', 'all')  # all, phone, nickname
         page = int(request.args.get('page', 1))
         per_page = min(int(request.args.get('per_page', 20)), 100)  # 限制最大100条
         community_id = request.args.get('community_id')  # 社区ID过滤参数
+        role = request.args.get('role')  # 角色筛选参数
 
         if community_id:
             try:
@@ -363,54 +327,28 @@ def search_users(decoded):
             except ValueError:
                 return make_err_response({}, '社区ID格式错误')
 
-        if not keyword:
-            return make_err_response({}, '搜索关键词不能为空')
+        if role:
+            try:
+                role = int(role)
+            except ValueError:
+                return make_err_response({}, '角色格式错误')
 
-        current_app.logger.info(f'搜索参数: keyword={keyword}, type={search_type}, page={page}, per_page={per_page}, community_id={community_id}')
+        # 使用应用服务用例搜索用户
+        from app.application.use_cases.user import SearchUsersUseCase
 
-        # 执行搜索
-        if search_type == 'phone':
-            # 按手机号搜索，不进行脱敏处理
-            result = UserService.search_users_by_phone(keyword, page, per_page)
-        elif search_type == 'nickname':
-            # 按昵称搜索
-            result = UserService.search_users_by_nickname(keyword, page, per_page)
+        use_case = SearchUsersUseCase()
+        result = use_case.execute(
+            keyword=keyword,
+            community_id=community_id,
+            role=role,
+            page=page,
+            page_size=per_page
+        )
+
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            # 全局搜索（支持社区过滤）
-            result = UserService.search_users(keyword, page, per_page, community_id)
-
-        total_count = result.get('pagination', {}).get('total', 0)
-        current_app.logger.info(f'搜索结果: 找到 {total_count} 条记录')
-
-        # 构造返回数据
-        users = []
-        for user in result.get('users', []):
-            user_data = {
-                'user_id': user.get('user_id'),
-                'wechat_openid': user.get('wechat_openid'),
-                'phone_number': user.get('phone_number'),
-                'nickname': user.get('nickname'),
-                'name': user.get('name'),
-                'avatar_url': user.get('avatar_url'),
-                'role': user.get('role'),
-                'community_id': user.get('community_id'),
-                'status': user.get('status'),
-                'created_at': user.get('created_at'),
-                # 添加社区工作人员状态标识
-                'is_current_community_staff': user.get('is_current_community_staff', False),
-                'is_current_community_manager': user.get('is_current_community_manager', False),
-                'is_other_community_manager': user.get('is_other_community_manager', False),
-                'is_staff': user.get('is_staff', False)
-            }
-            users.append(user_data)
-
-        pagination = result.get('pagination', {})
-        response_data = {
-            'users': users,
-            'pagination': pagination
-        }
-
-        return make_succ_response(response_data)
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'用户搜索失败: {str(e)}', exc_info=True)
