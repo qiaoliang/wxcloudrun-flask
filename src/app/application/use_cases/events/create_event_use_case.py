@@ -15,6 +15,7 @@ class CreateEventUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
@@ -119,14 +120,16 @@ class CreateEventUseCase(BaseUseCase):
                 status=UseCaseStatus.SUCCESS,
                 message='事件创建成功',
                 data={
-                    'event_id': saved_event.event_id,
-                    'community_id': saved_event.community_id,
-                    'title': saved_event.title,
-                    'event_type': saved_event.event_type,
-                    'status': saved_event.status,
-                    'target_user_id': saved_event.target_user_id,
-                    'created_by': saved_event.created_by,
-                    'created_at': saved_event.created_at.isoformat() if saved_event.created_at else None
+                    'event': {
+                        'event_id': saved_event.event_id,
+                        'community_id': saved_event.community_id,
+                        'title': saved_event.title,
+                        'event_type': saved_event.event_type,
+                        'status': saved_event.status,
+                        'target_user_id': saved_event.target_user_id,
+                        'created_by': saved_event.created_by,
+                        'created_at': saved_event.created_at.isoformat() if saved_event.created_at else None
+                    }
                 }
             )
 

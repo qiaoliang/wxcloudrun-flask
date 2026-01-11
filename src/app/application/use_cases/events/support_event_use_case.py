@@ -2,6 +2,7 @@
 支持事件用例
 """
 import logging
+from datetime import datetime
 from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
@@ -14,6 +15,7 @@ class SupportEventUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
         self.event_message_repository = RepositoryFactory.get_event_message_repository()
@@ -103,12 +105,14 @@ class SupportEventUseCase(BaseUseCase):
                 status=UseCaseStatus.SUCCESS,
                 message='应援成功',
                 data={
-                    'message_id': saved_support.message_id,
-                    'event_id': saved_support.event_id,
-                    'sender_id': saved_support.sender_id,
-                    'message_content': saved_support.message_content,
-                    'status': saved_support.status,
-                    'created_at': saved_support.created_at.isoformat() if saved_support.created_at else None
+                    'support': {
+                        'message_id': saved_support.message_id,
+                        'event_id': saved_support.event_id,
+                        'sender_id': saved_support.sender_id,
+                        'message_content': saved_support.message_content,
+                        'status': saved_support.status,
+                        'created_at': saved_support.created_at.isoformat() if saved_support.created_at else None
+                    }
                 }
             )
 

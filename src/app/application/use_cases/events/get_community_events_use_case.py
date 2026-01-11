@@ -13,6 +13,7 @@ class GetCommunityEventsUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
 

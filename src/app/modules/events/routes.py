@@ -21,13 +21,13 @@ def create_event(decoded):
         data = request.get_json()
         if not data:
             return make_err_response('请求数据不能为空')
-        
+
         # 必填参数验证
         required_fields = ['community_id', 'title']
         for field in required_fields:
             if field not in data or not data[field]:
                 return make_err_response(f'缺少必填参数: {field}')
-        
+
         user_id = decoded['user_id']
         community_id = data['community_id']
         title = data['title']
@@ -35,12 +35,12 @@ def create_event(decoded):
         event_type = data.get('event_type', 'call_for_help')
         location = data.get('location', '')
         target_user_id = data.get('target_user_id')
-        
-        # 验证事件类型
-        if event_type not in ['call_for_help', 'supporting']:
-            return make_err_response('无效的事件类型')
-        
-        result = CommunityEventService.create_event(
+
+        # 使用应用服务用例创建事件
+        from app.application.use_cases.events import CreateEventUseCase
+
+        use_case = CreateEventUseCase()
+        result = use_case.execute(
             user_id=user_id,
             community_id=community_id,
             title=title,
@@ -49,12 +49,12 @@ def create_event(decoded):
             location=location,
             target_user_id=target_user_id
         )
-        
-        if result['success']:
-            return make_succ_response(result)
+
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
-            
+            return make_err_response({}, result.message)
+
     except Exception as e:
         logger.error(f"创建事件API异常: {str(e)}")
         return make_err_response('服务器内部错误')
@@ -68,26 +68,22 @@ def get_community_events(decoded, community_id):
         # 获取查询参数
         status_filter = request.args.get('status', type=int)
         event_type_filter = request.args.get('event_type')
-        
-        # 获取当前用户信息
-        user_id = decoded.get('user_id')
-        user = db.session.get(User, user_id)
-        
-        if not user:
-            return make_err_response('用户不存在')
-        
-        result = CommunityEventService.get_community_events(
+
+        # 使用应用服务用例获取社区事件列表
+        from app.application.use_cases.events import GetCommunityEventsUseCase
+
+        use_case = GetCommunityEventsUseCase()
+        result = use_case.execute(
             community_id=community_id,
-            status_filter=status_filter,
-            event_type_filter=event_type_filter,
-            current_user=user
+            event_type=event_type_filter,
+            status=status_filter
         )
-        
-        if result['success']:
-            return make_succ_response(result)
+
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
-            
+            return make_err_response({}, result.message)
+
     except Exception as e:
         logger.error(f"获取社区事件API异常: {str(e)}")
         return make_err_response('服务器内部错误')
@@ -98,20 +94,22 @@ def get_community_events(decoded, community_id):
 def get_event_detail(decoded, event_id):
     """获取事件详情"""
     try:
-        # 先获取事件详情
-        result = CommunityEventService.get_event_detail(event_id)
-        
-        if not result['success']:
-            return make_err_response(result['message'])
-        
-        # 兼容前端：将 supports 字段改为 messages
-        result_data = {
-            'event': result.get('event'),
-            'messages': result.get('supports', [])
-        }
-        
-        return make_succ_response(result_data)
-            
+        # 使用应用服务用例获取事件详情
+        from app.application.use_cases.events import GetEventDetailsUseCase
+
+        use_case = GetEventDetailsUseCase()
+        result = use_case.execute(event_id=event_id)
+
+        if result.is_success:
+            # 兼容前端：将 messages 字段改为 supports
+            result_data = {
+                'event': result.data.get('event'),
+                'supports': result.data.get('messages', [])
+            }
+            return make_succ_response(result_data)
+        else:
+            return make_err_response({}, result.message)
+
     except Exception as e:
         logger.error(f"获取事件详情API异常: {str(e)}")
         return make_err_response('服务器内部错误')
@@ -130,16 +128,20 @@ def create_event_support(decoded, event_id):
         if not message_content.strip():
             return make_err_response('应援内容不能为空')
 
-        result = CommunityEventService.create_support(
-            event_id=event_id,
+        # 使用应用服务用例创建应援
+        from app.application.use_cases.events import SupportEventUseCase
+
+        use_case = SupportEventUseCase()
+        result = use_case.execute(
             sender_id=decoded['user_id'],
+            event_id=event_id,
             message_content=message_content.strip()
         )
 
-        if result['success']:
-            return make_succ_response(result)
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
+            return make_err_response({}, result.message)
 
     except Exception as e:
         logger.error(f"创建应援API异常: {str(e)}")
@@ -151,12 +153,16 @@ def create_event_support(decoded, event_id):
 def get_community_stats(decoded, community_id):
     """获取社区事件统计"""
     try:
-        result = CommunityEventService.get_community_stats(community_id)
+        # 使用应用服务用例获取社区统计
+        from app.application.use_cases.events import GetCommunityStatsUseCase
 
-        if result['success']:
-            return make_succ_response(result)
+        use_case = GetCommunityStatsUseCase()
+        result = use_case.execute(community_id=community_id)
+
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
+            return make_err_response({}, result.message)
 
     except Exception as e:
         logger.error(f"获取社区统计API异常: {str(e)}")
@@ -168,12 +174,16 @@ def get_community_stats(decoded, community_id):
 def get_pending_events(decoded, community_id):
     """获取社区未处理的求助事件"""
     try:
-        result = CommunityEventService.get_pending_events(community_id)
+        # 使用应用服务用例获取未处理事件
+        from app.application.use_cases.events import GetPendingEventsUseCase
 
-        if result['success']:
-            return make_succ_response(result)
+        use_case = GetPendingEventsUseCase()
+        result = use_case.execute(community_id=community_id)
+
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
+            return make_err_response({}, result.message)
 
     except Exception as e:
         logger.error(f"获取未处理事件API异常: {str(e)}")
@@ -194,22 +204,22 @@ def add_staff_response(decoded, event_id):
         media_url = data.get('media_url')
         message_tags = data.get('message_tags', [])
 
-        # 至少要有文字内容、媒体文件或快捷指令
-        if not content.strip() and not media_url and not message_tags:
-            return make_err_response('请至少提供文字内容、媒体文件或快捷指令')
+        # 使用应用服务用例添加回应
+        from app.application.use_cases.events import AddEventMessageUseCase
 
-        result = CommunityEventService.add_staff_response(
+        use_case = AddEventMessageUseCase()
+        result = use_case.execute(
             event_id=event_id,
-            staff_id=staff_id,
+            sender_id=staff_id,
             content=content,
             media_url=media_url,
             message_tags=message_tags
         )
 
-        if result['success']:
-            return make_succ_response(result)
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
+            return make_err_response({}, result.message)
 
     except Exception as e:
         logger.error(f"添加工作人员回应API异常: {str(e)}")
@@ -224,27 +234,31 @@ def update_event_location(decoded, event_id):
         data = request.get_json()
         if not data:
             return make_err_response('请求数据不能为空')
-        
+
         location = data.get('location', '')
         location_lat = data.get('location_lat')
         location_lon = data.get('location_lon')
-        
+
         # 至少需要 location 或坐标信息
         if not location and (location_lat is None or location_lon is None):
             return make_err_response('请提供位置信息')
-        
-        result = CommunityEventService.update_event_location(
+
+        # 使用应用服务用例更新事件位置
+        from app.application.use_cases.events import UpdateEventLocationUseCase
+
+        use_case = UpdateEventLocationUseCase()
+        result = use_case.execute(
             event_id=event_id,
             location=location,
             location_lat=location_lat,
             location_lon=location_lon
         )
-        
-        if result['success']:
-            return make_succ_response(result)
+
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
-            
+            return make_err_response({}, result.message)
+
     except Exception as e:
         logger.error(f"更新事件位置API异常: {str(e)}")
         return make_err_response('服务器内部错误')
@@ -265,16 +279,20 @@ def close_event(decoded, event_id):
 
         user_id = decoded.get('user_id')
 
-        result = CommunityEventService.close_event(
+        # 使用应用服务用例关闭事件
+        from app.application.use_cases.events import CloseEventUseCase
+
+        use_case = CloseEventUseCase()
+        result = use_case.execute(
             event_id=event_id,
             user_id=user_id,
             closure_reason=closure_reason
         )
 
-        if result['code'] == 1:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['msg'], result.get('data'))
+            return make_err_response({}, result.message)
 
     except Exception as e:
         logger.error(f"关闭事件API异常: {str(e)}", exc_info=True)

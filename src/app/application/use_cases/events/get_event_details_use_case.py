@@ -12,6 +12,7 @@ class GetEventDetailsUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
         self.event_message_repository = RepositoryFactory.get_event_message_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
@@ -49,7 +50,7 @@ class GetEventDetailsUseCase(BaseUseCase):
 
             # 4. 查询事件消息
             messages = self.event_message_repository.find_by_event_id(event_id)
-            active_messages = [msg for msg in messages if not msg.is_cancelled]
+            active_messages = [msg for msg in messages if msg.status == 1]  # 1=有效
 
             # 5. 构造消息列表
             message_list = []
@@ -63,27 +64,33 @@ class GetEventDetailsUseCase(BaseUseCase):
                     'sender_id': msg.sender_id,
                     'sender_name': sender.nickname if sender else None,
                     'sender_avatar': sender.avatar_url if sender else None,
-                    'message': msg.message,
+                    'message_content': msg.message_content,
+                    'message_type': msg.message_type,
+                    'media_url': msg.media_url,
+                    'message_tags': msg.message_tags,
                     'created_at': msg.created_at.isoformat() if msg.created_at else None
                 })
 
             # 6. 构造响应数据
             response_data = {
-                'event_id': event.event_id,
-                'community_id': event.community_id,
-                'target_user_id': event.target_user_id,
-                'target_user_name': target_user.nickname if target_user else None,
-                'target_user_avatar': target_user.avatar_url if target_user else None,
-                'event_type': event.event_type,
-                'status': event.status,
-                'location': event.location,
-                'description': event.description,
-                'close_reason': event.close_reason,
-                'created_at': event.created_at.isoformat() if event.created_at else None,
-                'updated_at': event.updated_at.isoformat() if event.updated_at else None,
-                'closed_at': event.closed_at.isoformat() if event.closed_at else None,
-                'messages': message_list,
-                'message_count': len(message_list)
+                'event': {
+                    'event_id': event.event_id,
+                    'community_id': event.community_id,
+                    'title': event.title,
+                    'target_user_id': event.target_user_id,
+                    'target_user_name': target_user.nickname if target_user else None,
+                    'target_user_avatar': target_user.avatar_url if target_user else None,
+                    'event_type': event.event_type,
+                    'status': event.status,
+                    'location': event.location,
+                    'description': event.description,
+                    'closure_reason': event.closure_reason,
+                    'created_at': event.created_at.isoformat() if event.created_at else None,
+                    'updated_at': event.updated_at.isoformat() if event.updated_at else None,
+                    'closed_at': event.closed_at.isoformat() if event.closed_at else None,
+                    'messages': message_list,
+                    'message_count': len(message_list)
+                }
             }
 
             self.logger.info(f'获取事件详情成功: event_id={event_id}')
