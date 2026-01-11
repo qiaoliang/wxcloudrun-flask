@@ -9,9 +9,18 @@ from . import community_checkin_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required, require_community_staff_member
 from app.shared.utils.auth import verify_token
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from wxcloudrun.community_service import CommunityService
 from database.flask_models import CommunityCheckinRule, db
+from app.application.use_cases.community_checkin import (
+    GetCommunityCheckinRulesUseCase,
+    CreateCommunityCheckinRuleUseCase,
+    UpdateCommunityCheckinRuleUseCase,
+    EnableCommunityCheckinRuleUseCase,
+    DisableCommunityCheckinRuleUseCase,
+    DeleteCommunityCheckinRuleUseCase,
+    GetCommunityCheckinRuleUseCase,
+    GetCommunityDailyStatsUseCase,
+    GetCommunityCheckinStatsUseCase
+)
 
 logger = logging.getLogger('CommunityCheckinView')
 
@@ -41,31 +50,13 @@ def get_community_checkin_rules(decoded):
         status_filter = request.args.get('status')  # 可选的状态过滤
         grouped = request.args.get('grouped', 'false').lower() == 'true'  # 是否返回分组数据
 
-        # 调用服务层获取规则列表
-        if grouped:
-            # 返回按状态分组的规则（包括已删除的）
-            result = CommunityCheckinRuleService.get_all_community_rules_grouped(
-                community_id
-            )
-            current_app.logger.info(f'成功获取社区 {community_id} 的分组打卡规则，停用={len(result.get("disabled", []))}, 启用={len(result.get("enabled", []))}, 删除={len(result.get("deleted", []))}')
+        use_case = GetCommunityCheckinRulesUseCase()
+        result = use_case.execute(community_id, page, per_page, status_filter, grouped)
+
+        if result['success']:
+            return make_succ_response(result['data'])
         else:
-            # 返回扁平列表
-            # 默认返回所有未删除的规则（包括停用的），只有status='enabled'时才只返回启用状态的规则
-            include_disabled = (status_filter != 'enabled')
-            rules = CommunityCheckinRuleService.get_community_rules(
-                community_id, include_disabled
-            )
-
-            # 简单包装结果格式，保持与预期一致
-            result = {
-                'rules': rules,
-                'total': len(rules),
-                'page': page,
-                'per_page': per_page
-            }
-            current_app.logger.info(f'成功获取社区 {community_id} 的打卡规则列表，共 {len(result.get("rules", []))} 条规则')
-
-        return make_succ_response(result)
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取社区打卡规则列表失败: {str(e)}', exc_info=True)
@@ -93,22 +84,13 @@ def create_community_checkin_rule(decoded):
         if not params:
             return make_err_response({}, '缺少请求参数')
 
-        # 验证必要参数
-        required_fields = ['rule_name']
-        for field in required_fields:
-            if field not in params:
-                return make_err_response({}, f'缺少必要参数: {field}')
+        use_case = CreateCommunityCheckinRuleUseCase()
+        result = use_case.execute(params, community_id, user_id)
 
-        # 调用服务层创建规则
-        rule = CommunityCheckinRuleService.create_community_rule(
-            params, community_id, user_id
-        )
-
-        current_app.logger.info(f'成功创建社区打卡规则，规则ID: {rule.community_rule_id}')
-        return make_succ_response({
-            'rule_id': rule.community_rule_id,
-            'message': '创建成功'
-        })
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'创建社区打卡规则失败: {str(e)}', exc_info=True)
@@ -136,16 +118,13 @@ def update_community_checkin_rule(decoded, rule_id):
         if not params:
             return make_err_response({}, '缺少请求参数')
 
-        # 调用服务层更新规则
-        rule = CommunityCheckinRuleService.update_community_rule(
-            rule_id, params, user_id
-        )
+        use_case = UpdateCommunityCheckinRuleUseCase()
+        result = use_case.execute(rule_id, params, user_id)
 
-        current_app.logger.info(f'成功更新社区打卡规则，规则ID: {rule.community_rule_id}')
-        return make_succ_response({
-            'rule_id': rule.community_rule_id,
-            'message': '更新成功'
-        })
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'更新社区打卡规则失败: {str(e)}', exc_info=True)
@@ -168,16 +147,13 @@ def enable_community_checkin_rule(decoded, rule_id):
     community_id = rule.community_id
 
     try:
-        # 调用服务层启用规则
-        rule = CommunityCheckinRuleService.enable_community_rule(
-            rule_id, user_id
-        )
+        use_case = EnableCommunityCheckinRuleUseCase()
+        result = use_case.execute(rule_id, user_id)
 
-        current_app.logger.info(f'成功启用社区打卡规则，规则ID: {rule.get("community_rule_id")}')
-        return make_succ_response({
-            'rule_id': rule.get('community_rule_id'),
-            'message': '启用成功'
-        })
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'启用社区打卡规则失败: {str(e)}', exc_info=True)
@@ -200,16 +176,13 @@ def disable_community_checkin_rule(decoded, rule_id):
     community_id = rule.community_id
 
     try:
-        # 调用服务层禁用规则
-        rule = CommunityCheckinRuleService.disable_community_rule(
-            rule_id, user_id
-        )
+        use_case = DisableCommunityCheckinRuleUseCase()
+        result = use_case.execute(rule_id, user_id)
 
-        current_app.logger.info(f'成功禁用社区打卡规则，规则ID: {rule.get("community_rule_id")}')
-        return make_succ_response({
-            'rule_id': rule.get('community_rule_id'),
-            'message': '禁用成功'
-        })
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'禁用社区打卡规则失败: {str(e)}', exc_info=True)
@@ -232,19 +205,13 @@ def delete_community_checkin_rule(decoded, rule_id):
     community_id = rule.community_id
 
     try:
-        # 调用服务层删除规则
-        success = CommunityCheckinRuleService.delete_community_rule(
-            rule_id, user_id
-        )
+        use_case = DeleteCommunityCheckinRuleUseCase()
+        result = use_case.execute(rule_id, user_id)
 
-        if success:
-            current_app.logger.info(f'成功删除社区打卡规则，规则ID: {rule_id}')
-            return make_succ_response({
-                'rule_id': rule_id,
-                'message': '删除成功'
-            })
+        if result['success']:
+            return make_succ_response(result['data'])
         else:
-            return make_err_response({}, '删除失败')
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'删除社区打卡规则失败: {str(e)}', exc_info=True)
@@ -267,13 +234,13 @@ def get_community_checkin_rule(decoded, rule_id):
     community_id = rule.community_id
 
     try:
-        # 调用服务层获取规则详情
-        rule = CommunityCheckinRuleService.get_rule_detail(
-            rule_id
-        )
+        use_case = GetCommunityCheckinRuleUseCase()
+        result = use_case.execute(rule_id)
 
-        current_app.logger.info(f'成功获取社区打卡规则详情，规则ID: {rule.get("community_rule_id")}')
-        return make_succ_response({'rule': rule})
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取社区打卡规则详情失败: {str(e)}', exc_info=True)
@@ -290,15 +257,13 @@ def get_community_daily_stats(decoded, community_id):
     current_app.logger.info(f'用户ID: {user_id}')
 
     try:
-        # 检查权限
-        if not CommunityService.has_community_permission(user_id, community_id):
-            return make_err_response({}, '无权限访问该社区')
+        use_case = GetCommunityDailyStatsUseCase()
+        result = use_case.execute(community_id, user_id)
 
-        # 获取社区每日统计
-        stats = CommunityService.get_community_daily_stats(community_id)
-
-        current_app.logger.info(f'获取社区每日统计成功: community_id={community_id}')
-        return make_succ_response(stats)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取社区每日统计失败: {str(e)}', exc_info=True)
@@ -318,15 +283,13 @@ def get_community_checkin_stats(decoded, community_id):
         # 获取查询参数
         days = request.args.get('days', 7, type=int)
 
-        # 检查权限
-        if not CommunityService.has_community_permission(user_id, community_id):
-            return make_err_response({}, '无权限访问该社区')
+        use_case = GetCommunityCheckinStatsUseCase()
+        result = use_case.execute(community_id, user_id, days)
 
-        # 获取统计数据
-        stats = CommunityService.get_community_checkin_stats(community_id, days)
-
-        current_app.logger.info(f'成功获取社区 {community_id} 的打卡统计信息，共 {stats["total_rules"]} 个规则')
-        return make_succ_response(stats)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取社区打卡统计信息失败: {str(e)}', exc_info=True)

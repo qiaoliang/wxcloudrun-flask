@@ -33,6 +33,7 @@ def app():
     os.environ['ENV_TYPE'] = 'unit'
     os.environ['SECRET_KEY'] = 'test_secret_key_for_session'
     os.environ['TOKEN_SECRET'] = 'test_token_secret_for_testing'
+    os.environ['SMS_PROVIDER'] = 'mock'
 
     # 导入并创建Flask应用
     from app import create_app

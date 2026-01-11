@@ -60,7 +60,7 @@ class TestSmsSendCodeIntegration(IntegrationTestBase):
             '/api/sms/send_code',
             data={'phone': self.test_phone_numbers[0]}
         )
-        
+
         # 验证响应结构
         assert response.status_code == 200
         data = response.get_json()

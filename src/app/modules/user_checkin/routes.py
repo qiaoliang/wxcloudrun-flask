@@ -8,7 +8,13 @@ from . import user_checkin_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
+from app.application.use_cases.user_checkin import (
+    GetUserAllRulesUseCase,
+    GetUserTodayPlanUseCase,
+    GetUserRuleDetailUseCase,
+    GetUserCheckinStatisticsUseCase,
+    GetRulesSourceInfoUseCase
+)
 
 logger = logging.getLogger('UserCheckinView')
 
@@ -65,39 +71,15 @@ def get_user_all_rules():
     user_id = decoded.get('user_id')
     current_app.logger.info(f'用户ID: {user_id}')
 
-    # 处理 DELETE 方法（删除个人规则）
-    if request.method == 'DELETE':
-        params = request.get_json()
-        if not params:
-            return make_err_response({}, '缺少请求参数')
-
-        rule_id = params.get('rule_id')
-        rule_source = params.get('rule_source')
-
-        if not rule_id:
-            return make_err_response({}, '缺少规则ID参数')
-
-        # 只允许删除个人规则
-        if rule_source == 'community':
-            return make_err_response({}, '不允许删除社区规则')
-
-        try:
-            # 调用 CheckinRuleService 删除个人规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            response_data = CheckinRuleService.delete_rule(int(rule_id), user_id)
-            current_app.logger.info(f'用户 {user_id} 成功删除个人打卡规则')
-            return make_succ_response(response_data)
-        except Exception as e:
-            current_app.logger.error(f'删除个人打卡规则失败: {str(e)}', exc_info=True)
-            return make_err_response({}, f'删除规则失败: {str(e)}')
-
-    # 处理 GET 方法（获取所有规则）
     try:
-        # 调用服务层获取用户所有规则
-        rules = UserCheckinRuleService.get_user_all_rules(user_id)
+        use_case = GetUserAllRulesUseCase()
+        params = request.get_json() if request.method == 'DELETE' else None
+        result = use_case.execute(user_id, request.method, params)
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的所有打卡规则，共 {len(rules)} 条规则')
-        return make_succ_response(rules)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取用户所有打卡规则失败: {str(e)}', exc_info=True)
@@ -148,11 +130,13 @@ def get_user_today_plan():
     current_app.logger.info(f'用户ID: {user_id}')
 
     try:
-        # 调用服务层获取今日打卡计划
-        plan = UserCheckinRuleService.get_today_checkin_plan(user_id)
+        use_case = GetUserTodayPlanUseCase()
+        result = use_case.execute(user_id)
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的今日打卡计划，共 {plan.get("total_items", 0)} 项')
-        return make_succ_response(plan)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取用户今日打卡计划失败: {str(e)}', exc_info=True)
@@ -198,11 +182,13 @@ def get_user_rule_detail(rule_id):
     current_app.logger.info(f'用户ID: {user_id}, 规则ID: {rule_id}')
 
     try:
-        # 调用服务层获取规则详情
-        rule = UserCheckinRuleService.get_user_rule_detail(user_id, rule_id)
+        use_case = GetUserRuleDetailUseCase()
+        result = use_case.execute(user_id, rule_id)
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的规则详情，规则ID: {rule_id}')
-        return make_succ_response(rule)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取用户打卡规则详情失败: {str(e)}', exc_info=True)
@@ -255,13 +241,13 @@ def get_user_checkin_statistics():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
-        # 调用服务层获取统计信息
-        stats = UserCheckinRuleService.get_user_checkin_statistics(
-            user_id, period, start_date, end_date
-        )
+        use_case = GetUserCheckinStatisticsUseCase()
+        result = use_case.execute(user_id, period, start_date, end_date)
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的打卡统计信息')
-        return make_succ_response(stats)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取用户打卡统计信息失败: {str(e)}', exc_info=True)
@@ -322,13 +308,13 @@ def get_rules_source_info():
         rule_ids = params.get('rule_ids', [])
         community_rule_ids = params.get('community_rule_ids', [])
 
-        # 调用服务层获取规则来源信息
-        source_info = UserCheckinRuleService.get_rules_source_info(
-            user_id, rule_ids, community_rule_ids
-        )
+        use_case = GetRulesSourceInfoUseCase()
+        result = use_case.execute(user_id, rule_ids, community_rule_ids)
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的规则来源信息')
-        return make_succ_response(source_info)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'批量获取规则来源信息失败: {str(e)}', exc_info=True)

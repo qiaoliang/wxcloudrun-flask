@@ -7,7 +7,13 @@ from flask import request, current_app
 from . import community_dashboard_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
-from wxcloudrun.community_dashboard_service import CommunityDashboardService
+from app.application.use_cases.community_dashboard import (
+    GetCommunityStatsUseCase,
+    GetAbnormalUsersUseCase,
+    GetTrendDataUseCase,
+    GetPendingEventsUseCase,
+    GetUserAbnormalityDetailUseCase
+)
 
 logger = logging.getLogger('CommunityDashboardRoutes')
 
@@ -30,15 +36,13 @@ def get_community_stats(decoded, community_id):
     user_id = decoded.get('user_id')
 
     try:
-        # 检查权限
-        if not CommunityDashboardService.has_permission(user_id, community_id):
-            return make_err_response({}, '无权限访问该社区')
+        use_case = GetCommunityStatsUseCase()
+        result = use_case.execute(community_id, user_id)
 
-        # 获取统计数据
-        stats = CommunityDashboardService.get_community_stats(community_id)
-
-        current_app.logger.info(f'获取社区统计数据成功: community_id={community_id}')
-        return make_succ_response(stats)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取社区统计数据失败: {str(e)}', exc_info=True)
@@ -67,24 +71,17 @@ def get_abnormal_users(decoded, community_id):
     user_id = decoded.get('user_id')
 
     try:
-        # 检查权限
-        if not CommunityDashboardService.has_permission(user_id, community_id):
-            return make_err_response({}, '无权限访问该社区')
-
         # 获取分页参数
         page = int(request.args.get('page', 1))
         page_size = min(int(request.args.get('page_size', 20)), 100)
 
-        # 获取异常用户列表
-        result = CommunityDashboardService.get_abnormal_users(
-            community_id, page, page_size
-        )
+        use_case = GetAbnormalUsersUseCase()
+        result = use_case.execute(community_id, user_id, page, page_size)
 
-        current_app.logger.info(
-            f'获取异常用户列表成功: community_id={community_id}, '
-            f'count={len(result["users"])}, total={result["total"]}'
-        )
-        return make_succ_response(result)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取异常用户列表失败: {str(e)}', exc_info=True)
@@ -112,20 +109,16 @@ def get_trend_data(decoded, community_id):
     user_id = decoded.get('user_id')
 
     try:
-        # 检查权限
-        if not CommunityDashboardService.has_permission(user_id, community_id):
-            return make_err_response({}, '无权限访问该社区')
-
         # 获取天数参数
         days = int(request.args.get('days', 7))
-        if days not in [7, 30]:
-            return make_err_response({}, '天数参数只能是 7 或 30')
 
-        # 获取趋势数据
-        trends = CommunityDashboardService.get_trend_data(community_id, days)
+        use_case = GetTrendDataUseCase()
+        result = use_case.execute(community_id, user_id, days)
 
-        current_app.logger.info(f'获取历史趋势数据成功: community_id={community_id}, days={days}')
-        return make_succ_response(trends)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取历史趋势数据失败: {str(e)}', exc_info=True)
@@ -153,20 +146,16 @@ def get_pending_events(decoded, community_id):
     user_id = decoded.get('user_id')
 
     try:
-        # 检查权限
-        if not CommunityDashboardService.has_permission(user_id, community_id):
-            return make_err_response({}, '无权限访问该社区')
-
         # 获取数量限制参数
         limit = int(request.args.get('limit', 3))
 
-        # 获取未处理事件
-        events = CommunityDashboardService.get_pending_events(community_id, limit)
+        use_case = GetPendingEventsUseCase()
+        result = use_case.execute(community_id, user_id, limit)
 
-        current_app.logger.info(
-            f'获取未处理事件成功: community_id={community_id}, count={events["total"]}'
-        )
-        return make_succ_response(events)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取未处理事件失败: {str(e)}', exc_info=True)
@@ -189,16 +178,16 @@ def get_user_abnormality_detail(decoded, community_id, user_id):
     """
     current_app.logger.info(f'=== 开始获取用户异常值详情: community_id={community_id}, user_id={user_id} ===')
 
+    request_user_id = decoded.get('user_id')
+
     try:
-        # 检查权限
-        if not CommunityDashboardService.has_permission(decoded.get('user_id'), community_id):
-            return make_err_response({}, '无权限访问该社区')
+        use_case = GetUserAbnormalityDetailUseCase()
+        result = use_case.execute(community_id, user_id, request_user_id)
 
-        # 获取用户异常值详情
-        detail = CommunityDashboardService.get_user_abnormality_detail(community_id, user_id)
-
-        current_app.logger.info(f'获取用户异常值详情成功: user_id={user_id}')
-        return make_succ_response(detail)
+        if result['success']:
+            return make_succ_response(result['data'])
+        else:
+            return make_err_response(result['data'], result['message'])
 
     except Exception as e:
         current_app.logger.error(f'获取用户异常值详情失败: {str(e)}', exc_info=True)
