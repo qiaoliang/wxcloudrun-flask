@@ -84,3 +84,27 @@ class CommunityRepository(BaseRepository[Community]):
             bool: 如果存在返回 True，否则返回 False
         """
         pass
+
+    @abstractmethod
+    def search(
+        self,
+        keyword: Optional[str] = None,
+        province: Optional[str] = None,
+        city: Optional[str] = None,
+        district: Optional[str] = None,
+        status: Optional[int] = None
+    ) -> List[Community]:
+        """
+        搜索社区
+
+        Args:
+            keyword: 搜索关键词（社区名称、描述）
+            province: 省份
+            city: 城市
+            district: 区县
+            status: 社区状态
+
+        Returns:
+            List[Community]: 社区列表
+        """
+        pass

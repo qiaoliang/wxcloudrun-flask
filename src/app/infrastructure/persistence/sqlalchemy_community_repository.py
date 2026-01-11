@@ -141,3 +141,54 @@ class SQLAlchemyCommunityRepository(CommunityRepository):
             bool: 如果存在返回 True，否则返回 False
         """
         return self.find_by_name(name) is not None
+
+    def search(
+        self,
+        keyword: Optional[str] = None,
+        province: Optional[str] = None,
+        city: Optional[str] = None,
+        district: Optional[str] = None,
+        status: Optional[int] = None
+    ) -> List[Community]:
+        """
+        搜索社区
+
+        Args:
+            keyword: 搜索关键词（社区名称、描述）
+            province: 省份
+            city: 城市
+            district: 区县
+            status: 社区状态
+
+        Returns:
+            List[Community]: 社区列表
+        """
+        from sqlalchemy import or_
+
+        stmt = select(Community)
+
+        # 添加关键词搜索条件
+        if keyword:
+            stmt = stmt.where(
+                or_(
+                    Community.name.like(f'%{keyword}%'),
+                    Community.description.like(f'%{keyword}%')
+                )
+            )
+
+        # 添加地理位置筛选条件
+        if province:
+            stmt = stmt.where(Community.province == province)
+        if city:
+            stmt = stmt.where(Community.city == city)
+        if district:
+            stmt = stmt.where(Community.district == district)
+
+        # 添加状态筛选条件
+        if status is not None:
+            stmt = stmt.where(Community.status == status)
+
+        # 按创建时间倒序排列
+        stmt = stmt.order_by(Community.created_at.desc())
+
+        return db.session.execute(stmt).scalars().all()
