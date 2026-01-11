@@ -11,7 +11,7 @@ import datetime
 import logging
 from typing import Dict, Optional
 
-from .base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
+from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
 from wxcloudrun.wxchat_api import get_user_info_by_code
 from wxcloudrun.community_service import CommunityService
 from database.flask_models import db, User

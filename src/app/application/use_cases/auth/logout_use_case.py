@@ -10,7 +10,7 @@
 import logging
 from typing import Optional
 
-from .base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
+from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 

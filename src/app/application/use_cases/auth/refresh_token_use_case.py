@@ -12,8 +12,8 @@ import datetime
 import logging
 from typing import Dict
 
-from .base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
-from app.shared.utils.auth import generate_auth_tokens
+from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
+from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
@@ -90,12 +90,17 @@ class RefreshTokenUseCase(BaseUseCase):
         self.logger.info(f'找到用户，正在为用户ID: {user.user_id} 生成新token')
 
         # 4. 生成新的 token
-        new_token, new_refresh_token, error_response = generate_auth_tokens(user, self.logger)
+        new_token, error_response = generate_jwt_token(user, expires_hours=2)
         if error_response:
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message='生成token失败'
             )
+
+        new_refresh_token = generate_refresh_token(user, expires_days=7)
+
+        # 保存用户信息（更新 refresh_token 和 refresh_token_expire）
+        self.user_repository.save(user)
 
         self.logger.info(f'成功为用户ID: {user.user_id} 刷新token')
 

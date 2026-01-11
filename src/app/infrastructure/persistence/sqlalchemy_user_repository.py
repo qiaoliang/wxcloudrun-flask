@@ -26,6 +26,7 @@ class SQLAlchemyUserRepository(UserRepository):
         """
         db.session.add(entity)
         db.session.flush()
+        db.session.commit()
         return entity
 
     def delete(self, entity: User) -> None:
