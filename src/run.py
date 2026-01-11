@@ -163,8 +163,18 @@ def main():
 
     # 6. 启动 Flask 应用
     host = '0.0.0.0'
-    port = int(os.environ.get("EXPOSE_PORT", 8080))
 
+    # 根据 ENV_TYPE 设置默认端口
+    default_ports = {
+        'function': 9999,  # 开发环境
+        'unit': 9999,      # 单元测试环境
+        'uat': 8080,       # UAT环境
+        'prod': 8080,      # 生产环境
+    }
+    default_port = default_ports.get(env_type, 8080)
+    port = int(os.environ.get("EXPOSE_PORT", default_port))
+
+    flask_app.logger.info(f"启动 Flask 应用: {host}:{port} (ENV_TYPE={env_type})")
     flask_app.run(host=host, port=port)
 
 
