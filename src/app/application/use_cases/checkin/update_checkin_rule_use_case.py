@@ -14,6 +14,7 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
@@ -21,11 +22,7 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
         self,
         rule_id: int,
         user_id: int,
-        rule_type: Optional[str] = None,
-        frequency_type: Optional[str] = None,
-        planned_time: Optional[str] = None,
-        planned_dates: Optional[str] = None,
-        is_active: Optional[bool] = None
+        rule_data: Optional[dict] = None
     ) -> UseCaseResult:
         """
         执行更新打卡规则用例
@@ -33,11 +30,7 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
         Args:
             rule_id: 规则ID
             user_id: 用户ID（用于权限验证）
-            rule_type: 规则类型
-            frequency_type: 频率类型
-            planned_time: 计划时间
-            planned_dates: 计划日期
-            is_active: 是否激活
+            rule_data: 规则数据字典
 
         Returns:
             UseCaseResult: 执行结果
@@ -56,7 +49,18 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
                     message='用户ID不能为空'
                 )
 
-            # 2. 查询打卡规则
+            if not rule_data:
+                rule_data = {}
+
+            # 2. 验证用户是否存在
+            user = self.user_repository.find_by_id(user_id)
+            if not user:
+                return UseCaseResult(
+                    status=UseCaseStatus.NOT_FOUND,
+                    message='用户不存在'
+                )
+
+            # 3. 查找打卡规则
             rule = self.checkin_rule_repository.find_by_id(rule_id)
             if not rule:
                 return UseCaseResult(
@@ -64,85 +68,94 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
                     message='打卡规则不存在'
                 )
 
-            # 3. 验证权限（只有规则创建者或管理员可以修改）
+            # 4. 验证权限
             if rule.user_id != user_id:
-                user = self.user_repository.find_by_id(user_id)
-                if not user or user.role not in [3, 4]:  # 不是社区主管或超级管理员
-                    return UseCaseResult(
-                        status=UseCaseStatus.UNAUTHORIZED,
-                        message='无权修改此打卡规则'
-                    )
+                return UseCaseResult(
+                    status=UseCaseStatus.FORBIDDEN,
+                    message='无权限修改此打卡规则'
+                )
 
-            # 4. 更新规则信息
-            if rule_type is not None:
-                if rule_type not in ['personal', 'community']:
-                    return UseCaseResult(
-                        status=UseCaseStatus.VALIDATION_ERROR,
-                        message='规则类型无效'
-                    )
-                rule.rule_type = rule_type
+            # 5. 更新规则字段
+            if 'rule_name' in rule_data:
+                rule.rule_name = rule_data['rule_name']
 
-            if frequency_type is not None:
-                if frequency_type not in ['daily', 'weekly', 'workdays', 'custom']:
-                    return UseCaseResult(
-                        status=UseCaseStatus.VALIDATION_ERROR,
-                        message='频率类型无效'
-                    )
-                rule.frequency_type = frequency_type
+            if 'icon_url' in rule_data:
+                rule.icon_url = rule_data['icon_url']
 
-            if planned_time is not None:
-                # 验证时间格式
-                try:
-                    import datetime
-                    datetime.datetime.strptime(planned_time, '%H:%M')
-                    rule.planned_time = planned_time
-                except ValueError:
-                    return UseCaseResult(
-                        status=UseCaseStatus.VALIDATION_ERROR,
-                        message='时间格式无效，应为 HH:MM'
-                    )
+            if 'frequency_type' in rule_data:
+                rule.frequency_type = rule_data['frequency_type']
 
-            if planned_dates is not None:
-                # 验证日期格式
-                if frequency_type == 'custom':
+            if 'time_slot_type' in rule_data:
+                rule.time_slot_type = rule_data['time_slot_type']
+
+            if 'custom_time' in rule_data:
+                from datetime import datetime, time
+                custom_time_str = rule_data['custom_time']
+                if custom_time_str:
                     try:
-                        import json
-                        dates = json.loads(planned_dates)
-                        if not isinstance(dates, list):
+                        rule.custom_time = datetime.strptime(custom_time_str, '%H:%M').time()
+                    except ValueError:
+                        try:
+                            rule.custom_time = datetime.strptime(custom_time_str, '%H:%M:%S').time()
+                        except ValueError:
                             return UseCaseResult(
                                 status=UseCaseStatus.VALIDATION_ERROR,
-                                message='计划日期格式无效'
+                                message=f'无效的时间格式: {custom_time_str}'
                             )
-                        rule.planned_dates = planned_dates
-                    except json.JSONDecodeError:
+
+            if 'custom_start_date' in rule_data:
+                from datetime import datetime, date
+                custom_start_date_str = rule_data['custom_start_date']
+                if custom_start_date_str:
+                    try:
+                        rule.custom_start_date = datetime.strptime(custom_start_date_str, '%Y-%m-%d').date()
+                    except ValueError:
                         return UseCaseResult(
                             status=UseCaseStatus.VALIDATION_ERROR,
-                            message='计划日期格式无效'
+                            message=f'无效的日期格式: {custom_start_date_str}'
                         )
 
-            if is_active is not None:
-                rule.is_active = is_active
+            if 'custom_end_date' in rule_data:
+                from datetime import datetime, date
+                custom_end_date_str = rule_data['custom_end_date']
+                if custom_end_date_str:
+                    try:
+                        rule.custom_end_date = datetime.strptime(custom_end_date_str, '%Y-%m-%d').date()
+                    except ValueError:
+                        return UseCaseResult(
+                            status=UseCaseStatus.VALIDATION_ERROR,
+                            message=f'无效的日期格式: {custom_end_date_str}'
+                        )
 
-            # 5. 保存更新
-            updated_rule = self.checkin_rule_repository.save(rule)
+            if 'week_days' in rule_data:
+                week_days = rule_data['week_days']
+                if isinstance(week_days, list):
+                    week_days = sum(1 << (day - 1) for day in week_days)
+                rule.week_days = week_days
 
-            self.logger.info(f'更新打卡规则成功: rule_id={rule_id}')
+            if 'status' in rule_data:
+                rule.status = rule_data['status']
 
-            # 6. 返回结果
+            # 6. 保存更新
+            updated_rule = self.checkin_rule_repository.update(rule)
+
+            self.logger.info(f'更新打卡规则成功: rule_id={rule_id}, user_id={user_id}')
+
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='打卡规则更新成功',
                 data={
-                    'rule_id': updated_rule.rule_id,
-                    'user_id': updated_rule.user_id,
-                    'rule_type': updated_rule.rule_type,
-                    'frequency_type': updated_rule.frequency_type,
-                    'planned_time': updated_rule.planned_time,
-                    'planned_dates': updated_rule.planned_dates,
-                    'is_active': updated_rule.is_active
+                    'rule': updated_rule
                 }
             )
 
+        except ValueError as e:
+            self.logger.error(f'更新打卡规则失败: {str(e)}')
+            return UseCaseResult(
+                status=UseCaseStatus.BUSINESS_ERROR,
+                message=str(e)
+            )
         except Exception as e:
             self.logger.error(f'更新打卡规则失败: {str(e)}', exc_info=True)
             return UseCaseResult(

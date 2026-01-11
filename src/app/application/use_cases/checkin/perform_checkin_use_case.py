@@ -15,34 +15,40 @@ class PerformCheckinUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
+        self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
 
     def execute(
         self,
+        rule_id: int,
         user_id: int,
-        record_id: int,
-        checkin_type: Optional[str] = None,
-        content: Optional[str] = None
+        rule_source: Optional[str] = None
     ) -> UseCaseResult:
         """
         执行打卡用例
 
         Args:
+            rule_id: 规则ID
             user_id: 用户ID
-            record_id: 记录ID
-            checkin_type: 打卡类型
-            content: 打卡内容
+            rule_source: 规则来源
 
         Returns:
             UseCaseResult: 执行结果
         """
         try:
             # 1. 参数验证
-            if not record_id:
+            if not rule_id:
                 return UseCaseResult(
                     status=UseCaseStatus.VALIDATION_ERROR,
-                    message='记录ID不能为空'
+                    message='规则ID不能为空'
+                )
+
+            if not user_id:
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message='用户ID不能为空'
                 )
 
             # 2. 验证用户是否存在
@@ -53,58 +59,74 @@ class PerformCheckinUseCase(BaseUseCase):
                     message='用户不存在'
                 )
 
-            # 3. 查找打卡记录
-            record = self.checkin_record_repository.find_by_id(record_id)
-            if not record:
+            # 3. 查找打卡规则
+            rule = self.checkin_rule_repository.find_by_id(rule_id)
+            if not rule:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
-                    message='打卡记录不存在'
+                    message='打卡规则不存在'
                 )
 
-            # 4. 验证记录归属
-            if record.user_id != user_id:
+            # 4. 验证规则归属
+            if rule.user_id != user_id:
                 return UseCaseResult(
                     status=UseCaseStatus.FORBIDDEN,
-                    message='无权限操作此打卡记录'
+                    message='无权限操作此打卡规则'
                 )
 
-            # 5. 检查记录状态
-            if record.status == 1:  # 已打卡
-                return UseCaseResult(
-                    status=UseCaseStatus.BUSINESS_ERROR,
-                    message='已打卡，无需重复打卡'
+            # 5. 检查今天是否已有打卡记录
+            today = datetime.now().date()
+            today_records = self.checkin_record_repository.find_by_rule_id(rule_id)
+            
+            # 查找当天已有的打卡记录
+            for record in today_records:
+                if record.status == 1:  # 已打卡
+                    return UseCaseResult(
+                        status=UseCaseStatus.BUSINESS_ERROR,
+                        message='今日该事项已打卡，请勿重复打卡'
+                    )
+
+            # 6. 记录打卡时间
+            checkin_time = datetime.now()
+
+            # 7. 检查是否有未打卡状态的记录可以更新
+            existing_unchecked = None
+            for record in today_records:
+                if record.status == 0:  # 未打卡
+                    existing_unchecked = record
+                    break
+
+            if existing_unchecked:
+                # 更新已有记录
+                existing_unchecked.checkin_time = checkin_time
+                existing_unchecked.status = 1  # 已打卡
+                existing_unchecked.updated_at = checkin_time
+                updated_record = self.checkin_record_repository.update(existing_unchecked)
+            else:
+                # 创建新的打卡记录
+                from database.flask_models import CheckinRecord
+                planned_time = rule.custom_time if rule.custom_time else checkin_time.time()
+                new_record = CheckinRecord(
+                    rule_id=rule_id,
+                    user_id=user_id,
+                    checkin_time=checkin_time,
+                    planned_time=datetime.combine(today, planned_time),
+                    status=1  # 已打卡
                 )
+                updated_record = self.checkin_record_repository.save(new_record)
 
-            if record.status == 2:  # 已撤销
-                return UseCaseResult(
-                    status=UseCaseStatus.BUSINESS_ERROR,
-                    message='打卡记录已撤销'
-                )
+            self.logger.info(f'执行打卡成功: rule_id={rule_id}, user_id={user_id}, record_id={updated_record.record_id}')
 
-            # 6. 更新打卡记录
-            record.checkin_time = datetime.now()
-            record.status = 1  # 已打卡
-            record.updated_at = datetime.now()
-
-            if checkin_type:
-                record.checkin_type = checkin_type
-            if content:
-                record.content = content
-
-            updated_record = self.checkin_record_repository.update(record)
-
-            self.logger.info(f'执行打卡成功: record_id={record_id}, user_id={user_id}')
-
-            # 7. 返回结果
+            # 8. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='打卡成功',
                 data={
+                    'rule_id': rule_id,
                     'record_id': updated_record.record_id,
                     'user_id': updated_record.user_id,
-                    'checkin_time': updated_record.checkin_time.isoformat() if updated_record.checkin_time else None,
-                    'status': updated_record.status,
-                    'checkin_type': updated_record.checkin_type
+                    'checkin_time': updated_record.checkin_time.strftime('%Y-%m-%d %H:%M:%S') if updated_record.checkin_time else None,
+                    'status': 'completed'
                 }
             )
 

@@ -14,6 +14,7 @@ class GetCheckinHistoryUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
@@ -119,16 +120,14 @@ class GetCheckinHistoryUseCase(BaseUseCase):
                     'record_id': record.record_id,
                     'user_id': record.user_id,
                     'rule_id': record.rule_id,
-                    'rule_type': record.rule.rule_type if record.rule else None,
-                    'checkin_time': record.checkin_time.isoformat() if record.checkin_time else None,
-                    'checkin_status': record.checkin_status,
-                    'location': record.location,
-                    'notes': record.notes,
-                    'is_missed': record.is_missed
+                    'checkin_time': record.checkin_time.strftime('%Y-%m-%d %H:%M:%S') if record.checkin_time else None,
+                    'status': record.status,
+                    'status_name': record.status_name,
+                    'planned_time': record.planned_time.strftime('%Y-%m-%d %H:%M:%S') if record.planned_time else None
                 })
 
             response_data = {
-                'records': record_list,
+                'history': record_list,
                 'total': total,
                 'page': page,
                 'page_size': page_size,

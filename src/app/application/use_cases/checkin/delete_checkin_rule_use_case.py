@@ -13,6 +13,7 @@ class DeleteCheckinRuleUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 

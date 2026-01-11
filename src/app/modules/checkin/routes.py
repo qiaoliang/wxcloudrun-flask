@@ -64,12 +64,18 @@ def get_today_checkin_items():
         return make_err_response({}, '用户不存在')
 
     try:
-        # 调用 Service 层获取今日打卡计划
-        response_data = CheckinRuleService.get_today_checkin_plan(user.user_id)
+        # 使用应用服务用例获取今日打卡计划
+        from app.application.use_cases.checkin import GetTodayCheckinsUseCase
+
+        use_case = GetTodayCheckinsUseCase()
+        result = use_case.execute(user_id=user_id)
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(
-            f'成功获取今日打卡事项，用户ID: {user.user_id}, 事项数量: {len(response_data["checkin_items"])}')
-        return make_succ_response(response_data)
+            f'成功获取今日打卡事项，用户ID: {user.user_id}, 事项数量: {len(result.data.get("checkin_items", []))}')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取今日打卡事项时发生错误: {str(e)}', exc_info=True)
@@ -109,14 +115,18 @@ def perform_checkin():
         return make_err_response({}, '缺少规则ID参数')
 
     try:
-        # 调用 Service 层执行打卡
-        response_data = CheckinRecordService.perform_checkin(
-            rule_id, user.user_id
-        )
+        # 使用应用服务用例执行打卡
+        from app.application.use_cases.checkin import PerformCheckinUseCase
+
+        use_case = PerformCheckinUseCase()
+        result = use_case.execute(rule_id=rule_id, user_id=user_id)
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(
             f'用户 {user.user_id} 成功打卡，规则ID: {rule_id}')
-        return make_succ_response(response_data)
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'执行打卡操作时发生错误: {str(e)}', exc_info=True)
@@ -156,14 +166,18 @@ def report_miss_checkin():
         return make_err_response({}, '缺少规则ID参数')
 
     try:
-        # 调用 Service 层上报漏打卡
-        response_data = CheckinRecordService.mark_missed(
-            rule_id, user.user_id
-        )
+        # 使用应用服务用例上报漏打卡
+        from app.application.use_cases.checkin import ReportMissCheckinUseCase
+
+        use_case = ReportMissCheckinUseCase()
+        result = use_case.execute(rule_id=rule_id, user_id=user_id)
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(
             f'用户 {user.user_id} 成功上报漏打卡，规则ID: {rule_id}')
-        return make_succ_response(response_data)
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'上报漏打卡时发生错误: {str(e)}', exc_info=True)
@@ -204,14 +218,18 @@ def cancel_checkin():
         return make_err_response({}, '缺少记录ID参数')
 
     try:
-        # 调用 Service 层取消打卡
-        response_data = CheckinRecordService.cancel_checkin(
-            record_id, user.user_id
-        )
+        # 使用应用服务用例取消打卡
+        from app.application.use_cases.checkin import CancelCheckinUseCase
+
+        use_case = CancelCheckinUseCase()
+        result = use_case.execute(record_id=record_id, user_id=user_id, reason=reason)
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(
             f'用户 {user.user_id} 成功取消打卡，记录ID: {record_id}')
-        return make_succ_response(response_data)
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'取消打卡时发生错误: {str(e)}', exc_info=True)
@@ -245,6 +263,8 @@ def get_checkin_history():
 
     try:
         # 解析日期参数
+        from wxcloudrun.utils.timeutil import parse_date_only
+
         start_date = None
         end_date = None
 
@@ -260,14 +280,24 @@ def get_checkin_history():
                 current_app.logger.error(f'结束日期格式错误: {end_date_str}')
                 return make_err_response({}, '结束日期格式错误')
 
-        # 调用 Service 层获取打卡历史
-        response_data = CheckinRecordService.get_checkin_history(
-            user.user_id, start_date, end_date, page, per_page
+        # 使用应用服务用例获取打卡历史
+        from app.application.use_cases.checkin import GetCheckinHistoryUseCase
+
+        use_case = GetCheckinHistoryUseCase()
+        result = use_case.execute(
+            user_id=user_id,
+            start_date=start_date,
+            end_date=end_date,
+            page=page,
+            page_size=per_page
         )
 
+        if not result.is_success:
+            return make_err_response({}, result.message)
+
         current_app.logger.info(
-            f'用户 {user.user_id} 成功获取打卡历史记录，记录数: {response_data["total"]}')
-        return make_succ_response(response_data)
+            f'用户 {user.user_id} 成功获取打卡历史记录，记录数: {result.data.get("total", 0)}')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取打卡历史记录时发生错误: {str(e)}', exc_info=True)
@@ -300,7 +330,7 @@ def manage_checkin_rules():
 
     try:
         if method == 'GET':
-            # 查询打卡规则
+            # 查询打卡规则 - 暂时保留原有逻辑，因为用例中可能没有实现
             rule_id = request.args.get('rule_id')
             if rule_id:
                 # 查询单个规则
@@ -336,7 +366,16 @@ def manage_checkin_rules():
                     if field not in params:
                         return make_err_response({}, f'缺少必要参数: {field}')
 
-            rule = CheckinRuleService.create_rule(params, user.user_id)
+            # 使用应用服务用例创建打卡规则
+            from app.application.use_cases.checkin import CreateCheckinRuleUseCase
+
+            use_case = CreateCheckinRuleUseCase()
+            result = use_case.execute(user_id=user_id, rule_data=params)
+
+            if not result.is_success:
+                return make_err_response({}, result.message)
+
+            rule = result.data.get('rule')
             current_app.logger.info(f'用户 {user.user_id} 成功创建打卡规则')
             return make_succ_response({'rule': _rule_to_dict(rule)})
 
@@ -352,7 +391,16 @@ def manage_checkin_rules():
             if not rule_id:
                 return make_err_response({}, '缺少规则ID参数')
 
-            rule = CheckinRuleService.update_rule(rule_id, params, user.user_id)
+            # 使用应用服务用例更新打卡规则
+            from app.application.use_cases.checkin import UpdateCheckinRuleUseCase
+
+            use_case = UpdateCheckinRuleUseCase()
+            result = use_case.execute(rule_id=rule_id, user_id=user_id, rule_data=params)
+
+            if not result.is_success:
+                return make_err_response({}, result.message)
+
+            rule = result.data.get('rule')
             current_app.logger.info(f'用户 {user.user_id} 成功更新打卡规则')
             return make_succ_response({'rule': _rule_to_dict(rule)})
 
@@ -362,7 +410,15 @@ def manage_checkin_rules():
             if not rule_id:
                 return make_err_response({}, '缺少规则ID参数')
 
-            response_data = CheckinRuleService.delete_rule(int(rule_id), user.user_id)
+            # 使用应用服务用例删除打卡规则
+            from app.application.use_cases.checkin import DeleteCheckinRuleUseCase
+
+            use_case = DeleteCheckinRuleUseCase()
+            result = use_case.execute(rule_id=int(rule_id), user_id=user_id)
+
+            if not result.is_success:
+                return make_err_response({}, result.message)
+
             current_app.logger.info(f'用户 {user.user_id} 成功删除打卡规则')
             return make_succ_response({'message': '规则删除成功'})
 

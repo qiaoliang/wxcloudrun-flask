@@ -15,6 +15,7 @@ class CreateCheckinRuleUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
 
@@ -66,7 +67,12 @@ class CreateCheckinRuleUseCase(BaseUseCase):
                 custom_end_date_str = rule_data['custom_end_date']
                 custom_end_date = self._parse_date_only(custom_end_date_str)
 
-            # 5. 验证自定义频率的日期范围
+            # 5. 处理 week_days 参数（如果是列表，转换为位掩码整数）
+            week_days = rule_data.get('week_days', 127)
+            if isinstance(week_days, list):
+                week_days = sum(1 << (day - 1) for day in week_days)
+
+            # 6. 验证自定义频率的日期范围
             if rule_data.get('frequency_type') == 3:  # 自定义频率
                 if not custom_start_date or not custom_end_date:
                     return UseCaseResult(
@@ -79,7 +85,7 @@ class CreateCheckinRuleUseCase(BaseUseCase):
                         message='结束日期不能早于开始日期'
                     )
 
-            # 6. 创建打卡规则
+            # 7. 创建打卡规则
             new_rule = CheckinRule(
                 user_id=user_id,
                 community_id=user.community_id,
@@ -90,9 +96,8 @@ class CreateCheckinRuleUseCase(BaseUseCase):
                 custom_time=custom_time,
                 custom_start_date=custom_start_date,
                 custom_end_date=custom_end_date,
-                week_days=rule_data.get('week_days', 127),
-                status=1,
-                created_at=datetime.now()
+                week_days=week_days,
+                status=1
             )
 
             saved_rule = self.checkin_rule_repository.save(new_rule)
@@ -104,13 +109,7 @@ class CreateCheckinRuleUseCase(BaseUseCase):
                 status=UseCaseStatus.SUCCESS,
                 message='打卡规则创建成功',
                 data={
-                    'rule_id': saved_rule.rule_id,
-                    'rule_name': saved_rule.rule_name,
-                    'user_id': saved_rule.user_id,
-                    'community_id': saved_rule.community_id,
-                    'frequency_type': saved_rule.frequency_type,
-                    'time_slot_type': saved_rule.time_slot_type,
-                    'status': saved_rule.status
+                    'rule': saved_rule
                 }
             )
 

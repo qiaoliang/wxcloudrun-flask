@@ -14,6 +14,7 @@ class GetTodayCheckinsUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
@@ -69,6 +70,13 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                         record = r
                         break
 
+                # 确定状态名称
+                status_name = 'pending'  # 默认状态
+                if record:
+                    if record.status == 1:  # 已打卡
+                        status_name = 'checked'
+                    elif record.status == 2:  # 已撤销
+                        status_name = 'unchecked'
                 checkin_item = {
                     'rule_id': rule.rule_id,
                     'rule_name': rule.rule_name,
@@ -76,17 +84,19 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                     'frequency_type': rule.frequency_type,
                     'time_slot_type': rule.time_slot_type,
                     'custom_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
-                    'status': 0,  # 0=未打卡
+                    'status': status_name,
                     'checkin_time': None,
                     'record_id': None
                 }
 
                 if record:
-                    checkin_item['status'] = record.status
-                    checkin_item['checkin_time'] = record.checkin_time.isoformat() if record.checkin_time else None
+                    checkin_item['checkin_time'] = record.checkin_time.strftime('%Y-%m-%d %H:%M:%S') if record.checkin_time else None
                     checkin_item['record_id'] = record.record_id
 
                 checkin_items.append(checkin_item)
+
+            # 按规则ID排序，确保返回顺序一致
+            checkin_items.sort(key=lambda x: x['rule_id'])
 
             self.logger.info(f'获取今日打卡成功: user_id={user_id}, 规则数={len(checkin_items)}')
 

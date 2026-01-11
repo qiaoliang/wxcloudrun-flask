@@ -12,6 +12,7 @@ class CancelCheckinUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
