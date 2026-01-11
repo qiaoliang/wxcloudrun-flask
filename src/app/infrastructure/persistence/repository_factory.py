@@ -15,6 +15,12 @@ from app.domain.repositories.community_staff_repository import CommunityStaffRep
 from app.domain.repositories.share_link_repository import ShareLinkRepository
 from app.domain.repositories.share_link_access_log_repository import ShareLinkAccessLogRepository
 from app.domain.repositories.supervision_relation_repository import SupervisionRelationRepository
+from app.domain.repositories.community_checkin_rule_repository import CommunityCheckinRuleRepository
+from app.domain.repositories.user_community_rule_repository import UserCommunityRuleRepository
+from app.domain.repositories.user_daily_abnormality_repository import UserDailyAbnormalityRepository
+from app.domain.repositories.profile_view_log_repository import ProfileViewLogRepository
+from app.domain.repositories.counters_repository import CountersRepository
+from app.domain.repositories.verification_code_repository import VerificationCodeRepository
 
 from app.infrastructure.persistence.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from app.infrastructure.persistence.sqlalchemy_community_repository import SQLAlchemyCommunityRepository
@@ -26,6 +32,12 @@ from app.infrastructure.persistence.sqlalchemy_community_staff_repository import
 from app.infrastructure.persistence.sqlalchemy_share_link_repository import SQLAlchemyShareLinkRepository
 from app.infrastructure.persistence.sqlalchemy_share_link_access_log_repository import SQLAlchemyShareLinkAccessLogRepository
 from app.infrastructure.persistence.sqlalchemy_supervision_relation_repository import SQLAlchemySupervisionRelationRepository
+from app.infrastructure.persistence.sqlalchemy_community_checkin_rule_repository import SQLAlchemyCommunityCheckinRuleRepository
+from app.infrastructure.persistence.sqlalchemy_user_community_rule_repository import SQLAlchemyUserCommunityRuleRepository
+from app.infrastructure.persistence.sqlalchemy_user_daily_abnormality_repository import SQLAlchemyUserDailyAbnormalityRepository
+from app.infrastructure.persistence.sqlalchemy_profile_view_log_repository import SQLAlchemyProfileViewLogRepository
+from app.infrastructure.persistence.sqlalchemy_counters_repository import SQLAlchemyCountersRepository
+from app.infrastructure.persistence.sqlalchemy_verification_code_repository import SQLAlchemyVerificationCodeRepository
 
 
 class RepositoryFactory:
@@ -41,6 +53,12 @@ class RepositoryFactory:
     _share_link_repository: Optional[ShareLinkRepository] = None
     _share_link_access_log_repository: Optional[ShareLinkAccessLogRepository] = None
     _supervision_relation_repository: Optional[SupervisionRelationRepository] = None
+    _community_checkin_rule_repository: Optional[CommunityCheckinRuleRepository] = None
+    _user_community_rule_repository: Optional[UserCommunityRuleRepository] = None
+    _user_daily_abnormality_repository: Optional[UserDailyAbnormalityRepository] = None
+    _profile_view_log_repository: Optional[ProfileViewLogRepository] = None
+    _counters_repository: Optional[CountersRepository] = None
+    _verification_code_repository: Optional[VerificationCodeRepository] = None
 
     @classmethod
     def get_user_repository(cls) -> UserRepository:
@@ -163,6 +181,78 @@ class RepositoryFactory:
         return cls._supervision_relation_repository
 
     @classmethod
+    def get_community_checkin_rule_repository(cls) -> CommunityCheckinRuleRepository:
+        """
+        获取社区打卡规则仓储实例
+
+        Returns:
+            CommunityCheckinRuleRepository: 社区打卡规则仓储实例
+        """
+        if cls._community_checkin_rule_repository is None:
+            cls._community_checkin_rule_repository = SQLAlchemyCommunityCheckinRuleRepository()
+        return cls._community_checkin_rule_repository
+
+    @classmethod
+    def get_user_community_rule_repository(cls) -> UserCommunityRuleRepository:
+        """
+        获取用户社区规则仓储实例
+
+        Returns:
+            UserCommunityRuleRepository: 用户社区规则仓储实例
+        """
+        if cls._user_community_rule_repository is None:
+            cls._user_community_rule_repository = SQLAlchemyUserCommunityRuleRepository()
+        return cls._user_community_rule_repository
+
+    @classmethod
+    def get_user_daily_abnormality_repository(cls) -> UserDailyAbnormalityRepository:
+        """
+        获取用户每日异常仓储实例
+
+        Returns:
+            UserDailyAbnormalityRepository: 用户每日异常仓储实例
+        """
+        if cls._user_daily_abnormality_repository is None:
+            cls._user_daily_abnormality_repository = SQLAlchemyUserDailyAbnormalityRepository()
+        return cls._user_daily_abnormality_repository
+
+    @classmethod
+    def get_profile_view_log_repository(cls) -> ProfileViewLogRepository:
+        """
+        获取个人资料查看日志仓储实例
+
+        Returns:
+            ProfileViewLogRepository: 个人资料查看日志仓储实例
+        """
+        if cls._profile_view_log_repository is None:
+            cls._profile_view_log_repository = SQLAlchemyProfileViewLogRepository()
+        return cls._profile_view_log_repository
+
+    @classmethod
+    def get_counters_repository(cls) -> CountersRepository:
+        """
+        获取计数器仓储实例
+
+        Returns:
+            CountersRepository: 计数器仓储实例
+        """
+        if cls._counters_repository is None:
+            cls._counters_repository = SQLAlchemyCountersRepository()
+        return cls._counters_repository
+
+    @classmethod
+    def get_verification_code_repository(cls) -> VerificationCodeRepository:
+        """
+        获取验证码仓储实例
+
+        Returns:
+            VerificationCodeRepository: 验证码仓储实例
+        """
+        if cls._verification_code_repository is None:
+            cls._verification_code_repository = SQLAlchemyVerificationCodeRepository()
+        return cls._verification_code_repository
+
+    @classmethod
     def reset(cls):
         """重置仓储实例（主要用于测试）"""
         cls._user_repository = None
@@ -175,3 +265,9 @@ class RepositoryFactory:
         cls._share_link_repository = None
         cls._share_link_access_log_repository = None
         cls._supervision_relation_repository = None
+        cls._community_checkin_rule_repository = None
+        cls._user_community_rule_repository = None
+        cls._user_daily_abnormality_repository = None
+        cls._profile_view_log_repository = None
+        cls._counters_repository = None
+        cls._verification_code_repository = None
