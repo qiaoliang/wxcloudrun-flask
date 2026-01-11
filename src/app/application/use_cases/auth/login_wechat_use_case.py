@@ -12,11 +12,11 @@ import logging
 from typing import Dict, Optional
 
 from .base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
-from wxcloudrun.user_service import UserService
 from wxcloudrun.wxchat_api import get_user_info_by_code
 from wxcloudrun.community_service import CommunityService
-from database.flask_models import User
+from database.flask_models import db, User
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from const_default import DEFAULT_COMMUNITY_NAME
 
 
@@ -25,6 +25,7 @@ class LoginWeChatUseCase(BaseUseCase):
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def _validate(self, code: str, nickname: Optional[str] = None, 
                   avatar_url: Optional[str] = None) -> UseCaseResult:
@@ -103,7 +104,7 @@ class LoginWeChatUseCase(BaseUseCase):
             )
 
         refresh_token = generate_refresh_token(user, expires_days=7)
-        UserService.update_user_by_id(user)
+        self.user_repository.save(user)
 
         self.logger.info(f'微信登录成功 - 用户ID: {user.user_id}, 新用户: {is_new}')
 
@@ -156,7 +157,7 @@ class LoginWeChatUseCase(BaseUseCase):
             tuple: (用户对象, 是否为新用户)
         """
         # 查询现有用户
-        existing_user = UserService.query_user_by_openid(openid)
+        existing_user = self.user_repository.find_by_openid(openid)
 
         if existing_user:
             # 更新现有用户信息
@@ -187,7 +188,7 @@ class LoginWeChatUseCase(BaseUseCase):
                     self.logger.error(f'分配用户到默认社区失败: {str(e)}')
 
             if updated:
-                UserService.update_user_by_id(user)
+                self.user_repository.save(user)
 
             return user, False
 
@@ -201,7 +202,7 @@ class LoginWeChatUseCase(BaseUseCase):
         )
 
         try:
-            created_user = UserService.create_user(user_data)
+            created_user = self.user_repository.save(user_data)
             self.logger.info(f'新用户创建成功，用户ID: {created_user.user_id}')
             return created_user, True
         except Exception as e:
@@ -217,7 +218,7 @@ class LoginWeChatUseCase(BaseUseCase):
                 role=1,
                 status=1
             )
-            created_user = UserService.create_user(user_data)
+            created_user = self.user_repository.save(user_data)
             self.logger.warning(f'使用fallback信息创建用户成功，用户ID: {created_user.user_id}')
             return created_user, True
 

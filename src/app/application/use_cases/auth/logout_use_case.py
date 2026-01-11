@@ -11,7 +11,7 @@ import logging
 from typing import Optional
 
 from .base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
-from wxcloudrun.user_service import UserService
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class LogoutUseCase(BaseUseCase):
@@ -19,6 +19,7 @@ class LogoutUseCase(BaseUseCase):
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def _validate(self, openid: Optional[str]) -> UseCaseResult:
         """
@@ -54,13 +55,13 @@ class LogoutUseCase(BaseUseCase):
         self.logger.info('开始执行登出用例')
 
         # 1. 查询用户
-        user = UserService.query_user_by_openid(openid)
+        user = self.user_repository.find_by_openid(openid)
 
         if user:
             # 2. 清除 refresh token
             user.refresh_token = None
             user.refresh_token_expire = None
-            UserService.update_user_by_id(user)
+            self.user_repository.save(user)
             self.logger.info(f'成功清除用户ID: {user.user_id} 的refresh token')
         else:
             self.logger.warning(f'未找到用户，openid: {openid}')

@@ -13,8 +13,8 @@ import logging
 from typing import Dict
 
 from .base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
-from wxcloudrun.user_service import UserService
 from app.shared.utils.auth import generate_auth_tokens
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class RefreshTokenUseCase(BaseUseCase):
@@ -22,6 +22,7 @@ class RefreshTokenUseCase(BaseUseCase):
 
     def __init__(self):
         self.logger = logging.getLogger(__name__)
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def _validate(self, refresh_token: str) -> UseCaseResult:
         """
@@ -57,7 +58,7 @@ class RefreshTokenUseCase(BaseUseCase):
         self.logger.info('开始执行刷新 Token 用例')
 
         # 1. 查询用户信息
-        user = UserService.query_user_by_refresh_token(refresh_token)
+        user = self.user_repository.find_by_refresh_token(refresh_token)
 
         if not user:
             self.logger.warning(f'未找到用户，refresh_token: {refresh_token[:20]}...')
@@ -80,7 +81,7 @@ class RefreshTokenUseCase(BaseUseCase):
             # 清除过期的 refresh token
             user.refresh_token = None
             user.refresh_token_expire = None
-            UserService.update_user_by_id(user)
+            self.user_repository.save(user)
             return UseCaseResult(
                 status=UseCaseStatus.UNAUTHORIZED,
                 message='refresh_token已过期'
