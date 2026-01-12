@@ -15,9 +15,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import init_config, get_database_config
 from .extensions import db  # 从扩展模块导入
 
-# 初始化配置
-app_config = init_config()
-
 # 配置日志
 def configure_logging(app):
     """配置应用日志"""
@@ -71,7 +68,11 @@ def create_app(config_name=None):
     Returns:
         Flask应用实例
     """
-    # 1. 创建Flask应用实例
+    # 1. 初始化配置（必须在创建Flask应用之前）
+    global app_config
+    app_config = init_config()
+    
+    # 2. 创建Flask应用实例
     app = Flask(__name__, instance_relative_config=True, template_folder='templates')
     
     # 2. 配置日志
