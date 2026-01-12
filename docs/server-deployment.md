@@ -202,8 +202,10 @@ cd /opt/safeguard/backend
 
 ```bash
 # 在服务器上
-cd /opt
-git clone <your-repo-url> safeguard
+cd /opt/
+mkdir safeguard
+cd safeguard
+git clone <your-repo-url> backend
 cd /opt/safeguard/backend
 
 # ⚠️ 警告：如果以 root 用户执行 git clone，文件也是 root 权限！必须执行下面的权限配置步骤！
