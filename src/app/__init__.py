@@ -130,8 +130,11 @@ def register_blueprints(app):
     @app.route('/')
     def index():
         """根路径返回首页"""
-        from flask import render_template
-        return render_template('index.html')
+        from flask import send_from_directory
+        import os
+        # 获取 templates 目录的绝对路径
+        templates_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'templates')
+        return send_from_directory(templates_dir, 'index.html')
 
     # 导入所有蓝图
     from .modules.auth import auth_bp
