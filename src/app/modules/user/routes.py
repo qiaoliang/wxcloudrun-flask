@@ -17,7 +17,7 @@ from app.shared.utils.auth import verify_token
 from app.shared.utils.transaction import transaction
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code, normalize_phone_number
 from app.shared.decorators import login_required
-from config_manager import get_token_secret
+from config import get_config
 from error_code import INVALID_CAPTCHA
 
 app_logger = logging.getLogger('log')

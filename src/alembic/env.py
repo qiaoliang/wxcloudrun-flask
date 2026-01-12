@@ -9,7 +9,7 @@ import os
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # 首先加载环境配置
-from config_manager import load_environment_config, get_database_config
+from config import load_environment_config, get_database_config
 load_environment_config()  # 确保环境变量已加载
 
 # 导入新的数据库模型

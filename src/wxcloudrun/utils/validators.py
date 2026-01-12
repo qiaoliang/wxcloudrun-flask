@@ -60,7 +60,7 @@ def _verify_sms_code(phone, purpose, code):
     验证短信验证码
     """
     # 在 mock 环境下（should_use_real_sms() 返回 False），进行基本验证
-    from config_manager import should_use_real_sms
+    from config import should_use_real_sms
     if not should_use_real_sms():
         current_app.logger.info(f"[Mock SMS] 验证验证码 - phone: {phone}, purpose: {purpose}, code: {code}, ENV_TYPE={os.getenv('ENV_TYPE', 'unit')}")
         

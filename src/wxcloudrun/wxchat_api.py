@@ -3,7 +3,7 @@ from typing import Dict, Optional
 import os
 import requests
 from config import WX_APPID, WX_SECRET
-from config_manager import should_use_mock_wechat
+from config import should_use_mock_wechat
 
 
 # --------------------------

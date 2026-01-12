@@ -39,8 +39,8 @@ def transactional(f):
     def decorated_function(*args, **kwargs):
         try:
             # 检查是否在测试环境中
-            import config_manager
-            if config_manager.is_unit_environment():
+            from config import EnvironmentHelper
+            if EnvironmentHelper.is_unit():
                 # 测试环境：使用 begin_nested() + commit()，让外层事务回滚时自动回滚所有修改
                 with db.session.begin_nested():
                     result = f(*args, **kwargs)
@@ -199,7 +199,7 @@ def transaction():
     Returns:
         TransactionContext: 事务上下文管理器
     """
-    import config_manager
+    from config import EnvironmentHelper
 
     class TransactionContext:
         def __enter__(self):

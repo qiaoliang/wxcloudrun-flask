@@ -4,7 +4,7 @@ import string
 import requests
 from abc import ABC, abstractmethod
 from typing import Dict, Any
-from config_manager import should_use_real_sms
+from config import should_use_real_sms
 
 
 class SMSProvider(ABC):

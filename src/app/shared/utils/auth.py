@@ -8,7 +8,7 @@ import jwt
 from flask import request, current_app
 from database.flask_models import db, User
 from app.shared.response import make_err_response
-from config_manager import get_token_secret
+from config import get_config
 
 app_logger = logging.getLogger('log')
 
@@ -48,9 +48,10 @@ def verify_token():
         app_logger.info(f'token不包含额外引号或为空，无需处理')
 
     try:
-        # 从配置管理器获取TOKEN_SECRET
+        # 从配置获取TOKEN_SECRET
         try:
-            token_secret = get_token_secret()
+            config = get_config()
+            token_secret = config.token_secret
         except ValueError as e:
             app_logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
             return None, make_err_response({}, '服务器配置错误')
@@ -303,9 +304,10 @@ def generate_jwt_token(user, expires_hours=2):
     }
     app_logger.info(f'JWT token payload: {token_payload}')
 
-    # 从配置管理器获取 TOKEN_SECRET
+    # 从配置获取 TOKEN_SECRET
     try:
-        token_secret = get_token_secret()
+        config = get_config()
+        token_secret = config.token_secret
     except ValueError as e:
         app_logger.error(f'获取TOKEN_SECRET失败: {str(e)}')
         return None, make_err_response({}, '服务器配置错误')

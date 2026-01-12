@@ -4,7 +4,7 @@
 import logging
 from datetime import datetime
 from flask import current_app
-from config_manager import analyze_all_configs, detect_external_systems_status
+from config import analyze_all_configs, detect_external_systems_status
 
 app_logger = logging.getLogger('log')
 

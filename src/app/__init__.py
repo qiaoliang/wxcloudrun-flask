@@ -12,9 +12,11 @@ from flask import Flask
 # 添加父目录到路径，以便导入config模块
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import config
-from config_manager import get_database_config
+from config import init_config, get_database_config
 from .extensions import db  # 从扩展模块导入
+
+# 初始化配置
+app_config = init_config()
 
 # 配置日志
 def configure_logging(app):
@@ -76,10 +78,14 @@ def create_app(config_name=None):
     configure_logging(app)
     
     # 3. 加载配置
-    app.config.from_object('config')
-    
-    # 配置调试模式
-    app.config['DEBUG'] = config.DEBUG
+    app.config['DEBUG'] = app_config.debug
+    app.config['SQLALCHEMY_DATABASE_URI'] = app_config.database.uri
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'pool_pre_ping': True,
+        'pool_recycle': 300,
+        'echo': os.getenv('SQL_DEBUG', 'False').lower() == 'true'
+    }
     
     # 获取数据库配置（用于日志记录）
     db_config = get_database_config()
@@ -113,8 +119,8 @@ def create_app(config_name=None):
     register_session_cleanup(app)
 
     # 9. 在 unit 环境下初始化默认数据
-    import config_manager
-    if config_manager.is_unit_environment():
+    from config import EnvironmentHelper
+    if EnvironmentHelper.is_unit():
         with app.app_context():
             app.logger.info("默认社区初始化已在数据库迁移完成后自动执行")
 
@@ -194,8 +200,8 @@ def register_error_handlers(app):
 def register_session_cleanup(app):
     """注册会话清理处理器"""
     # 在测试环境中不注册 teardown_appcontext，以保持事务的一致性
-    import config_manager
-    if not config_manager.is_unit_environment():
+    from config import EnvironmentHelper
+    if not EnvironmentHelper.is_unit():
         @app.teardown_appcontext
         def shutdown_session(exception=None):
             """请求结束后清理数据库会话

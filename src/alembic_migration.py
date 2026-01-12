@@ -47,7 +47,7 @@ def validate_migration_prerequisites():
             raise FileNotFoundError("alembic 目录不存在")
 
         # 检查数据库配置
-        from config_manager import get_database_config
+        from config import get_database_config
         db_config = get_database_config()
         db_uri = db_config.get('SQLALCHEMY_DATABASE_URI')
         if not db_uri:
@@ -63,7 +63,7 @@ def validate_migration_prerequisites():
 def validate_database_consistency():
     """Layer 2: 验证数据库一致性"""
     try:
-        from config_manager import get_database_config
+        from config import get_database_config
         db_config = get_database_config()
         db_path = db_config.get('DATABASE_PATH')
 
@@ -192,9 +192,9 @@ def setup_migration_safeguards():
             os.makedirs(log_dir, exist_ok=True)
 
         # 设置迁移前的安全检查
-        from config_manager import is_production_environment
+        from config import EnvironmentHelper
 
-        if is_production_environment():
+        if EnvironmentHelper.is_production():
             logger.warning("在生产环境中执行迁移，请确保已备份数据库")
 
         return True

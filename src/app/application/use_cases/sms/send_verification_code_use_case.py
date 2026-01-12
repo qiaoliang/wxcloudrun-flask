@@ -7,7 +7,7 @@ from sqlalchemy import select
 from database.flask_models import db, VerificationCode
 from wxcloudrun.sms_service import create_sms_provider, generate_code
 from wxcloudrun.utils.validators import _code_expiry_minutes, normalize_phone_number, _hash_code
-from config_manager import should_use_real_sms
+from config import should_use_real_sms
 from app.shared.utils.transaction import transaction
 import secrets
 
