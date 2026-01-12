@@ -70,7 +70,7 @@ def create_app(config_name=None):
         Flask应用实例
     """
     # 1. 创建Flask应用实例
-    app = Flask(__name__, instance_relative_config=True)
+    app = Flask(__name__, instance_relative_config=True, template_folder='templates')
     
     # 2. 配置日志
     configure_logging(app)
