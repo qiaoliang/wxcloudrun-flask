@@ -1,25 +1,19 @@
 """
 端口配置统一管理
-所有环境的端口配置集中在此文件中
+从环境变量读取端口配置
 """
 
-# 端口配置映射
-# ENV_TYPE -> 端口号
-PORT_CONFIG = {
-    'func': 9999,      # 功能测试环境
-    'function': 9999,  # 开发环境
-    'unit': 9999,      # 单元测试环境
-    'uat': 8080,       # UAT环境
-    'prod': 8080,      # 生产环境
-}
-
-# 默认端口（当 ENV_TYPE 未知时）
-DEFAULT_PORT = 8080
+import os
 
 
 def get_port(env_type: str) -> int:
     """
     根据环境类型获取端口
+
+    优先级：
+    1. EXPOSE_PORT 环境变量（最高优先级）
+    2. 根据 ENV_TYPE 从环境变量读取
+    3. 默认端口 8080
 
     Args:
         env_type: 环境类型 (func, function, unit, uat, prod)
@@ -27,7 +21,25 @@ def get_port(env_type: str) -> int:
     Returns:
         对应的端口号
     """
-    return PORT_CONFIG.get(env_type, DEFAULT_PORT)
+    # 1. 优先使用 EXPOSE_PORT 环境变量
+    if 'EXPOSE_PORT' in os.environ:
+        return int(os.environ['EXPOSE_PORT'])
+
+    # 2. 根据 ENV_TYPE 从环境变量读取端口
+    port_env_var = f'PORT_{env_type.upper()}'
+    if port_env_var in os.environ:
+        return int(os.environ[port_env_var])
+
+    # 3. 默认端口映射
+    default_ports = {
+        'func': 9999,
+        'function': 9999,
+        'unit': 9999,
+        'uat': 8080,
+        'prod': 8080,
+    }
+
+    return default_ports.get(env_type, 8080)
 
 
 def get_env_type_from_port(port: int) -> str:
@@ -40,7 +52,16 @@ def get_env_type_from_port(port: int) -> str:
     Returns:
         环境类型，如果找不到则返回 None
     """
-    for env, p in PORT_CONFIG.items():
+    # 从环境变量读取所有端口配置
+    port_map = {
+        'func': int(os.environ.get('PORT_FUNC', 9999)),
+        'function': int(os.environ.get('PORT_FUNCTION', 9999)),
+        'unit': int(os.environ.get('PORT_UNIT', 9999)),
+        'uat': int(os.environ.get('PORT_UAT', 8080)),
+        'prod': int(os.environ.get('PORT_PROD', 8080)),
+    }
+
+    for env, p in port_map.items():
         if p == port:
             return env
     return None
