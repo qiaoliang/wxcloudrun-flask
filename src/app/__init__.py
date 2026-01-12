@@ -126,6 +126,13 @@ def create_app(config_name=None):
 
 def register_blueprints(app):
     """注册所有蓝图到Flask应用"""
+    # 注册根路径路由，直接返回 index.html
+    @app.route('/')
+    def index():
+        """根路径返回首页"""
+        from flask import render_template
+        return render_template('index.html')
+
     # 导入所有蓝图
     from .modules.auth import auth_bp
     from .modules.user import user_bp
@@ -153,7 +160,7 @@ def register_blueprints(app):
     app.register_blueprint(user_checkin_bp, url_prefix='/api')
     app.register_blueprint(misc_bp, url_prefix='/api')
     app.register_blueprint(community_dashboard_bp, url_prefix='/api')
-    
+
     # 只在主进程中记录此日志，避免 Flask 重启时重复
     if os.environ.get('WERKZEUG_RUN_MAIN') != 'true':
         app.logger.info("所有蓝图已成功注册")

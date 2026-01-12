@@ -166,6 +166,7 @@ def main():
 
     # 根据 ENV_TYPE 设置默认端口
     default_ports = {
+        'func': 9999,      #功能测试环境
         'function': 9999,  # 开发环境
         'unit': 9999,      # 单元测试环境
         'uat': 8080,       # UAT环境
