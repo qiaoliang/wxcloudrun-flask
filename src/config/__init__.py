@@ -104,3 +104,98 @@ def get_database_config() -> dict:
         'DATABASE_TYPE': config.database.database_type,
         'DATABASE_PATH': config.database.database_path
     }
+
+
+def load_environment_config(env_type: str = None) -> None:
+    """
+    加载环境配置（兼容旧接口）
+
+    Args:
+        env_type: 环境类型
+    """
+    if env_type is None:
+        env_type = EnvironmentHelper.get_env_type()
+    
+    import os
+    from dotenv import load_dotenv
+    
+    # 环境文件映射
+    env_file_mapping = {
+        'unit': '.env.unit',
+        'dev': '.env.dev',
+        'func': '.env.function',
+        'function': '.env.function',
+        'uat': '.env.uat',
+        'prod': '.env.prod'
+    }
+    
+    env_file = env_file_mapping.get(env_type, '.env.unit')
+    load_dotenv(env_file)
+
+
+def analyze_all_configs() -> dict:
+    """
+    分析应用程序相关的配置变量（兼容旧接口）
+
+    Returns:
+        包含应用程序配置分析结果的字典
+    """
+    import os
+    
+    env_type = EnvironmentHelper.get_env_type()
+    
+    # 定义应用程序相关的环境变量列表
+    app_related_vars = {
+        'ENV_TYPE', 'TOKEN_SECRET', 'PHONE_ENCRYPTION_KEY',
+        'WX_SECRET', 'VIRTUAL_ENV', 'DB_RETRY_COUNT',
+        'MAIL_SERVER', 'MAIL_PORT',
+        'MAIL_USERNAME', 'MAIL_PASSWORD', 'MAIL_USE_TLS', 'SMS_API_KEY',
+        'SMS_API_SECRET', 'SQLITE_DB_PATH', 'USE_SQLITE_FOR_TESTING',
+        'CONFIG_VERIFICATION_CODE_EXPIRY', 'SMS_DEBUG_RETURN_CODE'
+    }
+    
+    # 获取配置值
+    config_values = {}
+    for var in app_related_vars:
+        value = os.getenv(var)
+        if value is not None:
+            config_values[var] = value
+    
+    return {
+        'env_type': env_type,
+        'app_related_vars': config_values,
+        'total_vars': len(config_values)
+    }
+
+
+def detect_external_systems_status() -> dict:
+    """
+    检测外部系统状态（兼容旧接口）
+
+    Returns:
+        外部系统状态信息
+    """
+    external_systems = {}
+    
+    # 微信API状态
+    external_systems['wechat'] = {
+        'name': '微信API',
+        'is_mock': should_use_mock_wechat(),
+        'config': {
+            'use_mock': should_use_mock_wechat()
+        }
+    }
+    
+    # 短信服务状态
+    external_systems['sms'] = {
+        'name': '短信服务',
+        'use_real': should_use_real_sms(),
+        'config': {
+            'use_real': should_use_real_sms()
+        }
+    }
+    
+    return {
+        'external_systems': external_systems,
+        'total_systems': len(external_systems)
+    }
