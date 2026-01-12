@@ -58,16 +58,16 @@ FROM app-build as runtime
 
 # 构建参数 - 默认为生产环境
 ARG ENV_TYPE=prod
-ARG EXPOSE_PORT=8080
 
 # 设置环境变量
 ENV ENV_TYPE=${ENV_TYPE}
 
-# 暴露端口
-EXPOSE ${EXPOSE_PORT}
+# 暴露端口（通过 ENV_TYPE 动态确定，这里不硬编码）
+EXPOSE 8080
+EXPOSE 9999
 
-# 启动容器
-CMD ["python3", "run.py", "0.0.0.0", "8080"]
+# 启动容器（端口由 run.py 根据 ENV_TYPE 自动确定）
+CMD ["python3", "run.py"]
 
 # ================================
 # 环境特定构建目标
@@ -75,18 +75,12 @@ CMD ["python3", "run.py", "0.0.0.0", "8080"]
 
 # Function 环境
 FROM runtime as function
-ARG EXPOSE_PORT=9999
 ENV ENV_TYPE=function
-EXPOSE ${EXPOSE_PORT}
 
 # UAT 环境
 FROM runtime as uat
-ARG EXPOSE_PORT=8081
 ENV ENV_TYPE=uat
-EXPOSE ${EXPOSE_PORT}
 
 # 生产环境
 FROM runtime as production
-ARG EXPOSE_PORT=8080
 ENV ENV_TYPE=prod
-EXPOSE ${EXPOSE_PORT}
