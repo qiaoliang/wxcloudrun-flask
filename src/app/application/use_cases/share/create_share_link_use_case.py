@@ -2,12 +2,14 @@
 创建分享链接用例
 """
 import logging
+import os
 from datetime import datetime, timedelta
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from database.flask_models import ShareLink
 import secrets
+import qrcode
 
 
 class CreateShareLinkUseCase(BaseUseCase):
@@ -19,6 +21,7 @@ class CreateShareLinkUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.share_link_repository = RepositoryFactory.get_share_link_repository()
+        self.qrcode_dir = 'static/qrcodes'
 
     def execute(
         self,
@@ -80,8 +83,8 @@ class CreateShareLinkUseCase(BaseUseCase):
                     message='无权限操作此打卡规则'
                 )
 
-            # 5. 生成分享token
-            token = secrets.token_urlsafe(16)
+            # 5. 生成分享token（64位安全随机字符串）
+            token = secrets.token_urlsafe(64)
             expires_at = datetime.now() + timedelta(hours=expire_hours)
 
             # 6. 创建分享链接
@@ -94,9 +97,12 @@ class CreateShareLinkUseCase(BaseUseCase):
 
             saved_link = self.share_link_repository.save(share_link)
 
+            # 7. 生成二维码图片
+            qrcode_url = self._generate_qrcode(token)
+
             self.logger.info(f'创建分享链接成功: user_id={user_id}, rule_id={rule_id}, token={token}')
 
-            # 7. 返回结果
+            # 8. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='分享链接创建成功',
@@ -104,7 +110,8 @@ class CreateShareLinkUseCase(BaseUseCase):
                     'token': saved_link.token,
                     'rule_id': saved_link.rule_id,
                     'user_id': saved_link.solo_user_id,
-                    'expires_at': saved_link.expires_at.isoformat() if saved_link.expires_at else None
+                    'expires_at': saved_link.expires_at.isoformat() if saved_link.expires_at else None,
+                    'qrcode_url': qrcode_url
                 }
             )
 
@@ -114,3 +121,46 @@ class CreateShareLinkUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f'创建分享链接失败: {str(e)}'
             )
+
+    def _generate_qrcode(self, token: str) -> str:
+        """
+        生成二维码图片并保存
+
+        Args:
+            token: 分享token
+
+        Returns:
+            str: 二维码图片URL
+        """
+        try:
+            # 确保目录存在
+            os.makedirs(self.qrcode_dir, exist_ok=True)
+
+            # 构建分享链接URL
+            # 注意：这里使用相对路径，实际URL会在路由层构建
+            share_url = f"/share/checkin?token={token}"
+
+            # 创建二维码
+            qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=10,
+                border=4,
+            )
+            qr.add_data(share_url)
+            qr.make(fit=True)
+
+            # 生成图片
+            img = qr.make_image(fill_color="black", back_color="white")
+
+            # 保存到文件
+            filename = f"{token}.png"
+            filepath = os.path.join(self.qrcode_dir, filename)
+            img.save(filepath)
+
+            # 返回URL路径
+            return f"/static/qrcodes/{filename}"
+
+        except Exception as e:
+            self.logger.error(f'生成二维码失败: {str(e)}', exc_info=True)
+            raise

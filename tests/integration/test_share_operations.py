@@ -106,9 +106,9 @@ class TestShareOperations(IntegrationTestBase):
             )
 
             # 验证响应
-            resolve_data = self.assert_api_success(resolve_response, ['rule_info', 'share_info'])
+            resolve_data = self.assert_api_success(resolve_response, ['rule_info', 'inviter_info'])
             assert resolve_data['data']['rule_info']['rule_id'] == rule.rule_id
-            assert resolve_data['data']['share_info']['share_user_id'] == user.user_id
+            assert resolve_data['data']['inviter_info']['user_id'] == user.user_id
 
     def test_share_checkin_page_success(self):
         """测试成功渲染分享打卡页面"""

@@ -297,6 +297,10 @@ class TestBase:
 
         return data
 
+        return data
+
+        return data
+
     def create_snapshot_validator(self, expected_values):
         """创建快照对比验证器"""
         def validate_response(response):

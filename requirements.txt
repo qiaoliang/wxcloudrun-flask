@@ -17,3 +17,4 @@ pyjwt==2.4.0
 python-dotenv==0.21.0
 redis==5.0.1
 Flask-APScheduler==1.13.1  # 定时任务支持
+qrcode==7.4.2  # 二维码生成库

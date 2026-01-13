@@ -60,12 +60,14 @@ def create_share_checkin_link():
             token = result.data.get('token')
             full_url = f"{base_url}/share/check-in?token={token}"
             mini_path = f"/share/check-in?token={token}"
+            qrcode_url = result.data.get('qrcode_url')
 
             current_app.logger.info(f'用户 {user.user_id} 创建分享链接成功，token: {token}')
             return make_succ_response({
                 'token': token,
                 'url': full_url,
                 'mini_path': mini_path,
+                'qrcode_url': qrcode_url,
                 'expire_at': result.data.get('expires_at')
             })
         else:
@@ -81,12 +83,21 @@ def resolve_share_checkin_link():
     """
     解析分享链接，返回打卡规则信息（无需登录）
     参数：token
-    返回：{ rule_info, share_info }
+    返回：{ rule_info, inviter_info, is_expired, is_already_supervisor }
     """
     try:
         token = request.args.get('token')
         if not token:
             return make_err_response({}, '缺少token参数')
+
+        # 获取当前用户ID（如果已登录）
+        current_user_id = None
+        decoded, error_response = verify_token()
+        if not error_response and decoded:
+            openid = decoded.get('openid')
+            user = UserService.query_user_by_openid(openid)
+            if user:
+                current_user_id = user.user_id
 
         # 使用应用服务用例解析分享链接
         from app.application.use_cases.share import ResolveShareLinkUseCase
@@ -95,7 +106,8 @@ def resolve_share_checkin_link():
         result = use_case.execute(
             token=token,
             ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent', '')
+            user_agent=request.headers.get('User-Agent', ''),
+            current_user_id=current_user_id
         )
 
         if result.is_success:

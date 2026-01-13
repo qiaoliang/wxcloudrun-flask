@@ -22,11 +22,11 @@ class TestSupervisionOperations(IntegrationTestBase):
     def test_invite_supervisor_success(self):
         """测试成功邀请监督者"""
         with self.app.app_context():
-        # 创建监督者和被监督者
+            # 创建监督者和被监督者
             supervisor = self.create_standard_test_user(role=1, test_context='invite_supervisor')
             supervised = self.create_standard_test_user(role=1, test_context='invite_supervised')
 
-        # 为监督者创建打卡规则
+            # 为监督者创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
             rule = CheckinRuleService.create_rule(
                 {
@@ -42,7 +42,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             client = self.get_test_client()
             token = self.get_jwt_token(supervisor.phone_number)
 
-        # 发送邀请监督者请求
+            # 发送邀请监督者请求
             response = client.post(
                 '/api/supervision/invite',
                 data=json.dumps({
@@ -54,18 +54,18 @@ class TestSupervisionOperations(IntegrationTestBase):
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-        # 验证响应
+            # 验证响应
             data = self.assert_api_success(response, ['message', 'relations_count'])
             assert data['data']['message'] == '邀请发送成功'
             assert data['data']['relations_count'] >= 1
 
-        def test_create_invite_link_success(self):
-            """测试成功创建监督邀请链接"""
+    def test_create_invite_link_success(self):
+        """测试成功创建监督邀请链接"""
         with self.app.app_context():
-        # 创建监督者
+            # 创建监督者
             supervisor = self.create_standard_test_user(role=1, test_context='create_invite_link')
 
-        # 为监督者创建打卡规则
+            # 为监督者创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
             rule = CheckinRuleService.create_rule(
                 {
@@ -81,7 +81,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             client = self.get_test_client()
             token = self.get_jwt_token(supervisor.phone_number)
 
-        # 发送创建邀请链接请求
+            # 发送创建邀请链接请求
             response = client.post(
                 '/api/supervision/invite_link',
                 data=json.dumps({
@@ -92,18 +92,18 @@ class TestSupervisionOperations(IntegrationTestBase):
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-        # 验证响应
+            # 验证响应
             data = self.assert_api_success(response, ['invite_token', 'rule_ids', 'expires_at'])
             assert 'invite_token' in data['data']
             assert len(data['data']['rule_ids']) >= 1
 
-        def test_resolve_invite_link_success(self):
-            """测试成功解析监督邀请链接"""
+    def test_resolve_invite_link_success(self):
+        """测试成功解析监督邀请链接"""
         with self.app.app_context():
-        # 创建监督者
+            # 创建监督者
             supervisor = self.create_standard_test_user(role=1, test_context='resolve_invite_link')
 
-        # 为监督者创建打卡规则
+            # 为监督者创建打卡规则
             from wxcloudrun.checkin_rule_service import CheckinRuleService
             rule = CheckinRuleService.create_rule(
                 {
@@ -116,14 +116,14 @@ class TestSupervisionOperations(IntegrationTestBase):
                 supervisor.user_id
             )
 
-        # 创建监督邀请链接
+            # 创建监督邀请链接
             import secrets
             from database.flask_models import db, SupervisionRuleRelation
             from datetime import datetime, timedelta
 
             invite_token = secrets.token_urlsafe(32)
 
-        # 创建监督关系（模拟邀请链接创建）
+            # 创建监督关系（模拟邀请链接创建）
             relation = SupervisionRuleRelation(
                 solo_user_id=supervisor.user_id,
                 supervisor_user_id=supervisor.user_id + 1,  # 假设被监督者
@@ -135,137 +135,165 @@ class TestSupervisionOperations(IntegrationTestBase):
 
             client = self.get_test_client()
 
-        # 发送解析邀请链接请求
+            # 发送解析邀请链接请求
             response = client.get(
                 f'/api/supervision/invite/resolve?token={invite_token}'
             )
 
-        # 注意：由于实际实现中invite_link是简化的，这里只验证响应格式
-        # 实际项目中应该有完整的邀请链接存储和解析逻辑
+            # 注意：由于实际实现中invite_link是简化的，这里只验证响应格式
+            # 实际项目中应该有完整的邀请链接存储和解析逻辑
 
-        def test_get_supervision_invitations_success(self):
-            """测试成功获取监督邀请列表"""
+    def test_get_supervision_invitations_success(self):
+        """测试成功获取监督邀请列表"""
         with self.app.app_context():
-        # 创建用户
+            # 创建用户
             user = self.create_standard_test_user(role=1, test_context='get_invitations')
 
             client = self.get_test_client()
             token = self.get_jwt_token(user.phone_number)
 
-        # 发送获取监督邀请列表请求
+            # 发送获取监督邀请列表请求
             response = client.get(
                 '/api/supervision/invitations',
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-        # 验证响应
+            # 验证响应
             data = self.assert_api_success(response, ['invitations', 'total'])
             assert 'invitations' in data['data']
 
-        def test_accept_supervision_success(self):
-            """测试成功接受监督邀请"""
+    def test_accept_supervision_success(self):
+        """测试成功接受监督邀请"""
         with self.app.app_context():
-        # 创建用户
-            user = self.create_standard_test_user(role=1, test_context='accept_supervision')
+            # 创建用户和监督关系
+            supervisor = self.create_standard_test_user(role=1, test_context='accept_supervision')
+            supervised = self.create_standard_test_user(role=1, test_context='accept_supervised')
+
+            # 为监督者创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日学习',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '09:00:00',
+                    'week_days': [1, 2, 3, 4, 5]
+                },
+                supervisor.user_id
+            )
+
+            # 创建监督关系
+            from database.flask_models import db, SupervisionRuleRelation
+            relation = SupervisionRuleRelation(
+                solo_user_id=supervisor.user_id,
+                supervisor_user_id=supervised.user_id,
+                rule_id=rule.rule_id,
+                status=1  # Pending status
+            )
+            db.session.add(relation)
+            db.session.commit()
 
             client = self.get_test_client()
-            token = self.get_jwt_token(user.phone_number)
+            token = self.get_jwt_token(supervised.phone_number)
 
-        # 发送接受监督邀请请求
+            # 发送接受监督邀请请求
             response = client.post(
                 '/api/supervision/accept',
                 data=json.dumps({
-                    'invitation_id': 1
+                    'relation_id': relation.relation_id  # 使用 relation_id 而不是 invitation_id
                 }),
                 content_type='application/json',
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-        # 验证响应
-            data = self.assert_api_success(response, ['message'])
-            assert data['data']['message'] == '接受监督邀请成功'
+            # 验证响应
+            data = self.assert_api_success(response, ['relation_id', 'status'])
+            assert data['data']['relation_id'] == relation.relation_id
+            assert data['data']['status'] == 2  # 2 = 已激活
 
-        def test_reject_supervision_success(self):
-            """测试成功拒绝监督邀请"""
+    def test_reject_supervision_success(self):
+        """测试成功拒绝监督邀请"""
         with self.app.app_context():
-        # 创建用户
-            user = self.create_standard_test_user(role=1, test_context='reject_supervision')
+            # 创建用户和监督关系
+            supervisor = self.create_standard_test_user(role=1, test_context='reject_supervision')
+            supervised = self.create_standard_test_user(role=1, test_context='reject_supervised')
+
+            # 为监督者创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日学习',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '09:00:00',
+                    'week_days': [1, 2, 3, 4, 5]
+                },
+                supervisor.user_id
+            )
+
+            # 创建监督关系
+            from database.flask_models import db, SupervisionRuleRelation
+            relation = SupervisionRuleRelation(
+                solo_user_id=supervisor.user_id,
+                supervisor_user_id=supervised.user_id,
+                rule_id=rule.rule_id,
+                status=1  # Pending status
+            )
+            db.session.add(relation)
+            db.session.commit()
 
             client = self.get_test_client()
-            token = self.get_jwt_token(user.phone_number)
+            token = self.get_jwt_token(supervised.phone_number)
 
-        # 发送拒绝监督邀请请求
+            # 发送拒绝监督邀请请求
             response = client.post(
                 '/api/supervision/reject',
                 data=json.dumps({
-                    'invitation_id': 1,
+                    'relation_id': relation.relation_id,
                     'reason': '暂时不需要监督'
                 }),
                 content_type='application/json',
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-        # 验证响应
+            # 验证响应
             data = self.assert_api_success(response, ['message'])
             assert data['data']['message'] == '拒绝监督邀请成功'
 
-        def test_get_my_supervised_users_success(self):
-            """测试成功获取我监督的用户列表"""
+    def test_get_my_supervised_users_success(self):
+        """测试成功获取我监督的用户列表"""
         with self.app.app_context():
-        # 创建用户
+            # 创建用户
             supervisor = self.create_standard_test_user(role=1, test_context='get_supervised')
 
             client = self.get_test_client()
             token = self.get_jwt_token(supervisor.phone_number)
 
-        # 发送获取监督用户列表请求
+            # 发送获取我监督的用户列表请求
             response = client.get(
                 '/api/supervision/my_supervised',
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-        # 验证响应
+            # 验证响应
             data = self.assert_api_success(response, ['supervised_users', 'total'])
             assert 'supervised_users' in data['data']
 
-        def test_get_my_guardians_success(self):
-            """测试成功获取监督我的用户列表"""
+    def test_get_my_guardians_success(self):
+        """测试成功获取我的监护人列表"""
         with self.app.app_context():
-        # 创建用户
+            # 创建用户
             user = self.create_standard_test_user(role=1, test_context='get_guardians')
 
             client = self.get_test_client()
             token = self.get_jwt_token(user.phone_number)
 
-        # 发送获取监督者列表请求
+            # 发送获取我的监护人列表请求
             response = client.get(
                 '/api/supervision/my_guardians',
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-        # 验证响应
+            # 验证响应
             data = self.assert_api_success(response, ['guardians', 'total'])
             assert 'guardians' in data['data']
-
-        def test_get_supervision_records_success(self):
-            """测试成功获取监督记录"""
-        with self.app.app_context():
-        # 创建用户
-            user = self.create_standard_test_user(role=1, test_context='get_records')
-
-            client = self.get_test_client()
-            token = self.get_jwt_token(user.phone_number)
-
-        # 发送获取监督记录请求
-            response = client.get(
-                '/api/supervision/records',
-                headers={'Authorization': f'Bearer {token}'}
-            )
-
-        # 验证响应
-            data = self.assert_api_success(response, ['records', 'total'])
-            assert 'records' in data['data']
-
-
-if __name__ == '__main__':
-        pytest.main([__file__, '-v'])

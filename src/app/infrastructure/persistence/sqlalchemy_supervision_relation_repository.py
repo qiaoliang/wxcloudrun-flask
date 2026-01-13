@@ -69,6 +69,26 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
         )
         return db.session.execute(stmt).scalar_one_or_none()
 
+    def find_active_relation(self, supervisor_user_id: int, solo_user_id: int, rule_id: int) -> Optional[SupervisionRuleRelation]:
+        """
+        查找已激活的监督关系
+
+        Args:
+            supervisor_user_id: 监督者用户ID
+            solo_user_id: 被监督者用户ID
+            rule_id: 规则ID
+
+        Returns:
+            Optional[SupervisionRuleRelation]: 监督关系对象，不存在时返回None
+        """
+        stmt = select(SupervisionRuleRelation).filter_by(
+            supervisor_user_id=supervisor_user_id,
+            solo_user_id=solo_user_id,
+            rule_id=rule_id,
+            status=2  # 2 = 已激活
+        )
+        return db.session.execute(stmt).scalar_one_or_none()
+
     def save(self, entity: SupervisionRuleRelation) -> SupervisionRuleRelation:
         """
         保存监督关系

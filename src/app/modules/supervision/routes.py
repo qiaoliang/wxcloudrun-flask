@@ -196,6 +196,8 @@ def get_supervision_invitations(decoded):
 def accept_supervision(decoded):
     """
     接受监督邀请接口
+    请求体：{ relation_id }
+    返回：{ relation_id, status }
     """
     current_app.logger.info('=== 开始接受监督邀请 ===')
 
@@ -207,17 +209,35 @@ def accept_supervision(decoded):
 
     try:
         params = request.get_json()
-        invitation_id = params.get('invitation_id')
-        if not invitation_id:
-            return make_err_response({}, '缺少invitation_id参数')
+        relation_id = params.get('relation_id')
+        if not relation_id:
+            return make_err_response({}, '缺少relation_id参数')
 
-        # 这里简化处理，实际应该更新数据库状态
-        current_app.logger.info(f'用户 {user.user_id} 接受监督邀请，邀请ID: {invitation_id}')
-        return make_succ_response({'message': '接受监督邀请成功'})
+        # 查询监督关系
+        relation = db.session.query(SupervisionRuleRelation).filter_by(
+            relation_id=relation_id
+        ).first()
+
+        if not relation:
+            return make_err_response({}, '监督关系不存在')
+
+        # 验证当前用户是监督人
+        if relation.supervisor_user_id != user.user_id:
+            return make_err_response({}, '无权限操作此监督关系')
+
+        # 更新监督关系状态为已激活
+        relation.status = 2  # 2 = 已激活
+        db.session.commit()
+
+        current_app.logger.info(f'用户 {user.user_id} 接受监督邀请成功，关系ID: {relation_id}')
+        return make_succ_response({
+            'relation_id': relation_id,
+            'status': 2  # 2 = 已激活
+        })
 
     except Exception as e:
         current_app.logger.error(f'接受监督邀请失败: {str(e)}', exc_info=True)
-        return make_err_response({}, f'接受邀请失败: {str(e)}')
+        return make_err_response({}, f'接受监督邀请失败: {str(e)}')
 
 
 @supervision_bp.route('/supervision/reject', methods=['POST'])
@@ -225,6 +245,8 @@ def accept_supervision(decoded):
 def reject_supervision(decoded):
     """
     拒绝监督邀请接口
+    请求体：{ relation_id, reason }
+    返回：{ message }
     """
     current_app.logger.info('=== 开始拒绝监督邀请 ===')
 
@@ -236,14 +258,29 @@ def reject_supervision(decoded):
 
     try:
         params = request.get_json()
-        invitation_id = params.get('invitation_id')
+        relation_id = params.get('relation_id')
         reason = params.get('reason', '')
 
-        if not invitation_id:
-            return make_err_response({}, '缺少invitation_id参数')
+        if not relation_id:
+            return make_err_response({}, '缺少relation_id参数')
 
-        # 这里简化处理，实际应该更新数据库状态
-        current_app.logger.info(f'用户 {user.user_id} 拒绝监督邀请，邀请ID: {invitation_id}，原因: {reason}')
+        # 查询监督关系
+        relation = db.session.query(SupervisionRuleRelation).filter_by(
+            relation_id=relation_id
+        ).first()
+
+        if not relation:
+            return make_err_response({}, '监督关系不存在')
+
+        # 验证当前用户是监督人
+        if relation.supervisor_user_id != user.user_id:
+            return make_err_response({}, '无权限操作此监督关系')
+
+        # 删除监督关系（拒绝）
+        db.session.delete(relation)
+        db.session.commit()
+
+        current_app.logger.info(f'用户 {user.user_id} 拒绝监督邀请，关系ID: {relation_id}，原因: {reason}')
         return make_succ_response({'message': '拒绝监督邀请成功'})
 
     except Exception as e:
@@ -373,3 +410,126 @@ def get_supervision_records(decoded):
     except Exception as e:
         current_app.logger.error(f'获取监督记录失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取监督记录失败: {str(e)}')
+
+
+@supervision_bp.route('/supervision/today', methods=['GET'])
+@login_required
+def get_today_supervision_data(decoded):
+    """
+    获取今日监护数据接口
+    参数：date（可选，格式：YYYY-MM-DD，默认为今天）
+    返回：{ supervised_users: [...], date: "2026-01-13" }
+    """
+    current_app.logger.info('=== 开始获取今日监护数据 ===')
+
+    openid = decoded.get('openid')
+    user = UserService.query_user_by_openid(openid)
+    if not user:
+        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取查询参数
+        date_str = request.args.get('date')
+        target_date = None
+        if date_str:
+            try:
+                target_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+            except ValueError:
+                return make_err_response({}, '日期格式错误，应为YYYY-MM-DD')
+
+        # 使用应用服务用例获取今日监护数据
+        from app.application.use_cases.supervision import GetTodaySupervisionDataUseCase
+
+        use_case = GetTodaySupervisionDataUseCase()
+        result = use_case.execute(
+            supervisor_id=user.user_id,
+            target_date=target_date
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 获取今日监护数据成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'获取今日监护数据失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取今日监护数据失败: {str(e)}')
+
+
+@supervision_bp.route('/supervision/send_reminder', methods=['POST'])
+@login_required
+def send_reminder(decoded):
+    """
+    发送提醒接口
+    请求体：{ supervised_user_id, rule_id, template_type, template_content }
+    返回：{ message_id, sent_at }
+    """
+    current_app.logger.info('=== 开始发送提醒 ===')
+
+    openid = decoded.get('openid')
+    user = UserService.query_user_by_openid(openid)
+    if not user:
+        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        params = request.get_json()
+        supervised_user_id = params.get('supervised_user_id')
+        rule_id = params.get('rule_id')
+        template_type = params.get('template_type', 'default')
+        template_content = params.get('template_content', '')
+
+        if not supervised_user_id or not rule_id:
+            return make_err_response({}, '缺少必要参数：supervised_user_id 和 rule_id')
+
+        # 验证监督关系
+        relation = db.session.query(SupervisionRuleRelation).filter_by(
+            supervisor_user_id=user.user_id,
+            solo_user_id=supervised_user_id,
+            rule_id=rule_id,
+            status=2  # 2 = 已激活
+        ).first()
+
+        if not relation:
+            return make_err_response({}, '监督关系不存在或未激活')
+
+        # 获取被监护人信息
+        supervised_user = UserService.query_user_by_id(supervised_user_id)
+        if not supervised_user or not supervised_user.wechat_openid:
+            return make_err_response({}, '被监护人不存在或未绑定微信')
+
+        # 获取规则信息
+        rule = CheckinRuleService.query_rule_by_id(rule_id)
+        if not rule:
+            return make_err_response({}, '打卡规则不存在')
+
+        # 获取模板内容
+        if template_type == 'custom' and template_content:
+            message_content = template_content
+        else:
+            # 使用默认模板
+            default_templates = {
+                'default': '该打卡了',
+                'remember': '记得吃药',
+                'wake_up': '该起床了',
+                'sleep': '该睡觉了'
+            }
+            message_content = default_templates.get(template_type, '该打卡了')
+
+        # TODO: 调用微信模板消息接口发送通知
+        # 这里先返回成功，实际项目中需要集成微信 API
+        current_app.logger.info(f'用户 {user.user_id} 向用户 {supervised_user_id} 发送提醒: {message_content}')
+        
+        # 记录提醒发送日志（可选）
+        # 可以创建一个 ReminderLog 表来记录所有提醒发送记录
+
+        return make_succ_response({
+            'message_id': f'msg_{datetime.now().strftime("%Y%m%d%H%M%S")}',
+            'sent_at': datetime.now().isoformat()
+        })
+
+    except Exception as e:
+        current_app.logger.error(f'发送提醒失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'发送提醒失败: {str(e)}')

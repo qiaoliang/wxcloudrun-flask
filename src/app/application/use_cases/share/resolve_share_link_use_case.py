@@ -6,7 +6,7 @@ from datetime import datetime
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import ShareLinkAccessLog
+from database.flask_models import ShareLinkAccessLog, SupervisionRuleRelation
 
 
 class ResolveShareLinkUseCase(BaseUseCase):
@@ -19,12 +19,14 @@ class ResolveShareLinkUseCase(BaseUseCase):
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
         self.share_link_access_log_repository = RepositoryFactory.get_share_link_access_log_repository()
+        self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
     def execute(
         self,
         token: str,
         ip_address: str = None,
-        user_agent: str = None
+        user_agent: str = None,
+        current_user_id: int = None
     ) -> UseCaseResult:
         """
         执行解析分享链接用例
@@ -33,6 +35,7 @@ class ResolveShareLinkUseCase(BaseUseCase):
             token: 分享链接token
             ip_address: 访问者IP地址
             user_agent: 用户代理字符串
+            current_user_id: 当前登录用户ID（可选）
 
         Returns:
             UseCaseResult: 执行结果
@@ -86,33 +89,43 @@ class ResolveShareLinkUseCase(BaseUseCase):
                     message='分享用户不存在'
                 )
 
-            # 7. 构造响应数据
+            # 7. 检查用户是否已经是监督人（如果提供了当前用户ID）
+            is_already_supervisor = False
+            if current_user_id:
+                existing_relation = self.supervision_relation_repository.find_active_relation(
+                    supervisor_user_id=current_user_id,
+                    solo_user_id=link.solo_user_id,
+                    rule_id=link.rule_id
+                )
+                is_already_supervisor = existing_relation is not None
+
+            # 8. 构造响应数据
             rule_info = {
                 'rule_id': rule.rule_id,
-                'title': rule.rule_name,
+                'rule_name': rule.rule_name,
                 'description': '',
-                'checkin_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else None,
-                'repeat_days': rule.week_days,
+                'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
+                'frequency': 'daily',  # 简化处理，实际应根据 rule.frequency_type 判断
                 'is_enabled': rule.status == 1
             }
 
-            share_info = {
-                'share_user_id': user.user_id,
-                'share_user_nickname': user.nickname,
-                'share_user_avatar': user.avatar_url,
-                'created_at': link.created_at.isoformat() if link.created_at else None,
-                'expires_at': link.expires_at.isoformat() if link.expires_at else None
+            inviter_info = {
+                'user_id': user.user_id,
+                'nickname': user.nickname,
+                'avatar_url': user.avatar_url
             }
 
             self.logger.info(f'解析分享链接成功: token={token}')
 
-            # 8. 返回结果
+            # 9. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='解析分享链接成功',
                 data={
                     'rule_info': rule_info,
-                    'share_info': share_info
+                    'inviter_info': inviter_info,
+                    'is_expired': False,
+                    'is_already_supervisor': is_already_supervisor
                 }
             )
 
