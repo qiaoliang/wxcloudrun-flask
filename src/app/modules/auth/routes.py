@@ -145,8 +145,8 @@ def logout():
 def register_phone():
     try:
         params = request.get_json() or {}
-        phone = params.get('phone')
-        code = params.get('code')
+        phone = params.get('phone') or params.get('phone_number')
+        code = params.get('code') or params.get('sms_code')
         nickname = params.get('nickname')
         avatar_url = params.get('avatar_url')
         password = params.get('password')
@@ -176,9 +176,10 @@ def register_phone():
         nick = nickname or _gen_phone_nickname()
 
         # For phone users, create user with phone_number only (UserService will set wechat_openid to empty)
+        # 如果没有提供密码，使用默认密码 F00000000（用于邀请链接注册的用户）
+        default_password = password if password else 'F00000000'
         user = User(phone_number=normalized_phone, nickname=nick, avatar_url=avatar_url, role=1, status=1)
-        if password:
-            user.password = password
+        user.password = default_password
 
         # Use UserService.create_user to properly handle sessions
         user = UserService.create_user(user)
@@ -209,8 +210,8 @@ def login_phone_code():
     current_app.logger.info('=== 开始执行手机号验证码登录接口 ===')
     try:
         params = request.get_json() or {}
-        phone = params.get('phone')
-        code = params.get('code')
+        phone = params.get('phone') or params.get('phone_number')
+        code = params.get('code') or params.get('sms_code')
         current_app.logger.info(f'登录请求参数 - phone: {phone}, code: {code}')
 
         if not phone or not code:
