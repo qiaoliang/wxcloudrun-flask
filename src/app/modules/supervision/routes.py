@@ -27,23 +27,27 @@ def invite_supervisor(decoded):
     """
     current_app.logger.info('=== 开始执行邀请监督者接口 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
         # 获取请求参数
         params = request.get_json()
         rule_ids = params.get('rule_ids', [])  # 要监督的规则ID列表，空表示监督所有规则
-        target_openid = params.get('target_openid')  # 被邀请用户的openid
+        target_openid = params.get('target_openid')  # 被邀请用户的openid（可选）
+        target_user_id = params.get('target_user_id')  # 被邀请用户的user_id（可选）
 
-        if not target_openid:
-            return make_err_response({}, '缺少target_openid参数')
+        # 支持使用 target_user_id 或 target_openid 查询被邀请用户
+        if target_user_id:
+            target_user = UserService.query_user_by_id(target_user_id)
+        elif target_openid:
+            target_user = UserService.query_user_by_openid(target_openid)
+        else:
+            return make_err_response({}, '缺少target_user_id或target_openid参数')
 
-        # 查询被邀请用户
-        target_user = UserService.query_user_by_openid(target_openid)
         if not target_user:
             return make_err_response({}, '被邀请用户不存在')
 
@@ -76,10 +80,10 @@ def create_invite_link(decoded):
     """
     current_app.logger.info('=== 开始创建监督邀请链接 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -230,10 +234,10 @@ def get_supervision_invitations(decoded):
     """
     current_app.logger.info('=== 开始获取监督邀请列表 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -280,10 +284,10 @@ def accept_supervision(decoded):
     """
     current_app.logger.info('=== 开始接受监督邀请 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -329,10 +333,10 @@ def reject_supervision(decoded):
     """
     current_app.logger.info('=== 开始拒绝监督邀请 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -375,10 +379,10 @@ def get_my_supervised_users(decoded):
     """
     current_app.logger.info('=== 开始获取我监督的用户列表 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -415,10 +419,10 @@ def get_my_guardians(decoded):
     """
     current_app.logger.info('=== 开始获取监督我的用户列表 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -455,10 +459,10 @@ def get_supervision_records(decoded):
     """
     current_app.logger.info('=== 开始获取监督记录 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -501,10 +505,10 @@ def get_today_supervision_data(decoded):
     """
     current_app.logger.info('=== 开始获取今日监护数据 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
@@ -547,10 +551,10 @@ def send_reminder(decoded):
     """
     current_app.logger.info('=== 开始发送提醒 ===')
 
-    openid = decoded.get('openid')
-    user = UserService.query_user_by_openid(openid)
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
     if not user:
-        current_app.logger.error(f'数据库中未找到openid为 {openid} 的用户')
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
 
     try:
