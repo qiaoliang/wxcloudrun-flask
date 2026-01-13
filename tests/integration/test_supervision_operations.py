@@ -124,13 +124,16 @@ class TestSupervisionOperations(IntegrationTestBase):
             from datetime import datetime, timedelta
 
             invite_token = secrets.token_urlsafe(32)
+            expires_at = datetime.now() + timedelta(hours=24)
 
             # 创建监督关系（模拟邀请链接创建）
             relation = SupervisionRuleRelation(
                 solo_user_id=supervisor.user_id,
                 supervisor_user_id=supervisor.user_id + 1,  # 假设被监督者
                 rule_id=rule.rule_id,
-                status=1  # Pending status
+                status=1,  # Pending status
+                invite_token=invite_token,
+                invite_expires_at=expires_at
             )
             db.session.add(relation)
             db.session.commit()
@@ -142,8 +145,15 @@ class TestSupervisionOperations(IntegrationTestBase):
                 f'/api/supervision/invite/resolve?token={invite_token}'
             )
 
-            # 注意：由于实际实现中invite_link是简化的，这里只验证响应格式
-            # 实际项目中应该有完整的邀请链接存储和解析逻辑
+            # 验证响应格式
+            data = self.assert_api_success(response, ['relation_id', 'rule_info', 'inviter_info', 'expires_at'])
+            assert 'relation_id' in data['data']
+            assert 'rule_info' in data['data']
+            assert 'inviter_info' in data['data']
+            assert 'expires_at' in data['data']
+            assert data['data']['rule_info']['rule_name'] == '每日阅读'
+            assert data['data']['inviter_info']['user_id'] == supervisor.user_id
+            assert data['data']['is_expired'] == False
 
     def test_get_supervision_invitations_success(self):
         """测试成功获取监督邀请列表"""

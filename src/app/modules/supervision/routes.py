@@ -203,15 +203,34 @@ def resolve_invite_link():
             CheckinRule.rule_id.in_(rule_ids)
         ).all()
 
+        # 构建规则信息（返回第一个规则的详细信息）
+        rule_info = None
+        if rules:
+            rule = rules[0]
+            rule_info = {
+                'rule_id': rule.rule_id,
+                'rule_name': rule.rule_name,
+                'rule_type': rule.rule_type,
+                'checkin_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else '灵活时间',
+                'frequency': 'daily' if rule.frequency_type == 0 else 'weekly'
+            }
+
+        # 构建邀请人信息
+        inviter_info = {
+            'user_id': solo_user.user_id,
+            'nickname': solo_user.nickname or '未知用户',
+            'phone_number': solo_user.phone_number,
+            'avatar_url': solo_user.avatar_url or ''
+        }
+
         # 构建返回数据
         invite_data = {
-            'supervisor_id': solo_user.user_id,
-            'supervisor_nickname': solo_user.nickname or '未知用户',
-            'supervisor_phone': solo_user.phone_number,
-            'rule_ids': rule_ids,
-            'rule_names': [r.rule_name for r in rules],
+            'relation_id': relations[0].relation_id,
+            'rule_info': rule_info,
+            'inviter_info': inviter_info,
             'expires_at': relations[0].invite_expires_at.isoformat() if relations[0].invite_expires_at else None,
-            'status': 'pending'
+            'is_expired': relations[0].invite_expires_at and relations[0].invite_expires_at < now,
+            'is_already_supervisor': False  # 需要在实际应用中检查当前用户是否已经是监督人
         }
 
         current_app.logger.info(f'解析监督邀请链接成功，token: {invite_token}')
