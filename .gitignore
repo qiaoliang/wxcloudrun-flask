@@ -145,3 +145,7 @@ dmypy.json
 
 # Uploads directory (runtime generated files)
 src/app/static/uploads/
+
+# Supervision QR codes (runtime generated files)
+src/static/supervision_qrcodes/
+static/supervision_qrcodes/
