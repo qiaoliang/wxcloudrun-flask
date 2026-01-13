@@ -169,8 +169,11 @@ def main():
     default_port = get_port(env_type)
     port = int(os.environ.get("EXPOSE_PORT", default_port))
 
+    # 禁用 Flask 的自动重启功能，避免反复启动
+    # 注意：虽然 app.config['DEBUG'] 可能为 True，但这里显式设置 debug=False
+    # 这样可以禁用 Werkzeug 的 reloader，避免不必要的重启
     flask_app.logger.info(f"启动 Flask 应用: {host}:{port} (ENV_TYPE={env_type})")
-    flask_app.run(host=host, port=port)
+    flask_app.run(host=host, port=port, debug=False)
 
 
 if __name__ == '__main__':
