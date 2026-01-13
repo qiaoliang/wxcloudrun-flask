@@ -5,8 +5,6 @@
 import pytest
 import os
 import sys
-import random
-import string
 from datetime import datetime
 from unittest.mock import patch, MagicMock
 
@@ -15,26 +13,13 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from database.flask_models import User, Community, CommunityApplication, CommunityStaff
 
-
-def generate_random_openid():
-    """生成随机的微信OpenID"""
-    return f"test_openid_{''.join(random.choices(string.ascii_letters + string.digits, k=16))}"
-
-
-def generate_random_phone():
-    """生成随机的手机号"""
-    # 生成11位手机号，以1开头
-    return f"1{''.join(random.choices(string.digits, k=10))}"
-
-
-def generate_random_nickname():
-    """生成随机的昵称"""
-    return f"测试用户_{''.join(random.choices(string.ascii_letters, k=8))}"
-
-
-def generate_random_community_name():
-    """生成随机的社区名称"""
-    return f"测试社区_{''.join(random.choices(string.ascii_letters, k=8))}"
+# 添加上级目录到路径以导入test_data_generator
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from test_data_generator import (
+    generate_unique_phone_number,
+    generate_unique_openid,
+    generate_unique_nickname
+)
 
 
 class TestCommunityModel:
@@ -44,7 +29,7 @@ class TestCommunityModel:
         """测试创建社区"""
         # 创建社区
         community = Community(
-            name=generate_random_community_name(),
+            name=generate_unique_nickname('test_create_community'),
             description='这是一个测试社区',
             creator_id=test_superuser.user_id
         )
@@ -59,7 +44,7 @@ class TestCommunityModel:
     def test_community_status_mapping(self, test_session):
         """测试社区状态映射"""
         # 测试启用状态
-        community = Community(name='测试', status=1)
+        community = Community(name=generate_unique_nickname('test_community'), status=1)
         assert community.status == 1
 
         # 测试禁用状态
@@ -73,7 +58,7 @@ class TestCommunityModel:
     def test_create_community_admin(self, test_session, test_user):
         """测试创建社区管理员"""
         # 创建社区
-        community = Community(name=generate_random_community_name())
+        community = Community(name=generate_unique_nickname('test_create_community_admin'))
         test_session.add(community)
         test_session.commit()
 
@@ -104,7 +89,7 @@ class TestCommunityModel:
     def test_create_community_application(self, test_session, test_user):
         """测试创建社区申请"""
         # 创建社区
-        community = Community(name=generate_random_community_name())
+        community = Community(name=generate_unique_nickname('test_create_community_application'))
         test_session.add(community)
         test_session.commit()
 
@@ -147,7 +132,7 @@ class TestUserCommunityMethods:
     def test_user_join_community(self, test_session, test_user):
         """测试用户加入社区"""
         # 创建社区
-        community = Community(name=generate_random_community_name())
+        community = Community(name=generate_unique_nickname('test_user_join_community'))
         test_session.add(community)
         test_session.commit()
 
@@ -163,7 +148,7 @@ class TestUserCommunityMethods:
     def test_user_leave_community(self, test_session, test_user):
         """测试用户离开社区"""
         # 创建社区
-        community = Community(name=generate_random_community_name())
+        community = Community(name=generate_unique_nickname('test_user_leave_community'))
         test_session.add(community)
         test_session.commit()
 
@@ -221,8 +206,8 @@ class TestCommunityConstraints:
     def test_user_can_only_belong_to_one_community(self, test_session, test_user):
         """测试用户只能属于一个社区"""
         # 创建两个社区
-        community1 = Community(name='社区1')
-        community2 = Community(name='社区2')
+        community1 = Community(name=generate_unique_nickname('test_community1'))
+        community2 = Community(name=generate_unique_nickname('test_community2'))
         test_session.add_all([community1, community2])
         test_session.commit()
 
@@ -250,7 +235,8 @@ class TestCommunityQueries:
     def test_get_user_community(self, test_session, test_user):
         """测试获取用户所属社区"""
         # 创建社区
-        community = Community(name='测试社区')
+        community_name = generate_unique_nickname('test_get_user_community')
+        community = Community(name=community_name)
         test_session.add(community)
         test_session.commit()
 
@@ -265,7 +251,7 @@ class TestCommunityQueries:
         ).first()
 
         assert user_community is not None
-        assert user_community.name == '测试社区'
+        assert user_community.name == community_name
 
     def test_get_community_staff(self, test_session, test_user, test_community):
         """测试获取社区工作人员"""
@@ -277,9 +263,12 @@ class TestCommunityQueries:
         )
 
         # 创建另一个用户并添加为专员
+        phone_number = generate_unique_phone_number('test_get_community_staff')
         other_user = User(
-            wechat_openid=generate_random_openid(),
-            nickname='其他用户',
+            wechat_openid=generate_unique_openid(phone_number, 'test_get_community_staff'),
+            phone_number=phone_number,
+            phone_hash='test_hash_123',
+            nickname=generate_unique_nickname('test_get_community_staff'),
             role=1
         )
         test_session.add(other_user)

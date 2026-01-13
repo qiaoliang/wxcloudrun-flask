@@ -2,8 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Optional
 import os
 import requests
-from config import WX_APPID, WX_SECRET
-from config import should_use_mock_wechat
+from config import should_use_mock_wechat, get_config
 
 
 # --------------------------
@@ -107,11 +106,12 @@ def create_wechat_api() -> WeChatAPI:
         return MockWeChatAPI()
     else:
         # 生产环境：使用真实的微信配置
-        if not WX_APPID or not WX_SECRET:
-            raise ValueError("生产环境必须配置WX_APPID和WX_SECRET环境变量")
+        config = get_config()
+        if not config.wechat.appid or not config.wechat.secret:
+            raise ValueError("生产环境必须配置微信 appid 和 secret 环境变量")
         env = os.getenv("ENV_TYPE", "unit")
         print(f"[真实微信API] 使用真实的微信配置，ENV_TYPE={env}")
-        return RealWeChatAPI(appid=WX_APPID, appsecret=WX_SECRET)
+        return RealWeChatAPI(appid=config.wechat.appid, appsecret=config.wechat.secret)
 
 
 # --------------------------

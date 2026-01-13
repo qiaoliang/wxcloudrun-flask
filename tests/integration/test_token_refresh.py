@@ -242,8 +242,8 @@ class TestTokenRefreshIntegration(IntegrationTestBase):
                 'jti': 'expired_test_token'
             }
             
-            from config_manager import get_token_secret
-            token_secret = get_token_secret()
+            from config import get_config
+            token_secret = get_config().token_secret
             expired_token = jwt.encode(expired_payload, token_secret, algorithm='HS256')
 
         print(f"✅ 创建过期token: {expired_token[:50]}...")

@@ -31,8 +31,12 @@ from error_code import INVALID_CAPTCHA
 
 app_logger = logging.getLogger('log')
 
+# 导入速率限制扩展
+from app.extensions import limiter
+
 
 @auth_bp.route('/auth/login_wechat', methods=['POST'])
+@limiter.limit("5 per minute;20 per hour", error_message="登录请求过于频繁，请稍后再试")
 def login_wechat():
     """
     微信登录接口，通过code获取用户信息并返回token
@@ -74,6 +78,7 @@ def login_wechat():
 
 
 @auth_bp.route('/auth/refresh_token', methods=['POST'])
+@limiter.limit("20 per minute;200 per hour", error_message="刷新请求过于频繁，请稍后再试")
 def refresh_token():
     """
     刷新token接口，使用refresh token获取新的access token
@@ -136,6 +141,7 @@ def logout():
 
 
 @auth_bp.route('/auth/register_phone', methods=['POST'])
+@limiter.limit("5 per minute;20 per hour", error_message="注册请求过于频繁，请稍后再试")
 def register_phone():
     try:
         params = request.get_json() or {}
@@ -198,6 +204,7 @@ def register_phone():
 
 
 @auth_bp.route('/auth/login_phone_code', methods=['POST'])
+@limiter.limit("5 per minute;20 per hour", error_message="登录请求过于频繁，请稍后再试")
 def login_phone_code():
     current_app.logger.info('=== 开始执行手机号验证码登录接口 ===')
     try:
@@ -256,6 +263,7 @@ def login_phone_code():
 
 
 @auth_bp.route('/auth/login_phone_password', methods=['POST'])
+@limiter.limit("5 per minute;20 per hour", error_message="登录请求过于频繁，请稍后再试")
 def login_phone_password():
     current_app.logger.info('=== 开始执行手机号密码登录接口 ===')
     try:
@@ -308,6 +316,7 @@ def login_phone_password():
 
 
 @auth_bp.route('/auth/login_phone', methods=['POST'])
+@limiter.limit("5 per minute;20 per hour", error_message="登录请求过于频繁，请稍后再试")
 def login_phone():
     """
     手机号登录：需要同时验证验证码和密码

@@ -8,7 +8,7 @@ import sys
 import os
 
 # 设置测试环境
-os.environ['ENV_TYPE'] = 'integration'
+os.environ['ENV_TYPE'] = 'unit'
 
 # 添加src路径
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))

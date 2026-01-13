@@ -3,6 +3,8 @@ UserService.create_user 方法的单元测试
 遵循测试最佳实践，避免测试反模式
 """
 import pytest
+import os
+import sys
 from unittest.mock import patch, MagicMock
 from sqlalchemy.exc import OperationalError
 from database.flask_models import User, UserAuditLog
@@ -11,6 +13,15 @@ from test_constants import TEST_CONSTANTS
 
 from wxcloudrun.user_service import phone_hash, pwd_hash
 from wxcloudrun.utils.validators import generate_phone_hash
+
+# 添加上级目录到路径以导入test_data_generator
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from test_data_generator import (
+    generate_unique_phone_number,
+    generate_unique_openid,
+    generate_unique_nickname,
+    generate_unique_username
+)
 
 class TestUserService:
     """测试 UserService.create_user 方法"""
@@ -522,10 +533,11 @@ class TestUserService:
         测试使用字符串状态更新用户
         注意：由于 User 模型没有 get_status_value 方法，这个测试验证字符串状态不会被处理
         """
-        # Arrange - 创建用户
+        # Arrange - 创建用户（使用唯一数据，只提供 wechat_openid）
+        openid = generate_unique_openid("test_update_user_status", "test_update_user_status")
         original_user = User(
-            wechat_openid="test_openid_status",
-            nickname="状态测试用户"
+            wechat_openid=openid,
+            nickname=generate_unique_nickname('test_update_user_status')
         )
         created_user = UserService.create_user(original_user)
         original_status = created_user.status

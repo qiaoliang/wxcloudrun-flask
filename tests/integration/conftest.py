@@ -21,7 +21,12 @@ from test_constants import TEST_CONSTANTS
 
 # 添加当前目录到路径以导入test_data_generator
 sys.path.insert(0, os.path.dirname(__file__))
-from test_data_generator import generate_unique_phone_number
+from test_data_generator import (
+    generate_unique_phone_number,
+    generate_unique_openid,
+    generate_unique_nickname,
+    generate_unique_username
+)
 
 
 # ==================== Pytest Fixtures ====================
@@ -133,11 +138,17 @@ class TestBase:
         from database.flask_models import User, Community
         import time
 
+        # 使用测试数据生成器创建唯一数据
+        phone_number = generate_unique_phone_number('_create_initial_data')
+        open_id = generate_unique_openid(phone_number, '_create_initial_data')
+        nickname = generate_unique_nickname('_create_initial_data')
+
         # 创建测试用户
         test_user = User(
-            wechat_openid='test_openid_123',
+            wechat_openid=open_id,
+            phone_number=phone_number,
             phone_hash='test_phone_hash',
-            nickname='测试用户',
+            nickname=nickname,
             avatar_url='https://example.com/avatar.jpg',
             role=1  # 普通用户角色
         )

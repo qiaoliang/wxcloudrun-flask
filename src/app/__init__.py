@@ -99,7 +99,27 @@ def create_app(config_name=None):
     # 4. 初始化扩展
     db.init_app(app)
     
-    # 4.5 初始化CORS（支持跨域请求）
+    # 4.5 初始化速率限制扩展
+    from .extensions import limiter
+    from config import EnvironmentHelper
+    
+    # 根据环境配置存储后端
+    if EnvironmentHelper.is_production():
+        # 生产环境使用 Redis 存储
+        redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+        limiter.storage_uri = redis_url
+        limiter.storage_options = {"socket_connect_timeout": 30}
+    elif EnvironmentHelper.is_unit():
+        # 测试环境禁用速率限制
+        limiter.enabled = False
+    else:
+        # 开发环境使用内存存储
+        limiter.storage_uri = "memory://"
+    
+    limiter.init_app(app)
+    app.logger.info("Flask-Limiter 速率限制扩展已初始化")
+    
+    # 4.6 初始化CORS（支持跨域请求）
     from flask_cors import CORS
     CORS(app, resources={r"/api/*": {"origins": "*"}})
     

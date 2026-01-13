@@ -8,12 +8,18 @@ from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleServic
 from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 from database.flask_models import CommunityCheckinRule, UserCommunityRule, User, Community, CommunityStaff
 
+# 添加上级目录到路径以导入test_data_generator
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+
 
 def test_community_rule_disable_enable(test_session):
     """测试社区规则停用和启用功能"""
     # 创建测试社区
     community = Community(
-        name="测试社区_状态测试",
+        name=generate_unique_nickname('test_community_rule_status'),
         description="用于测试的社区",
         status=1
     )
@@ -21,10 +27,12 @@ def test_community_rule_disable_enable(test_session):
     test_session.flush()
     
     # 创建测试用户（社区主管）
+    phone_number = generate_unique_phone_number('test_community_rule_status')
     user = User(
-        wechat_openid="test_openid_status",
-        nickname="测试用户",
-        phone_number="13800138000",
+        wechat_openid=generate_unique_openid(phone_number, 'test_community_rule_status'),
+        nickname=generate_unique_nickname('test_community_rule_status'),
+        phone_number=phone_number,
+        phone_hash='test_hash_123',
         role=3,  # 社区主管
         community_id=community.community_id
     )

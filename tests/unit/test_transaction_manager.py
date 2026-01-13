@@ -324,7 +324,7 @@ class TestTransactionalNested:
             @transactional_nested
             def create_community():
                 community = Community(
-                    name="测试社区",
+                    name=generate_unique_nickname("nested_success"),
                     status=1
                 )
                 test_session.add(community)
@@ -339,7 +339,7 @@ class TestTransactionalNested:
         assert user is not None
         assert community is not None
         assert user.phone_number == phone_number
-        assert community.name == "测试社区"
+        assert community.name.startswith("nickname_nested_s")  # context被截断到8个字符
 
     def test_nested_transaction_failure_isolated(self, test_session):
         """

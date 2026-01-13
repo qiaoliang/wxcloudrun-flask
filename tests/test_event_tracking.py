@@ -6,35 +6,24 @@ import sys
 import os
 from datetime import datetime, timedelta
 
-# 设置环境变量
-os.environ['ENV_TYPE'] = 'unit'
-os.environ['TOKEN_SECRET'] = 'test_secret_key_for_testing'
-
 # 添加 src 目录到 Python 路径
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
+src_path = os.path.join(os.path.dirname(__file__), '..', 'src')
+sys.path.insert(0, src_path)
 
-from app import create_app
-from database.flask_models import db, User, Community, CommunityEvent, EventMessage, EventClosure
+# 添加当前目录到路径以导入测试工具
+sys.path.insert(0, os.path.dirname(__file__))
+
+from database.flask_models import db, User, Community, CommunityEvent, EventMessage
 from sqlalchemy import select
+from integration.conftest import IntegrationTestBase
 
 
-class TestEventModels:
+class TestEventModels(IntegrationTestBase):
     """事件模型测试"""
 
-    @pytest.fixture(autouse=True)
-    def setup_app(self):
-        """设置测试应用"""
-        app = create_app()
-        app.config['TESTING'] = True
-        
-        with app.app_context():
-            db.create_all()
-            yield app
-            db.drop_all()
-
-    def test_event_support_model_fields(self, setup_app):
+    def test_event_support_model_fields(self):
         """测试 EventMessage 模型字段"""
-        with setup_app.app_context():
+        with self.app.app_context():
             # 检查 EventMessage 模型是否有新增字段
             columns = [column.name for column in EventMessage.__table__.columns]
             
@@ -43,25 +32,30 @@ class TestEventModels:
             assert 'media_duration' in columns
             assert 'message_tags' in columns
 
-    def test_event_closure_model_fields(self, setup_app):
-        """测试 EventClosure 模型字段"""
-        with setup_app.app_context():
-            # 检查 EventClosure 模型字段
-            columns = [column.name for column in EventClosure.__table__.columns]
+    def test_event_closure_fields_in_community_event(self):
+        """测试 CommunityEvent 模型中的关闭字段"""
+        with self.app.app_context():
+            # 检查 CommunityEvent 模型中的关闭字段
+            columns = [column.name for column in CommunityEvent.__table__.columns]
             
-            assert 'closure_id' in columns
-            assert 'event_id' in columns
             assert 'closed_by' in columns
             assert 'closed_at' in columns
+            assert 'closure_type' in columns
             assert 'closure_reason' in columns
-            assert 'closure_status' in columns
 
-    def test_event_message_to_dict(self, setup_app):
+    def test_event_message_to_dict(self):
         """测试 EventMessage to_dict 方法"""
-        with setup_app.app_context():
+        with self.app.app_context():
+            # 使用测试数据生成器创建唯一数据
+            from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+            
+            phone_number = generate_unique_phone_number('test_event_message')
+            open_id = generate_unique_openid(phone_number, 'test_event_message')
+            nickname = generate_unique_nickname('test_event_message')
+            
             # 创建测试数据
             community = Community(
-                name='测试社区',
+                name=f'测试社区_{phone_number}',
                 description='测试社区描述',
                 creator_id=1,
                 manager_id=1,
@@ -71,10 +65,10 @@ class TestEventModels:
             db.session.flush()
 
             user = User(
-                wechat_openid='test_openid_123',
-                phone_number='13900000001',
+                wechat_openid=open_id,
+                phone_number=phone_number,
                 phone_hash='test_hash_123',
-                nickname='测试用户',
+                nickname=nickname,
                 role=1,
                 status=1,
                 community_id=community.community_id
@@ -114,12 +108,19 @@ class TestEventModels:
             assert data['media_duration'] == 30
             assert data['message_tags'] == ['标签1', '标签2']
 
-    def test_event_closure_to_dict(self, setup_app):
-        """测试 EventClosure to_dict 方法"""
-        with setup_app.app_context():
+    def test_event_closure_in_community_event_to_dict(self):
+        """测试 CommunityEvent to_dict 方法中的关闭信息"""
+        with self.app.app_context():
+            # 使用测试数据生成器创建唯一数据
+            from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
+            
+            phone_number = generate_unique_phone_number('test_event_closure')
+            open_id = generate_unique_openid(phone_number, 'test_event_closure')
+            nickname = generate_unique_nickname('test_event_closure')
+            
             # 创建测试数据
             community = Community(
-                name='测试社区',
+                name=f'测试社区_{phone_number}',
                 description='测试社区描述',
                 creator_id=1,
                 manager_id=1,
@@ -129,10 +130,10 @@ class TestEventModels:
             db.session.flush()
 
             user = User(
-                wechat_openid='test_openid_123',
-                phone_number='13900000001',
+                wechat_openid=open_id,
+                phone_number=phone_number,
                 phone_hash='test_hash_123',
-                nickname='测试用户',
+                nickname=nickname,
                 role=1,
                 status=1,
                 community_id=community.community_id
@@ -148,24 +149,19 @@ class TestEventModels:
                 location='测试地点',
                 target_user_id=user.user_id,
                 created_by=user.user_id,
-                status=1
+                status=2,  # 已完成
+                closed_by=user.user_id,
+                closure_type=1,  # 用户关闭
+                closure_reason='测试关闭原因'
             )
             db.session.add(event)
-            db.session.flush()
-
-            closure = EventClosure(
-                event_id=event.event_id,
-                closed_by=user.user_id,
-                closure_reason='测试关闭原因',
-                closure_status='user_closed'
-            )
-            db.session.add(closure)
             db.session.commit()
             
-            data = closure.to_dict()
+            data = event.to_dict()
             
             assert data['closure_reason'] == '测试关闭原因'
-            assert data['closure_status'] == 'user_closed'
+            assert data['closure_type'] == 1
+            assert data['closure_type_label'] == '用户关闭'
 
 
 if __name__ == '__main__':
