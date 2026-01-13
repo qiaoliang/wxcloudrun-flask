@@ -137,12 +137,12 @@ from test_utils import create_test_user, create_test_community
 
 # 为了向后兼容，保留原有的test_app fixture
 # 但它现在只提供最小的Flask应用，不包含数据库
-@pytest.fixture(scope='session')
+@pytest.fixture(scope='function')
 def test_app():
     """
     提供Flask应用上下文和数据库
     支持Flask-SQLAlchemy架构
-    使用 scope='session' 避免重复初始化 db 和创建表
+    使用 scope='function' 确保每个测试都有独立的数据库
     """
     app = Flask(__name__)
     app.config['TESTING'] = True
@@ -157,5 +157,6 @@ def test_app():
         db.create_all()
         yield app
         # 清理
+        db.session.remove()
         db.drop_all()
 

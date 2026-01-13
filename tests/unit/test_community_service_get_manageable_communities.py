@@ -80,8 +80,8 @@ class TestGetManageableCommunitiesSpecialLogic:
             super_admin, page=2, per_page=5
         )
 
-        # 验证第二页也有5个
-        assert len(result_communities_page2) == 5
+        # 验证第二页有剩余的社区（8个社区 - 第一页5个 = 第二页3个）
+        assert len(result_communities_page2) == 3
 
     def test_super_admin_includes_special_communities(self, test_session):
         """

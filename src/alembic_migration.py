@@ -153,7 +153,7 @@ def fix_version_mismatch(current_version, available_versions):
         import shutil
         import time
 
-        from config_manager import get_database_config
+        from config import get_database_config
         db_config = get_database_config()
         db_path = db_config.get('DATABASE_PATH')
 
@@ -218,7 +218,7 @@ def capture_migration_context():
         }
 
         try:
-            from config_manager import get_database_config
+            from config import get_database_config
             context["database_config"] = get_database_config()
         except Exception as e:
             context["database_config_error"] = str(e)
@@ -289,7 +289,7 @@ def migrate_database():
             # 继续执行，因为表可能已经创建
         
         # 验证迁移是否成功并手动处理版本记录
-        from config_manager import get_database_config
+        from config import get_database_config
         db_config = get_database_config()
         db_path = db_config.get('DATABASE_PATH')
         
