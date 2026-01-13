@@ -109,9 +109,10 @@ def create_app(config_name=None):
         redis_url = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
         limiter.storage_uri = redis_url
         limiter.storage_options = {"socket_connect_timeout": 30}
-    elif EnvironmentHelper.is_unit():
-        # 测试环境禁用速率限制
+    elif EnvironmentHelper.is_unit() or EnvironmentHelper.is_function():
+        # 测试环境和功能测试环境禁用速率限制
         limiter.enabled = False
+        app.logger.info(f"速率限制已禁用 (ENV_TYPE={EnvironmentHelper.get_env_type()})")
     else:
         # 开发环境使用内存存储
         limiter.storage_uri = "memory://"
