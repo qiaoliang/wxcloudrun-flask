@@ -152,14 +152,10 @@ def create_invite_link(decoded):
         db.session.commit()
 
         invite_data = {
-            'supervisor_id': user.user_id,
-            'supervisor_openid': openid,
-            'rule_ids': rule_ids,
-            'invite_token': invite_token,
-            'expires_at': expires_at.isoformat(),
-            'status': 'pending',
+            'token': invite_token,
+            'url': qrcode_url,
             'mini_path': mini_path,
-            'qrcode_url': qrcode_url
+            'expire_at': expires_at.isoformat()
         }
 
         current_app.logger.info(f'用户 {user.user_id} 创建监督邀请链接成功，token: {invite_token}')

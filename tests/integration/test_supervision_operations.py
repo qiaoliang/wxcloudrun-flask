@@ -92,10 +92,12 @@ class TestSupervisionOperations(IntegrationTestBase):
                 headers={'Authorization': f'Bearer {token}'}
             )
 
-            # 验证响应
-            data = self.assert_api_success(response, ['invite_token', 'rule_ids', 'expires_at'])
-            assert 'invite_token' in data['data']
-            assert len(data['data']['rule_ids']) >= 1
+            # 验证响应 - 根据 API 契约应该返回 token, url, mini_path, expire_at
+            data = self.assert_api_success(response, ['token', 'url', 'mini_path', 'expire_at'])
+            assert 'token' in data['data']
+            assert 'url' in data['data']
+            assert 'mini_path' in data['data']
+            assert 'expire_at' in data['data']
 
     def test_resolve_invite_link_success(self):
         """测试成功解析监督邀请链接"""
