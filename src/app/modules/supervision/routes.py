@@ -13,7 +13,7 @@ from app.shared.utils.auth import verify_token
 from wxcloudrun.user_service import UserService
 from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
-from database.flask_models import db, SupervisionRuleRelation, CheckinRecord
+from database.flask_models import db, SupervisionRuleRelation, CheckinRecord, CheckinRule
 from app.shared.utils.transaction import transaction
 
 app_logger = logging.getLogger('log')
@@ -92,20 +92,72 @@ def create_invite_link(decoded):
 
         # 生成邀请token
         import secrets
+        import qrcode
+        import os
         invite_token = secrets.token_urlsafe(32)
         expires_at = datetime.now() + timedelta(hours=expire_hours)
 
-        # 保存邀请信息
+        # 生成二维码
+        qrcode_dir = 'static/supervision_qrcodes'
+        os.makedirs(qrcode_dir, exist_ok=True)
+
+        # 构建小程序路径
+        mini_path = f"/pages/supervisor-invite/supervisor-invite?token={invite_token}"
+
+        # 创建二维码
+        qr = qrcode.QRCode(
+            version=1,
+            error_correction=qrcode.constants.ERROR_CORRECT_L,
+            box_size=10,
+            border=4,
+        )
+        qr.add_data(mini_path)
+        qr.make(fit=True)
+
+        # 生成图片
+        img = qr.make_image(fill_color="black", back_color="white")
+
+        # 保存到文件
+        filename = f"{invite_token}.png"
+        filepath = os.path.join(qrcode_dir, filename)
+        img.save(filepath)
+
+        # 构建二维码URL
+        qrcode_url = f"/static/supervision_qrcodes/{filename}"
+
+        # 保存邀请信息到数据库
+        # 为每个规则创建监督关系记录
+        for rule_id in rule_ids:
+            # 检查规则是否存在且属于当前用户
+            rule = CheckinRuleService.query_rule_by_id(rule_id)
+            if not rule or rule.user_id != user.user_id:
+                current_app.logger.warning(f'规则 {rule_id} 不存在或不属于用户 {user.user_id}')
+                continue
+
+            # 创建监督关系记录（状态为1=待确认）
+            relation = SupervisionRuleRelation(
+                solo_user_id=user.user_id,
+                supervisor_user_id=user.user_id,  # 暂时设置为发起人，等待监督人接受后更新
+                rule_id=rule_id,
+                status=1,  # 1=待确认
+                invite_token=invite_token,
+                invite_expires_at=expires_at
+            )
+            db.session.add(relation)
+
+        db.session.commit()
+
         invite_data = {
             'supervisor_id': user.user_id,
             'supervisor_openid': openid,
             'rule_ids': rule_ids,
             'invite_token': invite_token,
             'expires_at': expires_at.isoformat(),
-            'status': 'pending'
+            'status': 'pending',
+            'mini_path': mini_path,
+            'qrcode_url': qrcode_url
         }
 
-        # 这里简化处理，实际应该保存到数据库
         current_app.logger.info(f'用户 {user.user_id} 创建监督邀请链接成功，token: {invite_token}')
         return make_succ_response(invite_data)
 
@@ -126,12 +178,39 @@ def resolve_invite_link():
         if not invite_token:
             return make_err_response({}, '缺少token参数')
 
-        # 这里简化处理，实际应该从数据库查询
+        # 从数据库查询邀请信息
+        relations = db.session.query(SupervisionRuleRelation).filter_by(
+            invite_token=invite_token,
+            status=1  # 1=待确认
+        ).all()
+
+        if not relations:
+            return make_err_response({}, '邀请链接不存在或已过期')
+
+        # 检查邀请是否过期
+        now = datetime.now()
+        if relations[0].invite_expires_at and relations[0].invite_expires_at < now:
+            return make_err_response({}, '邀请链接已过期')
+
+        # 获取被监督人信息
+        solo_user = UserService.query_user_by_id(relations[0].solo_user_id)
+        if not solo_user:
+            return make_err_response({}, '被监督人不存在')
+
+        # 获取规则信息
+        rule_ids = [r.rule_id for r in relations]
+        rules = db.session.query(CheckinRule).filter(
+            CheckinRule.rule_id.in_(rule_ids)
+        ).all()
+
+        # 构建返回数据
         invite_data = {
-            'supervisor_id': 1,
-            'supervisor_nickname': '张三',
-            'rule_ids': [1, 2, 3],
-            'expires_at': '2025-12-25T12:00:00',
+            'supervisor_id': solo_user.user_id,
+            'supervisor_nickname': solo_user.nickname or '未知用户',
+            'supervisor_phone': solo_user.phone_number,
+            'rule_ids': rule_ids,
+            'rule_names': [r.rule_name for r in rules],
+            'expires_at': relations[0].invite_expires_at.isoformat() if relations[0].invite_expires_at else None,
             'status': 'pending'
         }
 
