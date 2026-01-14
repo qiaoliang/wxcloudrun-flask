@@ -309,3 +309,128 @@ class TestSupervisionOperations(IntegrationTestBase):
             # 验证响应
             data = self.assert_api_success(response, ['guardians', 'total'])
             assert 'guardians' in data['data']
+
+    def test_check_expired_invitations(self):
+        """测试邀请过期检查功能"""
+        with self.app.app_context():
+            from datetime import datetime, timedelta
+            from database.flask_models import SupervisionRuleRelation, db
+            from app.infrastructure.persistence.repository_factory import RepositoryFactory
+
+            # 创建监督者
+            supervisor = self.create_standard_test_user(role=1, test_context='expired_invitation')
+            supervised = self.create_standard_test_user(role=1, test_context='expired_invitation_user')
+
+            # 为监督者创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日运动',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '18:00:00',
+                    'week_days': [1, 2, 3, 4, 5]
+                },
+                supervisor.user_id
+            )
+
+            # 创建一个已过期的邀请（过期时间设置为昨天）
+            expires_at = datetime.now() - timedelta(days=1)
+            relation = SupervisionRuleRelation(
+                solo_user_id=supervised.user_id,
+                supervisor_user_id=supervisor.user_id,
+                rule_id=rule.rule_id,
+                status=1,  # 待处理
+                invite_expires_at=expires_at,
+                invitation_type='internal'
+            )
+            db.session.add(relation)
+            db.session.commit()
+
+            # 执行过期检查
+            supervision_repo = RepositoryFactory.get_supervision_relation_repository()
+            expired_invitations = supervision_repo.find_expired_invitations()
+
+            # 验证找到了过期的邀请
+            assert len(expired_invitations) > 0
+            assert relation.relation_id in [inv.relation_id for inv in expired_invitations]
+
+            # 批量更新状态为已过期
+            expired_ids = [inv.relation_id for inv in expired_invitations]
+            updated_count = supervision_repo.batch_update_status(expired_ids, 4)
+
+            # 验证更新成功
+            assert updated_count > 0
+
+            # 从数据库重新查询，验证状态已更新
+            db.session.refresh(relation)
+            assert relation.status == 4  # 已过期
+
+    def test_check_expired_invitations_with_active(self):
+        """测试邀请过期检查功能 - 验证不会影响未过期的邀请"""
+        with self.app.app_context():
+            from datetime import datetime, timedelta
+            from database.flask_models import SupervisionRuleRelation, db
+            from app.infrastructure.persistence.repository_factory import RepositoryFactory
+
+            # 创建监督者
+            supervisor = self.create_standard_test_user(role=1, test_context='mixed_invitation')
+            supervised = self.create_standard_test_user(role=1, test_context='mixed_invitation_user')
+
+            # 为监督者创建打卡规则
+            from wxcloudrun.checkin_rule_service import CheckinRuleService
+            rule = CheckinRuleService.create_rule(
+                {
+                    'rule_name': '每日运动',
+                    'frequency_type': 0,
+                    'time_slot_type': 'fixed_time',
+                    'custom_time': '18:00:00',
+                    'week_days': [1, 2, 3, 4, 5]
+                },
+                supervisor.user_id
+            )
+
+            # 创建一个已过期的邀请
+            expires_at_past = datetime.now() - timedelta(days=1)
+            expired_relation = SupervisionRuleRelation(
+                solo_user_id=supervised.user_id,
+                supervisor_user_id=supervisor.user_id,
+                rule_id=rule.rule_id,
+                status=1,  # 待处理
+                invite_expires_at=expires_at_past,
+                invitation_type='internal'
+            )
+            db.session.add(expired_relation)
+
+            # 创建一个未过期的邀请（过期时间设置为明天）
+            expires_at_future = datetime.now() + timedelta(days=1)
+            active_relation = SupervisionRuleRelation(
+                solo_user_id=supervised.user_id,
+                supervisor_user_id=supervisor.user_id,
+                rule_id=rule.rule_id,
+                status=1,  # 待处理
+                invite_expires_at=expires_at_future,
+                invitation_type='internal'
+            )
+            db.session.add(active_relation)
+            db.session.commit()
+
+            # 执行过期检查
+            supervision_repo = RepositoryFactory.get_supervision_relation_repository()
+            expired_invitations = supervision_repo.find_expired_invitations()
+
+            # 验证只找到了过期的邀请
+            assert len(expired_invitations) == 1
+            assert expired_relation.relation_id in [inv.relation_id for inv in expired_invitations]
+            assert active_relation.relation_id not in [inv.relation_id for inv in expired_invitations]
+
+            # 批量更新状态为已过期
+            expired_ids = [inv.relation_id for inv in expired_invitations]
+            supervision_repo.batch_update_status(expired_ids, 4)
+
+            # 从数据库重新查询，验证状态
+            db.session.refresh(expired_relation)
+            db.session.refresh(active_relation)
+
+            assert expired_relation.status == 4  # 已过期
+            assert active_relation.status == 1  # 仍然待处理

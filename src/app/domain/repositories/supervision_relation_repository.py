@@ -102,3 +102,27 @@ class SupervisionRelationRepository(ABC):
             bool: 删除是否成功
         """
         pass
+
+    @abstractmethod
+    def find_expired_invitations(self) -> List[SupervisionRuleRelation]:
+        """
+        查找所有已过期的邀请
+
+        Returns:
+            List[SupervisionRuleRelation]: 已过期的邀请列表
+        """
+        pass
+
+    @abstractmethod
+    def batch_update_status(self, relation_ids: List[int], new_status: int) -> int:
+        """
+        批量更新监督关系状态
+
+        Args:
+            relation_ids: 监督关系ID列表
+            new_status: 新状态值
+
+        Returns:
+            int: 更新的记录数
+        """
+        pass

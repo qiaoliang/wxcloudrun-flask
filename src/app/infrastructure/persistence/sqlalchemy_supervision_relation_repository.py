@@ -2,8 +2,9 @@
 监督关系仓储 - SQLAlchemy 实现
 """
 from typing import List, Optional
+from datetime import datetime
 
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 
 from database.flask_models import db, SupervisionRuleRelation
 from app.domain.repositories.supervision_relation_repository import SupervisionRelationRepository
@@ -133,3 +134,40 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
         result = db.session.execute(stmt)
         db.session.commit()
         return result.rowcount > 0
+
+    def find_expired_invitations(self) -> List[SupervisionRuleRelation]:
+        """
+        查找所有已过期的邀请
+
+        Returns:
+            List[SupervisionRuleRelation]: 已过期的邀请列表
+        """
+        now = datetime.now()
+        # 查找待处理状态（status=1）且过期时间早于当前时间的邀请
+        stmt = select(SupervisionRuleRelation).filter(
+            SupervisionRuleRelation.status == 1,  # 1 = 待处理
+            SupervisionRuleRelation.invite_expires_at < now
+        )
+        return db.session.execute(stmt).scalars().all()
+
+    def batch_update_status(self, relation_ids: List[int], new_status: int) -> int:
+        """
+        批量更新监督关系状态
+
+        Args:
+            relation_ids: 监督关系ID列表
+            new_status: 新状态值
+
+        Returns:
+            int: 更新的记录数
+        """
+        if not relation_ids:
+            return 0
+
+        stmt = update(SupervisionRuleRelation).where(
+            SupervisionRuleRelation.relation_id.in_(relation_ids)
+        ).values(status=new_status)
+
+        result = db.session.execute(stmt)
+        db.session.commit()
+        return result.rowcount

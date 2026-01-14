@@ -19,11 +19,62 @@ from app.shared.utils.transaction import transaction
 app_logger = logging.getLogger('log')
 
 
+@supervision_bp.route('/supervision/invite/internal', methods=['POST'])
+@login_required
+def invite_supervisor_internal(decoded):
+    """
+    站内邀请监督者接口 - 通过搜索用户并直接发送邀请
+    请求体：{ rule_id, receiver_ids: [], message: '' }
+    返回：{ sender_id, receiver_ids, rule_id, relation_ids, invitation_type, status, expires_at }
+    """
+    current_app.logger.info('=== 开始执行站内邀请监督者接口 ===')
+
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
+    if not user:
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取请求参数
+        params = request.get_json()
+        rule_id = params.get('rule_id')
+        receiver_ids = params.get('receiver_ids', [])
+        message = params.get('message', '')
+
+        if not rule_id:
+            return make_err_response({}, '缺少rule_id参数')
+
+        if not receiver_ids or len(receiver_ids) == 0:
+            return make_err_response({}, '缺少receiver_ids参数')
+
+        # 使用应用服务用例发送站内邀请
+        from app.application.use_cases.supervision import SendInternalInvitationUseCase
+
+        use_case = SendInternalInvitationUseCase()
+        result = use_case.execute(
+            sender_id=user.user_id,
+            rule_id=rule_id,
+            receiver_ids=receiver_ids,
+            message=message
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 成功向 {len(receiver_ids)} 个用户发送站内邀请')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'站内邀请监督者失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'站内邀请失败: {str(e)}')
+
+
 @supervision_bp.route('/supervision/invite', methods=['POST'])
 @login_required
 def invite_supervisor(decoded):
     """
-    邀请监督者接口 - 邀请特定用户监督特定规则
+    邀请监督者接口 - 邀请特定用户监督特定规则（已弃用，请使用invite_supervisor_internal）
     """
     current_app.logger.info('=== 开始执行邀请监督者接口 ===')
 
@@ -245,9 +296,11 @@ def resolve_invite_link():
 @login_required
 def get_supervision_invitations(decoded):
     """
-    获取监督邀请列表接口
+    获取邀请列表接口
+    查询参数：page（默认1）, limit（默认10）, status（可选）
+    返回：{ invitations, total, page, limit, total_pages }
     """
-    current_app.logger.info('=== 开始获取监督邀请列表 ===')
+    current_app.logger.info('=== 开始获取邀请列表 ===')
 
     user_id = decoded.get('user_id')
     user = UserService.query_user_by_id(user_id)
@@ -257,35 +310,37 @@ def get_supervision_invitations(decoded):
 
     try:
         # 获取查询参数
-        status = request.args.get('status')  # pending, accepted, rejected
         page = int(request.args.get('page', 1))
-        per_page = min(int(request.args.get('per_page', 20)), 100)
+        limit = int(request.args.get('limit', 10))
+        status = request.args.get('status')
 
-        # 这里简化处理，实际应该从数据库查询
-        invitations = [
-            {
-                'invitation_id': 1,
-                'supervisor_id': 1,
-                'supervisor_nickname': '张三',
-                'supervised_id': 2,
-                'supervised_nickname': '李四',
-                'rule_ids': [1, 2],
-                'status': 'pending',
-                'invited_at': '2025-12-24T10:00:00',
-                'expires_at': '2025-12-25T12:00:00'
-            }
-        ]
+        # 转换状态参数
+        status_value = None
+        if status:
+            try:
+                status_value = int(status)
+            except ValueError:
+                return make_err_response({}, 'status参数格式错误')
 
-        current_app.logger.info(f'用户 {user.user_id} 获取监督邀请列表成功，共 {len(invitations)} 条记录')
-        return make_succ_response({
-            'invitations': invitations,
-            'total': len(invitations),
-            'page': page,
-            'per_page': per_page
-        })
+        # 使用邀请管理服务获取邀请列表
+        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+
+        service = InvitationManagementService()
+        result = service.get_invitations(
+            user_id=user.user_id,
+            page=page,
+            limit=limit,
+            status=status_value
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 获取邀请列表成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
 
     except Exception as e:
-        current_app.logger.error(f'获取监督邀请列表失败: {str(e)}', exc_info=True)
+        current_app.logger.error(f'获取邀请列表失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'获取邀请列表失败: {str(e)}')
 
 
@@ -516,7 +571,7 @@ def get_today_supervision_data(decoded):
     """
     获取今日监护数据接口
     参数：date（可选，格式：YYYY-MM-DD，默认为今天）
-    返回：{ supervised_users: [...], date: "2026-01-13" }
+    返回：{ supervised_users: [...], date: "2026-01-13", pending_invitations_count }
     """
     current_app.logger.info('=== 开始获取今日监护数据 ===')
 
@@ -545,11 +600,30 @@ def get_today_supervision_data(decoded):
             target_date=target_date
         )
 
-        if result.is_success:
-            current_app.logger.info(f'用户 {user.user_id} 获取今日监护数据成功')
-            return make_succ_response(result.data)
-        else:
+        if not result.is_success:
             return make_err_response({}, result.message)
+
+        # 获取待处理邀请数量
+        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+
+        invitation_service = InvitationManagementService()
+        pending_invitations_result = invitation_service.get_invitations(
+            user_id=user.user_id,
+            page=1,
+            limit=1,  # 只需要获取总数，不需要具体数据
+            status=1  # 1=待处理
+        )
+
+        # 获取待处理邀请总数
+        pending_invitations_count = 0
+        if pending_invitations_result.is_success:
+            pending_invitations_count = pending_invitations_result.data.get('total', 0)
+
+        # 在返回数据中添加待处理邀请数量
+        result.data['pending_invitations_count'] = pending_invitations_count
+
+        current_app.logger.info(f'用户 {user.user_id} 获取今日监护数据成功')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取今日监护数据失败: {str(e)}', exc_info=True)
@@ -619,7 +693,7 @@ def send_reminder(decoded):
         # TODO: 调用微信模板消息接口发送通知
         # 这里先返回成功，实际项目中需要集成微信 API
         current_app.logger.info(f'用户 {user.user_id} 向用户 {supervised_user_id} 发送提醒: {message_content}')
-        
+
         # 记录提醒发送日志（可选）
         # 可以创建一个 ReminderLog 表来记录所有提醒发送记录
 
@@ -631,3 +705,166 @@ def send_reminder(decoded):
     except Exception as e:
         current_app.logger.error(f'发送提醒失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'发送提醒失败: {str(e)}')
+
+
+# ==================== 站内邀请相关接口 ====================
+
+@supervision_bp.route('/supervision/invitations/<int:invitation_id>/accept', methods=['POST'])
+@login_required
+def accept_invitation(decoded, invitation_id):
+    """
+    接受邀请接口
+    路径参数：invitation_id
+    返回：{ relation_id, status }
+    """
+    current_app.logger.info('=== 开始接受邀请 ===')
+
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
+    if not user:
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 使用邀请管理服务接受邀请
+        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+
+        service = InvitationManagementService()
+        result = service.accept_invitation(
+            invitation_id=invitation_id,
+            user_id=user.user_id
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 接受邀请成功，邀请ID: {invitation_id}')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'接受邀请失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'接受邀请失败: {str(e)}')
+
+
+@supervision_bp.route('/supervision/invitations/<int:invitation_id>/reject', methods=['POST'])
+@login_required
+def reject_invitation(decoded, invitation_id):
+    """
+    拒绝邀请接口
+    路径参数：invitation_id
+    请求体：{ reason }
+    返回：{ message }
+    """
+    current_app.logger.info('=== 开始拒绝邀请 ===')
+
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
+    if not user:
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取请求参数
+        params = request.get_json() or {}
+        reason = params.get('reason', '')
+
+        # 使用邀请管理服务拒绝邀请
+        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+
+        service = InvitationManagementService()
+        result = service.reject_invitation(
+            invitation_id=invitation_id,
+            user_id=user.user_id,
+            reason=reason if reason else None
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 拒绝邀请成功，邀请ID: {invitation_id}')
+            return make_succ_response({'message': result.message})
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'拒绝邀请失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'拒绝邀请失败: {str(e)}')
+
+
+@supervision_bp.route('/supervision/invitations/<int:invitation_id>', methods=['DELETE'])
+@login_required
+def ignore_invitation(decoded, invitation_id):
+    """
+    忽略邀请接口
+    路径参数：invitation_id
+    返回：{ message }
+    """
+    current_app.logger.info('=== 开始忽略邀请 ===')
+
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
+    if not user:
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 使用邀请管理服务忽略邀请
+        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+
+        service = InvitationManagementService()
+        result = service.ignore_invitation(
+            invitation_id=invitation_id,
+            user_id=user.user_id
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 忽略邀请成功，邀请ID: {invitation_id}')
+            return make_succ_response({'message': result.message})
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'忽略邀请失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'忽略邀请失败: {str(e)}')
+
+
+@supervision_bp.route('/supervision/invitations/batch-accept', methods=['POST'])
+@login_required
+def batch_accept_invitations(decoded):
+    """
+    批量接受邀请接口
+    请求体：{ invitation_ids }
+    返回：{ accepted_count, failed_count }
+    """
+    current_app.logger.info('=== 开始批量接受邀请 ===')
+
+    user_id = decoded.get('user_id')
+    user = UserService.query_user_by_id(user_id)
+    if not user:
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
+        return make_err_response({}, '用户不存在')
+
+    try:
+        # 获取请求参数
+        params = request.get_json()
+        invitation_ids = params.get('invitation_ids', [])
+
+        if not invitation_ids or len(invitation_ids) == 0:
+            return make_err_response({}, '缺少invitation_ids参数')
+
+        # 使用邀请管理服务批量接受邀请
+        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+
+        service = InvitationManagementService()
+        result = service.batch_accept_invitations(
+            invitation_ids=invitation_ids,
+            user_id=user.user_id
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 批量接受邀请成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'批量接受邀请失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'批量接受邀请失败: {str(e)}')

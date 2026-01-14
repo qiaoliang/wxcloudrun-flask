@@ -259,7 +259,7 @@ def start_all_schedulers(app):
     """启动所有定时任务（使用 APScheduler 统一管理）"""
     # 使用独立的 scheduler logger
     scheduler_logger = logging.getLogger('scheduler')
-    
+
     try:
         from flask_apscheduler import APScheduler
         from app.shared.utils.abnormality_calculator import AbnormalityCalculator
@@ -268,6 +268,7 @@ def start_all_schedulers(app):
             _process_missed_for_today,
             _process_community_missed_for_today
         )
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
         # 配置 APScheduler
         app.config['SCHEDULER_API_ENABLED'] = True
@@ -309,6 +310,30 @@ def start_all_schedulers(app):
                 except Exception as e:
                     scheduler_logger.error(f"缺失打卡检查任务执行失败: {str(e)}", exc_info=True)
 
+        def run_check_expired_invitations():
+            """检查并更新过期邀请"""
+            with app.app_context():
+                try:
+                    scheduler_logger.info("开始执行邀请过期检查任务")
+                    supervision_relation_repo = RepositoryFactory.get_supervision_relation_repository()
+
+                    # 查找所有已过期的邀请
+                    expired_invitations = supervision_relation_repo.find_expired_invitations()
+
+                    if expired_invitations:
+                        # 提取所有过期邀请的ID
+                        expired_ids = [inv.relation_id for inv in expired_invitations]
+
+                        # 批量更新状态为已过期（status=4）
+                        updated_count = supervision_relation_repo.batch_update_status(expired_ids, 4)
+
+                        scheduler_logger.info(f"邀请过期检查完成: 更新了 {updated_count} 个过期邀请")
+                    else:
+                        scheduler_logger.info("邀请过期检查完成: 没有找到过期的邀请")
+
+                except Exception as e:
+                    scheduler_logger.error(f"邀请过期检查任务执行失败: {str(e)}", exc_info=True)
+
         # 任务 1: 异常值计算（每分钟执行一次）
         @scheduler.task('cron', id='update_abnormality_values', minute='*')
         def update_abnormality_values():
@@ -328,12 +353,18 @@ def start_all_schedulers(app):
             """每 5 分钟执行缺失打卡检查"""
             run_missing_check()
 
+        # 任务 4: 邀请过期检查（每天凌晨执行一次）
+        @scheduler.task('cron', id='check_expired_invitations', hour=0, minute=30)
+        def scheduled_check_expired_invitations():
+            """每天凌晨执行邀请过期检查"""
+            run_check_expired_invitations()
+
         # 启动调度器
         scheduler.start()
 
-        scheduler_logger.info("定时任务调度器已启动（3个任务：异常值计算、全天规则检查、缺失打卡检查）")
+        scheduler_logger.info("定时任务调度器已启动（4个任务：异常值计算、全天规则检查、缺失打卡检查、邀请过期检查）")
 
-        # 启动时立即执行所有任务
+        # 启动时立即执行所有任务（除了邀请过期检查，避免启动时重复执行）
         scheduler_logger.info("启动时立即执行所有定时任务...")
         run_abnormality_calculation()
         run_daily_check()

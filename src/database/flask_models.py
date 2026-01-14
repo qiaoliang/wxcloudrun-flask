@@ -388,6 +388,8 @@ class SupervisionRuleRelation(db.Model):
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     invite_token = Column(db.String(64), unique=True)
     invite_expires_at = Column(db.DateTime)
+    invitation_type = Column(db.String(20), default='link', comment='邀请类型: link=链接邀请, internal=站内邀请')
+    message = Column(db.Text, comment='邀请消息')
 
     # 索引优化和约束
     __table_args__ = (
@@ -399,7 +401,9 @@ class SupervisionRuleRelation(db.Model):
         db.Index('idx_supervision_supervisor_status', 'supervisor_user_id', 'status'),
         db.Index('idx_supervision_rule_status', 'rule_id', 'status'),
         db.Index('idx_supervision_created_at', 'created_at'),
-        db.CheckConstraint('status IN (0, 1, 2)', name='ck_supervision_rule_relation_status'),  # 0=停用, 1=待确认, 2=已激活
+        db.Index('idx_invitation_type', 'invitation_type'),
+        db.Index('idx_expires_at', 'invite_expires_at'),
+        db.CheckConstraint('status IN (0, 1, 2, 3, 4)', name='ck_supervision_rule_relation_status'),  # 0=停用, 1=待确认, 2=已激活, 3=已拒绝, 4=已过期
     )
 
     # 关系 - 使用 back_populates 替代 backref
