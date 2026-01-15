@@ -1,101 +1,152 @@
 """
-事件总线
+领域事件总线
 
-事件总线负责发布和订阅领域事件。
+管理领域事件的发布和订阅
 """
-from typing import Callable, Dict, List, Type
-from collections import defaultdict
+from typing import Dict, List, Type, Callable
 import logging
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
-from app.domain.events.domain_event import DomainEvent
+from .event import DomainEvent
+from .event_handler import EventHandler, E
 
 logger = logging.getLogger(__name__)
 
 
 class EventBus:
     """
-    事件总线
+    领域事件总线
 
-    使用观察者模式实现事件的发布和订阅。
+    负责事件的发布和订阅管理
     """
 
     _instance = None
-    _handlers: Dict[Type[DomainEvent], List[Callable]] = defaultdict(list)
+    _lock = threading.Lock()
 
     def __new__(cls):
-        """单例模式"""
+        """
+        单例模式实现
+        """
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
         return cls._instance
 
-    @classmethod
-    def subscribe(cls, event_type: Type[DomainEvent], handler: Callable[[DomainEvent], None]) -> None:
+    def __init__(self):
         """
-        订阅事件
+        初始化事件总线
+        """
+        if not hasattr(self, '_initialized'):
+            self._handlers: Dict[Type[DomainEvent], List[EventHandler]] = {}
+            self._executor = ThreadPoolExecutor(max_workers=10)
+            self._initialized = True
+            self.logger = logger
+
+    def subscribe(self, handler: EventHandler) -> None:
+        """
+        订阅事件处理器
 
         Args:
-            event_type: 事件类型
-            handler: 事件处理器
+            handler: 事件处理器实例
         """
-        cls._handlers[event_type].append(handler)
-        logger.info(f"订阅事件: {event_type.__name__}, 处理器: {handler.__name__}")
+        event_type = handler.get_event_type()
+        if event_type not in self._handlers:
+            self._handlers[event_type] = []
 
-    @classmethod
-    def unsubscribe(cls, event_type: Type[DomainEvent], handler: Callable[[DomainEvent], None]) -> bool:
+        if handler not in self._handlers[event_type]:
+            self._handlers[event_type].append(handler)
+            self.logger.info(f"已订阅事件处理器: {handler.__class__.__name__} -> {event_type.__name__}")
+
+    def unsubscribe(self, handler: EventHandler) -> None:
         """
-        取消订阅事件
+        取消订阅事件处理器
 
         Args:
-            event_type: 事件类型
-            handler: 事件处理器
-
-        Returns:
-            是否取消成功
+            handler: 事件处理器实例
         """
-        if handler in cls._handlers[event_type]:
-            cls._handlers[event_type].remove(handler)
-            logger.info(f"取消订阅事件: {event_type.__name__}, 处理器: {handler.__name__}")
-            return True
-        return False
+        event_type = handler.get_event_type()
+        if event_type in self._handlers:
+            if handler in self._handlers[event_type]:
+                self._handlers[event_type].remove(handler)
+                self.logger.info(f"已取消订阅事件处理器: {handler.__class__.__name__}")
 
-    @classmethod
-    def publish(cls, event: DomainEvent) -> None:
+    def publish(self, event: DomainEvent) -> None:
         """
-        发布事件
+        发布领域事件（同步）
 
         Args:
-            event: 领域事件
+            event: 领域事件实例
         """
         event_type = type(event)
-        handlers = cls._handlers.get(event_type, [])
+        if event_type in self._handlers:
+            self.logger.info(f"发布事件: {event_type.__name__}")
+            for handler in self._handlers[event_type]:
+                try:
+                    handler.handle(event)
+                except Exception as e:
+                    self.logger.error(f"处理事件失败: {event_type.__name__}, 处理器: {handler.__class__.__name__}, 错误: {e}")
+        else:
+            self.logger.warning(f"没有处理器订阅事件: {event_type.__name__}")
 
-        if not handlers:
-            logger.warning(f"事件 {event_type.__name__} 没有订阅者")
-            return
-
-        logger.info(f"发布事件: {event_type.__name__}, 事件ID: {event.event_id}")
-
-        for handler in handlers:
-            try:
-                handler(event)
-            except Exception as e:
-                logger.error(f"处理事件 {event_type.__name__} 时出错: {str(e)}", exc_info=True)
-
-    @classmethod
-    def clear(cls) -> None:
-        """清除所有订阅（主要用于测试）"""
-        cls._handlers.clear()
-        logger.info("清除所有事件订阅")
-
-    @classmethod
-    def get_subscribers_count(cls, event_type: Type[DomainEvent]) -> int:
+    def publish_async(self, event: DomainEvent) -> None:
         """
-        获取事件的订阅者数量
+        发布领域事件（异步）
+
+        Args:
+            event: 领域事件实例
+        """
+        self._executor.submit(self.publish, event)
+
+    def publish_batch(self, events: List[DomainEvent]) -> None:
+        """
+        批量发布领域事件
+
+        Args:
+            events: 领域事件列表
+        """
+        for event in events:
+            self.publish(event)
+
+    def publish_batch_async(self, events: List[DomainEvent]) -> None:
+        """
+        批量异步发布领域事件
+
+        Args:
+            events: 领域事件列表
+        """
+        for event in events:
+            self._executor.submit(self.publish, event)
+
+    def clear(self) -> None:
+        """
+        清除所有订阅
+        """
+        self._handlers.clear()
+        self.logger.info("已清除所有事件处理器订阅")
+
+    def get_handler_count(self, event_type: Type[DomainEvent]) -> int:
+        """
+        获取指定事件的处理器数量
 
         Args:
             event_type: 事件类型
 
         Returns:
-            订阅者数量
+            int: 处理器数量
         """
-        return len(cls._handlers.get(event_type, []))
+        if event_type in self._handlers:
+            return len(self._handlers[event_type])
+        return 0
+
+    def shutdown(self) -> None:
+        """
+        关闭事件总线
+        """
+        self._executor.shutdown(wait=True)
+        self.logger.info("事件总线已关闭")
+
+
+# 全局事件总线实例
+event_bus = EventBus()
