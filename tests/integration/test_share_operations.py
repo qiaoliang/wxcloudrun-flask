@@ -27,17 +27,20 @@ class TestShareOperations(IntegrationTestBase):
             client = self.get_test_client()
 
         # 创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=user.user_id,
+                rule_data={
                     'rule_name': '每日晨读',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '07:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                user.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
+            rule_name = result.data['rule'].rule_name
 
         # 获取JWT token
             token = self.get_jwt_token(user.phone_number)
@@ -46,7 +49,7 @@ class TestShareOperations(IntegrationTestBase):
             response = client.post(
                 '/api/checkin/create',
                 data=json.dumps({
-                    'rule_id': rule.rule_id,
+                    'rule_id': rule_id,
                     'expire_hours': 168  # 7天
                 }),
                 content_type='application/json',
@@ -71,17 +74,19 @@ class TestShareOperations(IntegrationTestBase):
             client = self.get_test_client()
 
             # 创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=user.user_id,
+                rule_data={
                     'rule_name': '每日学习',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '09:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                user.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             # 获取JWT token
             token = self.get_jwt_token(user.phone_number)
@@ -90,7 +95,7 @@ class TestShareOperations(IntegrationTestBase):
             response = client.post(
                 '/api/checkin/create',
                 data=json.dumps({
-                    'rule_id': rule.rule_id,
+                    'rule_id': rule_id,
                     'expire_hours': 168
                 }),
                 content_type='application/json',
@@ -107,7 +112,7 @@ class TestShareOperations(IntegrationTestBase):
 
             # 验证响应
             resolve_data = self.assert_api_success(resolve_response, ['rule_info', 'inviter_info'])
-            assert resolve_data['data']['rule_info']['rule_id'] == rule.rule_id
+            assert resolve_data['data']['rule_info']['rule_id'] == rule_id
             assert resolve_data['data']['inviter_info']['user_id'] == user.user_id
 
     def test_share_checkin_page_success(self):
@@ -118,17 +123,20 @@ class TestShareOperations(IntegrationTestBase):
             client = self.get_test_client()
 
             # 创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=user.user_id,
+                rule_data={
                     'rule_name': '每日运动',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '18:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                user.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
+            rule_name = result.data['rule'].rule_name
 
             # 获取JWT token
             token = self.get_jwt_token(user.phone_number)
@@ -137,7 +145,7 @@ class TestShareOperations(IntegrationTestBase):
             response = client.post(
                 '/api/checkin/create',
                 data=json.dumps({
-                    'rule_id': rule.rule_id,
+                    'rule_id': rule_id,
                     'expire_hours': 168
                 }),
                 content_type='application/json',
@@ -153,7 +161,7 @@ class TestShareOperations(IntegrationTestBase):
             # 验证响应
             assert page_response.status_code == 200
             assert b'<!DOCTYPE html>' in page_response.data
-            assert rule.rule_name.encode('utf-8') in page_response.data
+            assert rule_name.encode('utf-8') in page_response.data
             assert user.nickname.encode('utf-8') in page_response.data
 
 
