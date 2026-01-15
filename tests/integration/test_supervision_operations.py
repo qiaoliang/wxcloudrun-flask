@@ -27,17 +27,19 @@ class TestSupervisionOperations(IntegrationTestBase):
             supervised = self.create_standard_test_user(role=1, test_context='invite_supervised')
 
             # 为监督者创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=supervisor.user_id,
+                rule_data={
                     'rule_name': '每日学习',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '09:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                supervisor.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             client = self.get_test_client()
             token = self.get_jwt_token(supervisor.phone_number)
@@ -48,7 +50,7 @@ class TestSupervisionOperations(IntegrationTestBase):
                 data=json.dumps({
                     'invite_type': 'wechat',
                     'target_openid': supervised.wechat_openid,
-                    'rule_ids': [rule.rule_id]
+                    'rule_ids': [rule_id]
                 }),
                 content_type='application/json',
                 headers={'Authorization': f'Bearer {token}'}
@@ -66,17 +68,19 @@ class TestSupervisionOperations(IntegrationTestBase):
             supervisor = self.create_standard_test_user(role=1, test_context='create_invite_link')
 
             # 为监督者创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=supervisor.user_id,
+                rule_data={
                     'rule_name': '每日运动',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '18:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                supervisor.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             client = self.get_test_client()
             token = self.get_jwt_token(supervisor.phone_number)
@@ -85,7 +89,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             response = client.post(
                 '/api/supervision/invite_link',
                 data=json.dumps({
-                    'rule_ids': [rule.rule_id],
+                    'rule_ids': [rule_id],
                     'expire_hours': 24
                 }),
                 content_type='application/json',
@@ -106,17 +110,19 @@ class TestSupervisionOperations(IntegrationTestBase):
             supervisor = self.create_standard_test_user(role=1, test_context='resolve_invite_link')
 
             # 为监督者创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=supervisor.user_id,
+                rule_data={
                     'rule_name': '每日阅读',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '20:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                supervisor.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             # 创建监督邀请链接
             import secrets
@@ -130,7 +136,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             relation = SupervisionRuleRelation(
                 solo_user_id=supervisor.user_id,
                 supervisor_user_id=supervisor.user_id + 1,  # 假设被监督者
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 status=1,  # Pending status
                 invite_token=invite_token,
                 invite_expires_at=expires_at
@@ -182,24 +188,26 @@ class TestSupervisionOperations(IntegrationTestBase):
             supervised = self.create_standard_test_user(role=1, test_context='accept_supervised')
 
             # 为监督者创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=supervisor.user_id,
+                rule_data={
                     'rule_name': '每日学习',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '09:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                supervisor.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             # 创建监督关系
             from database.flask_models import db, SupervisionRuleRelation
             relation = SupervisionRuleRelation(
                 solo_user_id=supervisor.user_id,
                 supervisor_user_id=supervised.user_id,
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 status=1  # Pending status
             )
             db.session.add(relation)
@@ -231,24 +239,26 @@ class TestSupervisionOperations(IntegrationTestBase):
             supervised = self.create_standard_test_user(role=1, test_context='reject_supervised')
 
             # 为监督者创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=supervisor.user_id,
+                rule_data={
                     'rule_name': '每日学习',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '09:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                supervisor.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             # 创建监督关系
             from database.flask_models import db, SupervisionRuleRelation
             relation = SupervisionRuleRelation(
                 solo_user_id=supervisor.user_id,
                 supervisor_user_id=supervised.user_id,
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 status=1  # Pending status
             )
             db.session.add(relation)
@@ -322,24 +332,26 @@ class TestSupervisionOperations(IntegrationTestBase):
             supervised = self.create_standard_test_user(role=1, test_context='expired_invitation_user')
 
             # 为监督者创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=supervisor.user_id,
+                rule_data={
                     'rule_name': '每日运动',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '18:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                supervisor.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             # 创建一个已过期的邀请（过期时间设置为昨天）
             expires_at = datetime.now() - timedelta(days=1)
             relation = SupervisionRuleRelation(
                 solo_user_id=supervised.user_id,
                 supervisor_user_id=supervisor.user_id,
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 status=1,  # 待处理
                 invite_expires_at=expires_at,
                 invitation_type='internal'
@@ -378,24 +390,26 @@ class TestSupervisionOperations(IntegrationTestBase):
             supervised = self.create_standard_test_user(role=1, test_context='mixed_invitation_user')
 
             # 为监督者创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=supervisor.user_id,
+                rule_data={
                     'rule_name': '每日运动',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '18:00:00',
                     'week_days': [1, 2, 3, 4, 5]
-                },
-                supervisor.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
 
             # 创建一个已过期的邀请
             expires_at_past = datetime.now() - timedelta(days=1)
             expired_relation = SupervisionRuleRelation(
                 solo_user_id=supervised.user_id,
                 supervisor_user_id=supervisor.user_id,
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 status=1,  # 待处理
                 invite_expires_at=expires_at_past,
                 invitation_type='internal'
@@ -407,7 +421,7 @@ class TestSupervisionOperations(IntegrationTestBase):
             active_relation = SupervisionRuleRelation(
                 solo_user_id=supervised.user_id,
                 supervisor_user_id=supervisor.user_id,
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 status=1,  # 待处理
                 invite_expires_at=expires_at_future,
                 invitation_type='internal'
