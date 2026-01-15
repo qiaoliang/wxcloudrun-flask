@@ -6,18 +6,33 @@ from datetime import datetime
 from flask import current_app
 from config import analyze_all_configs, detect_external_systems_status
 
+from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
+
 app_logger = logging.getLogger('log')
 
 
-class GetEnvironmentsUseCase:
+class GetEnvironmentsUseCase(BaseUseCase):
     """获取环境配置用例"""
 
-    def execute(self) -> dict:
+    def _validate(self) -> UseCaseResult:
+        """
+        验证参数
+
+        Returns:
+            UseCaseResult: 验证结果
+        """
+        # 此用例不需要参数验证
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message="验证通过"
+        )
+
+    def _execute(self) -> UseCaseResult:
         """
         执行获取环境配置操作
 
         Returns:
-            dict: 包含成功状态和响应数据
+            UseCaseResult: 执行结果
         """
         try:
             # 分析所有配置
@@ -31,16 +46,16 @@ class GetEnvironmentsUseCase:
             }
 
             current_app.logger.info("获取环境配置信息成功")
-            return {
-                'success': True,
-                'message': '获取环境配置信息成功',
-                'data': env_info
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='获取环境配置信息成功',
+                data=env_info
+            )
 
         except Exception as e:
             current_app.logger.error(f"获取环境配置信息失败: {str(e)}", exc_info=True)
-            return {
-                'success': False,
-                'message': f'获取环境配置信息失败: {str(e)}',
-                'data': {}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message=f'获取环境配置信息失败: {str(e)}',
+                data={}
+            )

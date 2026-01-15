@@ -7,22 +7,61 @@ from sqlalchemy import select, delete
 from database.flask_models import db, Counters
 from app.shared.utils.transaction import transaction
 
+from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
+
 app_logger = logging.getLogger('log')
 
 
-class CounterUseCase:
+class CounterUseCase(BaseUseCase):
     """计数器用例"""
 
-    def execute(self, action: str, params: dict) -> dict:
+    def _validate(self, action: str, params: dict) -> UseCaseResult:
+        """
+        验证参数
+
+        Args:
+            action: 操作类型
+            params: 请求参数
+
+        Returns:
+            UseCaseResult: 验证结果
+        """
+        # 验证 action 参数
+        valid_actions = ['increment', 'reset', 'get', 'list', 'clear']
+        if action not in valid_actions:
+            return UseCaseResult(
+                status=UseCaseStatus.VALIDATION_ERROR,
+                message=f'不支持的action参数: {action}，支持: {", ".join(valid_actions)}'
+            )
+
+        # 验证特定操作需要的参数
+        if action in ['increment', 'reset', 'get']:
+            if action == 'get':
+                counter_id = params.get('id')
+            else:
+                counter_id = params.get('counter_id')
+            
+            if counter_id is None:
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message=f'{action} 操作需要 counter_id 参数'
+                )
+
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message="验证通过"
+        )
+
+    def _execute(self, action: str, params: dict) -> UseCaseResult:
         """
         执行计数器操作
 
         Args:
-            action: 操作类型（increment, reset, get, list, clear）
+            action: 操作类型
             params: 请求参数
 
         Returns:
-            dict: 包含成功状态和响应数据
+            UseCaseResult: 执行结果
         """
         try:
             if action == 'increment':
@@ -36,23 +75,21 @@ class CounterUseCase:
             elif action == 'clear':
                 return self._clear()
             else:
-                current_app.logger.warning(f"不支持的action参数: {action}")
-                return {
-                    'success': False,
-                    'message': f'不支持的action参数: {action}',
-                    'data': {}
-                }
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message=f'不支持的action参数: {action}'
+                )
 
         except Exception as e:
             current_app.logger.error(f"计数器操作失败: {str(e)}", exc_info=True)
             db.session.rollback()
-            return {
-                'success': False,
-                'message': f'计数器操作失败: {str(e)}',
-                'data': {}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message=f'计数器操作失败: {str(e)}',
+                data={}
+            )
 
-    def _increment(self, params: dict) -> dict:
+    def _increment(self, params: dict) -> UseCaseResult:
         """增加计数"""
         counter_id = params.get('counter_id', 1)
         counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
@@ -65,13 +102,13 @@ class CounterUseCase:
                 db.session.add(counter)
 
         current_app.logger.info(f"计数器 {counter.id} 增加到 {counter.count}")
-        return {
-            'success': True,
-            'message': '计数增加成功',
-            'data': {'id': counter.id, 'count': counter.count}
-        }
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message='计数增加成功',
+            data={'id': counter.id, 'count': counter.count}
+        )
 
-    def _reset(self, params: dict) -> dict:
+    def _reset(self, params: dict) -> UseCaseResult:
         """重置计数"""
         counter_id = params.get('counter_id', 1)
         counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
@@ -80,55 +117,55 @@ class CounterUseCase:
             with transaction():
                 counter.count = 0
             current_app.logger.info(f"计数器 {counter.id} 已重置")
-            return {
-                'success': True,
-                'message': '计数重置成功',
-                'data': {'id': counter.id, 'count': 0}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='计数重置成功',
+                data={'id': counter.id, 'count': 0}
+            )
         else:
             current_app.logger.warning(f"计数器 {counter_id} 不存在")
-            return {
-                'success': False,
-                'message': f'计数器 {counter_id} 不存在',
-                'data': {}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.NOT_FOUND,
+                message=f'计数器 {counter_id} 不存在',
+                data={}
+            )
 
-    def _get(self, params: dict) -> dict:
+    def _get(self, params: dict) -> UseCaseResult:
         """获取计数"""
         counter_id = params.get('id', 1)
         counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
 
         if counter:
-            return {
-                'success': True,
-                'message': '获取计数成功',
-                'data': {'id': counter_id, 'count': counter.count}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='获取计数成功',
+                data={'id': counter_id, 'count': counter.count}
+            )
         else:
-            return {
-                'success': False,
-                'message': f'计数器 {counter_id} 不存在',
-                'data': {}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.NOT_FOUND,
+                message=f'计数器 {counter_id} 不存在',
+                data={}
+            )
 
-    def _list(self) -> dict:
+    def _list(self) -> UseCaseResult:
         """列出所有计数器"""
         counters = db.session.execute(select(Counters)).scalars().all()
         counter_list = [{'id': c.id, 'count': c.count} for c in counters]
         current_app.logger.info(f"获取计数器列表，共 {len(counter_list)} 个计数器")
-        return {
-            'success': True,
-            'message': '获取计数器列表成功',
-            'data': {'counters': counter_list}
-        }
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message='获取计数器列表成功',
+            data={'counters': counter_list}
+        )
 
-    def _clear(self) -> dict:
+    def _clear(self) -> UseCaseResult:
         """清除所有计数器"""
         with transaction():
             db.session.execute(delete(Counters))
         current_app.logger.info("所有计数器已清除")
-        return {
-            'success': True,
-            'message': '所有计数器已清除',
-            'data': {'message': '所有计数器已清除'}
-        }
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message='所有计数器已清除',
+            data={'message': '所有计数器已清除'}
+        )
