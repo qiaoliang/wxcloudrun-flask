@@ -7,6 +7,8 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.event_bus import EventBus
+from app.domain.events.community_events import EventCreatedEvent
 from database.flask_models import CommunityEvent
 
 
@@ -19,6 +21,7 @@ class CreateEventUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
+        self.event_bus = EventBus()
 
     def execute(
         self,
@@ -86,10 +89,10 @@ class CreateEventUseCase(BaseUseCase):
             if event_type == 'call_for_help' and target_user_id:
                 # 检查该用户是否已有进行中的一键求助事件
                 existing_events = self.community_event_repository.find_by_target_user_id(
-                    target_user_id, 
+                    target_user_id,
                     status=1  # 进行中
                 )
-                
+
                 for existing_event in existing_events:
                     if existing_event.event_type == 'call_for_help':
                         self.logger.warning(f"用户{target_user_id}已有进行中的一键求助事件{existing_event.event_id}")
@@ -115,7 +118,17 @@ class CreateEventUseCase(BaseUseCase):
 
             self.logger.info(f"用户{user_id}在社区{community_id}创建了事件{saved_event.event_id}")
 
-            # 7. 返回结果
+            # 7. 发布领域事件
+            self.event_bus.publish(EventCreatedEvent(
+                event_id=saved_event.event_id,
+                community_id=community_id,
+                creator_id=user_id,
+                event_type=event_type,
+                title=title,
+                target_user_id=target_user_id
+            ))
+
+            # 8. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='事件创建成功',

@@ -2,8 +2,9 @@
 批量获取规则来源信息用例
 """
 from flask import current_app
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
+from database.flask_models import db
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetRulesSourceInfoUseCase(BaseUseCase):
@@ -51,10 +52,45 @@ class GetRulesSourceInfoUseCase(BaseUseCase):
         if community_rule_ids is None:
             community_rule_ids = []
 
-        # 调用服务层获取规则来源信息
-        source_info = UserCheckinRuleService.get_rules_source_info(
-            user_id, rule_ids, community_rule_ids
-        )
+        source_info = {
+            'personal_rules': [],
+            'community_rules': []
+        }
+
+        # 获取个人规则来源信息
+        if rule_ids:
+            checkin_rule_repo = RepositoryFactory.get_checkin_rule_repository()
+            for rule_id in rule_ids:
+                rule = checkin_rule_repo.find_by_id(rule_id)
+                if rule and rule.user_id == user_id:
+                    source_info['personal_rules'].append({
+                        'rule_id': rule.rule_id,
+                        'rule_name': rule.rule_name,
+                        'rule_source': 'personal',
+                        'is_editable': True
+                    })
+
+        # 获取社区规则来源信息
+        if community_rule_ids:
+            community_checkin_rule_repo = RepositoryFactory.get_community_checkin_rule_repository()
+            user_community_rule_repo = RepositoryFactory.get_user_community_rule_repository()
+            user_repo = RepositoryFactory.get_user_repository()
+
+            for rule_id in community_rule_ids:
+                rule = community_checkin_rule_repo.find_by_id(rule_id)
+                if rule:
+                    # 检查用户是否有权限查看此规则
+                    user = user_repo.find_by_id(user_id)
+                    if user and user.community_id == rule.community_id:
+                        mapping = user_community_rule_repo.find_by_user_and_rule(user_id, rule_id)
+                        if mapping and mapping.is_active:
+                            source_info['community_rules'].append({
+                                'rule_id': rule.community_rule_id,
+                                'rule_name': rule.rule_name,
+                                'rule_source': 'community',
+                                'is_editable': False,
+                                'community_name': rule.community.name if rule.community else None
+                            })
 
         current_app.logger.info(f'成功获取用户 {user_id} 的规则来源信息')
         return UseCaseResult(

@@ -5,6 +5,8 @@ import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.event_bus import EventBus
+from app.domain.events.community_events import EventLocationUpdatedEvent
 
 
 class UpdateEventLocationUseCase(BaseUseCase):
@@ -15,6 +17,7 @@ class UpdateEventLocationUseCase(BaseUseCase):
         self.logger = logging.getLogger(__name__)
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
+        self.event_bus = EventBus()
 
     def execute(
         self,
@@ -98,7 +101,16 @@ class UpdateEventLocationUseCase(BaseUseCase):
 
             self.logger.info(f'更新事件位置成功: event_id={event_id}')
 
-            # 7. 返回结果
+            # 7. 发布领域事件
+            self.event_bus.publish(EventLocationUpdatedEvent(
+                event_id=event_id,
+                community_id=event.community_id,
+                location=location.strip(),
+                location_lat=location_lat,
+                location_lon=location_lon
+            ))
+
+            # 8. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='事件位置更新成功',

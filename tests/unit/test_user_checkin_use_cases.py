@@ -53,7 +53,8 @@ class TestGetUserTodayPlanUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert "用户ID无效" in result.message
 
-    def test_execute_success(self, use_case):
+    @patch('app.application.use_cases.user_checkin.get_user_today_plan_use_case.RepositoryFactory')
+    def test_execute_success(self, mock_repo_factory, use_case):
         """
         测试执行成功
         Given: 有效的用户ID
@@ -62,17 +63,22 @@ class TestGetUserTodayPlanUseCase:
         """
         # Arrange
         user_id = 123
-        mock_plan = {'total_items': 5, 'items': []}
 
-        with patch('app.application.use_cases.user_checkin.get_user_today_plan_use_case.UserCheckinRuleService') as mock_service:
-            mock_service.get_today_checkin_plan.return_value = mock_plan
-            # Act
-            result = use_case.execute(user_id)
+        mock_checkin_rule_repo = Mock()
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_checkin_rule_repo
+        mock_checkin_rule_repo.find_active_by_user_id.return_value = []
 
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert "获取今日计划成功" in result.message
-            assert result.data == mock_plan
+        mock_user_community_rule_repo = Mock()
+        mock_repo_factory.get_user_community_rule_repository.return_value = mock_user_community_rule_repo
+        mock_user_community_rule_repo.find_by_user_id.return_value = []
+
+        # Act
+        result = use_case.execute(user_id)
+
+        # Assert
+        assert result.status == UseCaseStatus.SUCCESS
+        assert "获取今日计划成功" in result.message
+        assert 'total_items' in result.data
 
 
 class TestGetRulesSourceInfoUseCase:
@@ -99,7 +105,9 @@ class TestGetRulesSourceInfoUseCase:
         # Assert
         assert result.status == UseCaseStatus.SUCCESS
 
-    def test_execute_success(self, use_case):
+    @patch('app.application.use_cases.user_checkin.get_rules_source_info_use_case.RepositoryFactory')
+    @patch('app.application.use_cases.user_checkin.get_rules_source_info_use_case.db')
+    def test_execute_success(self, mock_db, mock_repo_factory, use_case):
         """
         测试执行成功
         Given: 有效的用户ID和规则ID列表
@@ -110,17 +118,31 @@ class TestGetRulesSourceInfoUseCase:
         user_id = 123
         rule_ids = [1, 2, 3]
         community_rule_ids = [4, 5]
-        mock_source_info = {'rules': []}
 
-        with patch('app.application.use_cases.user_checkin.get_rules_source_info_use_case.UserCheckinRuleService') as mock_service:
-            mock_service.get_rules_source_info.return_value = mock_source_info
-            # Act
-            result = use_case.execute(user_id, rule_ids, community_rule_ids)
+        mock_user = Mock()
+        mock_user.community_id = 1
+        mock_db.session.get.return_value = mock_user
 
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert "获取来源信息成功" in result.message
-            assert result.data == mock_source_info
+        mock_checkin_rule_repo = Mock()
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_checkin_rule_repo
+        mock_checkin_rule_repo.find_by_id.return_value = None
+
+        mock_community_checkin_rule_repo = Mock()
+        mock_repo_factory.get_community_checkin_rule_repository.return_value = mock_community_checkin_rule_repo
+        mock_community_checkin_rule_repo.find_by_id.return_value = None
+
+        mock_user_community_rule_repo = Mock()
+        mock_repo_factory.get_user_community_rule_repository.return_value = mock_user_community_rule_repo
+        mock_user_community_rule_repo.find_by_user_and_rule.return_value = None
+
+        # Act
+        result = use_case.execute(user_id, rule_ids, community_rule_ids)
+
+        # Assert
+        assert result.status == UseCaseStatus.SUCCESS
+        assert "获取来源信息成功" in result.message
+        assert 'personal_rules' in result.data
+        assert 'community_rules' in result.data
 
 
 class TestGetUserAllRulesUseCase:
@@ -203,7 +225,9 @@ class TestGetUserAllRulesUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert "不允许删除社区规则" in result.message
 
-    def test_execute_get_method_success(self, use_case):
+    @patch('app.application.use_cases.user_checkin.get_user_all_rules_use_case.RepositoryFactory')
+    @patch('app.application.use_cases.user_checkin.get_user_all_rules_use_case.db')
+    def test_execute_get_method_success(self, mock_db, mock_repo_factory, use_case):
         """
         测试执行成功 - GET 方法
         Given: 有效的用户ID和 GET 方法
@@ -213,19 +237,25 @@ class TestGetUserAllRulesUseCase:
         # Arrange
         user_id = 123
         method = 'GET'
-        mock_rules = [{'id': 1, 'name': '规则1'}]
 
-        with patch('app.application.use_cases.user_checkin.get_user_all_rules_use_case.UserCheckinRuleService') as mock_service:
-            mock_service.get_user_all_rules.return_value = mock_rules
-            # Act
-            result = use_case.execute(user_id, method)
+        mock_user = Mock()
+        mock_user.community_id = None
+        mock_db.session.get.return_value = mock_user
 
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert "获取规则成功" in result.message
-            assert result.data == mock_rules
+        mock_checkin_rule_repo = Mock()
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_checkin_rule_repo
+        mock_checkin_rule_repo.find_active_by_user_id.return_value = []
 
-    def test_execute_delete_method_success(self, use_case):
+        # Act
+        result = use_case.execute(user_id, method)
+
+        # Assert
+        assert result.status == UseCaseStatus.SUCCESS
+        assert "获取规则成功" in result.message
+        assert 'rules' in result.data
+
+    @patch('app.application.use_cases.user_checkin.get_user_all_rules_use_case.RepositoryFactory')
+    def test_execute_delete_method_success(self, mock_repo_factory, use_case):
         """
         测试执行成功 - DELETE 方法
         Given: 有效的用户ID、DELETE 方法和参数
@@ -236,16 +266,21 @@ class TestGetUserAllRulesUseCase:
         user_id = 123
         method = 'DELETE'
         params = {'rule_id': 1, 'rule_source': 'personal'}
-        mock_response = {'deleted': True}
 
-        with patch('app.application.use_cases.user_checkin.get_user_all_rules_use_case.CheckinRuleService') as mock_service:
-            mock_service.delete_rule.return_value = mock_response
-            # Act
-            result = use_case.execute(user_id, method, params)
+        mock_rule = Mock()
+        mock_rule.user_id = 123
 
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert "删除规则成功" in result.message
+        mock_checkin_rule_repo = Mock()
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_checkin_rule_repo
+        mock_checkin_rule_repo.find_by_id.return_value = mock_rule
+        mock_checkin_rule_repo.soft_delete.return_value = True
+
+        # Act
+        result = use_case.execute(user_id, method, params)
+
+        # Assert
+        assert result.status == UseCaseStatus.SUCCESS
+        assert "删除规则成功" in result.message
 
 
 class TestGetUserCheckinStatisticsUseCase:
@@ -291,7 +326,9 @@ class TestGetUserCheckinStatisticsUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert "统计周期无效" in result.message
 
-    def test_execute_success(self, use_case):
+    @patch('app.application.use_cases.user_checkin.get_user_checkin_statistics_use_case.RepositoryFactory')
+    @patch('app.application.use_cases.user_checkin.get_user_checkin_statistics_use_case.db')
+    def test_execute_success(self, mock_db, mock_repo_factory, use_case):
         """
         测试执行成功
         Given: 有效的用户ID和周期
@@ -301,17 +338,24 @@ class TestGetUserCheckinStatisticsUseCase:
         # Arrange
         user_id = 123
         period = 'week'
-        mock_stats = {'total': 10, 'completed': 8}
 
-        with patch('app.application.use_cases.user_checkin.get_user_checkin_statistics_use_case.UserCheckinRuleService') as mock_service:
-            mock_service.get_user_checkin_statistics.return_value = mock_stats
-            # Act
-            result = use_case.execute(user_id, period)
+        mock_user = Mock()
+        mock_user.community_id = None
+        mock_db.session.get.return_value = mock_user
 
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert "获取统计信息成功" in result.message
-            assert result.data == mock_stats
+        mock_checkin_rule_repo = Mock()
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_checkin_rule_repo
+        mock_checkin_rule_repo.find_active_by_user_id.return_value = []
+
+        mock_db.session.execute.return_value.scalars.return_value.all.return_value = []
+
+        # Act
+        result = use_case.execute(user_id, period)
+
+        # Assert
+        assert result.status == UseCaseStatus.SUCCESS
+        assert "获取统计信息成功" in result.message
+        assert 'period' in result.data
 
 
 class TestGetUserRuleDetailUseCase:
@@ -357,7 +401,8 @@ class TestGetUserRuleDetailUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert "规则ID无效" in result.message
 
-    def test_execute_success(self, use_case):
+    @patch('app.application.use_cases.user_checkin.get_user_rule_detail_use_case.RepositoryFactory')
+    def test_execute_success(self, mock_repo_factory, use_case):
         """
         测试执行成功
         Given: 有效的用户ID和规则ID
@@ -367,14 +412,19 @@ class TestGetUserRuleDetailUseCase:
         # Arrange
         user_id = 123
         rule_id = 1
-        mock_rule = {'id': 1, 'name': '规则1'}
 
-        with patch('app.application.use_cases.user_checkin.get_user_rule_detail_use_case.UserCheckinRuleService') as mock_service:
-            mock_service.get_user_rule_detail.return_value = mock_rule
-            # Act
-            result = use_case.execute(user_id, rule_id)
+        mock_rule = Mock()
+        mock_rule.user_id = 123
+        mock_rule.to_dict.return_value = {'id': 1, 'name': '规则1'}
 
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert "获取规则详情成功" in result.message
-            assert result.data == mock_rule
+        mock_checkin_rule_repo = Mock()
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_checkin_rule_repo
+        mock_checkin_rule_repo.find_by_id.return_value = mock_rule
+
+        # Act
+        result = use_case.execute(user_id, rule_id)
+
+        # Assert
+        assert result.status == UseCaseStatus.SUCCESS
+        assert "获取规则详情成功" in result.message
+        assert result.data['rule_source'] == 'personal'

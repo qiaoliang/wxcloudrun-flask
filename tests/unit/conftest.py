@@ -113,7 +113,7 @@ def test_superuser(test_session):
     """创建测试超级用户"""
     # 延迟导入模型类，避免在模块级别导入导致表重复定义
     from database.flask_models import User
-    
+
     phone_number = generate_unique_phone_number("test_superuser")
     user = User(
         wechat_openid=generate_unique_openid(phone_number, "test_superuser"),
@@ -126,6 +126,38 @@ def test_superuser(test_session):
         avatar_url=TEST_CONSTANTS.generate_avatar_url(phone_number)
     )
     test_session.add(user)
+    test_session.commit()
+    return user
+
+
+@pytest.fixture(scope='function')
+def test_staff_user(test_session, test_community):
+    """创建测试工作人员用户"""
+    # 延迟导入模型类，避免在模块级别导入导致表重复定义
+    from database.flask_models import User, CommunityStaff
+
+    phone_number = generate_unique_phone_number("test_staff")
+    user = User(
+        wechat_openid=generate_unique_openid(phone_number, "test_staff"),
+        phone_number=phone_number,
+        phone_hash=sha256(f"{TEST_CONSTANTS.PHONE_ENC_SECRET}:{phone_number}".encode('utf-8')).hexdigest(),
+        nickname=generate_unique_nickname("test_staff"),
+        name=generate_unique_username("test_staff"),
+        role=2,  # 工作人员角色
+        status=1,
+        community_id=test_community.community_id,
+        avatar_url=TEST_CONSTANTS.generate_avatar_url(phone_number)
+    )
+    test_session.add(user)
+    test_session.flush()
+
+    # 创建社区工作人员记录
+    staff = CommunityStaff(
+        community_id=test_community.community_id,
+        user_id=user.user_id,
+        role='staff'  # 工作人员角色，使用字符串而不是数字
+    )
+    test_session.add(staff)
     test_session.commit()
     return user
 

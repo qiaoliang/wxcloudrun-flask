@@ -6,6 +6,8 @@ from typing import Optional, List
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.event_bus import EventBus
+from app.domain.events.community_events import EventMessageAddedEvent
 from database.flask_models import EventMessage
 
 
@@ -18,6 +20,7 @@ class AddEventMessageUseCase(BaseUseCase):
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
         self.event_message_repository = RepositoryFactory.get_event_message_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
+        self.event_bus = EventBus()
 
     def execute(
         self,
@@ -107,7 +110,17 @@ class AddEventMessageUseCase(BaseUseCase):
 
             self.logger.info(f'添加事件消息成功: event_id={event_id}, message_id={saved_message.message_id}')
 
-            # 7. 返回结果
+            # 7. 发布领域事件
+            self.event_bus.publish(EventMessageAddedEvent(
+                event_id=event_id,
+                sender_id=sender_id,
+                message_type=message_type,
+                message_content=content.strip() if content else None,
+                media_url=media_url,
+                message_tags=message_tags or []
+            ))
+
+            # 8. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='添加事件消息成功',

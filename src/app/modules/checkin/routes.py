@@ -1,6 +1,6 @@
 """
 打卡功能模块路由
-负责参数验证、调用 Service 层、返回响应
+负责参数验证、调用 UseCase 层、返回响应
 """
 
 import logging
@@ -11,7 +11,6 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
 from wxcloudrun.user_service import UserService
-from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.checkin_record_service import CheckinRecordService
 from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only
 from database.flask_models import db, User
@@ -330,17 +329,26 @@ def manage_checkin_rules():
 
     try:
         if method == 'GET':
-            # 查询打卡规则 - 暂时保留原有逻辑，因为用例中可能没有实现
+            # 查询打卡规则
             rule_id = request.args.get('rule_id')
+
+            # 使用应用服务用例查询打卡规则
+            from app.application.use_cases.checkin import GetCheckinRuleUseCase
+
+            use_case = GetCheckinRuleUseCase()
+            result = use_case.execute(user_id=user.user_id, rule_id=int(rule_id) if rule_id else None)
+
+            if not result.is_success:
+                return make_err_response({}, result.message)
+
+            # 构造响应数据
             if rule_id:
-                # 查询单个规则
-                rule = CheckinRuleService.query_rule_by_id(int(rule_id))
-                if not rule:
-                    return make_err_response({}, '规则不存在')
+                # 单个规则
+                rule = result.data.get('rule')
                 response_data = _rule_to_dict(rule)
             else:
-                # 查询所有规则
-                rules = CheckinRuleService.query_rules_by_user_id(user.user_id)
+                # 所有规则
+                rules = result.data.get('rules', [])
                 response_data = {'rules': [_rule_to_dict(r) for r in rules]}
 
             current_app.logger.info(f'用户 {user.user_id} 成功查询打卡规则')

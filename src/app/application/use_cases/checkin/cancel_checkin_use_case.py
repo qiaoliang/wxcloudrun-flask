@@ -60,14 +60,14 @@ class CancelCheckinUseCase(BaseUseCase):
                     )
 
             # 4. 检查打卡状态（只有未完成的打卡可以取消）
-            if record.checkin_status == 2:  # 2=已完成
+            if record.status == 1:  # 1=已打卡
                 return UseCaseResult(
                     status=UseCaseStatus.BUSINESS_ERROR,
                     message='打卡已完成，无法取消'
                 )
 
             # 5. 取消打卡记录
-            self.checkin_record_repository.cancel(record_id, reason or '用户取消打卡')
+            self.checkin_record_repository.cancel(record_id)
 
             self.logger.info(f'取消打卡成功: record_id={record_id}')
 

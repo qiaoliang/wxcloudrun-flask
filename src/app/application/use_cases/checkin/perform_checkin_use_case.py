@@ -7,6 +7,8 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
+from app.domain.aggregates.checkin_rule_aggregate import CheckinRuleAggregate
 from database.flask_models import CheckinRecord
 
 
@@ -77,7 +79,7 @@ class PerformCheckinUseCase(BaseUseCase):
             # 5. 检查今天是否已有打卡记录
             today = datetime.now().date()
             today_records = self.checkin_record_repository.find_by_rule_id(rule_id)
-            
+
             # 查找当天已有的打卡记录
             for record in today_records:
                 if record.status == 1:  # 已打卡
@@ -115,9 +117,34 @@ class PerformCheckinUseCase(BaseUseCase):
                 )
                 updated_record = self.checkin_record_repository.save(new_record)
 
+            # 8. 发布领域事件
+            try:
+                # 创建聚合根
+                rule_entity = CheckinRuleEntity(
+                    rule_id=rule.rule_id,
+                    user_id=rule.user_id,
+                    community_id=rule.community_id,
+                    rule_name=rule.rule_name,
+                    icon_url=rule.icon_url,
+                    frequency_type=rule.frequency_type,
+                    time_slot_type=rule.time_slot_type,
+                    custom_time=rule.custom_time,
+                    custom_start_date=rule.custom_start_date,
+                    custom_end_date=rule.custom_end_date,
+                    week_days=rule.week_days,
+                    status=rule.status,
+                    created_at=rule.created_at,
+                    updated_at=rule.updated_at
+                )
+                aggregate = CheckinRuleAggregate(rule_entity)
+                aggregate.complete_checkin(updated_record.record_id, checkin_time)
+                self.logger.info(f'发布打卡完成事件: record_id={updated_record.record_id}')
+            except Exception as e:
+                self.logger.warning(f'发布领域事件失败（不影响打卡结果）: {str(e)}')
+
             self.logger.info(f'执行打卡成功: rule_id={rule_id}, user_id={user_id}, record_id={updated_record.record_id}')
 
-            # 8. 返回结果
+            # 9. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='打卡成功',

@@ -7,6 +7,8 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.event_bus import EventBus
+from app.domain.events.community_events import EventSupportedEvent
 from database.flask_models import EventMessage, CommunityEvent
 
 
@@ -20,6 +22,7 @@ class SupportEventUseCase(BaseUseCase):
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
         self.event_message_repository = RepositoryFactory.get_event_message_repository()
         self.community_staff_repository = RepositoryFactory.get_community_staff_repository()
+        self.event_bus = EventBus()
 
     def execute(
         self,
@@ -100,7 +103,15 @@ class SupportEventUseCase(BaseUseCase):
 
             self.logger.info(f"用户{sender_id}对事件{event_id}进行了应援")
 
-            # 8. 返回结果
+            # 8. 发布领域事件
+            self.event_bus.publish(EventSupportedEvent(
+                event_id=event_id,
+                community_id=event.community_id,
+                supporter_id=sender_id,
+                message_content=message_content
+            ))
+
+            # 9. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='应援成功',

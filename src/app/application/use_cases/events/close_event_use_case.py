@@ -7,6 +7,8 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.event_bus import EventBus
+from app.domain.events.community_events import EventClosedEvent
 from database.flask_models import CommunityEvent
 
 
@@ -19,6 +21,7 @@ class CloseEventUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
         self.community_staff_repository = RepositoryFactory.get_community_staff_repository()
+        self.event_bus = EventBus()
 
     def execute(
         self,
@@ -107,7 +110,16 @@ class CloseEventUseCase(BaseUseCase):
 
             self.logger.info(f"用户{user_id}关闭了事件{event_id}，类型：{closure_type}，原因：{closure_reason}")
 
-            # 9. 返回结果
+            # 9. 发布领域事件
+            self.event_bus.publish(EventClosedEvent(
+                event_id=event_id,
+                community_id=event.community_id,
+                resolved_by=user_id,
+                closure_reason=closure_reason,
+                closure_type=closure_type
+            ))
+
+            # 10. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='事件已关闭',

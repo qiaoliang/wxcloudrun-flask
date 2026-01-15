@@ -8,6 +8,14 @@ from datetime import datetime
 
 from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
 from app.domain.entities.checkin_record_entity import CheckinRecordEntity
+from app.domain.events.checkin_events import (
+    CheckinCompletedEvent,
+    CheckinMissedEvent,
+    CheckinCancelledEvent,
+    CheckinRuleEnabledEvent,
+    CheckinRuleDisabledEvent
+)
+from app.domain.events.event_bus import EventBus
 
 
 class CheckinRuleAggregate:
@@ -33,6 +41,7 @@ class CheckinRuleAggregate:
         """
         self._rule = rule_entity
         self._records: List[CheckinRecordEntity] = []
+        self._events: List = []
 
     @property
     def rule(self) -> CheckinRuleEntity:
@@ -44,6 +53,11 @@ class CheckinRuleAggregate:
         """获取打卡记录列表"""
         return self._records
 
+    @property
+    def events(self) -> List:
+        """获取待发布的领域事件"""
+        return self._events
+
     def add_record(self, record: CheckinRecordEntity) -> None:
         """
         添加打卡记录
@@ -52,6 +66,85 @@ class CheckinRuleAggregate:
             record: 打卡记录实体
         """
         self._records.append(record)
+
+    def complete_checkin(self, record_id: int, checkin_time: datetime) -> None:
+        """
+        完成打卡
+
+        Args:
+            record_id: 打卡记录ID
+            checkin_time: 打卡时间
+        """
+        event = CheckinCompletedEvent(
+            record_id=record_id,
+            user_id=self._rule.user_id,
+            rule_id=self._rule.rule_id,
+            checkin_time=checkin_time
+        )
+        self._events.append(event)
+        EventBus.publish(event)
+
+    def miss_checkin(self, record_id: int, scheduled_time: datetime) -> None:
+        """
+        错过打卡
+
+        Args:
+            record_id: 打卡记录ID
+            scheduled_time: 计划打卡时间
+        """
+        event = CheckinMissedEvent(
+            record_id=record_id,
+            user_id=self._rule.user_id,
+            rule_id=self._rule.rule_id,
+            scheduled_time=scheduled_time
+        )
+        self._events.append(event)
+        EventBus.publish(event)
+
+    def cancel_checkin(self, record_id: int, reason: str = None) -> None:
+        """
+        取消打卡
+
+        Args:
+            record_id: 打卡记录ID
+            reason: 取消原因
+        """
+        event = CheckinCancelledEvent(
+            record_id=record_id,
+            user_id=self._rule.user_id,
+            rule_id=self._rule.rule_id,
+            reason=reason
+        )
+        self._events.append(event)
+        EventBus.publish(event)
+
+    def enable(self) -> None:
+        """启用规则"""
+        self._rule.enable()
+        event = CheckinRuleEnabledEvent(
+            rule_id=self._rule.rule_id,
+            user_id=self._rule.user_id
+        )
+        self._events.append(event)
+        EventBus.publish(event)
+
+    def disable(self) -> None:
+        """禁用规则"""
+        self._rule.disable()
+        event = CheckinRuleDisabledEvent(
+            rule_id=self._rule.rule_id,
+            user_id=self._rule.user_id
+        )
+        self._events.append(event)
+        EventBus.publish(event)
+
+    def soft_delete(self) -> None:
+        """软删除规则"""
+        self._rule.soft_delete()
+
+    def clear_events(self) -> None:
+        """清除已发布的事件"""
+        self._events.clear()
 
     def get_records_by_date(self, date: datetime) -> List[CheckinRecordEntity]:
         """
@@ -118,18 +211,6 @@ class CheckinRuleAggregate:
 
         completed = sum(1 for record in recent_records if record.is_completed())
         return completed / len(recent_records)
-
-    def enable(self) -> None:
-        """启用规则"""
-        self._rule.enable()
-
-    def disable(self) -> None:
-        """禁用规则"""
-        self._rule.disable()
-
-    def soft_delete(self) -> None:
-        """软删除规则"""
-        self._rule.soft_delete()
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, CheckinRuleAggregate):

@@ -2,8 +2,9 @@
 获取用户打卡规则详情用例
 """
 from flask import current_app
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
+from database.flask_models import db, CheckinRule
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetUserRuleDetailUseCase(BaseUseCase):
@@ -48,12 +49,66 @@ class GetUserRuleDetailUseCase(BaseUseCase):
         Returns:
             UseCaseResult: 执行结果
         """
-        # 调用服务层获取规则详情
-        rule = UserCheckinRuleService.get_user_rule_detail(user_id, rule_id)
+        # 先尝试获取个人规则
+        checkin_rule_repo = RepositoryFactory.get_checkin_rule_repository()
+        rule = checkin_rule_repo.find_by_id(rule_id)
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的规则详情，规则ID: {rule_id}')
+        if rule and rule.user_id == user_id:
+            rule_dict = rule.to_dict()
+            rule_dict['rule_source'] = 'personal'
+            rule_dict['is_editable'] = True
+
+            current_app.logger.info(f'成功获取用户 {user_id} 的个人规则详情，规则ID: {rule_id}')
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='获取规则详情成功',
+                data=rule_dict
+            )
+
+        # 如果不是个人规则，尝试获取社区规则
+        community_checkin_rule_repo = RepositoryFactory.get_community_checkin_rule_repository()
+        community_rule = community_checkin_rule_repo.find_by_id(rule_id)
+
+        if community_rule:
+            # 检查用户是否有权限查看此规则
+            user_repo = RepositoryFactory.get_user_repository()
+            user = user_repo.find_by_id(user_id)
+            if not user or user.community_id != community_rule.community_id:
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message='社区规则不存在或无权限'
+                )
+
+            # 检查规则是否对用户生效
+            user_community_rule_repo = RepositoryFactory.get_user_community_rule_repository()
+            mapping = user_community_rule_repo.find_by_user_and_rule(user_id, rule_id)
+
+            if not mapping or not mapping.is_active:
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message='此规则未对您生效'
+                )
+
+            rule_dict = community_rule.to_dict()
+            rule_dict['rule_source'] = 'community'
+            rule_dict['is_editable'] = False
+
+            # 添加额外信息
+            if community_rule.community:
+                rule_dict['community_name'] = community_rule.community.name
+            if community_rule.creator:
+                rule_dict['created_by_name'] = community_rule.creator.nickname or community_rule.creator.phone
+            if community_rule.updater:
+                rule_dict['updated_by_name'] = community_rule.updater.nickname or community_rule.updater.phone
+
+            current_app.logger.info(f'成功获取用户 {user_id} 的社区规则详情，规则ID: {rule_id}')
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='获取规则详情成功',
+                data=rule_dict
+            )
+
         return UseCaseResult(
-            status=UseCaseStatus.SUCCESS,
-            message='获取规则详情成功',
-            data=rule
+            status=UseCaseStatus.BUSINESS_ERROR,
+            message='规则不存在'
         )
