@@ -170,18 +170,26 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
     def _setup_community_with_staff(self, user_id, community_id):
         """
         设置用户为社区工作人员
-        
+
         Args:
             user_id: 用户ID
             community_id: 社区ID
         """
         from wxcloudrun.community_staff_service import CommunityStaffService
+        from database.flask_models import User
+
+        # 添加社区工作人员记录
         CommunityStaffService.add_staff_single(
             community_id=community_id,
             user_id=user_id,
             role='staff',
             operator_id=user_id
         )
+
+        # 设置用户的 community_id（GetUserTodayPlanUseCase 需要此字段来查询社区规则）
+        user = self.db.session.get(User, user_id)
+        user.community_id = community_id
+        self.db.session.commit()
 
     def test_get_today_checkin_items_empty(self):
         """测试获取今日打卡事项（无规则）"""
