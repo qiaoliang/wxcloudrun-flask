@@ -8,7 +8,7 @@ from typing import Optional
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityUpdatedEvent, CommunityManagerChangedEvent, CommunityStatusChangedEvent, CommunitySettingsUpdatedEvent
-from app.domain.events.event_bus import EventBus
+from app.domain.events.event_bus import event_bus
 from database.flask_models import Community
 
 
@@ -162,7 +162,7 @@ class UpdateCommunityUseCase(BaseUseCase):
                     old_manager_id=community.manager_id,
                     new_manager_id=manager_id
                 )
-                EventBus.publish(manager_change_event)
+                event_bus.publish(manager_change_event)
             if status is not None:
                 updated_fields['status'] = status
                 # 发布状态变更事件
@@ -172,7 +172,7 @@ class UpdateCommunityUseCase(BaseUseCase):
                     new_status=status,
                     operator_id=0  # TODO: 从上下文获取操作者ID
                 )
-                EventBus.publish(status_change_event)
+                event_bus.publish(status_change_event)
             if settings is not None:
                 updated_fields['settings'] = settings
                 # 发布设置更新事件
@@ -181,7 +181,7 @@ class UpdateCommunityUseCase(BaseUseCase):
                     settings=settings,
                     operator_id=0  # TODO: 从上下文获取操作者ID
                 )
-                EventBus.publish(settings_event)
+                event_bus.publish(settings_event)
 
             if updated_fields:
                 update_event = CommunityUpdatedEvent(
@@ -189,7 +189,7 @@ class UpdateCommunityUseCase(BaseUseCase):
                     updater_id=0,  # TODO: 从上下文获取操作者ID
                     updated_fields=updated_fields
                 )
-                EventBus.publish(update_event)
+                event_bus.publish(update_event)
 
             # 6. 返回结果
             return UseCaseResult(

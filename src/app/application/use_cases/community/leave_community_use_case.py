@@ -7,7 +7,7 @@ from typing import Optional
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityMemberRemovedEvent
-from app.domain.events.event_bus import EventBus
+from app.domain.events.event_bus import event_bus
 from database.flask_models import User
 
 
@@ -66,7 +66,7 @@ class LeaveCommunityUseCase(BaseUseCase):
                 user_id=user_id,
                 role=user.role
             )
-            EventBus.publish(event)
+            event_bus.publish(event)
 
             # 6. 返回结果
             return UseCaseResult(

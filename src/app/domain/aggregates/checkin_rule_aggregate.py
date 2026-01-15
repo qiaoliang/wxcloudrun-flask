@@ -15,7 +15,7 @@ from app.domain.events.checkin_events import (
     CheckinRuleEnabledEvent,
     CheckinRuleDisabledEvent
 )
-from app.domain.events.event_bus import EventBus
+from app.domain.events.event_bus import event_bus
 
 
 class CheckinRuleAggregate:
@@ -82,7 +82,7 @@ class CheckinRuleAggregate:
             checkin_time=checkin_time
         )
         self._events.append(event)
-        EventBus.publish(event)
+        event_bus.publish(event)
 
     def miss_checkin(self, record_id: int, scheduled_time: datetime) -> None:
         """
@@ -99,7 +99,7 @@ class CheckinRuleAggregate:
             scheduled_time=scheduled_time
         )
         self._events.append(event)
-        EventBus.publish(event)
+        event_bus.publish(event)
 
     def cancel_checkin(self, record_id: int, reason: str = None) -> None:
         """
@@ -116,7 +116,7 @@ class CheckinRuleAggregate:
             reason=reason
         )
         self._events.append(event)
-        EventBus.publish(event)
+        event_bus.publish(event)
 
     def enable(self) -> None:
         """启用规则"""
@@ -126,7 +126,7 @@ class CheckinRuleAggregate:
             user_id=self._rule.user_id
         )
         self._events.append(event)
-        EventBus.publish(event)
+        event_bus.publish(event)
 
     def disable(self) -> None:
         """禁用规则"""
@@ -136,7 +136,7 @@ class CheckinRuleAggregate:
             user_id=self._rule.user_id
         )
         self._events.append(event)
-        EventBus.publish(event)
+        event_bus.publish(event)
 
     def soft_delete(self) -> None:
         """软删除规则"""

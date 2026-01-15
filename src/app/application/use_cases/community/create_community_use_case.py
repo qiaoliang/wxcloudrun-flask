@@ -9,7 +9,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.domain.entities.user_entity import UserEntity
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityCreatedEvent
-from app.domain.events.event_bus import EventBus
+from app.domain.events.event_bus import event_bus
 from database.flask_models import Community
 
 
@@ -120,7 +120,7 @@ class CreateCommunityUseCase(BaseUseCase):
                 creator_id=creator_id,
                 community_name=name
             )
-            EventBus.publish(event)
+            event_bus.publish(event)
 
             # 7. 返回结果
             return UseCaseResult(

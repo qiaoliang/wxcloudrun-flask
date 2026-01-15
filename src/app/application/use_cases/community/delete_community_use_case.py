@@ -6,7 +6,7 @@ import logging
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityDeletedEvent
-from app.domain.events.event_bus import EventBus
+from app.domain.events.event_bus import event_bus
 
 
 class DeleteCommunityUseCase(BaseUseCase):
@@ -80,7 +80,7 @@ class DeleteCommunityUseCase(BaseUseCase):
                 deleter_id=user_id,
                 community_name=community_name
             )
-            EventBus.publish(event)
+            event_bus.publish(event)
 
             # 7. 返回结果
             return UseCaseResult(

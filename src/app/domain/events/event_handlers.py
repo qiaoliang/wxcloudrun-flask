@@ -106,19 +106,19 @@ class CheckinEventHandler:
 # 注册事件处理器
 def register_event_handlers() -> None:
     """注册所有事件处理器"""
-    from app.domain.events.event_bus import EventBus
+    from app.domain.events.event_bus import event_bus
 
     # 用户事件
-    EventBus.subscribe(UserCreatedEvent, UserEventHandler.handle_user_created)
-    EventBus.subscribe(UserJoinedCommunityEvent, UserEventHandler.handle_user_joined_community)
-    EventBus.subscribe(UserLeftCommunityEvent, UserEventHandler.handle_user_left_community)
+    event_bus.subscribe(UserCreatedEvent, UserEventHandler.handle_user_created)
+    event_bus.subscribe(UserJoinedCommunityEvent, UserEventHandler.handle_user_joined_community)
+    event_bus.subscribe(UserLeftCommunityEvent, UserEventHandler.handle_user_left_community)
 
     # 社区事件
-    EventBus.subscribe(CommunityCreatedEvent, CommunityEventHandler.handle_community_created)
-    EventBus.subscribe(CommunityMemberAddedEvent, CommunityEventHandler.handle_community_member_added)
+    event_bus.subscribe(CommunityCreatedEvent, CommunityEventHandler.handle_community_created)
+    event_bus.subscribe(CommunityMemberAddedEvent, CommunityEventHandler.handle_community_member_added)
 
     # 打卡事件
-    EventBus.subscribe(CheckinCompletedEvent, CheckinEventHandler.handle_checkin_completed)
-    EventBus.subscribe(CheckinMissedEvent, CheckinEventHandler.handle_checkin_missed)
+    event_bus.subscribe(CheckinCompletedEvent, CheckinEventHandler.handle_checkin_completed)
+    event_bus.subscribe(CheckinMissedEvent, CheckinEventHandler.handle_checkin_missed)
 
     logger.info("所有事件处理器已注册")
