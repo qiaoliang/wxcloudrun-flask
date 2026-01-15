@@ -5,6 +5,9 @@ import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.entities.user_entity import UserEntity
+from app.domain.aggregates.user_aggregate import UserAggregate
+from app.domain.events.event_bus import EventBus
 
 
 class UpdateProfileUseCase(BaseUseCase):
@@ -14,6 +17,7 @@ class UpdateProfileUseCase(BaseUseCase):
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
+        self.event_bus = EventBus()
 
     def execute(
         self,
@@ -50,27 +54,36 @@ class UpdateProfileUseCase(BaseUseCase):
                     message='用户不存在'
                 )
 
-            # 3. 更新用户信息
+            # 3. 创建用户聚合根
+            user_entity = UserEntity(user)
+            user_aggregate = UserAggregate(user_entity)
+
+            # 4. 更新用户信息
             if nickname is not None:
                 if not nickname or not nickname.strip():
                     return UseCaseResult(
                         status=UseCaseStatus.VALIDATION_ERROR,
                         message='昵称不能为空'
                     )
-                user.nickname = nickname.strip()
+                user_aggregate.update_profile(nickname=nickname.strip())
 
             if name is not None:
-                user.name = name.strip() if name else None
+                user_aggregate.update_profile(name=name.strip() if name else None)
 
             if avatar_url is not None:
-                user.avatar_url = avatar_url.strip() if avatar_url else None
+                user_aggregate.update_profile(avatar_url=avatar_url.strip() if avatar_url else None)
 
-            # 4. 保存更新
+            # 5. 保存更新
             updated_user = self.user_repository.save(user)
+
+            # 6. 发布领域事件
+            for event in user_aggregate.domain_events:
+                self.event_bus.publish(event)
+            user_aggregate.clear_domain_events()
 
             self.logger.info(f'更新用户资料成功: user_id={user_id}')
 
-            # 5. 返回结果
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='用户资料更新成功',

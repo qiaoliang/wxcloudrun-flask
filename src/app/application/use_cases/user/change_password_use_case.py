@@ -6,6 +6,8 @@ import logging
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.entities.user_entity import UserEntity
+from app.domain.aggregates.user_aggregate import UserAggregate
+from app.domain.events.event_bus import EventBus
 
 
 class ChangePasswordUseCase(BaseUseCase):
@@ -15,6 +17,7 @@ class ChangePasswordUseCase(BaseUseCase):
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
+        self.event_bus = EventBus()
 
     def execute(self, user_id: int, old_password: str, new_password: str) -> UseCaseResult:
         """
@@ -69,23 +72,30 @@ class ChangePasswordUseCase(BaseUseCase):
                     message='用户不存在'
                 )
 
-            # 3. 验证旧密码
+            # 3. 创建用户聚合根
             user_entity = UserEntity(user)
-            if not user_entity.verify_password(old_password):
+            user_aggregate = UserAggregate(user_entity)
+
+            # 4. 修改密码
+            try:
+                user_aggregate.change_password(old_password, new_password)
+            except ValueError as e:
                 return UseCaseResult(
                     status=UseCaseStatus.UNAUTHORIZED,
-                    message='旧密码错误'
+                    message=str(e)
                 )
-
-            # 4. 设置新密码
-            user_entity.set_password(new_password)
 
             # 5. 保存更新
             self.user_repository.save(user)
 
+            # 6. 发布领域事件
+            for event in user_aggregate.domain_events:
+                self.event_bus.publish(event)
+            user_aggregate.clear_domain_events()
+
             self.logger.info(f'修改密码成功: user_id={user_id}')
 
-            # 6. 返回结果
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='密码修改成功',

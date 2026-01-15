@@ -8,6 +8,9 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.entities.user_entity import UserEntity
+from app.domain.aggregates.user_aggregate import UserAggregate
+from app.domain.events.event_bus import EventBus
 
 
 class UploadAvatarUseCase(BaseUseCase):
@@ -17,6 +20,7 @@ class UploadAvatarUseCase(BaseUseCase):
         super().__init__()
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
+        self.event_bus = EventBus()
 
     def execute(
         self,
@@ -81,6 +85,10 @@ class UploadAvatarUseCase(BaseUseCase):
                     message='用户不存在'
                 )
 
+            # 5. 创建用户聚合根
+            user_entity = UserEntity(user)
+            user_aggregate = UserAggregate(user_entity)
+
             # 6. 生成文件名
             file_ext = os.path.splitext(file_name)[1]
             timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
@@ -94,13 +102,18 @@ class UploadAvatarUseCase(BaseUseCase):
             # 在实际项目中，这里应该调用文件存储服务
             avatar_url = f"/static/uploads/avatars/{new_file_name}"
 
-            # 7. 更新用户头像
-            user.avatar_url = avatar_url
+            # 8. 更新用户头像
+            user_aggregate.update_avatar(avatar_url)
             self.user_repository.save(user)
+
+            # 9. 发布领域事件
+            for event in user_aggregate.domain_events:
+                self.event_bus.publish(event)
+            user_aggregate.clear_domain_events()
 
             self.logger.info(f'上传头像成功: user_id={user_id}, avatar_url={avatar_url}')
 
-            # 8. 返回结果
+            # 10. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='头像上传成功',

@@ -130,44 +130,26 @@ def user_profile():
     current_app.logger.info(f'解码后的完整token信息: {decoded}')
 
     if request.method == 'GET':
-        # 获取用户信息
+        # 获取用户信息 - 使用 GetUserDetailsUseCase
         try:
-            current_app.logger.info(f'开始查询用户，user_id={user_id}, type={type(user_id)}')
-            user = UserService.query_user_by_id(user_id)
-            current_app.logger.info(f'查询结果: {user}')
-            if not user:
-                current_app.logger.error(f'用户不存在，user_id={user_id}')
-                return make_err_response({}, '用户不存在')
+            from app.application.use_cases.user import GetUserDetailsUseCase
 
-            # 构造返回数据
-            user_data = {
-                'user_id': user.user_id,
-                'wechat_openid': user.wechat_openid,
-                'phone_number': user.phone_number,
-                'nickname': user.nickname,
-                'name': user.name,
-                'avatar_url': user.avatar_url,
-                'address': user.address,
-                'motto': user.motto,
-                'emergency_contact_name': user.emergency_contact_name,
-                'emergency_contact_phone': user.emergency_contact_phone,
-                'emergency_contact_address': user.emergency_contact_address,
-                'role': user.role,  # 数字角色值 (1=普通用户, 2=社区专员, 3=社区主管, 4=超级系统管理员)
-                'role_name': user.role_name,  # 中文角色名称
-                'community_id': user.community_id,
-                'community_name': user.community.name if user.community else None,
-                'status': user.status
-            }
+            use_case = GetUserDetailsUseCase()
+            result = use_case.execute(user_id)
 
-            current_app.logger.info(f'获取用户信息成功: user_id={user_id}, phone_number={user.phone_number}')
-            return make_succ_response(user_data)
+            if result.is_success:
+                current_app.logger.info(f'获取用户信息成功: user_id={user_id}')
+                return make_succ_response(result.data)
+            else:
+                current_app.logger.error(f'获取用户信息失败: {result.message}')
+                return make_err_response({}, result.message)
 
         except Exception as e:
             current_app.logger.error(f'获取用户信息失败: {str(e)}', exc_info=True)
             return make_err_response({}, '获取用户信息失败')
 
     elif request.method == 'POST':
-        # 更新用户信息
+        # 更新用户信息 - 使用 UpdateProfileUseCase
         try:
             params = request.get_json()
             if not params:
