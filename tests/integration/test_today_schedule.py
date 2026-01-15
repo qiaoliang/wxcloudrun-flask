@@ -73,29 +73,32 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
     def _create_personal_rule(self, user_id, rule_name, custom_time, week_days=127):
         """
         创建个人打卡规则
-        
+
         Args:
             user_id: 用户ID
             rule_name: 规则名称
             custom_time: 自定义时间
             week_days: 周天数位掩码，默认127（每天）
-            
+
         Returns:
             CheckinRule: 创建的规则对象
         """
-        from wxcloudrun.checkin_rule_service import CheckinRuleService
-        
-        rule = CheckinRuleService.create_rule(
-            {
+        from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+
+        create_rule_use_case = CreateCheckinRuleUseCase()
+        result = create_rule_use_case.execute(
+            user_id=user_id,
+            rule_data={
                 'rule_name': rule_name,
                 'frequency_type': 0,  # 每天
                 'time_slot_type': 4,  # 固定时间
                 'custom_time': custom_time,
                 'week_days': [1, 2, 3, 4, 5, 6, 7] if week_days == 127 else []
-            },
-            user_id
+            }
         )
-        return rule
+        # 确保规则被提交到数据库
+        self.db.session.commit()
+        return result.data['rule']
 
     def _create_checkin_record(self, user_id, rule_id, custom_time, checkin_time=None, status=1):
         """
@@ -126,20 +129,20 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
     def _create_community_rule_with_activation(self, user_id, community_id, rule_name, custom_time, week_days=127):
         """
         创建社区规则并激活
-        
+
         Args:
             user_id: 用户ID
             community_id: 社区ID
             rule_name: 规则名称
             custom_time: 自定义时间
             week_days: 周天数位掩码，默认127（每天）
-            
+
         Returns:
             CommunityCheckinRule: 创建的社区规则对象
         """
         from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
         from database.flask_models import UserCommunityRule
-        
+
         # 创建社区打卡规则
         community_rule = CommunityCheckinRuleService.create_community_rule(
             {
@@ -152,10 +155,10 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
             community_id,
             user_id
         )
-        
+
         # 启用社区规则
         community_rule.status = 1
-        
+
         # 创建 UserCommunityRule 关系，激活社区规则
         user_community_rule = UserCommunityRule(
             user_id=user_id,
@@ -164,7 +167,7 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
         )
         self.db.session.add(user_community_rule)
         self.db.session.commit()
-        
+
         return community_rule
 
     def _setup_community_with_staff(self, user_id, community_id):
@@ -290,8 +293,8 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
         with self.app.app_context():
             # 创建个人打卡规则
             self._create_personal_rule(
-                user_id, 
-                '每日学习', 
+                user_id,
+                '每日学习',
                 '10:00:00'
             )
 
