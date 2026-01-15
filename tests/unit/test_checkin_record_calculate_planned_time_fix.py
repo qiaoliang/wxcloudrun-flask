@@ -1,9 +1,9 @@
 """
-测试 CheckinRecordService._calculate_planned_time 方法的边界情况
+测试 UserCheckinRuleService._calculate_planned_time 方法的边界情况
 """
 import unittest
 from datetime import datetime, date, time
-from wxcloudrun.checkin_record_service import CheckinRecordService
+from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 
 
 class TestCalculatePlannedTimeFix(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestCalculatePlannedTimeFix(unittest.TestCase):
             'time_slot_type': 4,
             'custom_time': time(9, 30)
         }
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 9, 30)
         self.assertEqual(result, expected)
 
@@ -26,7 +26,7 @@ class TestCalculatePlannedTimeFix(unittest.TestCase):
             'time_slot_type': 4,
             'custom_time': '09:30:00'
         }
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 9, 30)
         self.assertEqual(result, expected)
 
@@ -36,7 +36,7 @@ class TestCalculatePlannedTimeFix(unittest.TestCase):
             'time_slot_type': 4,
             'custom_time': '09:30'
         }
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 9, 30)
         self.assertEqual(result, expected)
 
@@ -46,7 +46,7 @@ class TestCalculatePlannedTimeFix(unittest.TestCase):
             'time_slot_type': 4,
             'custom_time': 'invalid_time'
         }
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 20, 0)  # 默认晚上8点
         self.assertEqual(result, expected)
 
@@ -56,42 +56,42 @@ class TestCalculatePlannedTimeFix(unittest.TestCase):
             'time_slot_type': 4,
             'custom_time': 12345  # 数字类型
         }
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 20, 0)  # 默认晚上8点
         self.assertEqual(result, expected)
 
     def test_morning_time_slot(self):
         """测试上午时间段"""
         rule = {'time_slot_type': 1}
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 9, 0)
         self.assertEqual(result, expected)
 
     def test_afternoon_time_slot(self):
         """测试下午时间段"""
         rule = {'time_slot_type': 2}
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 14, 0)
         self.assertEqual(result, expected)
 
     def test_evening_time_slot(self):
         """测试晚上时间段"""
         rule = {'time_slot_type': 3}
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 20, 0)
         self.assertEqual(result, expected)
 
     def test_default_time_slot(self):
         """测试默认时间段（其他值）"""
         rule = {'time_slot_type': 99}
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 20, 0)
         self.assertEqual(result, expected)
 
     def test_custom_time_with_none(self):
         """测试自定义时间为None"""
         rule = {'time_slot_type': 4, 'custom_time': None}
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 20, 0)
         self.assertEqual(result, expected)
 
@@ -103,7 +103,7 @@ class TestCalculatePlannedTimeFix(unittest.TestCase):
                 self.custom_time = '15:45:00'
         
         rule = MockRule()
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 15, 45)
         self.assertEqual(result, expected)
 
@@ -115,7 +115,7 @@ class TestCalculatePlannedTimeFix(unittest.TestCase):
                 self.custom_time = time(15, 45)
         
         rule = MockRule()
-        result = CheckinRecordService._calculate_planned_time(rule, self.today)
+        result = UserCheckinRuleService._calculate_planned_time(rule, self.today)
         expected = datetime(2025, 12, 19, 15, 45)
         self.assertEqual(result, expected)
 

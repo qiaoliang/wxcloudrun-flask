@@ -6,7 +6,7 @@ import pytest
 from datetime import datetime, time
 from sqlalchemy import select
 from database.flask_models import db, User, Community, CommunityStaff, CommunityEvent, CommunityCheckinRule, UserCommunityRule
-from wxcloudrun.user_transfer_service import UserTransferService
+from app.application.use_cases.community.transfer_users_batch_use_case import TransferUsersBatchUseCase
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER, STAFF_ROLE_STAFF
 from tests.integration.conftest import IntegrationTestBase
 from test_constants import TEST_CONSTANTS
@@ -109,17 +109,20 @@ class TestUserTransferFlow(IntegrationTestBase):
 
             # 7. 执行批量转移
             user_ids = [u.user_id for u in users]
-            result = UserTransferService.transfer_users_batch(
+            use_case = TransferUsersBatchUseCase()
+            result = use_case.execute(
                 admin['user_id'], source_community.community_id, target_community.community_id, user_ids
             )
 
             # 8. 验证结果
-            assert result['success_count'] == 10, f"期望成功转移10个用户，实际转移{result['success_count']}个"
-            assert result['skipped_count'] == 0, f"期望跳过0个用户，实际跳过{result['skipped_count']}个"
-            assert len(result['failed']) == 0, f"期望失败0个用户，实际失败{len(result['failed'])}个"
-            assert len(result['transferred_users']) == 10, f"期望转移10个用户信息，实际{len(result['transferred_users'])}个"
-            assert result['events_transferred'] == 1, f"期望转移1个事件，实际转移{result['events_transferred']}个"
-            assert result['rules_updated'] == 10, f"期望更新10个规则，实际更新{result['rules_updated']}个"
+            assert result.is_success, f"转移失败: {result.message}"
+            result_data = result.data
+            assert result_data['success_count'] == 10, f"期望成功转移10个用户，实际转移{result_data['success_count']}个"
+            assert result_data['skipped_count'] == 0, f"期望跳过0个用户，实际跳过{result_data['skipped_count']}个"
+            assert len(result_data['failed']) == 0, f"期望失败0个用户，实际失败{len(result_data['failed'])}个"
+            assert len(result_data['transferred_users']) == 10, f"期望转移10个用户信息，实际{len(result_data['transferred_users'])}个"
+            assert result_data['events_transferred'] == 1, f"期望转移1个事件，实际转移{result_data['events_transferred']}个"
+            assert result_data['rules_updated'] == 10, f"期望更新10个规则，实际更新{result_data['rules_updated']}个"
 
             # 9. 验证用户社区归属
             for user in users:
@@ -192,27 +195,30 @@ class TestUserTransferFlow(IntegrationTestBase):
             self.db.session.commit()
 
             # 4. 执行转移
-            result = UserTransferService.transfer_users_batch(
+            use_case = TransferUsersBatchUseCase()
+            result = use_case.execute(
                 admin['user_id'], source_community.community_id, target_community.community_id,
                 [normal_user.user_id, staff_user.user_id, left_user.user_id]
             )
 
             # 5. 验证结果
-            assert result['success_count'] == 1, f"期望成功转移1个用户，实际转移{result['success_count']}个"
-            assert result['skipped_count'] == 1, f"期望跳过1个用户，实际跳过{result['skipped_count']}个"
-            assert len(result['failed']) == 1, f"期望失败1个用户，实际失败{len(result['failed'])}个"
+            assert result.is_success, f"转移失败: {result.message}"
+            result_data = result.data
+            assert result_data['success_count'] == 1, f"期望成功转移1个用户，实际转移{result_data['success_count']}个"
+            assert result_data['skipped_count'] == 1, f"期望跳过1个用户，实际跳过{result_data['skipped_count']}个"
+            assert len(result_data['failed']) == 1, f"期望失败1个用户，实际失败{len(result_data['failed'])}个"
 
             # 验证普通用户成功转移
             normal_user = self.db.session.get(User, normal_user.user_id)
             assert normal_user.community_id == target_community.community_id, "普通用户应该成功转移到目标社区"
 
             # 验证工作人员转移失败
-            failed_user_ids = [f['user_id'] for f in result['failed']]
+            failed_user_ids = [f['user_id'] for f in result_data['failed']]
             assert staff_user.user_id in failed_user_ids, "工作人员用户应该在失败列表中"
-            assert '只能转移普通用户' in result['failed'][0]['reason'], "失败原因应该是'只能转移普通用户'"
+            assert '只能转移普通用户' in result_data['failed'][0]['reason'], "失败原因应该是'只能转移普通用户'"
 
             # 验证已离开用户被跳过
-            assert result['skipped_count'] == 1, "已离开用户应该被跳过"
+            assert result_data['skipped_count'] == 1, "已离开用户应该被跳过"
 
     def test_transfer_with_manager_not_in_target_community(self):
         """测试主管不是目标社区的主管"""
@@ -234,11 +240,12 @@ class TestUserTransferFlow(IntegrationTestBase):
             user.community_id = source_community.community_id
             self.db.session.commit()
 
-            # 5. 执行转移（应该抛出异常）
-            with pytest.raises(ValueError) as exc_info:
-                UserTransferService.transfer_users_batch(
-                    manager.user_id, source_community.community_id, target_community.community_id, [user.user_id]
-                )
+            # 5. 执行转移（应该返回权限错误）
+            use_case = TransferUsersBatchUseCase()
+            result = use_case.execute(
+                manager.user_id, source_community.community_id, target_community.community_id, [user.user_id]
+            )
 
-            assert '权限不足' in str(exc_info.value), "异常信息应该包含'权限不足'"
-            assert '目标社区的主管' in str(exc_info.value), "异常信息应该包含'目标社区的主管'"
+            assert result.is_failure, "应该返回失败结果"
+            assert '权限不足' in result.message, "错误信息应该包含'权限不足'"
+            assert '目标社区的主管' in result.message, "错误信息应该包含'目标社区的主管'"

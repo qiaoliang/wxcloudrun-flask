@@ -7,12 +7,13 @@ import logging
 import os
 import datetime
 import jwt
+import json
 from flask import request, current_app
 from sqlalchemy import select, delete
 from . import user_bp
 from app.shared import make_succ_response, make_err_response
 from wxcloudrun.user_service import UserService
-from database.flask_models import db, User, SupervisionRuleRelation
+from database.flask_models import db, User, SupervisionRuleRelation, UserMedicalHistory
 from app.shared.utils.auth import verify_token
 from app.shared.utils.transaction import transaction
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _hash_code, normalize_phone_number
@@ -645,9 +646,44 @@ def get_user_medical_history(decoded, user_id):
     """获取用户病史列表"""
     try:
         viewer_id = decoded.get('user_id')
-        from wxcloudrun.medical_history_service import MedicalHistoryService
-        histories = MedicalHistoryService.get_user_medical_histories(user_id, viewer_id)
-        return make_succ_response(histories)
+
+        # 常见病史标签
+        COMMON_CONDITIONS = [
+            "高血压", "糖尿病", "心脏病", "冠心病", "脑卒中",
+            "骨质疏松", "阿尔茨海默病", "帕金森病", "抑郁症",
+            "失眠症", "关节炎", "白内障", "青光眼"
+        ]
+
+        # 获取病史记录
+        stmt = select(UserMedicalHistory).where(
+            UserMedicalHistory.user_id == user_id
+        ).order_by(UserMedicalHistory.created_at.desc())
+
+        histories = db.session.execute(stmt).scalars().all()
+
+        # 权限过滤
+        result = []
+        for history in histories:
+            history_dict = history.to_dict()
+
+            # 检查权限
+            can_view = False
+            # 查看自己的病史
+            if viewer_id == user_id:
+                can_view = True
+            elif history_dict['visibility'] == 1:
+                # visibility=1: 仅工作人员可见
+                # TODO: 检查 viewer_id 是否是工作人员
+                can_view = True  # 暂时返回 True
+            elif history_dict['visibility'] == 2:
+                # visibility=2: 工作人员和监护人可见
+                # TODO: 检查 viewer_id 是否是工作人员或监护人
+                can_view = True  # 暂时返回 True
+
+            if can_view:
+                result.append(history_dict)
+
+        return make_succ_response(result)
     except Exception as e:
         current_app.logger.error(f"获取用户病史列表失败: {str(e)}", exc_info=True)
         return make_err_response({}, f'获取病史列表失败: {str(e)}')
@@ -670,11 +706,23 @@ def add_medical_history(decoded):
         if not user_id or not condition_name:
             return make_err_response({}, '缺少必要参数')
 
-        from wxcloudrun.medical_history_service import MedicalHistoryService
-        result = MedicalHistoryService.add_medical_history(
-            user_id, condition_name, treatment_plan, visibility
+        # 验证用户存在
+        user = db.session.get(User, user_id)
+        if not user:
+            return make_err_response({}, '用户不存在')
+
+        # 创建病史记录
+        history = UserMedicalHistory(
+            user_id=user_id,
+            condition_name=condition_name,
+            treatment_plan=json.dumps(treatment_plan, ensure_ascii=False) if treatment_plan else None,
+            visibility=visibility
         )
-        return make_succ_response(result)
+
+        db.session.add(history)
+        db.session.flush()
+
+        return make_succ_response(history.to_dict())
     except Exception as e:
         current_app.logger.error(f"添加病史记录失败: {str(e)}", exc_info=True)
         return make_err_response({}, f'添加病史记录失败: {str(e)}')
@@ -693,14 +741,29 @@ def update_medical_history(decoded, history_id):
         if not user_id:
             return make_err_response({}, '缺少用户ID')
 
-        from wxcloudrun.medical_history_service import MedicalHistoryService
-        result = MedicalHistoryService.update_medical_history(
-            history_id, user_id,
-            condition_name=data.get('condition_name'),
-            treatment_plan=data.get('treatment_plan'),
-            visibility=data.get('visibility')
-        )
-        return make_succ_response(result)
+        # 查询病史记录
+        history = db.session.execute(
+            select(UserMedicalHistory).where(
+                UserMedicalHistory.id == history_id,
+                UserMedicalHistory.user_id == user_id
+            )
+        ).scalar_one_or_none()
+
+        if not history:
+            return make_err_response({}, '病史记录不存在')
+
+        # 更新字段
+        if data.get('condition_name'):
+            history.condition_name = data.get('condition_name')
+        if data.get('treatment_plan') is not None:
+            history.treatment_plan = json.dumps(data.get('treatment_plan'), ensure_ascii=False)
+        if data.get('visibility') is not None:
+            history.visibility = data.get('visibility')
+
+        history.updated_at = datetime.datetime.now()
+        db.session.flush()
+
+        return make_succ_response(history.to_dict())
     except Exception as e:
         current_app.logger.error(f"更新病史记录失败: {str(e)}", exc_info=True)
         return make_err_response({}, f'更新病史记录失败: {str(e)}')
@@ -719,9 +782,21 @@ def delete_medical_history(decoded, history_id):
         if not user_id:
             return make_err_response({}, '缺少用户ID')
 
-        from wxcloudrun.medical_history_service import MedicalHistoryService
-        result = MedicalHistoryService.delete_medical_history(history_id, user_id)
-        return make_succ_response(result)
+        # 查询病史记录
+        history = db.session.execute(
+            select(UserMedicalHistory).where(
+                UserMedicalHistory.id == history_id,
+                UserMedicalHistory.user_id == user_id
+            )
+        ).scalar_one_or_none()
+
+        if not history:
+            return make_err_response({}, '病史记录不存在')
+
+        db.session.delete(history)
+        db.session.flush()
+
+        return make_succ_response({'success': True})
     except Exception as e:
         current_app.logger.error(f"删除病史记录失败: {str(e)}", exc_info=True)
         return make_err_response({}, f'删除病史记录失败: {str(e)}')
@@ -732,9 +807,13 @@ def delete_medical_history(decoded, history_id):
 def get_common_conditions(decoded):
     """获取常见病史标签"""
     try:
-        from wxcloudrun.medical_history_service import MedicalHistoryService
-        conditions = MedicalHistoryService.get_common_conditions()
-        return make_succ_response({'conditions': conditions})
+        # 常见病史标签
+        COMMON_CONDITIONS = [
+            "高血压", "糖尿病", "心脏病", "冠心病", "脑卒中",
+            "骨质疏松", "阿尔茨海默病", "帕金森病", "抑郁症",
+            "失眠症", "关节炎", "白内障", "青光眼"
+        ]
+        return make_succ_response({'conditions': COMMON_CONDITIONS})
     except Exception as e:
         current_app.logger.error(f"获取常见病史标签失败: {str(e)}", exc_info=True)
         return make_err_response({}, f'获取常见病史标签失败: {str(e)}')

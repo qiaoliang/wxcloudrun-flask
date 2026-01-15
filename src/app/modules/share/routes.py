@@ -12,7 +12,7 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
 from wxcloudrun.user_service import UserService
-from wxcloudrun.checkin_rule_service import CheckinRuleService
+from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 from database.flask_models import db, ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
 from app.shared.utils.transaction import transaction
 import secrets
@@ -148,7 +148,7 @@ def share_checkin_page():
             db.session.add(access_log)
 
         # 获取规则和用户信息
-        rule = CheckinRuleService.query_rule_by_id(link.rule_id)
+        rule = UserCheckinRuleService.query_rule_by_id(link.rule_id)
         user = UserService.query_user_by_id(link.solo_user_id)
 
         if not rule or not user:

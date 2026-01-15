@@ -52,20 +52,19 @@ class TestCheckinOperations(IntegrationTestBase):
             self.db.session.commit()
 
             # 创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=user.user_id,
+                rule_data={
                     'rule_name': '每日阅读',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '09:00:00',
                     'week_days': [1, 2, 3, 4, 5, 6, 7]
-                },
-                user.user_id
+                }
             )
-
-            # 在 app context 内提取 rule_id，避免访问 detached 对象
-            rule_id = rule.rule_id
+            rule_id = result.data['rule'].rule_id
 
         client = self.get_test_client()
         # 获取JWT token

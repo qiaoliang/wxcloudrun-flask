@@ -8,7 +8,7 @@ from flask import request, current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from wxcloudrun.user_transfer_service import UserTransferService
+from app.application.use_cases.community.transfer_users_batch_use_case import TransferUsersBatchUseCase
 from wxcloudrun.utils.validators import _audit
 
 app_logger = logging.getLogger('log')
@@ -107,16 +107,30 @@ def transfer_users():
         user_ids = valid_user_ids
 
         # 执行批量转移
-        result = UserTransferService.transfer_users_batch(
+        use_case = TransferUsersBatchUseCase()
+        result = use_case.execute(
             operator_user_id, source_community_id, target_community_id, user_ids
         )
 
+        # 检查执行结果
+        if not result.is_success:
+            # 返回错误响应
+            if result.status.value == 'validation_error':
+                return make_err_response({}, result.message)
+            elif result.status.value == 'forbidden':
+                return make_err_response({}, result.message)
+            elif result.status.value == 'not_found':
+                return make_err_response({}, result.message)
+            else:
+                return make_err_response({}, result.message)
+
+        result_data = result.data
         current_app.logger.info(
-            f'批量转移完成: 成功={result.get("success_count", 0)}, '
-            f'跳过={result.get("skipped_count", 0)}, '
-            f'失败={len(result.get("failed", []))}, '
-            f'事件转移={result.get("events_transferred", 0)}, '
-            f'规则更新={result.get("rules_updated", 0)}'
+            f'批量转移完成: 成功={result_data.get("success_count", 0)}, '
+            f'跳过={result_data.get("skipped_count", 0)}, '
+            f'失败={len(result_data.get("failed", []))}, '
+            f'事件转移={result_data.get("events_transferred", 0)}, '
+            f'规则更新={result_data.get("rules_updated", 0)}'
         )
 
         # 记录审计日志
@@ -124,29 +138,13 @@ def transfer_users():
             'source_community_id': source_community_id,
             'target_community_id': target_community_id,
             'user_ids': user_ids,
-            'success_count': result.get('success_count', 0),
-            'skipped_count': result.get('skipped_count', 0),
-            'failed_count': len(result.get('failed', []))
+            'success_count': result_data.get('success_count', 0),
+            'skipped_count': result_data.get('skipped_count', 0),
+            'failed_count': len(result_data.get('failed', []))
         })
 
-        return make_succ_response(result, '转移成功')
+        return make_succ_response(result_data, result.message)
 
-    except ValueError as e:
-        error_msg = str(e)
-        # 对ValueError进行分类处理，返回更友好的错误消息
-        if '权限不足' in error_msg:
-            user_msg = '权限不足，无法执行此操作'
-        elif '不存在' in error_msg:
-            user_msg = '指定的用户或社区不存在'
-        elif '不能相同' in error_msg:
-            user_msg = '源社区和目标社区不能相同'
-        elif '最多' in error_msg:
-            user_msg = error_msg  # 保留原始错误消息
-        else:
-            user_msg = '参数错误，请检查输入'
-
-        current_app.logger.warning(f'批量转移用户参数错误: {error_msg}')
-        return make_err_response({}, user_msg)
     except Exception as e:
         current_app.logger.error(f'批量转移用户失败: {str(e)}', exc_info=True)
         return make_err_response({}, '转移失败，请稍后重试')

@@ -12,7 +12,7 @@ src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 sys.path.insert(0, src_path)
 
 from database.flask_models import db, User, Community, CommunityStaff, CommunityEvent, CommunityCheckinRule, UserCommunityRule
-from wxcloudrun.user_transfer_service import UserTransferService
+from app.application.use_cases.community.transfer_users_batch_use_case import TransferUsersBatchUseCase
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
 from test_constants import TEST_CONSTANTS
 from test_data_generator import (
@@ -150,15 +150,16 @@ class TestUserTransferService:
 
         with test_app.app_context():
             # 执行转移
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id, [users[0].user_id]
             )
 
             # 验证结果
-            assert result['success_count'] == 1
-            assert result['skipped_count'] == 0
-            assert len(result['failed']) == 0
-            assert len(result['transferred_users']) == 1
+            assert result.is_success
+            assert result.data['success_count'] == 1
+            assert result.data['skipped_count'] == 0
+            assert len(result.data['failed']) == 0
+            assert len(result.data['transferred_users']) == 1
 
             # 验证用户社区归属
             user = test_session.get(User, users[0].user_id)
@@ -177,15 +178,15 @@ class TestUserTransferService:
             user_ids = [u.user_id for u in users]
 
             # 执行转移
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id, user_ids
             )
 
             # 验证结果
-            assert result['success_count'] == 10
-            assert result['skipped_count'] == 0
-            assert len(result['failed']) == 0
-            assert len(result['transferred_users']) == 10
+            assert result.data['success_count'] == 10
+            assert result.data['skipped_count'] == 0
+            assert len(result.data['failed']) == 0
+            assert len(result.data['transferred_users']) == 10
 
             # 验证所有用户社区归属
             for user in users:
@@ -210,13 +211,14 @@ class TestUserTransferService:
             )
             user_ids = [u.user_id for u in users] + [extra_user.user_id]
 
-            # 执行转移（应该抛出异常）
-            with pytest.raises(ValueError) as exc_info:
-                UserTransferService.transfer_users_batch(
-                    admin.user_id, source_community.community_id, target_community.community_id, user_ids
-                )
+            # 执行转移（应该返回验证错误）
+            result = TransferUsersBatchUseCase().execute(
+                admin.user_id, source_community.community_id, target_community.community_id, user_ids
+            )
 
-            assert '一次最多转移10个用户' in str(exc_info.value)
+            assert result.is_failure
+            assert result.status.value == 'validation_error'
+            assert '一次最多转移10个用户' in result.message
 
     def test_transfer_non_manager_user(self, transfer_setup, test_session, test_app):
         """测试非主管用户尝试转移"""
@@ -234,13 +236,14 @@ class TestUserTransferService:
                 test_context='normal_user'
             )
 
-            # 执行转移（应该抛出异常）
-            with pytest.raises(ValueError) as exc_info:
-                UserTransferService.transfer_users_batch(
-                    normal_user.user_id, source_community.community_id, target_community.community_id, [users[0].user_id]
-                )
+            # 执行转移（应该返回权限错误）
+            result = TransferUsersBatchUseCase().execute(
+                normal_user.user_id, source_community.community_id, target_community.community_id, [users[0].user_id]
+            )
 
-            assert '权限不足' in str(exc_info.value)
+            assert result.is_failure
+            assert result.status.value == 'forbidden'
+            assert '权限不足' in result.message
 
     def test_transfer_staff_user(self, transfer_setup, test_session, test_app):
         """测试尝试转移工作人员用户（混合成功和失败）"""
@@ -261,15 +264,15 @@ class TestUserTransferService:
             )
 
             # 执行转移（包含普通用户和工作人员用户）
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id,
                 [users[0].user_id, staff_user.user_id]
             )
 
             # 验证结果
-            assert result['success_count'] == 1
-            assert len(result['failed']) == 1
-            assert '只能转移普通用户' in result['failed'][0]['reason']
+            assert result.data['success_count'] == 1
+            assert len(result.data['failed']) == 1
+            assert '只能转移普通用户' in result.data['failed'][0]['reason']
 
     def test_transfer_user_not_in_source_community(self, transfer_setup, test_session, test_app):
         """测试用户已离开源社区"""
@@ -285,14 +288,14 @@ class TestUserTransferService:
             test_session.commit()
 
             # 执行转移
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id, [users[0].user_id]
             )
 
             # 验证结果
-            assert result['success_count'] == 0
-            assert result['skipped_count'] == 1
-            assert len(result['failed']) == 0
+            assert result.data['success_count'] == 0
+            assert result.data['skipped_count'] == 1
+            assert len(result.data['failed']) == 0
 
     def test_transfer_with_pending_events(self, transfer_setup, test_session, test_app):
         """测试转移未完成事件"""
@@ -328,12 +331,12 @@ class TestUserTransferService:
             test_session.commit()
 
             # 执行转移
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id, [users[0].user_id, users[1].user_id]
             )
 
             # 验证事件转移
-            assert result['events_transferred'] == 1
+            assert result.data['events_transferred'] == 1
 
             # 验证未完成事件已转移
             event = test_session.get(CommunityEvent, event.event_id)
@@ -351,13 +354,13 @@ class TestUserTransferService:
         users = setup['users']
 
         with test_app.app_context():
-            # 执行转移（应该抛出异常）
-            with pytest.raises(ValueError) as exc_info:
-                UserTransferService.transfer_users_batch(
-                    admin.user_id, source_community.community_id, source_community.community_id, [users[0].user_id]
-                )
+            # 执行转移（应该返回验证错误）
+            result = TransferUsersBatchUseCase().execute(
+                admin.user_id, source_community.community_id, source_community.community_id, [users[0].user_id]
+            )
 
-            assert '源社区和目标社区不能相同' in str(exc_info.value)
+            assert result.is_failure
+            assert '源社区和目标社区不能相同' in result.message
 
     def test_transfer_duplicate_user_ids(self, transfer_setup, test_session, test_app):
         """测试重复的用户ID"""
@@ -369,35 +372,35 @@ class TestUserTransferService:
 
         with test_app.app_context():
             # 执行转移（包含重复的用户ID）
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id, [users[0].user_id, users[0].user_id]
             )
 
             # 验证结果（应该只转移一次）
-            assert result['success_count'] == 1
-            assert len(result['transferred_users']) == 1
+            assert result.data['success_count'] == 1
+            assert len(result.data['transferred_users']) == 1
 
     def test_transfer_invalid_user_id_format(self, test_app):
         """测试无效的用户ID格式"""
         with test_app.app_context():
-            # 执行转移（应该抛出异常）
-            with pytest.raises(ValueError) as exc_info:
-                UserTransferService.transfer_users_batch(
-                    1, 1, 2, [0, -1, 'invalid']
-                )
+            # 执行转移（应该返回验证错误）
+            result = TransferUsersBatchUseCase().execute(
+                1, 1, 2, [0, -1, 'invalid']
+            )
 
-            assert '无效的用户ID' in str(exc_info.value)
+            assert result.is_failure
+            assert '无效的用户ID' in result.message
 
     def test_transfer_empty_user_ids(self, test_app):
         """测试空的用户ID列表"""
         with test_app.app_context():
-            # 执行转移（应该抛出异常）
-            with pytest.raises(ValueError) as exc_info:
-                UserTransferService.transfer_users_batch(
-                    1, 1, 2, []
-                )
+            # 执行转移（应该返回验证错误）
+            result = TransferUsersBatchUseCase().execute(
+                1, 1, 2, []
+            )
 
-            assert '用户ID列表不能为空' in str(exc_info.value)
+            assert result.is_failure
+            assert '用户ID列表不能为空' in result.message
 
     def test_transfer_nonexistent_user(self, transfer_setup, test_session, test_app):
         """测试包含不存在用户的转移（混合成功和失败）"""
@@ -409,15 +412,15 @@ class TestUserTransferService:
 
         with test_app.app_context():
             # 执行转移（包含一个存在的用户和一个不存在的用户）
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id,
                 [users[0].user_id, 999999]
             )
 
             # 验证结果（部分成功）
-            assert result['success_count'] == 1
-            assert len(result['failed']) == 1
-            assert '用户不存在' in result['failed'][0]['reason']
+            assert result.data['success_count'] == 1
+            assert len(result.data['failed']) == 1
+            assert '用户不存在' in result.data['failed'][0]['reason']
 
     def test_transfer_all_users_failed(self, transfer_setup, test_session, test_app):
         """测试所有用户转移失败"""
@@ -436,13 +439,13 @@ class TestUserTransferService:
                 test_context='staff_user'
             )
 
-            # 执行转移（应该抛出异常）
-            with pytest.raises(ValueError) as exc_info:
-                UserTransferService.transfer_users_batch(
-                    admin.user_id, source_community.community_id, target_community.community_id, [staff_user.user_id, 999999]
-                )
+            # 执行转移（应该返回失败）
+            result = TransferUsersBatchUseCase().execute(
+                admin.user_id, source_community.community_id, target_community.community_id, [staff_user.user_id, 999999]
+            )
 
-            assert '所有用户转移失败' in str(exc_info.value)
+            assert result.is_failure
+            assert '所有用户转移失败' in result.message
 
     def test_transfer_partial_success(self, transfer_setup, test_session, test_app):
         """测试部分成功转移"""
@@ -463,12 +466,12 @@ class TestUserTransferService:
             )
 
             # 执行转移（包含成功和失败的用户）
-            result = UserTransferService.transfer_users_batch(
+            result = TransferUsersBatchUseCase().execute(
                 admin.user_id, source_community.community_id, target_community.community_id,
                 [users[0].user_id, staff_user.user_id]
             )
 
             # 验证结果
-            assert result['success_count'] == 1
-            assert len(result['failed']) == 1
-            assert '只能转移普通用户' in result['failed'][0]['reason']
+            assert result.data['success_count'] == 1
+            assert len(result.data['failed']) == 1
+            assert '只能转移普通用户' in result.data['failed'][0]['reason']

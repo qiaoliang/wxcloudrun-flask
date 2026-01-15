@@ -3,13 +3,13 @@
 处理用户规则查询和聚合逻辑（个人规则 + 社区规则）
 """
 import logging
-from datetime import datetime
-from sqlalchemy import select
+from datetime import datetime, date, time
+from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import noload, joinedload
 from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule, User, CheckinRecord
-from wxcloudrun.checkin_rule_service import CheckinRuleService
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from wxcloudrun.checkin_record_service import CheckinRecordService
+from wxcloudrun.utils.timeutil import parse_time_only, parse_date_only
 from app.shared.utils.transaction import transaction
 
 logger = logging.getLogger('UserCheckinRuleService')
@@ -77,7 +77,7 @@ class UserCheckinRuleService:
                 all_rules.append(rule_dict)
 
             # 获取个人规则（在社区规则后显示）
-            personal_rules = CheckinRuleService.query_rules_by_user_id(user_id)
+            personal_rules = UserCheckinRuleService.query_rules_by_user_id(user_id)
             logger.info(f"获取个人规则: 用户ID={user_id}, 规则数量={len(personal_rules)}")
             for rule in personal_rules:
                 rule_dict = rule.to_dict()
@@ -207,7 +207,7 @@ class UserCheckinRuleService:
             today_plan = []
 
             # 获取个人规则的今日计划
-            personal_plan_result = CheckinRuleService.get_today_checkin_plan(user_id)
+            personal_plan_result = UserCheckinRuleService.get_today_checkin_plan_personal(user_id)
             if isinstance(personal_plan_result, dict) and 'checkin_items' in personal_plan_result:
                 personal_plan = personal_plan_result['checkin_items']
             else:
@@ -224,7 +224,7 @@ class UserCheckinRuleService:
 
             for rule in community_rules:
                 # 检查今天是否需要打卡
-                if not CheckinRuleService._should_checkin_today(rule, today):
+                if not UserCheckinRuleService._should_checkin_today(rule, today):
                     continue
 
                 # 使用 SQLAlchemy 2.0 的 select() 语句
@@ -244,10 +244,10 @@ class UserCheckinRuleService:
                 today_records = db.session.execute(stmt).scalars().all()
 
                 # 计算计划时间 - 使用规则的时间设置
-                planned_time = CheckinRecordService._calculate_planned_time(rule, today)
+                planned_time = UserCheckinRuleService._calculate_planned_time(rule, today)
 
                 # 确定打卡状态
-                status_info = CheckinRuleService._determine_checkin_status(today_records)
+                status_info = UserCheckinRuleService._determine_checkin_status(today_records)
 
                 plan_item = {
                     'rule_id': rule.community_rule_id,
@@ -302,7 +302,7 @@ class UserCheckinRuleService:
         try:
             if rule_source == 'personal':
                 # 获取个人规则
-                rule = CheckinRuleService.query_rule_by_id(rule_id)
+                rule = UserCheckinRuleService.query_rule_by_id(rule_id)
                 if not rule or rule.user_id != user_id:  # 更新字段名
                     raise ValueError('个人规则不存在或无权限')
 
@@ -363,7 +363,7 @@ class UserCheckinRuleService:
         """
         try:
             # 获取个人规则数量
-            personal_rules = CheckinRuleService.query_rules_by_user_id(user_id)
+            personal_rules = UserCheckinRuleService.query_rules_by_user_id(user_id)
             personal_count = len(personal_rules)
 
             # 获取社区规则数量
@@ -389,3 +389,222 @@ class UserCheckinRuleService:
         except SQLAlchemyError as e:
             logger.error(f"获取用户规则统计失败: {str(e)}")
             raise
+
+    # ==================== 从 CheckinRuleService 迁移的方法 ====================
+
+    @staticmethod
+    def query_rules_by_user_id(user_id):
+        """
+        根据用户ID查询打卡规则列表（排除已删除）
+        :param user_id: 用户ID
+        :return: 打卡规则列表
+        """
+        try:
+            stmt = select(CheckinRule).where(
+                CheckinRule.user_id == user_id,
+                CheckinRule.status == 1
+            )
+            rules = db.session.execute(stmt).scalars().all()
+            return rules or []
+        except Exception as e:
+            logger.error(f"查询用户打卡规则失败: {str(e)}")
+            return []
+
+    @staticmethod
+    def query_rule_by_id(rule_id):
+        """
+        根据规则ID查询打卡规则
+        :param rule_id: 规则ID
+        :return: 打卡规则实体（排除已删除的规则）
+        """
+        try:
+            stmt = select(CheckinRule).where(
+                CheckinRule.rule_id == rule_id,
+                CheckinRule.status != 2  # 排除已删除的规则
+            )
+            rule = db.session.execute(stmt).scalar_one_or_none()
+            return rule
+        except Exception as e:
+            logger.error(f"查询打卡规则失败: {str(e)}")
+            return None
+
+    @staticmethod
+    def get_today_checkin_plan_personal(user_id):
+        """
+        获取用户今日打卡计划（仅个人规则）
+        :param user_id: 用户ID
+        :return: 今日打卡事项列表
+        """
+        try:
+            # 获取用户的打卡规则
+            checkin_rules = UserCheckinRuleService.query_rules_by_user_id(user_id)
+
+            # 生成今天的打卡计划
+            today = date.today()
+            checkin_items = []
+
+            for rule in checkin_rules:
+                # 判断今天是否需要打卡
+                if not UserCheckinRuleService._should_checkin_today(rule, today):
+                    continue
+
+                # 查询今天该规则的打卡记录
+                today_records = UserCheckinRuleService._query_today_records(rule.rule_id, today)
+
+                # 计算计划打卡时间
+                planned_time = UserCheckinRuleService._calculate_planned_time(rule, today)
+
+                # 确定打卡状态
+                status_info = UserCheckinRuleService._determine_checkin_status(today_records)
+
+                checkin_items.append({
+                    'rule_id': rule.rule_id,
+                    'record_id': status_info['record_id'],
+                    'rule_name': rule.rule_name,
+                    'icon_url': rule.icon_url,
+                    'planned_time': planned_time.strftime('%H:%M:%S'),
+                    'status': status_info['status'],
+                    'checkin_time': status_info['checkin_time'],
+                    'time_slot_type': rule.time_slot_type
+                })
+
+            return {
+                'date': today.strftime('%Y-%m-%d'),
+                'checkin_items': checkin_items
+            }
+
+        except Exception as e:
+            logger.error(f"获取今日打卡计划失败: {str(e)}")
+            raise
+
+    @staticmethod
+    def _get_rule_attr(rule, attr_name):
+        """
+        通用方法：获取规则属性，支持CheckinRule、CommunityCheckinRule、字典和列表格式
+        """
+        if isinstance(rule, list):
+            logger.warning(f"尝试从列表对象获取属性 '{attr_name}'，但列表对象不支持属性访问")
+            return None
+        elif isinstance(rule, dict):
+            if attr_name == 'rule_id':
+                return rule.get('community_rule_id')
+            return rule.get(attr_name)
+
+        if isinstance(rule, CommunityCheckinRule):
+            if attr_name == 'rule_id':
+                return rule.community_rule_id
+        return getattr(rule, attr_name, None)
+
+    @staticmethod
+    def _should_checkin_today(rule, today):
+        """
+        判断今天是否需要打卡
+        :param rule: 打卡规则（CheckinRule或CommunityCheckinRule）
+        :param today: 今天的日期
+        :return: Boolean
+        """
+        frequency_type = UserCheckinRuleService._get_rule_attr(rule, 'frequency_type')
+        week_days = UserCheckinRuleService._get_rule_attr(rule, 'week_days')
+        custom_start_date = UserCheckinRuleService._get_rule_attr(rule, 'custom_start_date')
+        custom_end_date = UserCheckinRuleService._get_rule_attr(rule, 'custom_end_date')
+
+        if frequency_type == 1:  # 每周
+            today_weekday = today.weekday()
+            return bool(week_days & (1 << today_weekday))
+        elif frequency_type == 2:  # 工作日
+            return today.weekday() < 5
+        elif frequency_type == 3:  # 自定义日期范围
+            if custom_start_date and custom_end_date:
+                return custom_start_date <= today <= custom_end_date
+            return False
+        else:  # 每天
+            return True
+
+    @staticmethod
+    def _query_today_records(rule_id, today, rule_source='personal'):
+        """
+        查询今天该规则的打卡记录
+        :param rule_id: 规则ID
+        :param today: 今天的日期
+        :param rule_source: 规则来源（personal/community）
+        :return: 打卡记录列表
+        """
+        try:
+            stmt = select(CheckinRecord).options(
+                noload(CheckinRecord.user),
+                noload(CheckinRecord.solo_user),
+                noload(CheckinRecord.rule)
+            ).where(
+                func.date(CheckinRecord.planned_time) == today
+            )
+
+            if rule_source == 'community':
+                stmt = stmt.where(CheckinRecord.community_rule_id == rule_id)
+            else:
+                stmt = stmt.where(CheckinRecord.rule_id == rule_id)
+
+            records = db.session.execute(stmt).scalars().all()
+            return records
+        except Exception as e:
+            logger.error(f"查询今日打卡记录失败: {str(e)}")
+            return []
+
+    @staticmethod
+    def _calculate_planned_time(rule, today):
+        """
+        计算计划打卡时间
+        :param rule: 打卡规则（CheckinRule或CommunityCheckinRule）
+        :param today: 今天的日期
+        :return: datetime 对象
+        """
+        time_slot_type = UserCheckinRuleService._get_rule_attr(rule, 'time_slot_type')
+        custom_time = UserCheckinRuleService._get_rule_attr(rule, 'custom_time')
+
+        if time_slot_type == 5:  # 全天有效
+            return datetime.combine(today, time(0, 0))
+        elif time_slot_type == 4 and custom_time:  # 自定义时间
+            if isinstance(custom_time, str):
+                try:
+                    custom_time = parse_time_only(custom_time)
+                except ValueError as e:
+                    logger.warning(f"解析自定义时间失败: {custom_time}, 错误: {e}")
+                    return datetime.combine(today, time(20, 0))
+
+            if not isinstance(custom_time, time):
+                logger.warning(f"custom_time不是有效的datetime.time对象: {custom_time}, 类型: {type(custom_time)}")
+                return datetime.combine(today, time(20, 0))
+
+            return datetime.combine(today, custom_time)
+        elif time_slot_type == 1:  # 上午
+            return datetime.combine(today, time(9, 0))
+        elif time_slot_type == 2:  # 下午
+            return datetime.combine(today, time(14, 0))
+        else:  # 晚上
+            return datetime.combine(today, time(20, 0))
+
+    @staticmethod
+    def _determine_checkin_status(today_records):
+        """
+        确定打卡状态
+        :param today_records: 今日打卡记录列表
+        :return: 状态信息字典
+        """
+        status_info = {
+            'status': 'pending',
+            'checkin_time': None,
+            'record_id': None
+        }
+
+        for record in today_records:
+            if record.status == 1:  # 已打卡
+                status_info['status'] = 'checked'
+                status_info['checkin_time'] = record.checkin_time.strftime('%H:%M:%S') if record.checkin_time else None
+                status_info['record_id'] = record.record_id
+                break
+            elif record.status == 2:  # 已撤销
+                status_info['status'] = 'unchecked'
+                status_info['checkin_time'] = None
+                status_info['record_id'] = record.record_id
+                break
+
+        return status_info

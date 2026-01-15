@@ -1,13 +1,16 @@
 import os
 import threading
 import time as time_module
+import logging
 from datetime import datetime, time, timedelta
 
 from flask import current_app
 from sqlalchemy import select, func
 from app.extensions import db
+from app.shared.utils.transaction import transaction
 from database.flask_models import CheckinRule, CheckinRecord, User, CommunityCheckinRule, UserCommunityRule, CommunityStaff
-from wxcloudrun.checkin_record_service import CheckinRecordService
+
+logger = logging.getLogger(__name__)
 
 # 全局变量，记录上次执行全天规则检查的日期
 _last_daily_check_date = None
@@ -24,6 +27,58 @@ def _should_check_today(rule, today):
             return rule.custom_start_date <= today <= rule.custom_end_date
         return False
     return True
+
+
+def _query_records_by_rule_and_date(rule_id, checkin_date, rule_source='personal'):
+    """根据规则ID和日期查询打卡记录"""
+    try:
+        if rule_source == 'community':
+            stmt = select(CheckinRecord).where(
+                CheckinRecord.community_rule_id == rule_id,
+                func.date(CheckinRecord.planned_time) == checkin_date
+            )
+        else:
+            stmt = select(CheckinRecord).where(
+                CheckinRecord.rule_id == rule_id,
+                func.date(CheckinRecord.planned_time) == checkin_date
+            )
+        records = db.session.execute(stmt).scalars().all()
+        return records
+    except Exception as e:
+        logger.error(f"查询打卡记录失败: {str(e)}")
+        return []
+
+
+def _create_record(rule_id, user_id, checkin_time, planned_time, status, rule_source='personal'):
+    """创建打卡记录"""
+    try:
+        if rule_source == 'community':
+            new_record = CheckinRecord(
+                community_rule_id=rule_id,
+                user_id=user_id,
+                solo_user_id=user_id,
+                checkin_time=checkin_time,
+                status=status,
+                planned_time=planned_time
+            )
+        else:
+            new_record = CheckinRecord(
+                rule_id=rule_id,
+                user_id=user_id,
+                checkin_time=checkin_time,
+                status=status,
+                planned_time=planned_time
+            )
+
+        with transaction():
+            db.session.add(new_record)
+            db.session.flush()
+            record_id = new_record.record_id
+
+        return record_id
+    except Exception as e:
+        logger.error(f"创建打卡记录失败: {str(e)}")
+        raise
 
 
 def _planned_time_for_rule(rule, today):
@@ -133,7 +188,7 @@ def _process_missed_for_today(now):
             if now < planned_dt + grace_delta:
                 continue
 
-            today_records = CheckinRecordService._query_records_by_rule_and_date(rule.rule_id, today)
+            today_records = _query_records_by_rule_and_date(rule.rule_id, today)
 
             has_checked = any(r.status == 1 for r in today_records)
             has_missed = any(r.status == 0 for r in today_records)
@@ -141,7 +196,7 @@ def _process_missed_for_today(now):
                 continue
 
             # 使用 service 方法创建记录
-            CheckinRecordService._create_record(
+            _create_record(
                 rule_id=rule.rule_id,
                 user_id=rule.user_id,  # 更新字段名
                 checkin_time=None,
@@ -245,7 +300,7 @@ def _process_community_missed_for_today(now):
             # 为未打卡的用户创建记录
             for user_id in active_user_ids:
                 if user_id not in checked_user_ids and user_id not in missed_user_ids:
-                    CheckinRecordService._create_record(
+                    _create_record(
                         rule_id=rule.community_rule_id,
                         user_id=user_id,
                         checkin_time=None,
@@ -302,7 +357,7 @@ def _process_all_day_missed_for_yesterday(now):
                 continue  # 创建时间在昨天之后，跳过
 
             # 查询昨天的打卡记录
-            yesterday_records = CheckinRecordService._query_records_by_rule_and_date(
+            yesterday_records = _query_records_by_rule_and_date(
                 rule_id=rule.rule_id,
                 checkin_date=yesterday
             )
@@ -312,7 +367,7 @@ def _process_all_day_missed_for_yesterday(now):
 
             if not has_checked and not has_missed:
                 # 创建missing记录
-                CheckinRecordService._create_record(
+                _create_record(
                     rule_id=rule.rule_id,
                     user_id=rule.user_id,
                     checkin_time=None,
@@ -407,7 +462,7 @@ def _process_community_all_day_missed_for_yesterday(now):
             # 为未打卡的用户创建记录
             for user_id in active_user_ids:
                 if user_id not in checked_user_ids and user_id not in missed_user_ids:
-                    CheckinRecordService._create_record(
+                    _create_record(
                         rule_id=rule.community_rule_id,
                         user_id=user_id,
                         checkin_time=None,

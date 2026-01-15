@@ -6,13 +6,13 @@
 import logging
 from datetime import datetime, date, time, timedelta
 from flask import request, current_app
+from sqlalchemy import select
 from . import supervision_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
 from wxcloudrun.user_service import UserService
-from wxcloudrun.checkin_rule_service import CheckinRuleService
-from wxcloudrun.checkin_record_service import CheckinRecordService
+from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 from database.flask_models import db, SupervisionRuleRelation, CheckinRecord, CheckinRule
 from app.shared.utils.transaction import transaction
 
@@ -184,7 +184,7 @@ def create_invite_link(decoded):
         # 为每个规则创建监督关系记录
         for rule_id in rule_ids:
             # 检查规则是否存在且属于当前用户
-            rule = CheckinRuleService.query_rule_by_id(rule_id)
+            rule = UserCheckinRuleService.query_rule_by_id(rule_id)
             if not rule or rule.user_id != user.user_id:
                 current_app.logger.warning(f'规则 {rule_id} 不存在或不属于用户 {user.user_id}')
                 continue
@@ -673,7 +673,7 @@ def send_reminder(decoded):
             return make_err_response({}, '被监护人不存在或未绑定微信')
 
         # 获取规则信息
-        rule = CheckinRuleService.query_rule_by_id(rule_id)
+        rule = UserCheckinRuleService.query_rule_by_id(rule_id)
         if not rule:
             return make_err_response({}, '打卡规则不存在')
 
