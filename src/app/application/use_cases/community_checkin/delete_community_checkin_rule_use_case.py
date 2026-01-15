@@ -3,12 +3,41 @@
 """
 from flask import current_app
 from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
+from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
 
 
-class DeleteCommunityCheckinRuleUseCase:
+class DeleteCommunityCheckinRuleUseCase(BaseUseCase):
     """删除社区打卡规则用例"""
 
-    def execute(self, rule_id: int, user_id: int) -> dict:
+    def _validate(self, rule_id: int, user_id: int) -> UseCaseResult:
+        """
+        验证参数
+
+        Args:
+            rule_id: 规则ID
+            user_id: 用户ID
+
+        Returns:
+            UseCaseResult: 验证结果
+        """
+        if not isinstance(rule_id, int) or rule_id <= 0:
+            return UseCaseResult(
+                status=UseCaseStatus.VALIDATION_ERROR,
+                message='规则ID必须为正整数'
+            )
+
+        if not isinstance(user_id, int) or user_id <= 0:
+            return UseCaseResult(
+                status=UseCaseStatus.VALIDATION_ERROR,
+                message='用户ID必须为正整数'
+            )
+
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message='验证通过'
+        )
+
+    def _execute(self, rule_id: int, user_id: int) -> UseCaseResult:
         """
         执行删除社区打卡规则操作
 
@@ -17,7 +46,7 @@ class DeleteCommunityCheckinRuleUseCase:
             user_id: 用户ID
 
         Returns:
-            dict: 包含成功状态和响应数据
+            UseCaseResult: 执行结果
         """
         try:
             # 调用服务层删除规则
@@ -27,25 +56,23 @@ class DeleteCommunityCheckinRuleUseCase:
 
             if success:
                 current_app.logger.info(f'成功删除社区打卡规则，规则ID: {rule_id}')
-                return {
-                    'success': True,
-                    'message': '删除成功',
-                    'data': {
+                return UseCaseResult(
+                    status=UseCaseStatus.SUCCESS,
+                    message='删除成功',
+                    data={
                         'rule_id': rule_id,
                         'message': '删除成功'
                     }
-                }
+                )
             else:
-                return {
-                    'success': False,
-                    'message': '删除失败',
-                    'data': {}
-                }
+                return UseCaseResult(
+                    status=UseCaseStatus.FAILURE,
+                    message='删除失败'
+                )
 
         except Exception as e:
             current_app.logger.error(f'删除社区打卡规则失败: {str(e)}', exc_info=True)
-            return {
-                'success': False,
-                'message': f'删除规则失败: {str(e)}',
-                'data': {}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message=f'删除规则失败: {str(e)}'
+            )

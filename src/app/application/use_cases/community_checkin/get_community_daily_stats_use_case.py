@@ -3,12 +3,41 @@
 """
 from flask import current_app
 from wxcloudrun.community_service import CommunityService
+from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
 
 
-class GetCommunityDailyStatsUseCase:
+class GetCommunityDailyStatsUseCase(BaseUseCase):
     """获取社区每日打卡统计用例"""
 
-    def execute(self, community_id: int, user_id: int) -> dict:
+    def _validate(self, community_id: int, user_id: int) -> UseCaseResult:
+        """
+        验证参数
+
+        Args:
+            community_id: 社区ID
+            user_id: 用户ID
+
+        Returns:
+            UseCaseResult: 验证结果
+        """
+        if not isinstance(community_id, int) or community_id <= 0:
+            return UseCaseResult(
+                status=UseCaseStatus.VALIDATION_ERROR,
+                message='社区ID必须为正整数'
+            )
+
+        if not isinstance(user_id, int) or user_id <= 0:
+            return UseCaseResult(
+                status=UseCaseStatus.VALIDATION_ERROR,
+                message='用户ID必须为正整数'
+            )
+
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message='验证通过'
+        )
+
+    def _execute(self, community_id: int, user_id: int) -> UseCaseResult:
         """
         执行获取社区每日打卡统计操作
 
@@ -17,31 +46,29 @@ class GetCommunityDailyStatsUseCase:
             user_id: 用户ID
 
         Returns:
-            dict: 包含成功状态和响应数据
+            UseCaseResult: 执行结果
         """
         try:
             # 检查权限
             if not CommunityService.has_community_permission(user_id, community_id):
-                return {
-                    'success': False,
-                    'message': '无权限访问该社区',
-                    'data': {}
-                }
+                return UseCaseResult(
+                    status=UseCaseStatus.FORBIDDEN,
+                    message='无权限访问该社区'
+                )
 
             # 获取社区每日统计
             stats = CommunityService.get_community_daily_stats(community_id)
 
             current_app.logger.info(f'获取社区每日统计成功: community_id={community_id}')
-            return {
-                'success': True,
-                'message': '获取统计信息成功',
-                'data': stats
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='获取统计信息成功',
+                data=stats
+            )
 
         except Exception as e:
             current_app.logger.error(f'获取社区每日统计失败: {str(e)}', exc_info=True)
-            return {
-                'success': False,
-                'message': f'获取统计信息失败: {str(e)}',
-                'data': {}
-            }
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message=f'获取统计信息失败: {str(e)}'
+            )
