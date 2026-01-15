@@ -7,6 +7,8 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.community_events import CommunityUpdatedEvent, CommunityManagerChangedEvent, CommunityStatusChangedEvent, CommunitySettingsUpdatedEvent
+from app.domain.events.event_bus import EventBus
 from database.flask_models import Community
 
 
@@ -15,6 +17,7 @@ class UpdateCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.community_repository = RepositoryFactory.get_community_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
@@ -143,7 +146,52 @@ class UpdateCommunityUseCase(BaseUseCase):
 
             self.logger.info(f'更新社区成功: community_id={community_id}')
 
-            # 5. 返回结果
+            # 5. 发布领域事件
+            updated_fields = {}
+            if name is not None:
+                updated_fields['name'] = name
+            if description is not None:
+                updated_fields['description'] = description
+            if location is not None:
+                updated_fields['location'] = location
+            if manager_id is not None:
+                updated_fields['manager_id'] = manager_id
+                # 发布主管变更事件
+                manager_change_event = CommunityManagerChangedEvent(
+                    community_id=community_id,
+                    old_manager_id=community.manager_id,
+                    new_manager_id=manager_id
+                )
+                EventBus.publish(manager_change_event)
+            if status is not None:
+                updated_fields['status'] = status
+                # 发布状态变更事件
+                status_change_event = CommunityStatusChangedEvent(
+                    community_id=community_id,
+                    old_status=community.status,
+                    new_status=status,
+                    operator_id=0  # TODO: 从上下文获取操作者ID
+                )
+                EventBus.publish(status_change_event)
+            if settings is not None:
+                updated_fields['settings'] = settings
+                # 发布设置更新事件
+                settings_event = CommunitySettingsUpdatedEvent(
+                    community_id=community_id,
+                    settings=settings,
+                    operator_id=0  # TODO: 从上下文获取操作者ID
+                )
+                EventBus.publish(settings_event)
+
+            if updated_fields:
+                update_event = CommunityUpdatedEvent(
+                    community_id=community_id,
+                    updater_id=0,  # TODO: 从上下文获取操作者ID
+                    updated_fields=updated_fields
+                )
+                EventBus.publish(update_event)
+
+            # 6. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='社区更新成功',

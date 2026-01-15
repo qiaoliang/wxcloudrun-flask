@@ -6,6 +6,8 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.community_events import CommunityMemberAddedEvent
+from app.domain.events.event_bus import EventBus
 from database.flask_models import User, Community
 
 
@@ -14,6 +16,7 @@ class JoinCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
 
@@ -61,11 +64,19 @@ class JoinCommunityUseCase(BaseUseCase):
 
             # 5. 更新用户的社区ID
             user.community_id = community.community_id
-            updated_user = self.user_repository.update(user)
+            updated_user = self.user_repository.save(user)
 
             self.logger.info(f'用户 {user_id} 已加入社区 {community.community_id}')
 
-            # 6. 返回结果
+            # 6. 发布领域事件
+            event = CommunityMemberAddedEvent(
+                community_id=community.community_id,
+                user_id=user_id,
+                role=user.role
+            )
+            EventBus.publish(event)
+
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='加入社区成功',

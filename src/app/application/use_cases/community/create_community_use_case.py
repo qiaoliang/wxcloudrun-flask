@@ -8,6 +8,8 @@ from typing import Optional
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.domain.entities.user_entity import UserEntity
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.community_events import CommunityCreatedEvent
+from app.domain.events.event_bus import EventBus
 from database.flask_models import Community
 
 
@@ -112,7 +114,15 @@ class CreateCommunityUseCase(BaseUseCase):
 
             self.logger.info(f'创建社区成功: community_id={saved_community.community_id}, name={name}')
 
-            # 6. 返回结果
+            # 6. 发布领域事件
+            event = CommunityCreatedEvent(
+                community_id=saved_community.community_id,
+                creator_id=creator_id,
+                community_name=name
+            )
+            EventBus.publish(event)
+
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='社区创建成功',

@@ -6,6 +6,8 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.community_events import CommunityMemberRemovedEvent
+from app.domain.events.event_bus import EventBus
 from database.flask_models import User
 
 
@@ -14,6 +16,7 @@ class LeaveCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
 
     def execute(self, user_id: int) -> UseCaseResult:
@@ -53,11 +56,19 @@ class LeaveCommunityUseCase(BaseUseCase):
 
             # 4. 清除用户的社区ID
             user.community_id = None
-            updated_user = self.user_repository.update(user)
+            updated_user = self.user_repository.save(user)
 
             self.logger.info(f'用户 {user_id} 已离开社区 {old_community_id}')
 
-            # 5. 返回结果
+            # 5. 发布领域事件
+            event = CommunityMemberRemovedEvent(
+                community_id=old_community_id,
+                user_id=user_id,
+                role=user.role
+            )
+            EventBus.publish(event)
+
+            # 6. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='离开社区成功',

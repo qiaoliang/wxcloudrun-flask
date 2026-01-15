@@ -5,6 +5,8 @@ import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.community_events import CommunityDeletedEvent
+from app.domain.events.event_bus import EventBus
 
 
 class DeleteCommunityUseCase(BaseUseCase):
@@ -12,6 +14,7 @@ class DeleteCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.community_repository = RepositoryFactory.get_community_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
@@ -66,11 +69,20 @@ class DeleteCommunityUseCase(BaseUseCase):
                 )
 
             # 5. 删除社区
+            community_name = community.name
             self.community_repository.delete(community)
 
             self.logger.info(f'删除社区成功: community_id={community_id}')
 
-            # 6. 返回结果
+            # 6. 发布领域事件
+            event = CommunityDeletedEvent(
+                community_id=community_id,
+                deleter_id=user_id,
+                community_name=community_name
+            )
+            EventBus.publish(event)
+
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='社区删除成功',

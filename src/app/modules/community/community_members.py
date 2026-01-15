@@ -139,28 +139,23 @@ def get_community_users_v2():
         if not CommunityService.has_community_permission(user_id, community_id):
             return make_err_response({}, '无权限访问该社区')
 
-        # 获取社区用户
-        users = CommunityService.get_community_users_v2(community_id)
+        # 使用应用服务用例获取社区用户
+        from app.application.use_cases.community import ListCommunityUsersUseCase
 
-        # 格式化用户信息
-        users_data = []
-        for user in users:
-            user_info = {
-                'user_id': user.user_id,
-                'wechat_openid': user.wechat_openid,
-                'phone_number': user.phone_number,
-                'nickname': user.nickname,
-                'name': user.name,
-                'avatar_url': user.avatar_url,
-                'role': user.role_name,
-                'status': user.status,
-                'created_at': user.created_at.isoformat() if user.created_at else None,
-                'last_active_at': user.last_active_at.isoformat() if user.last_active_at else None
-            }
-            users_data.append(user_info)
+        use_case = ListCommunityUsersUseCase()
+        result = use_case.execute(
+            community_id=int(community_id),
+            role=params.get('role'),
+            keyword=params.get('keyword'),
+            page=int(params.get('page', 1)),
+            page_size=int(params.get('page_size', 20))
+        )
 
-        current_app.logger.info(f'获取社区用户列表成功: community_id={community_id}, 共 {len(users_data)} 个用户')
-        return make_succ_response({'users': users_data})
+        if not result.is_success:
+            return make_err_response({}, result.message)
+
+        current_app.logger.info(f'获取社区用户列表成功: community_id={community_id}, 共 {result.data["total"]} 个用户')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取社区用户列表失败: {str(e)}', exc_info=True)

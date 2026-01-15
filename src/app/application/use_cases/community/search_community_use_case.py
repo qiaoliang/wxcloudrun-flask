@@ -14,6 +14,7 @@ class SearchCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.community_repository = RepositoryFactory.get_community_repository()
 
     def execute(
