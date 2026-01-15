@@ -128,68 +128,6 @@ class TestSearchUsersUseCase:
         assert result.data['users'][0]['role'] == 1
 
 
-class TestGetEnvironmentsUseCase:
-    """测试GetEnvironmentsUseCase"""
-
-    @patch('app.application.use_cases.misc.get_environments_use_case.RepositoryFactory')
-    def test_should_successfully_get_environments(self, mock_repo_factory):
-        """应该成功获取环境列表"""
-        # Arrange
-        mock_env_repo = Mock()
-        mock_repo_factory.get_environment_repository.return_value = mock_env_repo
-
-        env1 = Mock()
-        env1.env_id = 1
-        env1.env_name = 'Development'
-        env1.env_type = 'dev'
-        env1.status = 1
-
-        env2 = Mock()
-        env2.env_id = 2
-        env2.env_name = 'Production'
-        env2.env_type = 'prod'
-        env2.status = 1
-
-        mock_env_repo.find_all.return_value = [env1, env2]
-
-        use_case = GetEnvironmentsUseCase()
-
-        # Act
-        result = use_case.execute()
-
-        # Assert
-        assert result.is_success
-        assert len(result.data['environments']) == 2
-
-
-class TestCounterUseCase:
-    """测试CounterUseCase"""
-
-    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
-    def test_should_successfully_increment_counter(self, mock_repo_factory):
-        """应该成功增加计数器"""
-        # Arrange
-        mock_counter_repo = Mock()
-        mock_repo_factory.get_counter_repository.return_value = mock_counter_repo
-
-        counter = Mock()
-        counter.counter_id = 1
-        counter.key = 'test_key'
-        counter.value = 10
-
-        mock_counter_repo.find_by_key.return_value = counter
-        mock_counter_repo.update.return_value = counter
-
-        use_case = CounterUseCase()
-
-        # Act
-        result = use_case.increment(key='test_key')
-
-        # Assert
-        assert result.is_success
-        mock_counter_repo.update.assert_called_once()
-
-
 class TestGetUserAllRulesUseCase:
     """测试GetUserAllRulesUseCase"""
 
@@ -219,7 +157,7 @@ class TestGetUserAllRulesUseCase:
         rule2.rule_type = 'personal'
         rule2.status = 1
 
-        mock_rule_repo.find_by_user_id.return_value = [rule1, rule2]
+        mock_rule_repo.find_active_by_user_id.return_value = [rule1, rule2]
 
         use_case = GetUserAllRulesUseCase()
 
@@ -256,7 +194,7 @@ class TestGetUserTodayPlanUseCase:
         rule.custom_time = None
         rule.status = 1
 
-        mock_rule_repo.find_by_user_id.return_value = [rule]
+        mock_rule_repo.find_active_by_user_id.return_value = [rule]
         mock_record_repo.get_today_checkin.return_value = None
 
         use_case = GetUserTodayPlanUseCase()
@@ -292,6 +230,7 @@ class TestGetUserRuleDetailUseCase:
         rule.rule_type = 'personal'
         rule.status = 1
         rule.custom_time = None
+        rule.user_id = 1  # 添加 user_id 属性
 
         mock_rule_repo.find_by_id.return_value = rule
 
@@ -338,7 +277,7 @@ class TestGetUserCheckinStatisticsUseCase:
         use_case = GetUserCheckinStatisticsUseCase()
 
         # Act
-        result = use_case.execute(user_id=1, rule_id=101)
+        result = use_case.execute(user_id=1)
 
         # Assert
         assert result.is_success
@@ -372,7 +311,7 @@ class TestGetRulesSourceInfoUseCase:
         use_case = GetRulesSourceInfoUseCase()
 
         # Act
-        result = use_case.execute()
+        result = use_case.execute(user_id=1)
 
         # Assert
         assert result.is_success

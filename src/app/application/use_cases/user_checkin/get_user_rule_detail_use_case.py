@@ -1,10 +1,21 @@
 """
 获取用户打卡规则详情用例
 """
-from flask import current_app
+from flask import has_app_context
 from database.flask_models import db, CheckinRule
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+import logging
+
+app_logger = logging.getLogger('log')
+
+
+def _get_logger():
+    """获取logger，避免在模块级别访问current_app"""
+    if has_app_context():
+        from flask import current_app
+        return current_app.logger
+    return app_logger
 
 
 class GetUserRuleDetailUseCase(BaseUseCase):
@@ -58,7 +69,7 @@ class GetUserRuleDetailUseCase(BaseUseCase):
             rule_dict['rule_source'] = 'personal'
             rule_dict['is_editable'] = True
 
-            current_app.logger.info(f'成功获取用户 {user_id} 的个人规则详情，规则ID: {rule_id}')
+            _get_logger().info(f'成功获取用户 {user_id} 的个人规则详情，规则ID: {rule_id}')
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='获取规则详情成功',
@@ -101,7 +112,7 @@ class GetUserRuleDetailUseCase(BaseUseCase):
             if community_rule.updater:
                 rule_dict['updated_by_name'] = community_rule.updater.nickname or community_rule.updater.phone
 
-            current_app.logger.info(f'成功获取用户 {user_id} 的社区规则详情，规则ID: {rule_id}')
+            _get_logger().info(f'成功获取用户 {user_id} 的社区规则详情，规则ID: {rule_id}')
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='获取规则详情成功',

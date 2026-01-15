@@ -1,7 +1,18 @@
 """
 获取用户打卡统计信息用例
 """
-from flask import current_app
+from flask import has_app_context
+import logging
+
+app_logger = logging.getLogger('log')
+
+
+def _get_logger():
+    """获取logger，避免在模块级别访问current_app"""
+    if has_app_context():
+        from flask import current_app
+        return current_app.logger
+    return app_logger
 from datetime import datetime, date, timedelta
 from sqlalchemy import select, func
 from database.flask_models import db, CheckinRule, CheckinRecord
@@ -149,7 +160,7 @@ class GetUserCheckinStatisticsUseCase(BaseUseCase):
             'daily_stats': daily_stats
         }
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的打卡统计信息')
+        _get_logger().info(f'成功获取用户 {user_id} 的打卡统计信息')
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='获取统计信息成功',

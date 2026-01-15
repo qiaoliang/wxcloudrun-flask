@@ -1,7 +1,18 @@
 """
 获取用户今日打卡计划用例
 """
-from flask import current_app
+from flask import has_app_context
+import logging
+
+app_logger = logging.getLogger('log')
+
+
+def _get_logger():
+    """获取logger，避免在模块级别访问current_app"""
+    if has_app_context():
+        from flask import current_app
+        return current_app.logger
+    return app_logger
 from datetime import datetime, date, time
 from sqlalchemy import select, func
 from sqlalchemy.orm import noload
@@ -135,7 +146,7 @@ class GetUserTodayPlanUseCase(BaseUseCase):
             'items': today_plan
         }
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的今日打卡计划，共 {result["total_items"]} 项')
+        _get_logger().info(f'成功获取用户 {user_id} 的今日打卡计划，共 {result["total_items"]} 项')
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='获取今日计划成功',

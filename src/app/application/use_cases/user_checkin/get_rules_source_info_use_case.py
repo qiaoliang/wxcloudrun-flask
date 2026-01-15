@@ -1,7 +1,18 @@
 """
 批量获取规则来源信息用例
 """
-from flask import current_app
+from flask import has_app_context
+import logging
+
+app_logger = logging.getLogger('log')
+
+
+def _get_logger():
+    """获取logger，避免在模块级别访问current_app"""
+    if has_app_context():
+        from flask import current_app
+        return current_app.logger
+    return app_logger
 from database.flask_models import db
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
@@ -92,7 +103,7 @@ class GetRulesSourceInfoUseCase(BaseUseCase):
                                 'community_name': rule.community.name if rule.community else None
                             })
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的规则来源信息')
+        _get_logger().info(f'成功获取用户 {user_id} 的规则来源信息')
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='获取来源信息成功',
