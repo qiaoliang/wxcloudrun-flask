@@ -2,7 +2,7 @@
 计数器用例
 """
 import logging
-from flask import current_app
+from flask import has_app_context
 from sqlalchemy import select, delete
 from database.flask_models import db, Counters
 from app.shared.utils.transaction import transaction
@@ -10,6 +10,14 @@ from app.shared.utils.transaction import transaction
 from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
 
 app_logger = logging.getLogger('log')
+
+
+def _get_logger():
+    """获取logger，避免在模块级别访问current_app"""
+    if has_app_context():
+        from flask import current_app
+        return current_app.logger
+    return app_logger
 
 
 class CounterUseCase(BaseUseCase):
@@ -81,7 +89,7 @@ class CounterUseCase(BaseUseCase):
                 )
 
         except Exception as e:
-            current_app.logger.error(f"计数器操作失败: {str(e)}", exc_info=True)
+            _get_logger().error(f"计数器操作失败: {str(e)}", exc_info=True)
             db.session.rollback()
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
@@ -101,7 +109,7 @@ class CounterUseCase(BaseUseCase):
                 counter = Counters(id=counter_id, count=1)
                 db.session.add(counter)
 
-        current_app.logger.info(f"计数器 {counter.id} 增加到 {counter.count}")
+        _get_logger().info(f"计数器 {counter.id} 增加到 {counter.count}")
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='计数增加成功',
@@ -116,14 +124,14 @@ class CounterUseCase(BaseUseCase):
         if counter:
             with transaction():
                 counter.count = 0
-            current_app.logger.info(f"计数器 {counter.id} 已重置")
+            _get_logger().info(f"计数器 {counter.id} 已重置")
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='计数重置成功',
                 data={'id': counter.id, 'count': 0}
             )
         else:
-            current_app.logger.warning(f"计数器 {counter_id} 不存在")
+            _get_logger().warning(f"计数器 {counter_id} 不存在")
             return UseCaseResult(
                 status=UseCaseStatus.NOT_FOUND,
                 message=f'计数器 {counter_id} 不存在',
@@ -152,7 +160,7 @@ class CounterUseCase(BaseUseCase):
         """列出所有计数器"""
         counters = db.session.execute(select(Counters)).scalars().all()
         counter_list = [{'id': c.id, 'count': c.count} for c in counters]
-        current_app.logger.info(f"获取计数器列表，共 {len(counter_list)} 个计数器")
+        _get_logger().info(f"获取计数器列表，共 {len(counter_list)} 个计数器")
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='获取计数器列表成功',
@@ -163,7 +171,7 @@ class CounterUseCase(BaseUseCase):
         """清除所有计数器"""
         with transaction():
             db.session.execute(delete(Counters))
-        current_app.logger.info("所有计数器已清除")
+        _get_logger().info("所有计数器已清除")
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='所有计数器已清除',

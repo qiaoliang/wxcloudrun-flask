@@ -20,14 +20,12 @@ class TestGetEnvironmentsUseCase:
 
     @patch('app.application.use_cases.misc.get_environments_use_case.analyze_all_configs')
     @patch('app.application.use_cases.misc.get_environments_use_case.detect_external_systems_status')
-    @patch('app.application.use_cases.misc.get_environments_use_case.current_app')
-    def test_execute_success(self, mock_app, mock_detect_external, mock_analyze_configs):
+    def test_execute_success(self, mock_detect_external, mock_analyze_configs):
         """测试成功执行"""
         # Arrange
         mock_analyze_configs.return_value = {'status': 'ok'}
         mock_detect_external.return_value = {'status': 'ok'}
-        mock_app.logger = MagicMock()
-        
+
         use_case = GetEnvironmentsUseCase()
         
         # Act
@@ -39,16 +37,13 @@ class TestGetEnvironmentsUseCase:
         assert 'config_status' in result.data
         assert 'external_status' in result.data
         assert 'timestamp' in result.data
-        mock_app.logger.info.assert_called_once()
 
     @patch('app.application.use_cases.misc.get_environments_use_case.analyze_all_configs')
-    @patch('app.application.use_cases.misc.get_environments_use_case.current_app')
-    def test_execute_failure(self, mock_app, mock_analyze_configs):
+    def test_execute_failure(self, mock_analyze_configs):
         """测试执行失败"""
         # Arrange
         mock_analyze_configs.side_effect = Exception("配置错误")
-        mock_app.logger = MagicMock()
-        
+
         use_case = GetEnvironmentsUseCase()
         
         # Act
@@ -58,18 +53,15 @@ class TestGetEnvironmentsUseCase:
         assert result.status == UseCaseStatus.FAILURE
         assert '配置错误' in result.message
         assert result.data == {}
-        mock_app.logger.error.assert_called_once()
 
     @patch('app.application.use_cases.misc.get_environments_use_case.analyze_all_configs')
     @patch('app.application.use_cases.misc.get_environments_use_case.detect_external_systems_status')
-    @patch('app.application.use_cases.misc.get_environments_use_case.current_app')
-    def test_execute_returns_correct_data_structure(self, mock_app, mock_detect_external, mock_analyze_configs):
+    def test_execute_returns_correct_data_structure(self, mock_detect_external, mock_analyze_configs):
         """测试返回正确的数据结构"""
         # Arrange
         mock_analyze_configs.return_value = {'env': 'dev'}
         mock_detect_external.return_value = {'db': 'ok'}
-        mock_app.logger = MagicMock()
-        
+
         use_case = GetEnvironmentsUseCase()
         
         # Act

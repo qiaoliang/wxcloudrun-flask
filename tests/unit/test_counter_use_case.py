@@ -14,10 +14,20 @@ class TestCounterUseCase:
     def test_validate_with_valid_action(self):
         """测试验证有效的 action"""
         use_case = CounterUseCase()
-        
-        for action in ['increment', 'reset', 'get', 'list', 'clear']:
+
+        # 测试 list 和 clear（不需要参数）
+        for action in ['list', 'clear']:
             result = use_case._validate(action, {})
             assert result.status == UseCaseStatus.SUCCESS
+
+        # 测试 increment、reset 和 get（需要 counter_id 参数）
+        for action in ['increment', 'reset']:
+            result = use_case._validate(action, {'counter_id': 1})
+            assert result.status == UseCaseStatus.SUCCESS
+
+        # get 操作使用 id 参数
+        result = use_case._validate('get', {'id': 1})
+        assert result.status == UseCaseStatus.SUCCESS
 
     def test_validate_with_invalid_action(self):
         """测试验证无效的 action"""
@@ -53,15 +63,13 @@ class TestCounterUseCase:
 
     @patch('app.application.use_cases.misc.counter_use_case.db')
     @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    @patch('app.application.use_cases.misc.counter_use_case.current_app')
-    def test_execute_increment_new_counter(self, mock_app, mock_transaction, mock_db):
+    def test_execute_increment_new_counter(self, mock_transaction, mock_db):
         """测试增加新计数器"""
         # Arrange
         mock_db.session.execute.return_value.scalar_one_or_none.return_value = None
         mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
         mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
-        mock_app.logger = MagicMock()
-        
+
         use_case = CounterUseCase()
         
         # Act
@@ -75,8 +83,7 @@ class TestCounterUseCase:
 
     @patch('app.application.use_cases.misc.counter_use_case.db')
     @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    @patch('app.application.use_cases.misc.counter_use_case.current_app')
-    def test_execute_increment_existing_counter(self, mock_app, mock_transaction, mock_db):
+    def test_execute_increment_existing_counter(self, mock_transaction, mock_db):
         """测试增加现有计数器"""
         # Arrange
         mock_counter = MagicMock()
@@ -85,8 +92,7 @@ class TestCounterUseCase:
         mock_db.session.execute.return_value.scalar_one_or_none.return_value = mock_counter
         mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
         mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
-        mock_app.logger = MagicMock()
-        
+
         use_case = CounterUseCase()
         
         # Act
@@ -98,8 +104,7 @@ class TestCounterUseCase:
 
     @patch('app.application.use_cases.misc.counter_use_case.db')
     @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    @patch('app.application.use_cases.misc.counter_use_case.current_app')
-    def test_execute_reset_success(self, mock_app, mock_transaction, mock_db):
+    def test_execute_reset_success(self, mock_transaction, mock_db):
         """测试重置计数器成功"""
         # Arrange
         mock_counter = MagicMock()
@@ -108,8 +113,7 @@ class TestCounterUseCase:
         mock_db.session.execute.return_value.scalar_one_or_none.return_value = mock_counter
         mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
         mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
-        mock_app.logger = MagicMock()
-        
+
         use_case = CounterUseCase()
         
         # Act
@@ -120,13 +124,11 @@ class TestCounterUseCase:
         assert result.data['count'] == 0
 
     @patch('app.application.use_cases.misc.counter_use_case.db')
-    @patch('app.application.use_cases.misc.counter_use_case.current_app')
-    def test_execute_reset_not_found(self, mock_app, mock_db):
+    def test_execute_reset_not_found(self, mock_db):
         """测试重置不存在的计数器"""
         # Arrange
         mock_db.session.execute.return_value.scalar_one_or_none.return_value = None
-        mock_app.logger = MagicMock()
-        
+
         use_case = CounterUseCase()
         
         # Act
@@ -137,13 +139,11 @@ class TestCounterUseCase:
         assert '不存在' in result.message
 
     @patch('app.application.use_cases.misc.counter_use_case.db')
-    @patch('app.application.use_cases.misc.counter_use_case.current_app')
-    def test_execute_get_not_found(self, mock_app, mock_db):
+    def test_execute_get_not_found(self, mock_db):
         """测试获取不存在的计数器"""
         # Arrange
         mock_db.session.execute.return_value.scalar_one_or_none.return_value = None
-        mock_app.logger = MagicMock()
-        
+
         use_case = CounterUseCase()
         
         # Act
@@ -154,8 +154,7 @@ class TestCounterUseCase:
         assert '不存在' in result.message
 
     @patch('app.application.use_cases.misc.counter_use_case.db')
-    @patch('app.application.use_cases.misc.counter_use_case.current_app')
-    def test_execute_list_success(self, mock_app, mock_db):
+    def test_execute_list_success(self, mock_db):
         """测试列出所有计数器"""
         # Arrange
         mock_counter1 = MagicMock()
@@ -165,8 +164,7 @@ class TestCounterUseCase:
         mock_counter2.id = 2
         mock_counter2.count = 10
         mock_db.session.execute.return_value.scalars.return_value.all.return_value = [mock_counter1, mock_counter2]
-        mock_app.logger = MagicMock()
-        
+
         use_case = CounterUseCase()
         
         # Act
@@ -180,14 +178,12 @@ class TestCounterUseCase:
 
     @patch('app.application.use_cases.misc.counter_use_case.db')
     @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    @patch('app.application.use_cases.misc.counter_use_case.current_app')
-    def test_execute_clear_success(self, mock_app, mock_transaction, mock_db):
+    def test_execute_clear_success(self, mock_transaction, mock_db):
         """测试清除所有计数器"""
         # Arrange
         mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
         mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
-        mock_app.logger = MagicMock()
-        
+
         use_case = CounterUseCase()
         
         # Act

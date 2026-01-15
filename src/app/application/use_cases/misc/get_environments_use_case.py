@@ -3,12 +3,20 @@
 """
 import logging
 from datetime import datetime
-from flask import current_app
+from flask import has_app_context
 from config import analyze_all_configs, detect_external_systems_status
 
 from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
 
 app_logger = logging.getLogger('log')
+
+
+def _get_logger():
+    """获取logger，避免在模块级别访问current_app"""
+    if has_app_context():
+        from flask import current_app
+        return current_app.logger
+    return app_logger
 
 
 class GetEnvironmentsUseCase(BaseUseCase):
@@ -45,7 +53,7 @@ class GetEnvironmentsUseCase(BaseUseCase):
                 'timestamp': datetime.now().isoformat()
             }
 
-            current_app.logger.info("获取环境配置信息成功")
+            _get_logger().info("获取环境配置信息成功")
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='获取环境配置信息成功',
@@ -53,7 +61,7 @@ class GetEnvironmentsUseCase(BaseUseCase):
             )
 
         except Exception as e:
-            current_app.logger.error(f"获取环境配置信息失败: {str(e)}", exc_info=True)
+            _get_logger().error(f"获取环境配置信息失败: {str(e)}", exc_info=True)
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f'获取环境配置信息失败: {str(e)}',

@@ -1,12 +1,23 @@
 """
 获取用户所有打卡规则用例
 """
-from flask import current_app
+from flask import has_app_context
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+import logging
+
+app_logger = logging.getLogger('log')
+
+
+def _get_logger():
+    """获取logger，避免在模块级别访问current_app"""
+    if has_app_context():
+        from flask import current_app
+        return current_app.logger
+    return app_logger
 
 
 class GetUserAllRulesUseCase(BaseUseCase):
@@ -92,7 +103,7 @@ class GetUserAllRulesUseCase(BaseUseCase):
                 )
 
             checkin_rule_repo.soft_delete(int(rule_id))
-            current_app.logger.info(f'用户 {user_id} 成功删除个人打卡规则')
+            _get_logger().info(f'用户 {user_id} 成功删除个人打卡规则')
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='删除规则成功',
@@ -151,7 +162,7 @@ class GetUserAllRulesUseCase(BaseUseCase):
         # 获取个人规则（在社区规则后显示）
         checkin_rule_repo = RepositoryFactory.get_checkin_rule_repository()
         personal_rules = checkin_rule_repo.find_active_by_user_id(user_id)
-        current_app.logger.info(f"获取个人规则: 用户ID={user_id}, 规则数量={len(personal_rules)}")
+        _get_logger().info(f"获取个人规则: 用户ID={user_id}, 规则数量={len(personal_rules)}")
 
         for rule in personal_rules:
             rule_dict = rule.to_dict()
@@ -162,7 +173,7 @@ class GetUserAllRulesUseCase(BaseUseCase):
             rule_dict['status_label'] = '启用'
             all_rules.append(rule_dict)
 
-        current_app.logger.info(f'成功获取用户 {user_id} 的所有打卡规则，共 {len(all_rules)} 条规则')
+        _get_logger().info(f'成功获取用户 {user_id} 的所有打卡规则，共 {len(all_rules)} 条规则')
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='获取规则成功',
