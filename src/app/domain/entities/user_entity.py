@@ -128,7 +128,8 @@ class UserEntity:
                 self._user.nickname = nickname.strip()[:50]
 
         if avatar_url is not None:
-            if avatar_url.startswith(('http://', 'https://')) and len(avatar_url) <= 500:
+            # 支持外部 URL (http/https) 和本地文件路径 (/static/)
+            if len(avatar_url) <= 500:
                 self._user.avatar_url = avatar_url.strip()
 
         if name is not None:

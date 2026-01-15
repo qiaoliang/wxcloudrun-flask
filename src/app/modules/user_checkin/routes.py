@@ -76,10 +76,10 @@ def get_user_all_rules():
         params = request.get_json() if request.method == 'DELETE' else None
         result = use_case.execute(user_id, request.method, params)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取用户所有打卡规则失败: {str(e)}', exc_info=True)
@@ -133,10 +133,10 @@ def get_user_today_plan():
         use_case = GetUserTodayPlanUseCase()
         result = use_case.execute(user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取用户今日打卡计划失败: {str(e)}', exc_info=True)
@@ -185,10 +185,10 @@ def get_user_rule_detail(rule_id):
         use_case = GetUserRuleDetailUseCase()
         result = use_case.execute(user_id, rule_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取用户打卡规则详情失败: {str(e)}', exc_info=True)
@@ -244,10 +244,10 @@ def get_user_checkin_statistics():
         use_case = GetUserCheckinStatisticsUseCase()
         result = use_case.execute(user_id, period, start_date, end_date)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取用户打卡统计信息失败: {str(e)}', exc_info=True)
@@ -311,10 +311,10 @@ def get_rules_source_info():
         use_case = GetRulesSourceInfoUseCase()
         result = use_case.execute(user_id, rule_ids, community_rule_ids)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'批量获取规则来源信息失败: {str(e)}', exc_info=True)

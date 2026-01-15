@@ -55,10 +55,10 @@ def count():
     use_case = CounterUseCase()
     result = use_case.execute(action, params)
 
-    if result['success']:
-        return make_succ_response(result['data'])
+    if result.is_success:
+        return make_succ_response(result.data)
     else:
-        return make_err_response(result['data'], result['message'])
+        return make_err_response(result.data, result.message)
 
 
 @misc_bp.route('/count', methods=['GET'])
@@ -73,15 +73,15 @@ def get_counter():
             # 列出所有计数器
             use_case = CounterUseCase()
             result = use_case.execute('list', {})
-            return make_succ_response(result['data'])
+            return make_succ_response(result.data)
         else:
             # 获取特定计数器
             use_case = CounterUseCase()
             result = use_case.execute('get', {'id': int(counter_id)})
-            if result['success']:
-                return make_succ_response(result['data'])
+            if result.is_success:
+                return make_succ_response(result.data)
             else:
-                return make_err_response(result['data'], result['message'])
+                return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f"获取计数器信息失败: {str(e)}", exc_info=True)
@@ -96,7 +96,7 @@ def get_environments():
     try:
         use_case = GetEnvironmentsUseCase()
         result = use_case.execute()
-        return make_succ_response(result['data'])
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f"获取环境配置信息失败: {str(e)}", exc_info=True)
@@ -113,7 +113,7 @@ def upload_media():
     try:
         use_case = UploadMediaUseCase()
         result = use_case.execute()
-        return make_succ_response(result['data'])
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f"文件上传失败: {str(e)}", exc_info=True)

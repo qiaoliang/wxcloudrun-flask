@@ -23,9 +23,11 @@ class TestUserUploadAvatar(IntegrationTestBase):
         """测试成功上传用户头像"""
         # 创建测试用户（在应用上下文中）
         phone_number = None
+        user_id = None
         with self.app.app_context():
             user = self.create_standard_test_user(role=1, test_context='upload_avatar')
             phone_number = user.phone_number  # 在上下文中获取phone_number
+            user_id = user.user_id  # 同时保存user_id
         client = self.get_test_client()
 
         # 获取JWT token
@@ -61,7 +63,7 @@ class TestUserUploadAvatar(IntegrationTestBase):
         # 验证数据库中的用户头像已更新
         from database.flask_models import User
         with self.app.app_context():
-            updated_user = self.db.session.get(User, user.user_id)
+            updated_user = self.db.session.get(User, user_id)
             assert updated_user.avatar_url == data['data']['avatar_url']
 
 

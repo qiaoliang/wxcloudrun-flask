@@ -24,10 +24,10 @@ def sms_send_code():
         use_case = SendVerificationCodeUseCase()
         result = use_case.execute(phone, purpose)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'发送验证码失败: {str(e)}', exc_info=True)

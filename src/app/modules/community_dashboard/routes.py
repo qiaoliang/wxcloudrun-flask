@@ -39,10 +39,10 @@ def get_community_stats(decoded, community_id):
         use_case = GetCommunityStatsUseCase()
         result = use_case.execute(community_id, user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取社区统计数据失败: {str(e)}', exc_info=True)
@@ -78,10 +78,10 @@ def get_abnormal_users(decoded, community_id):
         use_case = GetAbnormalUsersUseCase()
         result = use_case.execute(community_id, user_id, page, page_size)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取异常用户列表失败: {str(e)}', exc_info=True)
@@ -115,10 +115,10 @@ def get_trend_data(decoded, community_id):
         use_case = GetTrendDataUseCase()
         result = use_case.execute(community_id, user_id, days)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取历史趋势数据失败: {str(e)}', exc_info=True)
@@ -152,10 +152,10 @@ def get_pending_events(decoded, community_id):
         use_case = GetPendingEventsUseCase()
         result = use_case.execute(community_id, user_id, limit)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取未处理事件失败: {str(e)}', exc_info=True)
@@ -184,10 +184,10 @@ def get_user_abnormality_detail(decoded, community_id, user_id):
         use_case = GetUserAbnormalityDetailUseCase()
         result = use_case.execute(community_id, user_id, request_user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取用户异常值详情失败: {str(e)}', exc_info=True)
