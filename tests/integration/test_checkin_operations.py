@@ -65,6 +65,7 @@ class TestCheckinOperations(IntegrationTestBase):
                 }
             )
             rule_id = result.data['rule'].rule_id
+            self.db.session.commit()
 
         client = self.get_test_client()
         # 获取JWT token
@@ -95,20 +96,22 @@ class TestCheckinOperations(IntegrationTestBase):
             self.db.session.commit()
 
             # 创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=user.user_id,
+                rule_data={
                     'rule_name': '每日运动',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '18:00:00',
                     'week_days': [1, 2, 3, 4, 5, 6, 7]
-                },
-                user.user_id
+                }
             )
 
             # 在 app context 内提取 rule_id，避免访问 detached 对象
-            rule_id = rule.rule_id
+            rule_id = result.data['rule'].rule_id
+            self.db.session.commit()
 
         client = self.get_test_client()
         # 获取JWT token
@@ -138,40 +141,46 @@ class TestCheckinOperations(IntegrationTestBase):
             phone_number = user.phone_number
 
             # 创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=user.user_id,
+                rule_data={
                     'rule_name': '每日学习',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '20:00:00',
                     'week_days': [1, 2, 3, 4, 5, 6, 7]
-                },
-                user.user_id
+                }
             )
 
-            rule_id = rule.rule_id
+            rule_id = result.data['rule'].rule_id
+            self.db.session.commit()
 
-            # 在同一个 app_context 中执行打卡
-            from wxcloudrun.checkin_record_service import CheckinRecordService
-            checkin_result = CheckinRecordService.perform_checkin(
-                rule_id,
-                user.user_id
+            # 创建一个未完成的打卡记录（状态=0，待打卡）
+            from database.flask_models import CheckinRecord
+            from datetime import datetime
+            record = CheckinRecord(
+                user_id=user.user_id,
+                rule_id=rule_id,
+                planned_time=datetime.now(),
+                status=0  # 待打卡状态
             )
+            self.db.session.add(record)
+            self.db.session.commit()
+            record_id = record.record_id
 
-            # 验证打卡成功
-            assert checkin_result['status'] == 'completed'
-            record_id = checkin_result['record_id']
-
-            # 在同一个 app_context 中取消打卡
-            cancel_result = CheckinRecordService.cancel_checkin(
-                record_id,
-                user.user_id
+            # 取消未完成的打卡记录
+            from app.application.use_cases.checkin.cancel_checkin_use_case import CancelCheckinUseCase
+            cancel_use_case = CancelCheckinUseCase()
+            cancel_result = cancel_use_case.execute(
+                user_id=user.user_id,
+                record_id=record_id
             )
 
             # 验证取消成功
-            assert cancel_result['status'] == 'cancelled'
-            assert cancel_result['record_id'] == record_id
+            assert cancel_result.is_success
+            assert cancel_result.data['record_id'] == record_id
 
     def test_get_checkin_history_success(self):
         """测试成功获取打卡历史记录"""
@@ -184,26 +193,29 @@ class TestCheckinOperations(IntegrationTestBase):
             phone_number = user.phone_number
 
             # 创建打卡规则
-            from wxcloudrun.checkin_rule_service import CheckinRuleService
-            rule = CheckinRuleService.create_rule(
-                {
+            from app.application.use_cases.checkin.create_checkin_rule_use_case import CreateCheckinRuleUseCase
+            create_rule_use_case = CreateCheckinRuleUseCase()
+            result = create_rule_use_case.execute(
+                user_id=user.user_id,
+                rule_data={
                     'rule_name': '每日打卡',
                     'frequency_type': 0,
                     'time_slot_type': 'fixed_time',
                     'custom_time': '08:00:00',
                     'week_days': [1, 2, 3, 4, 5, 6, 7]
-                },
-                user.user_id
+                }
             )
+            rule_id = result.data['rule'].rule_id
+            self.db.session.commit()
 
             # 创建不同日期的打卡记录
             today = datetime.now()
             yesterday = today - timedelta(days=1)
-            
+
             # 创建昨天的打卡记录
             record1 = CheckinRecord(
                 user_id=user.user_id,
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 planned_time=yesterday,
                 checkin_time=yesterday,
                 status=1
@@ -213,7 +225,7 @@ class TestCheckinOperations(IntegrationTestBase):
             # 创建今天的打卡记录
             record2 = CheckinRecord(
                 user_id=user.user_id,
-                rule_id=rule.rule_id,
+                rule_id=rule_id,
                 planned_time=today,
                 checkin_time=today,
                 status=1
