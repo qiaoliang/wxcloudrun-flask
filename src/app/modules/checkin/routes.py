@@ -55,10 +55,13 @@ def get_today_checkin_items():
 
     # 参数验证
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
-    if not user:
+    from app.application.use_cases.user import GetUserByIdUseCase
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 使用应用服务用例获取今日打卡计划
@@ -93,11 +96,13 @@ def perform_checkin():
 
     # 参数验证
     user_id = decoded.get('user_id')
-    from database.flask_models import User
-    user = db.session.get(User, user_id)
-    if not user:
+    from app.application.use_cases.user import GetUserByIdUseCase
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     # 获取请求参数
     params = request.get_json()
@@ -144,11 +149,13 @@ def report_miss_checkin():
 
     # 参数验证
     user_id = decoded.get('user_id')
-    from database.flask_models import User
-    user = db.session.get(User, user_id)
-    if not user:
+    from app.application.use_cases.user import GetUserByIdUseCase
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     # 获取请求参数
     params = request.get_json()
@@ -195,11 +202,13 @@ def cancel_checkin():
 
     # 参数验证
     user_id = decoded.get('user_id')
-    from database.flask_models import User
-    user = db.session.get(User, user_id)
-    if not user:
+    from app.application.use_cases.user import GetUserByIdUseCase
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     # 获取请求参数
     params = request.get_json()
@@ -247,10 +256,13 @@ def get_checkin_history():
 
     # 参数验证
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
-    if not user:
+    from app.application.use_cases.user import GetUserByIdUseCase
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     # 获取查询参数
     start_date_str = request.args.get('start_date')
@@ -316,11 +328,13 @@ def manage_checkin_rules():
 
     # 参数验证
     user_id = decoded.get('user_id')
-    from database.flask_models import User
-    user = db.session.get(User, user_id)
-    if not user:
+    from app.application.use_cases.user import GetUserByIdUseCase
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     method = request.method
     current_app.logger.info(f'打卡规则管理请求方法: {method}')

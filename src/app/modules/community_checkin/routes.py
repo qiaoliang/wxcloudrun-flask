@@ -26,8 +26,6 @@ logger = logging.getLogger('CommunityCheckinView')
 
 
 
-
-
 @community_checkin_bp.route('/rules', methods=['GET'])
 @require_community_staff_member()
 def get_community_checkin_rules(decoded):
@@ -106,11 +104,6 @@ def update_community_checkin_rule(decoded, rule_id):
     current_app.logger.info(f'=== 开始更新社区打卡规则: {rule_id} ===')
 
     user_id = decoded.get('user_id')
-    # 从规则ID获取 community_id
-    rule = db.session.get(CommunityCheckinRule, rule_id)
-    if not rule:
-        return make_err_response({}, '规则不存在')
-    community_id = rule.community_id
 
     try:
         # 获取请求参数
@@ -140,11 +133,6 @@ def enable_community_checkin_rule(decoded, rule_id):
     current_app.logger.info(f'=== 开始启用社区打卡规则: {rule_id} ===')
 
     user_id = decoded.get('user_id')
-    # 从规则ID获取 community_id
-    rule = db.session.get(CommunityCheckinRule, rule_id)
-    if not rule:
-        return make_err_response({}, '规则不存在')
-    community_id = rule.community_id
 
     try:
         use_case = EnableCommunityCheckinRuleUseCase()
@@ -169,11 +157,6 @@ def disable_community_checkin_rule(decoded, rule_id):
     current_app.logger.info(f'=== 开始禁用社区打卡规则: {rule_id} ===')
 
     user_id = decoded.get('user_id')
-    # 从规则ID获取 community_id
-    rule = db.session.get(CommunityCheckinRule, rule_id)
-    if not rule:
-        return make_err_response({}, '规则不存在')
-    community_id = rule.community_id
 
     try:
         use_case = DisableCommunityCheckinRuleUseCase()
@@ -198,11 +181,6 @@ def delete_community_checkin_rule(decoded, rule_id):
     current_app.logger.info(f'=== 开始删除社区打卡规则: {rule_id} ===')
 
     user_id = decoded.get('user_id')
-    # 从规则ID获取 community_id
-    rule = db.session.get(CommunityCheckinRule, rule_id)
-    if not rule:
-        return make_err_response({}, '规则不存在')
-    community_id = rule.community_id
 
     try:
         use_case = DeleteCommunityCheckinRuleUseCase()
@@ -227,11 +205,6 @@ def get_community_checkin_rule(decoded, rule_id):
     current_app.logger.info(f'=== 开始获取社区打卡规则详情: {rule_id} ===')
 
     user_id = decoded.get('user_id')
-    # 从规则ID获取 community_id
-    rule = db.session.get(CommunityCheckinRule, rule_id)
-    if not rule:
-        return make_err_response({}, '规则不存在')
-    community_id = rule.community_id
 
     try:
         use_case = GetCommunityCheckinRuleUseCase()
