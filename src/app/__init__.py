@@ -146,6 +146,9 @@ def create_app(config_name=None):
         with app.app_context():
             app.logger.info("默认社区初始化已在数据库迁移完成后自动执行")
 
+    # 10. 注册领域事件处理器
+    register_event_handlers(app)
+
     # 注意：定时任务将在数据库迁移完成后启动（在 run.py 中调用）
     # 这样可以确保数据库表已经创建完成，避免定时任务查询失败
 
@@ -227,7 +230,7 @@ def register_session_cleanup(app):
         @app.teardown_appcontext
         def shutdown_session(exception=None):
             """请求结束后清理数据库会话
-            
+
             Layer 4: 调试仪表 - 事务管理
             - 如果没有异常，提交事务
             - 如果有异常，回滚事务
@@ -250,6 +253,34 @@ def register_session_cleanup(app):
             finally:
                 # 无论成功与否，都移除会话
                 db.session.remove()
+
+
+def register_event_handlers(app):
+    """注册领域事件处理器"""
+    try:
+        from app.domain.handlers import register_all_event_handlers
+
+        # 注册所有事件处理器到事件总线
+        register_all_event_handlers()
+
+        # 获取并记录已注册的处理器数量
+        from app.domain.handlers import get_event_handler_count
+        handler_counts = get_event_handler_count()
+
+        # 计算总处理器数量
+        total_handlers = sum(
+            len(event_counts) for event_counts in handler_counts.values()
+        )
+
+        app.logger.info(f"✓ 领域事件处理器注册完成，共 {total_handlers} 个处理器")
+
+        # 记录各类事件的处理器数量
+        for event_type, event_counts in handler_counts.items():
+            app.logger.debug(f"  - {event_type}: {len(event_counts)} 个事件类型")
+
+    except Exception as e:
+        app.logger.error(f"注册领域事件处理器失败: {str(e)}", exc_info=True)
+        # 事件处理器注册失败不应阻止应用启动，但需要记录错误
 
 
 

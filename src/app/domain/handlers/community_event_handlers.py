@@ -4,6 +4,7 @@
 处理社区相关的领域事件
 """
 from typing import Type
+import json
 
 from app.domain.events.event_handler import EventHandler
 from app.domain.events.community_events import (
@@ -45,8 +46,28 @@ class CommunityCreatedEventHandler(EventHandler):
         community_name = event.data['community_name']
         self.logger.info(f"处理社区创建事件: community_id={community_id}, creator_id={creator_id}, name={community_name}")
 
-        # TODO: 实现具体的业务逻辑
-        # 例如：初始化社区设置、发送欢迎消息等
+        # 1. 记录审计日志
+        try:
+            from app.extensions import db
+            from database.flask_models import UserAuditLog
+            audit_log = UserAuditLog(
+                user_id=creator_id,
+                action='create_community',
+                detail=json.dumps({
+                    'community_id': community_id,
+                    'community_name': community_name,
+                    'action': '社区创建'
+                })
+            )
+            db.session.add(audit_log)
+            db.session.commit()
+            self.logger.info(f"已记录社区创建审计日志: log_id={audit_log.log_id}")
+        except Exception as e:
+            self.logger.error(f"记录审计日志失败: {str(e)}")
+            # 审计日志失败不影响主流程
+
+        # 2. TODO: 可以在此添加其他副作用逻辑
+        # 例如：发送欢迎消息、初始化社区统计等
 
     @staticmethod
     def get_event_type() -> Type[DomainEvent]:
@@ -106,6 +127,80 @@ class CommunityMemberAddedEventHandler(EventHandler):
     """社区成员添加事件处理器"""
 
     def handle(self, event: CommunityMemberAddedEvent) -> None:
+        """
+        处理社区成员添加事件
+
+        Args:
+            event: 社区成员添加事件
+        """
+        community_id = event.data['community_id']
+        user_id = event.data['user_id']
+        role = event.data['role']
+        self.logger.info(f"处理社区成员添加事件: community_id={community_id}, user_id={user_id}, role={role}")
+
+        # 记录审计日志
+        try:
+            from app.extensions import db
+            from database.flask_models import UserAuditLog
+            audit_log = UserAuditLog(
+                user_id=user_id,
+                action='join_community',
+                detail=json.dumps({
+                    'community_id': community_id,
+                    'role': role,
+                    'action': '加入社区'
+                })
+            )
+            db.session.add(audit_log)
+            db.session.commit()
+            self.logger.info(f"已记录加入社区审计日志: log_id={audit_log.log_id}")
+        except Exception as e:
+            self.logger.error(f"记录审计日志失败: {str(e)}")
+
+    @staticmethod
+    def get_event_type() -> Type[DomainEvent]:
+        """获取事件类型"""
+        return CommunityMemberAddedEvent
+
+
+class CommunityMemberRemovedEventHandler(EventHandler):
+    """社区成员移除事件处理器"""
+
+    def handle(self, event: CommunityMemberRemovedEvent) -> None:
+        """
+        处理社区成员移除事件
+
+        Args:
+            event: 社区成员移除事件
+        """
+        community_id = event.data['community_id']
+        user_id = event.data['user_id']
+        role = event.data['role']
+        self.logger.info(f"处理社区成员移除事件: community_id={community_id}, user_id={user_id}, role={role}")
+
+        # 记录审计日志
+        try:
+            from app.extensions import db
+            from database.flask_models import UserAuditLog
+            audit_log = UserAuditLog(
+                user_id=user_id,
+                action='leave_community',
+                detail=json.dumps({
+                    'community_id': community_id,
+                    'role': role,
+                    'action': '离开社区'
+                })
+            )
+            db.session.add(audit_log)
+            db.session.commit()
+            self.logger.info(f"已记录离开社区审计日志: log_id={audit_log.log_id}")
+        except Exception as e:
+            self.logger.error(f"记录审计日志失败: {str(e)}")
+
+    @staticmethod
+    def get_event_type() -> Type[DomainEvent]:
+        """获取事件类型"""
+        return CommunityMemberRemovedEvent
         """
         处理社区成员添加事件
 
