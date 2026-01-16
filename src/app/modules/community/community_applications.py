@@ -8,7 +8,12 @@ from flask import request, current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from database.flask_models import db, User, Community
+from app.application.use_cases.community import (
+    GetCommunityApplicationsUseCase,
+    CreateCommunityApplicationUseCase
+)
+from app.application.use_cases.base import UseCaseStatus
+from database.flask_models import db, User
 from wxcloudrun.community_service import CommunityService
 from wxcloudrun.utils.validators import _audit
 
@@ -34,37 +39,15 @@ def get_community_applications():
         per_page = min(int(request.args.get('per_page', 20)), 100)
         status_filter = request.args.get('status')  # 可选的状态过滤
 
-        # 获取申请列表
-        result = CommunityService.get_community_applications(
-            user_id, page, per_page, status_filter
-        )
+        # 使用UseCase获取申请列表
+        use_case = GetCommunityApplicationsUseCase()
+        result = use_case.execute(user_id, page, per_page, status_filter)
 
-        # 格式化申请信息
-        applications_data = []
-        for app in result.get('applications', []):
-            app_data = {
-                'application_id': app.application_id,
-                'community_id': app.community_id,
-                'community_name': app.community.name if app.community else None,
-                'applicant_id': app.applicant_id,
-                'applicant_name': app.applicant.nickname if app.applicant else None,
-                'status': app.status,
-                'message': app.message,
-                'created_at': app.created_at.isoformat() if app.created_at else None,
-                'updated_at': app.updated_at.isoformat() if app.updated_at else None
-            }
-            applications_data.append(app_data)
+        if result.status != UseCaseStatus.SUCCESS:
+            return make_err_response({}, result.message)
 
-        response_data = {
-            'applications': applications_data,
-            'total': result.get('total', 0),
-            'page': page,
-            'per_page': per_page,
-            'has_next': len(applications_data) == per_page
-        }
-
-        current_app.logger.info(f'获取社区申请列表成功，共 {len(applications_data)} 条申请')
-        return make_succ_response(response_data)
+        current_app.logger.info(f'获取社区申请列表成功，共 {len(result.data.get("applications", []))} 条申请')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取社区申请列表失败: {str(e)}', exc_info=True)
@@ -95,27 +78,21 @@ def create_community_application():
         if not community_id:
             return make_err_response({}, '缺少社区ID')
 
-        # 检查社区是否存在
-        community = db.session.get(Community, community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
+        # 使用UseCase创建申请
+        use_case = CreateCommunityApplicationUseCase()
+        result = use_case.execute(user_id, community_id, message)
 
-        # 创建申请
-        application = CommunityService.create_community_application(
-            user_id, community_id, message
-        )
+        if result.status != UseCaseStatus.SUCCESS:
+            return make_err_response({}, result.message)
 
         # 记录审计日志
         _audit(user_id, 'create_community_application', {
             'community_id': community_id,
-            'application_id': application.application_id
+            'application_id': result.data.get('application_id')
         })
 
-        current_app.logger.info(f'创建社区申请成功: application_id={application.application_id}')
-        return make_succ_response({
-            'application_id': application.application_id,
-            'message': '申请提交成功'
-        })
+        current_app.logger.info(f'创建社区申请成功: application_id={result.data.get("application_id")}')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'创建社区申请失败: {str(e)}', exc_info=True)
