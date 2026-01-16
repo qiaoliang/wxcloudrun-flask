@@ -1,3 +1,5 @@
+from app.application.use_cases.events.create_event_use_case import CreateEventUseCase
+from app.application.use_cases.events.close_event_use_case import CloseEventUseCase
 """
 关闭事件集成测试
 测试事件关闭功能的各种场景
@@ -44,8 +46,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
@@ -108,8 +109,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id, target_user.user_id])
 
             # 创建事件，指定目标用户
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='针对目标用户的事件',
@@ -177,8 +177,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要工作人员处理的事件',
@@ -242,8 +241,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='无权限用户无法关闭的事件',
@@ -302,8 +300,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='已关闭的事件',
@@ -370,8 +367,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
@@ -429,8 +425,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
@@ -522,8 +517,7 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',

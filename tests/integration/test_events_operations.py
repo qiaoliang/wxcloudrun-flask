@@ -1,3 +1,5 @@
+from app.application.use_cases.events.create_event_use_case import CreateEventUseCase
+from app.application.use_cases.events.close_event_use_case import CloseEventUseCase
 """
 事件管理集成测试
 Happy path: 成功创建事件、获取事件列表、创建应援
@@ -91,8 +93,7 @@ class TestEventsOperations(IntegrationTestBase):
             self.db.session.commit()
     
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            CommunityEventService.create_event(
+                        CommunityEventService.create_event(
                 user_id=user.user_id,
                 community_id=community.community_id,
                 title='测试事件1',
@@ -150,8 +151,7 @@ class TestEventsOperations(IntegrationTestBase):
             self.db.session.commit()
     
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=user.user_id,
                 community_id=community.community_id,
                 title='详细事件',
@@ -207,8 +207,7 @@ class TestEventsOperations(IntegrationTestBase):
             self.db.session.commit()
     
             # 创建事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            event = CommunityEventService.create_event(
+                        event = CommunityEventService.create_event(
                 user_id=user.user_id,
                 community_id=community.community_id,
                 title='需要帮助',
@@ -261,8 +260,7 @@ class TestEventsOperations(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [user.user_id])
     
             # 创建一些事件
-            from wxcloudrun.community_event_service import CommunityEventService
-            CommunityEventService.create_event(
+                        CommunityEventService.create_event(
                 user_id=user.user_id,
                 community_id=community.community_id,
                 title='事件1',

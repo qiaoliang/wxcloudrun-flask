@@ -182,12 +182,18 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
         from database.flask_models import User
 
         # 添加社区工作人员记录
-        CommunityStaffService.add_staff_single(
+        from database.flask_models import CommunityStaff
+        from app.shared.constants.roles import Role
+
+        staff_record = CommunityStaff(
             community_id=community_id,
             user_id=user_id,
-            role='staff',
-            operator_id=user_id
+            role=Role.STAFF,
+            added_by=user_id,
+            added_at=self.db.func.now()
         )
+        self.db.session.add(staff_record)
+        self.db.session.commit()
 
         # 设置用户的 community_id（GetUserTodayPlanUseCase 需要此字段来查询社区规则）
         user = self.db.session.get(User, user_id)

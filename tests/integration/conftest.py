@@ -487,14 +487,28 @@ class IntegrationTestBase(TestBase):
             super_admin = cls.get_super_admin('add_community_staff')
             operator_id = super_admin['user_id']
 
-        # 调用服务层方法添加工作人员
+        # 直接使用数据库操作添加工作人员
         try:
-            staff_record = CommunityStaffService.add_staff_single(
+            from database.flask_models import CommunityStaff
+            from app.shared.constants.roles import Role
+
+            # 映射角色名称到角色ID
+            role_id_map = {
+                'staff': Role.STAFF,
+                'manager': Role.MANAGER
+            }
+            role_id = role_id_map.get(role, Role.STAFF)
+
+            staff_record = CommunityStaff(
                 community_id=community_id,
                 user_id=user_id,
-                role=role,
-                operator_id=operator_id
+                role=role_id,
+                added_by=operator_id,
+                added_at=cls.db.func.now()
             )
+            cls.db.session.add(staff_record)
+            cls.db.session.commit()
+            cls.db.session.refresh(staff_record)
             return staff_record
         except ValueError as e:
             # 重新抛出业务异常
