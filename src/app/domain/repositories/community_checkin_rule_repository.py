@@ -135,3 +135,13 @@ class CommunityCheckinRuleRepository(ABC):
     def find_active_rules(self) -> List[CommunityCheckinRule]:
         """查找所有启用的社区打卡规则"""
         pass
+
+    @abstractmethod
+    def find_all_day_rules(self) -> List[CommunityCheckinRule]:
+        """查找所有启用的全天社区打卡规则"""
+        pass
+
+    @abstractmethod
+    def find_all_day_rules(self) -> List[CommunityCheckinRule]:
+        """查找所有启用的全天社区打卡规则"""
+        pass

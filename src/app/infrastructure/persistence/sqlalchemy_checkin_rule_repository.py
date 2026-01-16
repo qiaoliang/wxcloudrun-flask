@@ -81,3 +81,29 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
         )
         
         return list(self.session.execute(stmt).scalars().all())
+
+    def find_all_day_rules(self) -> List[CheckinRule]:
+        """查找所有启用的全天打卡规则"""
+        from sqlalchemy import and_
+        
+        stmt = select(CheckinRule).where(
+            and_(
+                CheckinRule.status == 1,  # 已启用
+                CheckinRule.time_slot_type == 5  # 全天规则
+            )
+        )
+        
+        return list(self.session.execute(stmt).scalars().all())
+
+    def find_all_day_rules(self) -> List[CheckinRule]:
+        """查找所有启用的全天打卡规则"""
+        from sqlalchemy import and_
+        
+        stmt = select(CheckinRule).where(
+            and_(
+                CheckinRule.status == 1,           # 已启用
+                CheckinRule.time_slot_type == 5    # 全天规则
+            )
+        )
+        
+        return list(self.session.execute(stmt).scalars().all())

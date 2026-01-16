@@ -50,3 +50,8 @@ class CheckinRuleRepository(ABC):
     def find_active_rules(self) -> List[CheckinRule]:
         """查找所有启用的打卡规则"""
         pass
+
+    @abstractmethod
+    def find_all_day_rules(self) -> List[CheckinRule]:
+        """查找所有启用的全天打卡规则"""
+        pass

@@ -183,3 +183,27 @@ class SQLAlchemyCommunityCheckinRuleRepository(CommunityCheckinRuleRepository):
 
         result = db.session.execute(query)
         return list(result.scalars().all())
+
+    def find_all_day_rules(self) -> List[CommunityCheckinRule]:
+        """查找所有启用的全天社区打卡规则"""
+        query = select(CommunityCheckinRule).where(
+            CommunityCheckinRule.status == 1,  # 已启用
+            CommunityCheckinRule.time_slot_type == 5  # 全天规则
+        )
+
+        result = db.session.execute(query)
+        return list(result.scalars().all())
+
+    def find_all_day_rules(self) -> List[CommunityCheckinRule]:
+        """查找所有启用的全天社区打卡规则"""
+        from sqlalchemy import and_
+
+        query = select(CommunityCheckinRule).where(
+            and_(
+                CommunityCheckinRule.status == 1,
+                CommunityCheckinRule.time_slot_type == 5
+            )
+        )
+
+        result = db.session.execute(query)
+        return list(result.scalars().all())
