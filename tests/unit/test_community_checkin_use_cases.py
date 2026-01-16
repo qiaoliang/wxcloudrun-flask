@@ -537,6 +537,11 @@ class TestGetCommunityCheckinRuleUseCase:
         mock_rule = Mock()
         mock_rule.community_rule_id = 1
         mock_rule.rule_name = '测试规则'
+        mock_rule.custom_time = None
+        mock_rule.frequency_type = 0
+        mock_rule.time_slot_type = 4
+        mock_rule.icon_url = '📋'
+        mock_rule.status = 1
 
         with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
             mock_repo.find_by_id.return_value = mock_rule
@@ -546,7 +551,7 @@ class TestGetCommunityCheckinRuleUseCase:
             # Assert
             assert result.status == UseCaseStatus.SUCCESS
             assert '获取规则详情成功' in result.message
-            assert result.data['rule'].community_rule_id == 1
+            assert result.data['rule_id'] == 1
 
     def test_execute_exception(self, use_case):
         """
