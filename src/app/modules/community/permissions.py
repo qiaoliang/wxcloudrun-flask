@@ -8,7 +8,6 @@ from flask import current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from database.flask_models import db, User
 
 app_logger = logging.getLogger('log')
 
@@ -29,6 +28,8 @@ def check_community_access(community_id):
     try:
         # 检查权限
         from app.application.use_cases.community import CheckCommunityPermissionUseCase
+        from app.application.use_cases.user import GetUserByIdUseCase
+
         check_permission_use_case = CheckCommunityPermissionUseCase()
         permission_result = check_permission_use_case.execute(user_id, community_id)
         has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
@@ -36,11 +37,10 @@ def check_community_access(community_id):
         # 获取用户在社区中的角色
         user_role = None
         if has_permission:
-            stmt = db.session.execute(
-                db.select(User).where(User.user_id == user_id)
-            )
-            user = stmt.scalar_one_or_none()
-            if user:
+            get_user_use_case = GetUserByIdUseCase()
+            user_result = get_user_use_case.execute(user_id=user_id)
+            if user_result.is_success and user_result.data:
+                user = user_result.data
                 user_role = user.role_name
 
         response_data = {
