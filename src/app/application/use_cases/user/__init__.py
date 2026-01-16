@@ -13,6 +13,7 @@ from .search_users_use_case import SearchUsersUseCase
 from .log_profile_view_use_case import LogProfileViewUseCase
 from .log_view_guardian_info_use_case import LogViewGuardianInfoUseCase
 from .get_profile_view_logs_use_case import GetProfileViewLogsUseCase
+from .merge_accounts_use_case import MergeAccountsUseCase
 
 __all__ = [
     'GetUserDetailsUseCase',
@@ -26,5 +27,6 @@ __all__ = [
     'SearchUsersUseCase',
     'LogProfileViewUseCase',
     'LogViewGuardianInfoUseCase',
-    'GetProfileViewLogsUseCase'
+    'GetProfileViewLogsUseCase',
+    'MergeAccountsUseCase'
 ]

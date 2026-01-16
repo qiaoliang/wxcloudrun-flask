@@ -39,74 +39,7 @@ def _calculate_phone_hash(phone):
         f"{phone_secret}:{phone}".encode('utf-8')).hexdigest()
 
 
-def _merge_accounts_by_time(account1, account2):
-    """按注册时间合并账号，保留较早的账号"""
-    import time
-    current_app.logger.info(f'开始合并账号: {account1.user_id} 和 {account2.user_id}')
 
-    if account1.created_at < account2.created_at:
-        primary, secondary = account1, account2
-        current_app.logger.info(f'保留主账号: {primary.user_id} (创建时间: {primary.created_at})')
-    else:
-        primary, secondary = account2, account1
-        current_app.logger.info(f'保留主账号: {primary.user_id} (创建时间: {primary.created_at})')
-
-    # 先保存需要迁移的信息
-    migrate_info = {
-        'wechat_openid': secondary.wechat_openid,
-        'phone_number': secondary.phone_number,
-        'nickname': secondary.nickname if secondary.nickname and len(secondary.nickname.strip()) > 0 else primary.nickname,
-        'avatar_url': secondary.avatar_url if secondary.avatar_url else primary.avatar_url,
-        'name': secondary.name if secondary.name else primary.name,
-    }
-
-    # 更新主账号信息
-    if migrate_info['wechat_openid'] and not primary.wechat_openid:
-        primary.wechat_openid = migrate_info['wechat_openid']
-        current_app.logger.info(f'迁移微信openid到主账号: {migrate_info["wechat_openid"][:20]}...')
-
-    if migrate_info['phone_number'] and not primary.phone_number:
-        primary.phone_number = migrate_info['phone_number']
-        current_app.logger.info(f'迁移手机号到主账号: {migrate_info["phone_number"]}')
-
-    if migrate_info['nickname'] and migrate_info['nickname'] != primary.nickname:
-        primary.nickname = migrate_info['nickname']
-        current_app.logger.info(f'更新昵称: {migrate_info["nickname"]}')
-
-    if migrate_info['avatar_url'] and migrate_info['avatar_url'] != primary.avatar_url:
-        primary.avatar_url = migrate_info['avatar_url']
-        current_app.logger.info(f'更新头像: {migrate_info["avatar_url"][:30]}...')
-
-    if migrate_info['name'] and migrate_info['name'] != primary.name:
-        primary.name = migrate_info['name']
-        current_app.logger.info(f'更新姓名: {migrate_info["name"]}')
-
-    # 迁移监督关系
-    supervision_relations = db.session.execute(select(SupervisionRuleRelation).filter_by(supervised_user_id=secondary.user_id)).scalars().all()
-    for relation in supervision_relations:
-        # 检查是否已存在相同的监督关系
-        existing = db.session.execute(select(SupervisionRuleRelation).filter_by(
-            supervisor_user_id=relation.supervisor_user_id,
-            supervised_user_id=primary.user_id,
-            rule_id=relation.rule_id
-        )).scalar_one_or_none()
-
-        if not existing:
-            relation.supervised_user_id = primary.user_id
-            current_app.logger.info(f'迁移监督关系: {relation.supervisor_user_id} -> {primary.user_id}')
-        else:
-            db.session.delete(relation)
-            current_app.logger.info(f'删除重复的监督关系')
-
-    # 删除次要账号
-    db.session.delete(secondary)
-
-    # 使用事务管理器确保数据一致性
-    with transaction():
-        pass  # 事务会自动提交
-
-    current_app.logger.info(f'账号合并完成，保留账号ID: {primary.user_id}')
-    return primary
 
 
 @user_bp.route('/user/profile', methods=['GET', 'POST'])
@@ -390,10 +323,18 @@ def bind_phone():
             else:
                 # 合并账号
                 current_app.logger.info(f'检测到同一用户的不同账号，开始合并: {user_id} 和 {existing_user.user_id}')
-                merged_user = _merge_accounts_by_time(user, existing_user)
+                from app.application.use_cases.user import MergeAccountsUseCase
+                merge_use_case = MergeAccountsUseCase()
+                merge_result = merge_use_case.execute(user, existing_user)
+
+                if not merge_result.is_success:
+                    current_app.logger.error(f'合并账号失败: {merge_result.message}')
+                    return make_err_response({}, f'合并账号失败: {merge_result.message}')
+
+                merged_user_id = merge_result.data.get('primary_user_id')
 
                 # 记录审计日志
-                _audit(merged_user.user_id, 'bind_phone_merge', {
+                _audit(merged_user_id, 'bind_phone_merge', {
                     'phone': normalized_phone,
                     'merged_user_id': existing_user.user_id,
                     'primary_user_id': user_id
@@ -401,7 +342,7 @@ def bind_phone():
 
                 return make_succ_response({
                     'message': '手机号绑定成功，已合并账号',
-                    'user_id': merged_user.user_id
+                    'user_id': merged_user_id
                 })
 
         # 绑定手机号
@@ -478,10 +419,18 @@ def bind_wechat():
             else:
                 # 合并账号
                 current_app.logger.info(f'检测到同一用户的不同账号，开始合并: {user_id} 和 {existing_user.user_id}')
-                merged_user = _merge_accounts_by_time(user, existing_user)
+                from app.application.use_cases.user import MergeAccountsUseCase
+                merge_use_case = MergeAccountsUseCase()
+                merge_result = merge_use_case.execute(user, existing_user)
+
+                if not merge_result.is_success:
+                    current_app.logger.error(f'合并账号失败: {merge_result.message}')
+                    return make_err_response({}, f'合并账号失败: {merge_result.message}')
+
+                merged_user_id = merge_result.data.get('primary_user_id')
 
                 # 记录审计日志
-                _audit(merged_user.user_id, 'bind_wechat_merge', {
+                _audit(merged_user_id, 'bind_wechat_merge', {
                     'openid': openid,
                     'merged_user_id': existing_user.user_id,
                     'primary_user_id': user_id
@@ -489,7 +438,7 @@ def bind_wechat():
 
                 return make_succ_response({
                     'message': '微信账号绑定成功，已合并账号',
-                    'user_id': merged_user.user_id
+                    'user_id': merged_user_id
                 })
 
         # 绑定微信账号
