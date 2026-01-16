@@ -93,15 +93,15 @@ class TestEventsOperations(IntegrationTestBase):
             self.db.session.commit()
     
             # 创建事件
-                        CommunityEventService.create_event(
-                user_id=user.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='测试事件1',
                 description='这是一个测试事件',
                 event_type='call_for_help'
             )
-            CommunityEventService.create_event(
-                user_id=user.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='测试事件2',
                 description='这是另一个测试事件',
@@ -151,8 +151,8 @@ class TestEventsOperations(IntegrationTestBase):
             self.db.session.commit()
     
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=user.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='详细事件',
                 description='这是一个需要详细信息的测试事件',
@@ -207,8 +207,8 @@ class TestEventsOperations(IntegrationTestBase):
             self.db.session.commit()
     
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=user.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='需要帮助',
                 description='老人需要紧急帮助',
@@ -260,15 +260,15 @@ class TestEventsOperations(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [user.user_id])
     
             # 创建一些事件
-                        CommunityEventService.create_event(
-                user_id=user.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='事件1',
                 description='描述1',
                 event_type='call_for_help'
             )
-            CommunityEventService.create_event(
-                user_id=user.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='事件2',
                 description='描述2',

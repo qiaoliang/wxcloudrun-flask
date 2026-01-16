@@ -46,8 +46,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个需要关闭的测试事件',
@@ -109,8 +109,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id, target_user.user_id])
 
             # 创建事件，指定目标用户
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='针对目标用户的事件',
                 description='这是一个针对特定用户的事件',
@@ -177,8 +177,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要工作人员处理的事件',
                 description='这是一个需要工作人员介入的事件',
@@ -241,8 +241,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='无权限用户无法关闭的事件',
                 description='这是一个只有特定人员才能关闭的事件',
@@ -300,8 +300,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='已关闭的事件',
                 description='这是一个已经关闭的事件',
@@ -309,8 +309,8 @@ class TestCloseEvent(IntegrationTestBase):
             )
 
             # 第一次关闭事件
-            close_result = CommunityEventService.close_event(
-                event_id=event["event"]["event_id"],
+            use_case = CloseEventUseCase()
+            close_result = use_case.execute(event_id=event["event"]["event_id"],
                 user_id=creator.user_id,
                 closure_reason='第一次关闭，这是一个足够长的关闭原因'
             )
@@ -367,8 +367,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个测试事件',
@@ -425,8 +425,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个测试事件',
@@ -517,8 +517,8 @@ class TestCloseEvent(IntegrationTestBase):
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
-                        event = CommunityEventService.create_event(
-                user_id=creator.user_id,
+            use_case = CreateEventUseCase()
+            use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个测试事件',
