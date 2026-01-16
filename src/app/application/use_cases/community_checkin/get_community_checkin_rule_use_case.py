@@ -63,9 +63,9 @@ class GetCommunityCheckinRuleUseCase(BaseUseCase):
                 data={
                     'rule_id': rule.community_rule_id,
                     'rule_name': rule.rule_name,
-                    'checkin_time': rule.checkin_time.strftime('%H:%M') if rule.checkin_time else None,
-                    'timezone': rule.timezone,
-                    'grace_period_minutes': rule.grace_period_minutes,
+                    'custom_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
+                    'frequency_type': rule.frequency_type,
+                    'time_slot_type': rule.time_slot_type,
                     'icon_url': rule.icon_url,
                     'status': rule.status
                 }

@@ -79,9 +79,7 @@ class CreateCommunityCheckinRuleUseCase(BaseUseCase):
             rule = CommunityCheckinRule(
                 community_id=community_id,
                 rule_name=params['rule_name'],
-                checkin_time=params.get('checkin_time', '08:00'),
-                timezone=params.get('timezone', 'Asia/Shanghai'),
-                grace_period_minutes=params.get('grace_period_minutes', 30),
+                custom_time=params.get('custom_time', None),
                 icon_url=params.get('icon_url', '📋'),
                 status=1,  # 默认启用
                 created_by=user_id
