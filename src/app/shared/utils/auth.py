@@ -1,6 +1,17 @@
 """
-认证工具模块
-包含认证相关的工具函数
+认证工具模块（纯工具函数和装饰器）
+
+已迁移到 UseCase 的函数：
+- check_community_permission -> CheckCommunityPermissionUseCase
+- get_current_user -> GetCurrentUserUseCase
+
+保留的纯工具函数和装饰器：
+- verify_token - JWT token验证
+- require_role - 角色权限装饰器
+- require_community_manager - 社区主管权限装饰器
+- require_superadmin - 超级管理员权限装饰器
+- generate_jwt_token - JWT token生成
+- generate_refresh_token - refresh token生成
 """
 
 import logging
@@ -176,40 +187,6 @@ def require_superadmin():
     装饰器：要求用户是超级系统管理员
     """
     return require_role(4)  # 角色值为4的是超级系统管理员
-
-
-def check_community_permission(community_id):
-    """
-    检查当前用户是否有权限管理指定社区
-    """
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response, None
-
-    user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
-
-    if not user:
-        return make_err_response({}, '用户不存在'), None
-
-    # 检查权限
-    if not user.can_manage_community(community_id):
-        return make_err_response({}, '权限不足'), None
-
-    return None, user
-
-
-def get_current_user():
-    """
-    获取当前登录用户
-    """
-    decoded, error_response = verify_token()
-    if error_response:
-        return None
-
-    user_id = decoded.get('user_id')
-    return db.session.get(User, user_id)
 
 
 def generate_jwt_token(user, expires_hours=2):

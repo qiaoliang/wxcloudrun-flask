@@ -2,6 +2,7 @@
 检查社区权限用例
 """
 import logging
+from sqlalchemy import select
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from database.flask_models import db, User, Community
 
@@ -33,10 +34,8 @@ class CheckCommunityPermissionUseCase(BaseUseCase):
                 )
 
             # 2. 查询用户
-            stmt = db.session.execute(
-                db.select(User).where(User.user_id == user_id)
-            )
-            user = stmt.scalar_one_or_none()
+            stmt = select(User).where(User.user_id == user_id)
+            user = db.session.execute(stmt).scalar_one_or_none()
 
             if not user:
                 return UseCaseResult(
@@ -45,13 +44,14 @@ class CheckCommunityPermissionUseCase(BaseUseCase):
                 )
 
             # 3. 检查权限
-            has_permission = False
-            if user.community_id == community_id:
-                # 用户是该社区成员
+            # 超级管理员可以访问所有社区
+            if user.role == 4:  # SUPER_ADMIN
                 has_permission = True
-            elif user.role in [2, 3]:  # 管理员或超级管理员
-                # 管理员可以访问所有社区
+            # 社区主管和专员可以访问自己所属的社区
+            elif user.community_id == community_id and user.role in [2, 3]:  # MANAGER, STAFF
                 has_permission = True
+            else:
+                has_permission = False
 
             self.logger.info(f'检查社区权限: user_id={user_id}, community_id={community_id}, has_permission={has_permission}')
 

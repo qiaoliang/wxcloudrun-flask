@@ -8,7 +8,7 @@ from flask import request, current_app
 from sqlalchemy import select
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
-from app.shared.utils.auth import verify_token, get_current_user
+from app.shared.utils.auth import verify_token
 from database.flask_models import db, User, Community
 from app.application.use_cases.community import (
     GetManagedCommunitiesUseCase,
@@ -152,12 +152,26 @@ def get_available_communities():
 @community_bp.route('/user/managed-communities', methods=['GET'])
 def get_managed_communities():
     """获取用户管理的社区列表（默认7个）"""
-    from app.shared.utils.auth import get_current_user
+    from app.shared.utils.auth import verify_token
+    from app.application.use_cases.auth import GetCurrentUserUseCase
 
     current_app.logger.info('=== 开始获取可管理社区列表 ===')
 
-    # 获取当前用户（装饰器已验证token）
-    user = get_current_user()
+    # 验证token并获取用户ID
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+
+    # 使用GetCurrentUserUseCase获取用户对象
+    get_current_user_use_case = GetCurrentUserUseCase()
+    result = get_current_user_use_case.execute(user_id)
+
+    if not result.is_success:
+        return make_err_response({}, result.message)
+
+    user = result.data
 
     if not user:
         return make_err_response({}, '用户不存在')

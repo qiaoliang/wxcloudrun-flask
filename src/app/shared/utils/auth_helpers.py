@@ -1,6 +1,17 @@
 """
-认证相关的辅助函数
-用于减少认证模块中的重复代码
+认证相关的辅助函数（纯工具函数）
+
+已迁移到 UseCase 的函数：
+- generate_auth_tokens -> GenerateAuthTokensUseCase
+- ensure_user_nickname -> EnsureUserNicknameUseCase
+- assign_user_to_default_community -> AssignUserToDefaultCommunityUseCase
+- query_user_by_phone_hash_with_timing -> GetUserByPhoneHashUseCase
+
+保留的纯工具函数：
+- execute_timed_query - 带时间监控的查询执行
+- verify_password - 密码验证
+- verify_sms_code_dual_purpose - 短信验证码验证
+- normalize_and_hash_phone - 电话号码标准化和hash生成
 """
 
 import logging
@@ -43,35 +54,6 @@ def execute_timed_query(query_func, query_name, *args, **kwargs):
         raise
 
 
-def generate_auth_tokens(user, app_logger):
-    """
-    生成 JWT token 和 refresh token
-
-    Args:
-        user: 用户对象
-        app_logger: Flask 应用的 logger
-
-    Returns:
-        tuple: (token, refresh_token, error_response)
-    """
-    from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
-
-    app_logger.info('开始生成JWT token...')
-    token, error_response = generate_jwt_token(user, expires_hours=2)
-    if error_response:
-        return None, None, error_response
-
-    refresh_token = generate_refresh_token(user, expires_days=7)
-    from app.application.use_cases.user import UpdateUserUseCase
-    update_use_case = UpdateUserUseCase()
-    update_result = update_use_case.execute(user)
-    if not update_result.is_success:
-        app_logger.warning(f'更新用户信息失败: {update_result.message}')
-
-    app_logger.info('保存refresh token到数据库...')
-    return token, refresh_token, None
-
-
 def verify_password(user, password, app_logger):
     """
     验证用户密码
@@ -92,27 +74,6 @@ def verify_password(user, password, app_logger):
         return False
     
     return True
-
-
-def ensure_user_nickname(user, app_logger):
-    """
-    确保用户有昵称，如果没有则生成默认昵称
-    
-    Args:
-        user: 用户对象
-        app_logger: Flask 应用的 logger
-    """
-    from wxcloudrun.utils.validators import _gen_phone_nickname
-
-    if not user.nickname:
-        user.nickname = _gen_phone_nickname()
-        from app.application.use_cases.user import UpdateUserUseCase
-        update_use_case = UpdateUserUseCase()
-        update_result = update_use_case.execute(user)
-        if not update_result.is_success:
-            app_logger.warning(f'更新用户昵称失败: {update_result.message}')
-        else:
-            app_logger.info(f'已更新用户昵称: {user.nickname}')
 
 
 def verify_sms_code_dual_purpose(phone, code, app_logger):
@@ -146,31 +107,6 @@ def verify_sms_code_dual_purpose(phone, code, app_logger):
     return True
 
 
-def assign_user_to_default_community(user, app_logger):
-    """
-    自动分配用户到默认社区
-    
-    Args:
-        user: 用户对象
-        app_logger: Flask 应用的 logger
-    """
-    from app.infrastructure.persistence.repository_factory import RepositoryFactory
-    from const_default import DEFAULT_COMMUNITY_NAME
-    
-    try:
-        community_repository = RepositoryFactory.get_community_repository()
-        community = community_repository.find_by_name(DEFAULT_COMMUNITY_NAME)
-        
-        if community:
-            user.community_id = community.community_id
-            app_logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
-        else:
-            app_logger.warning(f'默认社区不存在: {DEFAULT_COMMUNITY_NAME}')
-    except Exception as e:
-        app_logger.error(f'自动分配社区失败: {str(e)}', exc_info=True)
-        # 不影响登录流程，只记录错误
-
-
 def normalize_and_hash_phone(phone, app_logger):
     """
     标准化电话号码并生成 hash
@@ -194,30 +130,3 @@ def normalize_and_hash_phone(phone, app_logger):
     
     return normalized_phone, phone_hash
 
-
-def query_user_by_phone_hash_with_timing(phone_hash, app_logger):
-    """
-    通过 phone_hash 查询用户（带时间监控）
-    
-    Args:
-        phone_hash: 手机号 hash
-        app_logger: Flask 应用的 logger
-        
-    Returns:
-        User: 用户对象，如果不存在则返回 None
-    """
-    from app.application.use_cases.user import GetUserByPhoneHashUseCase
-    from database.flask_models import db, User
-
-    get_user_use_case = GetUserByPhoneHashUseCase()
-    result = get_user_use_case.execute(phone_hash)
-
-    if result.is_success:
-        # UseCase 返回的是字典，需要重新查询 User 对象
-        user_id = result.data.get('user_id')
-        if user_id:
-            stmt = db.session.execute(
-                db.select(User).where(User.user_id == user_id)
-            )
-            return stmt.scalar_one_or_none()
-    return None
