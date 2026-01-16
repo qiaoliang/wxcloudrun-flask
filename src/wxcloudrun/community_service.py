@@ -249,8 +249,8 @@ class CommunityService:
                 user.community_id = application.target_community_id
 
                 # 同步社区打卡规则到用户
-                from wxcloudrun.community_staff_service import CommunityStaffService
-                CommunityStaffService._activate_new_community_rules(application.user_id, application.target_community_id)
+                from app.shared.utils.community_helpers import CommunityRuleHelper
+                CommunityRuleHelper.activate_new_community_rules(application.user_id, application.target_community_id)
 
                 # 记录审计日志
                 audit_log = UserAuditLog(
@@ -601,8 +601,8 @@ class CommunityService:
                     target_user.community_joined_at = datetime.now()
 
                     # 同步社区打卡规则到用户
-                    from wxcloudrun.community_staff_service import CommunityStaffService
-                    CommunityStaffService._activate_new_community_rules(user_id, community_id)
+                    from app.shared.utils.community_helpers import CommunityRuleHelper
+                    CommunityRuleHelper.activate_new_community_rules(user_id, community_id)
 
                     added_count += 1
 

@@ -8,7 +8,7 @@ from typing import List, Dict, Optional
 from sqlalchemy import select, func
 
 from database.flask_models import db, CommunityEvent, EventMessage, User, Community, CommunityStaff
-from wxcloudrun.community_service import CommunityService
+from app.shared.utils.community_helpers import CommunityPermissionHelper
 from app.shared.utils.transaction import transactional, transaction
 
 logger = logging.getLogger(__name__)
@@ -234,7 +234,7 @@ class CommunityEventService:
                 return {'success': False, 'message': '发送者不存在'}
 
             # 验证发送者是否为社区工作人员
-            if not CommunityService.has_community_permission(sender_id, event.community_id):
+            if not CommunityPermissionHelper.has_community_permission(sender_id, event.community_id):
                 return {'success': False, 'message': '无权限进行应援操作'}
 
             # 使用 SQLAlchemy 2.0 的 select() 语句
@@ -415,7 +415,7 @@ class CommunityEventService:
 
             # 检查用户是否为事件相关人员（发起者或目标用户或社区工作人员）
             is_event_user = (event.created_by == user_id or event.target_user_id == user_id)
-            is_staff = CommunityService.has_community_permission(user_id, event.community_id)
+            is_staff = CommunityPermissionHelper.has_community_permission(user_id, event.community_id)
 
             if not is_event_user and not is_staff:
                 return {'success': False, 'message': '无权限添加消息'}
@@ -643,7 +643,7 @@ class CommunityEventService:
                 return {'success': False, 'message': '事件已结束'}
 
             # 验证工作人员权限
-            if not CommunityService.has_community_permission(staff_id, event.community_id):
+            if not CommunityPermissionHelper.has_community_permission(staff_id, event.community_id):
                 return {'success': False, 'message': '无权限进行此操作'}
 
             # 获取发送人信息

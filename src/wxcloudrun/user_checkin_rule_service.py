@@ -8,7 +8,7 @@ from sqlalchemy import select, func
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import noload, joinedload
 from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule, User, CheckinRecord
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
+from app.shared.utils.community_helpers import CommunityRuleQueryHelper
 from wxcloudrun.utils.timeutil import parse_time_only, parse_date_only
 from app.shared.utils.transaction import transaction
 
@@ -312,7 +312,7 @@ class UserCheckinRuleService:
 
             elif rule_source == 'community':
                 # 获取社区规则
-                rule = CommunityCheckinRuleService.get_rule_detail(rule_id)
+                rule = CommunityRuleQueryHelper.get_rule_detail(rule_id)
 
                 # 检查用户是否有权限查看此规则
                 user = db.session.get(User, user_id)
@@ -367,7 +367,7 @@ class UserCheckinRuleService:
             personal_count = len(personal_rules)
 
             # 获取社区规则数量
-            community_rules = CommunityCheckinRuleService.get_user_community_rules(user_id)
+            community_rules = CommunityRuleQueryHelper.get_user_community_rules(user_id)
             community_count = len(community_rules)
 
             # 获取今日需要打卡的规则数量

@@ -7,9 +7,9 @@ from datetime import datetime
 from sqlalchemy import select, and_, or_
 from sqlalchemy.exc import SQLAlchemyError
 from database.flask_models import db, CommunityCheckinRule, UserCommunityRule, User, Community
-from wxcloudrun.community_service import CommunityService
 from wxcloudrun.utils.timeutil import parse_time_only, parse_date_only
 from app.shared.utils.transaction import transaction
+from app.shared.utils.community_helpers import CommunityPermissionHelper
 
 logger = logging.getLogger('CommunityCheckinRuleService')
 
@@ -73,7 +73,7 @@ class CommunityCheckinRuleService:
                 raise ValueError(f'社区不存在: {community_id_int}')
 
             # 验证创建者权限
-            if not CommunityService.has_community_permission(created_by_int, community_id_int):
+            if not CommunityPermissionHelper.has_community_permission(created_by_int, community_id_int):
                 raise ValueError('无权限在此社区创建规则')
 
             # 获取 is_enabled 参数，默认为 False
@@ -149,7 +149,7 @@ class CommunityCheckinRuleService:
                 raise ValueError('规则已启用，请先停用后再修改')
 
             # 验证更新者权限
-            if not CommunityService.has_community_permission(updated_by_int, rule.community_id):
+            if not CommunityPermissionHelper.has_community_permission(updated_by_int, rule.community_id):
                 raise ValueError('无权限修改此规则')
 
             # 更新字段
@@ -226,7 +226,7 @@ class CommunityCheckinRuleService:
                 raise ValueError('规则已启用')
 
             # 验证启用人权限
-            if not CommunityService.has_community_permission(enabled_by_int, rule.community_id):
+            if not CommunityPermissionHelper.has_community_permission(enabled_by_int, rule.community_id):
                 logger.warning(f"用户无权限启用规则: user_id={enabled_by_int}, community_id={rule.community_id}")
                 raise ValueError('无权限启用此规则')
 
@@ -371,7 +371,7 @@ class CommunityCheckinRuleService:
                 raise ValueError(f'社区规则不存在: {rule_id}')
 
             # 验证停用人权限
-            if not CommunityService.has_community_permission(disabled_by_int, rule.community_id):
+            if not CommunityPermissionHelper.has_community_permission(disabled_by_int, rule.community_id):
                 raise ValueError('无权限停用此规则')
 
             if rule.status != 1:
@@ -684,7 +684,7 @@ class CommunityCheckinRuleService:
                 raise ValueError('规则已启用，请先停用后再删除')
 
             # 验证删除者权限
-            if not CommunityService.has_community_permission(deleted_by, rule.community_id):
+            if not CommunityPermissionHelper.has_community_permission(deleted_by, rule.community_id):
                 raise ValueError('无权限删除此规则')
 
             # 软删除：更新状态为2（已删除）

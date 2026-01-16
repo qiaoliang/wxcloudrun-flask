@@ -7,7 +7,6 @@ import json
 from datetime import datetime
 from hashlib import sha256
 from sqlalchemy import select, func
-from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, Community, CommunityStaff, CommunityApplication, UserAuditLog
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
 from app.shared.utils.transaction import transaction
