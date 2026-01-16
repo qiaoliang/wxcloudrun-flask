@@ -2,12 +2,16 @@
 获取社区打卡统计信息用例
 """
 from flask import current_app
-from wxcloudrun.community_service import CommunityService
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
 
 
 class GetCommunityCheckinStatsUseCase(BaseUseCase):
     """获取社区打卡统计信息用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.dashboard_repository = RepositoryFactory.get_community_dashboard_repository()
 
     def _validate(self, community_id: int, user_id: int, days: int = 7) -> UseCaseResult:
         """
@@ -39,6 +43,13 @@ class GetCommunityCheckinStatsUseCase(BaseUseCase):
                 message='统计天数必须在1-365之间'
             )
 
+        # 检查权限
+        if not self.dashboard_repository.has_permission(user_id, community_id):
+            return UseCaseResult(
+                status=UseCaseStatus.FORBIDDEN,
+                message='无权限访问该社区'
+            )
+
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='验证通过'
@@ -57,15 +68,8 @@ class GetCommunityCheckinStatsUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-            # 检查权限
-            if not CommunityService.has_community_permission(user_id, community_id):
-                return UseCaseResult(
-                    status=UseCaseStatus.FORBIDDEN,
-                    message='无权限访问该社区'
-                )
-
             # 获取统计数据
-            stats = CommunityService.get_community_checkin_stats(community_id, days)
+            stats = self.dashboard_repository.get_community_checkin_stats(community_id, days)
 
             current_app.logger.info(
                 f'成功获取社区 {community_id} 的打卡统计信息，共 {stats["total_rules"]} 个规则'

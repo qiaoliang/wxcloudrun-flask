@@ -123,3 +123,39 @@ class CommunityDashboardRepository(ABC):
             是否有权限
         """
         pass
+
+    @abstractmethod
+    def get_community_checkin_stats(self, community_id: int, days: int = 7) -> Dict:
+        """
+        获取社区打卡统计信息
+
+        Args:
+            community_id: 社区ID
+            days: 统计天数（默认7天）
+
+        Returns:
+            统计数据字典，包含:
+            - stats: 每个规则的打卡统计列表
+            - total_rules: 规则总数
+        """
+        pass
+
+    @abstractmethod
+    def get_community_daily_stats(self, community_id: int) -> Dict:
+        """
+        获取社区每日打卡统计
+
+        Args:
+            community_id: 社区ID
+
+        Returns:
+            每日统计数据字典，包含:
+            - user_count: 用户数
+            - total_rules: 规则数
+            - total_checkins: 总打卡数
+            - completed_checkins: 已完成打卡数
+            - missed_checkins: 未完成打卡数
+            - checkin_rate: 打卡率
+            - unchecked_user_count: 未打卡用户数
+        """
+        pass

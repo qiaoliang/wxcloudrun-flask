@@ -451,3 +451,178 @@ class SQLAlchemyCommunityDashboardRepository(CommunityDashboardRepository):
             'total_abnormality': total_abnormality,
             'rule_details': rule_details
         }
+
+    def get_community_checkin_stats(self, community_id: int, days: int = 7) -> Dict:
+        """
+        获取社区打卡统计信息
+
+        Args:
+            community_id: 社区ID
+            days: 统计天数，默认7天
+
+        Returns:
+            Dict: 包含每个规则的打卡统计数据
+        """
+        # 计算日期范围
+        end_date = date.today()
+        start_date = end_date - timedelta(days=days - 1)
+        date_range = [start_date + timedelta(days=i) for i in range(days)]
+
+        # 获取该社区所有工作人员的用户ID列表（排除）
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
+        staff_user_ids = [s.user_id for s in self.session.execute(stmt_staff).scalars().all()]
+
+        # 获取启用的规则
+        stmt_rules = select(CommunityCheckinRule).where(
+            and_(
+                CommunityCheckinRule.community_id == community_id,
+                CommunityCheckinRule.status == 1  # 启用状态
+            )
+        )
+        enabled_rules = self.session.execute(stmt_rules).scalars().all()
+
+        # 获取该社区所有普通用户（排除工作人员）
+        stmt_users = select(User).where(User.community_id == community_id)
+        if staff_user_ids:
+            from sqlalchemy import not_
+            stmt_users = stmt_users.where(not_(User.user_id.in_(staff_user_ids)))
+        all_users = self.session.execute(stmt_users).scalars().all()
+
+        # 如果没有用户，返回空统计但保留规则数
+        if not all_users:
+            return {
+                'stats': [],
+                'total_rules': len(enabled_rules)
+            }
+
+        user_ids = [user.user_id for user in all_users]
+        rule_ids = [rule.community_rule_id for rule in enabled_rules]
+
+        # 获取指定日期范围内的所有打卡记录
+        stmt_records = select(CheckinRecord).where(
+            and_(
+                CheckinRecord.user_id.in_(user_ids),
+                CheckinRecord.community_rule_id.in_(rule_ids),
+                func.date(CheckinRecord.planned_time) >= start_date,
+                func.date(CheckinRecord.planned_time) <= end_date
+            )
+        )
+        all_records = self.session.execute(stmt_records).scalars().all()
+
+        # 构建统计数据
+        stats = []
+        rule_dict = {rule.community_rule_id: rule for rule in enabled_rules}
+
+        for rule in enabled_rules:
+            rule_id = rule.community_rule_id
+
+            # 统计该规则每日未打卡人数
+            daily_missed = []
+            for check_date in date_range:
+                # 查询该日期该规则的未打卡记录
+                day_records = [r for r in all_records
+                             if r.community_rule_id == rule_id
+                             and r.planned_time.date() == check_date
+                             and r.status == 0]  # 0-missed
+
+                # 计算该日期应该打卡但未打卡的人数
+                missed_count = len(day_records)
+                daily_missed.append(missed_count)
+
+            # 计算7天未打卡人次总和
+            total_missed = sum(daily_missed)
+
+            stats.append({
+                'rule_id': rule_id,
+                'rule_name': rule.rule_name,
+                'rule_type': rule.rule_type,
+                'total_missed': total_missed,
+                'daily_missed': daily_missed
+            })
+
+        return {
+            'stats': stats,
+            'total_rules': len(enabled_rules)
+        }
+
+    def get_community_daily_stats(self, community_id: int) -> Dict:
+        """
+        获取社区每日打卡统计
+
+        Args:
+            community_id: 社区ID
+
+        Returns:
+            每日统计数据字典
+        """
+        # 获取该社区所有工作人员的用户ID列表
+        stmt_staff = select(CommunityStaff).where(
+            CommunityStaff.community_id == community_id,
+            CommunityStaff.removed_at.is_(None)
+        )
+        staff_user_ids = [s.user_id for s in self.session.execute(stmt_staff).scalars().all()]
+
+        # 获取社区所有用户（排除工作人员）
+        stmt_users = select(User).where(User.community_id == community_id)
+        if staff_user_ids:
+            from sqlalchemy import not_
+            stmt_users = stmt_users.where(not_(User.user_id.in_(staff_user_ids)))
+        all_users = self.session.execute(stmt_users).scalars().all()
+
+        # 获取今日所有启用的社区打卡规则
+        today = date.today()
+        stmt_rules = select(CommunityCheckinRule).where(
+            CommunityCheckinRule.community_id == community_id,
+            CommunityCheckinRule.status == 1  # 启用状态
+        )
+        enabled_rules = self.session.execute(stmt_rules).scalars().all()
+
+        if not enabled_rules or not all_users:
+            # 如果没有规则或没有用户，返回默认值
+            return {
+                'user_count': len(all_users),
+                'total_rules': len(enabled_rules),
+                'total_checkins': 0,
+                'completed_checkins': 0,
+                'missed_checkins': 0,
+                'checkin_rate': 0.0,
+                'unchecked_user_count': 0
+            }
+
+        # 获取今日所有打卡记录
+        rule_ids = [rule.community_rule_id for rule in enabled_rules]
+        user_ids = [user.user_id for user in all_users]
+
+        stmt_records = select(CheckinRecord).where(
+            and_(
+                CheckinRecord.user_id.in_(user_ids),
+                CheckinRecord.community_rule_id.in_(rule_ids),
+                func.date(CheckinRecord.planned_time) == today
+            )
+        )
+        today_records = self.session.execute(stmt_records).scalars().all()
+
+        # 统计数据
+        total_checkins = len(today_records)
+        completed_checkins = sum(1 for r in today_records if r.status == 1)  # 1-completed
+        missed_checkins = sum(1 for r in today_records if r.status == 0)  # 0-missed
+
+        # 计算打卡率（已打卡数 / 总打卡数）
+        checkin_rate = (completed_checkins / total_checkins * 100) if total_checkins > 0 else 0.0
+
+        # 计算未打卡人数（去重）
+        unchecked_user_ids = set(r.user_id for r in today_records if r.status == 0)
+        unchecked_user_count = len(unchecked_user_ids)
+
+        return {
+            'user_count': len(all_users),
+            'total_rules': len(enabled_rules),
+            'total_checkins': total_checkins,
+            'completed_checkins': completed_checkins,
+            'missed_checkins': missed_checkins,
+            'checkin_rate': round(checkin_rate, 1),
+            'unchecked_user_count': unchecked_user_count
+        }

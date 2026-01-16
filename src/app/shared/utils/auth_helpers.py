@@ -154,12 +154,18 @@ def assign_user_to_default_community(user, app_logger):
         user: 用户对象
         app_logger: Flask 应用的 logger
     """
-    from wxcloudrun.community_service import CommunityService
+    from app.infrastructure.persistence.repository_factory import RepositoryFactory
     from const_default import DEFAULT_COMMUNITY_NAME
     
     try:
-        CommunityService.assign_user_to_community(user, DEFAULT_COMMUNITY_NAME)
-        app_logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
+        community_repository = RepositoryFactory.get_community_repository()
+        community = community_repository.find_by_name(DEFAULT_COMMUNITY_NAME)
+        
+        if community:
+            user.community_id = community.community_id
+            app_logger.info(f'新用户已自动分配到默认社区，用户ID: {user.user_id}')
+        else:
+            app_logger.warning(f'默认社区不存在: {DEFAULT_COMMUNITY_NAME}')
     except Exception as e:
         app_logger.error(f'自动分配社区失败: {str(e)}', exc_info=True)
         # 不影响登录流程，只记录错误
