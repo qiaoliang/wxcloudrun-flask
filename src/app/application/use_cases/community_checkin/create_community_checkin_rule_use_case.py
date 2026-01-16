@@ -1,13 +1,17 @@
 """
 创建社区打卡规则用例
 """
-from flask import current_app
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from database.flask_models import CommunityCheckinRule
 
 
 class CreateCommunityCheckinRuleUseCase(BaseUseCase):
     """创建社区打卡规则用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
 
     def _validate(self, params: dict, community_id: int, user_id: int) -> UseCaseResult:
         """
@@ -71,23 +75,39 @@ class CreateCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-            # 调用服务层创建规则
-            rule = CommunityCheckinRuleService.create_community_rule(
-                params, community_id, user_id
+            # 创建CommunityCheckinRule实体
+            rule = CommunityCheckinRule(
+                community_id=community_id,
+                rule_name=params['rule_name'],
+                checkin_time=params.get('checkin_time', '08:00'),
+                timezone=params.get('timezone', 'Asia/Shanghai'),
+                grace_period_minutes=params.get('grace_period_minutes', 30),
+                icon_url=params.get('icon_url', '📋'),
+                status=1,  # 默认启用
+                created_by=user_id
             )
 
-            current_app.logger.info(f'成功创建社区打卡规则，规则ID: {rule.community_rule_id}')
+            # 保存到数据库
+            saved_rule = self.checkin_rule_repository.save(rule)
+
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'成功创建社区打卡规则，规则ID: {saved_rule.community_rule_id}')
+
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='创建成功',
                 data={
-                    'rule_id': rule.community_rule_id,
+                    'rule_id': saved_rule.community_rule_id,
+                    'rule_name': saved_rule.rule_name,
                     'message': '创建成功'
                 }
             )
 
         except Exception as e:
-            current_app.logger.error(f'创建社区打卡规则失败: {str(e)}', exc_info=True)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'创建社区打卡规则失败: {str(e)}', exc_info=True)
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f'创建规则失败: {str(e)}'

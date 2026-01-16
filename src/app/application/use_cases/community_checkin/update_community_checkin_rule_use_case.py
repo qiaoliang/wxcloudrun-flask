@@ -1,13 +1,16 @@
 """
 更新社区打卡规则用例
 """
-from flask import current_app
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class UpdateCommunityCheckinRuleUseCase(BaseUseCase):
     """更新社区打卡规则用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
 
     def _validate(self, rule_id: int, params: dict, user_id: int) -> UseCaseResult:
         """
@@ -63,23 +66,47 @@ class UpdateCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-            # 调用服务层更新规则
-            rule = CommunityCheckinRuleService.update_community_rule(
-                rule_id, params, user_id
-            )
+            # 获取现有规则
+            rule = self.checkin_rule_repository.find_by_id(rule_id)
 
-            current_app.logger.info(f'成功更新社区打卡规则，规则ID: {rule.community_rule_id}')
+            if not rule:
+                return UseCaseResult(
+                    status=UseCaseStatus.NOT_FOUND,
+                    message=f'规则 {rule_id} 不存在'
+                )
+
+            # 更新规则属性
+            if 'rule_name' in params:
+                rule.rule_name = params['rule_name']
+            if 'checkin_time' in params:
+                rule.checkin_time = params['checkin_time']
+            if 'timezone' in params:
+                rule.timezone = params['timezone']
+            if 'grace_period_minutes' in params:
+                rule.grace_period_minutes = params['grace_period_minutes']
+            if 'icon_url' in params:
+                rule.icon_url = params['icon_url']
+
+            # 保存更新
+            updated_rule = self.checkin_rule_repository.save(rule)
+
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'成功更新社区打卡规则，规则ID: {updated_rule.community_rule_id}')
+
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='更新成功',
                 data={
-                    'rule_id': rule.community_rule_id,
-                    'message': '更新成功'
+                    'rule_id': updated_rule.community_rule_id,
+                    'rule_name': updated_rule.rule_name
                 }
             )
 
         except Exception as e:
-            current_app.logger.error(f'更新社区打卡规则失败: {str(e)}', exc_info=True)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'更新社区打卡规则失败: {str(e)}', exc_info=True)
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f'更新规则失败: {str(e)}'

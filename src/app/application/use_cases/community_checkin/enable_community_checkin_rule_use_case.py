@@ -1,13 +1,17 @@
 """
 启用社区打卡规则用例
 """
-from flask import current_app
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from database.flask_models import CommunityCheckinRule
 
 
 class EnableCommunityCheckinRuleUseCase(BaseUseCase):
     """启用社区打卡规则用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
 
     def _validate(self, rule_id: int, user_id: int) -> UseCaseResult:
         """
@@ -49,23 +53,37 @@ class EnableCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-            # 调用服务层启用规则
-            rule = CommunityCheckinRuleService.enable_community_rule(
-                rule_id, user_id
-            )
+            # 获取规则
+            rule = self.checkin_rule_repository.find_by_id(rule_id)
 
-            current_app.logger.info(f'成功启用社区打卡规则，规则ID: {rule.get("community_rule_id")}')
+            if not rule:
+                return UseCaseResult(
+                    status=UseCaseStatus.NOT_FOUND,
+                    message=f'规则 {rule_id} 不存在'
+                )
+
+            # 启用规则（设置status=1）
+            rule.status = 1
+            saved_rule = self.checkin_rule_repository.save(rule)
+
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'成功启用社区打卡规则，规则ID: {rule_id}')
+
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='启用成功',
                 data={
-                    'rule_id': rule.get('community_rule_id'),
-                    'message': '启用成功'
+                    'rule_id': rule.community_rule_id,
+                    'rule_name': rule.rule_name,
+                    'status': rule.status
                 }
             )
 
         except Exception as e:
-            current_app.logger.error(f'启用社区打卡规则失败: {str(e)}', exc_info=True)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'启用社区打卡规则失败: {str(e)}', exc_info=True)
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f'启用规则失败: {str(e)}'

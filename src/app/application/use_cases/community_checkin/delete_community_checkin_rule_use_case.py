@@ -1,13 +1,16 @@
 """
 删除社区打卡规则用例
 """
-from flask import current_app
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class DeleteCommunityCheckinRuleUseCase(BaseUseCase):
     """删除社区打卡规则用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
 
     def _validate(self, rule_id: int, user_id: int) -> UseCaseResult:
         """
@@ -49,29 +52,37 @@ class DeleteCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-            # 调用服务层删除规则
-            success = CommunityCheckinRuleService.delete_community_rule(
-                rule_id, user_id
-            )
+            # 检查规则是否存在
+            rule = self.checkin_rule_repository.find_by_id(rule_id)
 
-            if success:
-                current_app.logger.info(f'成功删除社区打卡规则，规则ID: {rule_id}')
+            if not rule:
                 return UseCaseResult(
-                    status=UseCaseStatus.SUCCESS,
-                    message='删除成功',
-                    data={
-                        'rule_id': rule_id,
-                        'message': '删除成功'
-                    }
+                    status=UseCaseStatus.NOT_FOUND,
+                    message=f'规则 {rule_id} 不存在'
                 )
-            else:
+
+            # 删除规则（软删除，设置status=2）
+            result = self.checkin_rule_repository.delete(rule_id)
+
+            if not result:
                 return UseCaseResult(
                     status=UseCaseStatus.FAILURE,
                     message='删除失败'
                 )
 
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f'成功删除社区打卡规则，规则ID: {rule_id}')
+
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='删除成功'
+            )
+
         except Exception as e:
-            current_app.logger.error(f'删除社区打卡规则失败: {str(e)}', exc_info=True)
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f'删除社区打卡规则失败: {str(e)}', exc_info=True)
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f'删除规则失败: {str(e)}'
