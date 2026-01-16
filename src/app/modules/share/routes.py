@@ -11,10 +11,9 @@ from . import share_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
-from wxcloudrun.user_service import UserService
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
 from database.flask_models import db, ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
 from app.shared.utils.transaction import transaction
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 import secrets
 
 app_logger = logging.getLogger('log')
@@ -31,12 +30,18 @@ def create_share_checkin_link():
     decoded, error_response = verify_token()
     if error_response:
         return error_response
-    
+
     try:
         openid = decoded.get('openid')
-        user = UserService.query_user_by_openid(openid)
-        if not user:
+        # 使用UseCase获取用户
+        from app.application.use_cases.user import GetUserByOpenidUseCase
+        get_user_use_case = GetUserByOpenidUseCase()
+        user_result = get_user_use_case.execute(openid)
+
+        if not user_result.is_success:
             return make_err_response({}, '用户不存在')
+
+        user_id = user_result.data.get('user_id')
 
         params = request.get_json() or {}
         rule_id = params.get('rule_id')
@@ -49,7 +54,7 @@ def create_share_checkin_link():
 
         use_case = CreateShareLinkUseCase()
         result = use_case.execute(
-            user_id=user.user_id,
+            user_id=user_id,
             rule_id=rule_id,
             expire_hours=expire_hours
         )
@@ -62,7 +67,7 @@ def create_share_checkin_link():
             mini_path = f"/share/check-in?token={token}"
             qrcode_url = result.data.get('qrcode_url')
 
-            current_app.logger.info(f'用户 {user.user_id} 创建分享链接成功，token: {token}')
+            current_app.logger.info(f'用户 {user_id} 创建分享链接成功，token: {token}')
             return make_succ_response({
                 'token': token,
                 'url': full_url,
@@ -95,9 +100,12 @@ def resolve_share_checkin_link():
         decoded, error_response = verify_token()
         if not error_response and decoded:
             openid = decoded.get('openid')
-            user = UserService.query_user_by_openid(openid)
-            if user:
-                current_user_id = user.user_id
+            # 使用UseCase获取用户
+            from app.application.use_cases.user import GetUserByOpenidUseCase
+            get_user_use_case = GetUserByOpenidUseCase()
+            user_result = get_user_use_case.execute(openid)
+            if user_result.is_success:
+                current_user_id = user_result.data.get('user_id')
 
         # 使用应用服务用例解析分享链接
         from app.application.use_cases.share import ResolveShareLinkUseCase
@@ -147,9 +155,12 @@ def share_checkin_page():
             )
             db.session.add(access_log)
 
-        # 获取规则和用户信息
-        rule = UserCheckinRuleService.query_rule_by_id(link.rule_id)
-        user = UserService.query_user_by_id(link.solo_user_id)
+        # 使用Repository获取规则和用户信息
+        checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
+        user_repository = RepositoryFactory.get_user_repository()
+
+        rule = checkin_rule_repository.find_by_id(link.rule_id)
+        user = user_repository.find_by_id(link.solo_user_id)
 
         if not rule or not user:
             return "分享内容不存在", 404
@@ -235,7 +246,7 @@ def share_checkin_page():
                     <div class="title">{rule.rule_name}</div>
                     <div class="description">暂无描述</div>
                 </div>
-                
+
                 <div class="info">
                     <div class="info-item">
                         <span class="info-label">打卡时间：</span>
@@ -254,7 +265,7 @@ def share_checkin_page():
                         <span class="info-value">{'启用' if rule.status == 1 else '禁用'}</span>
                     </div>
                 </div>
-                
+
                 <div class="footer">
                     <p>此分享链接由 SafeGuard 提供</p>
                     <p>有效期至：{link.expires_at.strftime('%Y-%m-%d %H:%M')}</p>

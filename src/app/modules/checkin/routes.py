@@ -10,7 +10,6 @@ from . import checkin_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
-from wxcloudrun.user_service import UserService
 from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only
 from database.flask_models import db, User
 

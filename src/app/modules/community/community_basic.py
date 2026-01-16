@@ -10,7 +10,6 @@ from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token, get_current_user
 from database.flask_models import db, User, Community
-from wxcloudrun.community_event_service import CommunityEventService
 from app.application.use_cases.community import (
     GetManagedCommunitiesUseCase,
     GetAvailableCommunitiesUseCase,
@@ -285,7 +284,10 @@ def get_community_detail(community_id):
             return make_err_response({}, result.message)
 
         # 获取社区统计信息
-        event_stats = CommunityEventService.get_community_stats(community_id)
+        from app.application.use_cases.events import GetCommunityStatsUseCase
+
+        stats_use_case = GetCommunityStatsUseCase()
+        stats_result = stats_use_case.execute(community_id=community_id)
 
         # 构建响应数据结构
         response_data = {
@@ -295,8 +297,8 @@ def get_community_detail(community_id):
                 'worker_count': result.data.get('staff_count', 0),  # 工作人员总数
                 'user_count': result.data.get('user_count', 0),  # 普通成员数量（不包括工作人员）
                 'manager_count': 1 if result.data.get('manager') else 0,  # 主管数量
-                'support_count': event_stats.get('support_count', 0) if event_stats.get('success') else 0,
-                'active_events': event_stats.get('active_events', 0) if event_stats.get('success') else 0,
+                'support_count': stats_result.data.get('support_count', 0) if stats_result.is_success else 0,
+                'active_events': stats_result.data.get('active_events', 0) if stats_result.is_success else 0,
                 'checkin_rate': 0  # TODO: 计算打卡率
             }
         }

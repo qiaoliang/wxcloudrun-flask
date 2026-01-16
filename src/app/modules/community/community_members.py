@@ -8,8 +8,14 @@ from flask import request, current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from wxcloudrun.community_service import CommunityService
 from wxcloudrun.utils.validators import _audit
+from app.application.use_cases.community import (
+    CheckCommunityPermissionUseCase,
+    GetCommunityMembersUseCase,
+    RemoveUserFromCommunityUseCase,
+    AddUsersToCommunityUseCase,
+    ListCommunityUsersUseCase
+)
 
 app_logger = logging.getLogger('log')
 
@@ -29,7 +35,10 @@ def get_community_users(community_id):
 
     try:
         # 检查权限
-        if not CommunityService.has_community_permission(user_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(user_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
         # 获取查询参数
@@ -37,14 +46,16 @@ def get_community_users(community_id):
         per_page = min(int(request.args.get('per_page', 20)), 100)
         role_filter = request.args.get('role')  # 可选的角色过滤
 
-        # 获取社区用户
-        members_data, total = CommunityService.get_community_members(
-            community_id, page, per_page
-        )
+        # 使用应用服务用例获取社区用户
+        get_members_use_case = GetCommunityMembersUseCase()
+        members_result = get_members_use_case.execute(community_id, page, per_page)
+
+        if not members_result.is_success:
+            return make_err_response({}, members_result.message)
 
         # 格式化用户信息
         users_data = []
-        for user in members_data:
+        for user in members_result.data.get('members', []):
             user_data = {
                 'user_id': int(user['user_id']),
                 'wechat_openid': '',  # get_community_members不返回此字段
@@ -61,7 +72,7 @@ def get_community_users(community_id):
 
         response_data = {
             'users': users_data,
-            'total': total,
+            'total': members_result.data.get('total', 0),
             'page': page,
             'per_page': per_page,
             'has_next': len(users_data) == per_page
@@ -90,23 +101,27 @@ def remove_community_user(community_id, target_user_id):
 
     try:
         # 检查权限
-        if not CommunityService.has_community_permission(operator_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(operator_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
-        # 移除用户
-        result = CommunityService.remove_user_from_community(community_id, target_user_id)
+        # 使用应用服务用例移除用户
+        remove_user_use_case = RemoveUserFromCommunityUseCase()
+        result = remove_user_use_case.execute(community_id, target_user_id)
 
-        if result:
+        if result.is_success:
             # 记录审计日志
             _audit(operator_id, 'remove_community_user', {
                 'community_id': community_id,
                 'target_user_id': target_user_id
             })
 
-            current_app.logger.info(f'移除社区用户成功: community_id={community_id}, user_id={target_user_id}, result={result}')
-            return make_succ_response({'message': '移除成功', 'moved_to': result.get('moved_to')})
+            current_app.logger.info(f'移除社区用户成功: community_id={community_id}, user_id={target_user_id}')
+            return make_succ_response({'message': '移除成功', 'moved_to': result.data.get('moved_to')})
         else:
-            return make_err_response({}, '移除失败')
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'移除社区用户失败: {str(e)}', exc_info=True)
@@ -136,11 +151,13 @@ def get_community_users_v2():
             return make_err_response({}, '缺少社区ID')
 
         # 检查权限
-        if not CommunityService.has_community_permission(user_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(user_id, int(community_id))
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
         # 使用应用服务用例获取社区用户
-        from app.application.use_cases.community import ListCommunityUsersUseCase
 
         use_case = ListCommunityUsersUseCase()
         result = use_case.execute(
@@ -187,22 +204,29 @@ def add_users_to_community():
             return make_err_response({}, '缺少社区ID或用户ID列表')
 
         # 检查权限
-        if not CommunityService.has_community_permission(operator_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(operator_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
-        # 批量添加用户
-        result = CommunityService.add_users_to_community(community_id, user_ids, operator_id)
+        # 使用应用服务用例批量添加用户
+        add_users_use_case = AddUsersToCommunityUseCase()
+        result = add_users_use_case.execute(community_id, user_ids, operator_id)
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         # 记录审计日志
         _audit(operator_id, 'add_users_to_community', {
             'community_id': community_id,
             'user_ids': user_ids,
-            'success_count': result.get('success_count', 0),
-            'fail_count': result.get('fail_count', 0)
+            'success_count': result.data.get('success_count', 0),
+            'fail_count': result.data.get('fail_count', 0)
         })
 
-        current_app.logger.info(f'批量添加用户到社区完成: community_id={community_id}, 成功={result.get("success_count", 0)}, 失败={result.get("fail_count", 0)}')
-        return make_succ_response(result)
+        current_app.logger.info(f'批量添加用户到社区完成: community_id={community_id}, 成功={result.data.get("success_count", 0)}, 失败={result.data.get("fail_count", 0)}')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'批量添加用户到社区失败: {str(e)}', exc_info=True)
@@ -234,13 +258,17 @@ def remove_user_from_community():
             return make_err_response({}, '缺少社区ID或目标用户ID')
 
         # 检查权限
-        if not CommunityService.has_community_permission(operator_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(operator_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
-        # 移除用户
-        success = CommunityService.remove_user_from_community(community_id, target_user_id)
+        # 使用应用服务用例移除用户
+        remove_user_use_case = RemoveUserFromCommunityUseCase()
+        result = remove_user_use_case.execute(community_id, target_user_id)
 
-        if success:
+        if result.is_success:
             # 记录审计日志
             _audit(operator_id, 'remove_user_from_community', {
                 'community_id': community_id,
@@ -250,7 +278,7 @@ def remove_user_from_community():
             current_app.logger.info(f'从社区中移除用户成功: community_id={community_id}, user_id={target_user_id}')
             return make_succ_response({'message': '移除成功'})
         else:
-            return make_err_response({}, '移除失败')
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'从社区中移除用户失败: {str(e)}', exc_info=True)

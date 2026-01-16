@@ -10,12 +10,13 @@ from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
 from database.flask_models import db, User
-from wxcloudrun.community_service import CommunityService
-from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.utils.validators import _audit
 from app.application.use_cases.community.get_community_staff_list_use_case import GetCommunityStaffListUseCase
 from app.application.use_cases.community.add_community_staff_use_case import AddCommunityStaffUseCase
 from app.application.use_cases.community.remove_community_staff_use_case import RemoveCommunityStaffUseCase
+from app.application.use_cases.community.check_community_permission_use_case import CheckCommunityPermissionUseCase
+from app.application.use_cases.community.set_super_admin_use_case import SetSuperAdminUseCase
+from app.application.use_cases.community.get_admin_list_use_case import GetAdminListUseCase
 
 app_logger = logging.getLogger('log')
 
@@ -49,7 +50,10 @@ def get_community_staff_list_enhanced():
             return make_err_response({}, f'无效的角色参数，支持的角色: {valid_roles}')
 
         # 检查权限
-        if not CommunityService.has_community_permission(user_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(user_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
         # 使用新的 UseCase 获取社区工作人员列表
@@ -151,7 +155,10 @@ def add_community_staff():
             return make_err_response({}, f'角色参数错误，必须是: {", ".join(valid_roles)}')
 
         # 检查权限
-        if not CommunityService.has_community_permission(operator_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(operator_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
         # 批量操作限制验证
@@ -220,7 +227,10 @@ def remove_community_staff():
             return make_err_response({}, '缺少必要参数')
 
         # 检查权限
-        if not CommunityService.has_community_permission(operator_id, community_id):
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(operator_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
         # 使用新的 UseCase 移除工作人员
@@ -272,14 +282,19 @@ def set_super_admin():
         if target_user_id is None or is_super_admin is None:
             return make_err_response({}, '缺少必要参数')
 
-        result = CommunityStaffService.set_super_admin(
+        # 使用应用服务用例设置超级管理员
+        set_super_admin_use_case = SetSuperAdminUseCase()
+        result = set_super_admin_use_case.execute(
             operator_user_id=operator_id,
             target_user_id=int(target_user_id),
             is_super_admin=is_super_admin
         )
 
-        current_app.logger.info(f'设置超级管理员操作完成: {result}')
-        return make_succ_response(result)
+        if not result.is_success:
+            return make_err_response({}, result.message)
+
+        current_app.logger.info(f'设置超级管理员操作完成: {result.data}')
+        return make_succ_response(result.data)
 
     except ValueError as e:
         current_app.logger.warning(f'设置超级管理员失败: {str(e)}')
@@ -300,9 +315,15 @@ def get_admin_list():
         return error_response
 
     try:
-        admin_list = CommunityStaffService.get_admin_list()
-        current_app.logger.info(f'获取管理员列表成功: 共{len(admin_list)}个管理员')
-        return make_succ_response({'admins': admin_list})
+        # 使用应用服务用例获取管理员列表
+        get_admin_list_use_case = GetAdminListUseCase()
+        result = get_admin_list_use_case.execute()
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
+
+        current_app.logger.info(f'获取管理员列表成功: 共{len(result.data["admins"])}个管理员')
+        return make_succ_response(result.data)
     except Exception as e:
         current_app.logger.error(f'获取管理员列表失败: {str(e)}', exc_info=True)
         return make_err_response({}, '获取管理员列表失败')

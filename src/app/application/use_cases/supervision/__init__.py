@@ -10,3 +10,4 @@ from .get_today_supervision_data_use_case import GetTodaySupervisionDataUseCase
 from .get_user_by_id_use_case import GetUserByIdUseCase
 from .get_user_by_openid_use_case import GetUserByOpenIdUseCase
 from .get_checkin_rule_by_id_use_case import GetCheckinRuleByIdUseCase
+from .invitation_management_service import InvitationManagementService

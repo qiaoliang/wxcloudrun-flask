@@ -10,11 +10,11 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
 from app.application.use_cases.community import (
     GetCommunityApplicationsUseCase,
-    CreateCommunityApplicationUseCase
+    CreateCommunityApplicationUseCase,
+    ProcessCommunityApplicationUseCase
 )
 from app.application.use_cases.base import UseCaseStatus
 from database.flask_models import db, User
-from wxcloudrun.community_service import CommunityService
 from wxcloudrun.utils.validators import _audit
 
 app_logger = logging.getLogger('log')
@@ -113,11 +113,16 @@ def approve_application(application_id):
     user = db.session.get(User, user_id)
 
     try:
-        CommunityService.process_application(
+        # 使用应用服务用例处理申请
+        process_use_case = ProcessCommunityApplicationUseCase()
+        result = process_use_case.execute(
             application_id=application_id,
             approve=True,
             processor_id=user_id
         )
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(f'社区申请批准成功: {application_id}')
         return make_succ_response({'message': '批准成功'})
@@ -147,12 +152,17 @@ def reject_application(application_id):
 
         rejection_reason = params.get('reason', '')
 
-        CommunityService.process_application(
+        # 使用应用服务用例处理申请
+        process_use_case = ProcessCommunityApplicationUseCase()
+        result = process_use_case.execute(
             application_id=application_id,
             approve=False,
             processor_id=user_id,
             rejection_reason=rejection_reason
         )
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(f'社区申请拒绝成功: {application_id}')
         return make_succ_response({'message': '拒绝成功'})

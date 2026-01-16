@@ -20,6 +20,11 @@ from .remove_user_from_community_use_case import RemoveUserFromCommunityUseCase
 from .add_users_to_community_use_case import AddUsersToCommunityUseCase
 from .search_users_use_case import SearchUsersUseCase
 from .search_manageable_communities_use_case import SearchManageableCommunitiesUseCase
+from .process_community_application_use_case import ProcessCommunityApplicationUseCase
+from .set_super_admin_use_case import SetSuperAdminUseCase
+from .get_admin_list_use_case import GetAdminListUseCase
+from .create_community_application_use_case import CreateCommunityApplicationUseCase
+from .get_community_applications_use_case import GetCommunityApplicationsUseCase
 
 __all__ = [
     'CreateCommunityUseCase',
@@ -39,5 +44,10 @@ __all__ = [
     'RemoveUserFromCommunityUseCase',
     'AddUsersToCommunityUseCase',
     'SearchUsersUseCase',
-    'SearchManageableCommunitiesUseCase'
+    'SearchManageableCommunitiesUseCase',
+    'ProcessCommunityApplicationUseCase',
+    'SetSuperAdminUseCase',
+    'GetAdminListUseCase',
+    'CreateCommunityApplicationUseCase',
+    'GetCommunityApplicationsUseCase'
 ]

@@ -9,7 +9,6 @@ from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
 from database.flask_models import db, User, Community
-from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.utils.validators import _audit
 from app.shared.constants.roles import Role
 from app.application.use_cases.community import (
@@ -86,13 +85,19 @@ def create_community():
         # 如果指定了主管，将主管添加到 CommunityStaff 表
         if manager_id:
             try:
-                CommunityStaffService.add_staff_single(
+                from app.application.use_cases.community import AddCommunityStaffUseCase
+
+                add_staff_use_case = AddCommunityStaffUseCase()
+                add_staff_result = add_staff_use_case.execute(
+                    operator_user_id=user_id,
                     community_id=community_id,
-                    user_id=manager_id,
-                    role='manager',
-                    operator_id=user_id
+                    user_ids=[manager_id],
+                    role='manager'
                 )
-                current_app.logger.info(f'已将主管添加到 CommunityStaff 表: community_id={community_id}, manager_id={manager_id}')
+                if add_staff_result.is_success:
+                    current_app.logger.info(f'已将主管添加到 CommunityStaff 表: community_id={community_id}, manager_id={manager_id}')
+                else:
+                    current_app.logger.warning(f'添加主管到 CommunityStaff 表失败: {add_staff_result.message}')
             except Exception as e:
                 current_app.logger.error(f'添加主管到 CommunityStaff 表失败: {str(e)}', exc_info=True)
                 # 不影响社区创建成功，只记录错误
