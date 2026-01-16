@@ -342,3 +342,61 @@ class TestResolveShareLinkUseCase:
         # Assert
         assert result.is_success
         assert result.data['is_already_supervisor'] == True
+
+    @patch('app.application.use_cases.share.resolve_share_link_use_case.RepositoryFactory')
+    def test_should_return_full_objects_when_requested(self, mock_repo_factory):
+        """应该在请求时返回完整对象"""
+        # Arrange
+        mock_share_link_repo = Mock()
+        mock_rule_repo = Mock()
+        mock_user_repo = Mock()
+        mock_access_log_repo = Mock()
+        mock_relation_repo = Mock()
+
+        mock_repo_factory.get_share_link_repository.return_value = mock_share_link_repo
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_rule_repo
+        mock_repo_factory.get_user_repository.return_value = mock_user_repo
+        mock_repo_factory.get_share_link_access_log_repository.return_value = mock_access_log_repo
+        mock_repo_factory.get_supervision_relation_repository.return_value = mock_relation_repo
+
+        link = Mock()
+        link.token = 'test_token_123'
+        link.rule_id = 101
+        link.solo_user_id = 1
+        link.expires_at = datetime.now() + timedelta(hours=168)
+
+        rule = Mock()
+        rule.rule_id = 101
+        rule.rule_name = 'Test Rule'
+        rule.custom_time = datetime(2026, 1, 15, 10, 0).time()
+        rule.status = 1
+
+        user = Mock()
+        user.user_id = 1
+        user.nickname = 'Test User'
+        user.avatar_url = 'avatar.jpg'
+
+        mock_share_link_repo.find_by_token.return_value = link
+        mock_rule_repo.find_by_id.return_value = rule
+        mock_user_repo.find_by_id.return_value = user
+        mock_relation_repo.find_active_relation.return_value = None
+
+        use_case = ResolveShareLinkUseCase()
+
+        # Act
+        result = use_case.execute(
+            token='test_token_123',
+            ip_address='127.0.0.1',
+            user_agent='Test Agent',
+            return_full_objects=True
+        )
+
+        # Assert
+        assert result.is_success
+        assert result.status == UseCaseStatus.SUCCESS
+        assert 'link' in result.data
+        assert 'rule' in result.data
+        assert 'user' in result.data
+        assert result.data['link'] == link
+        assert result.data['rule'] == rule
+        assert result.data['user'] == user

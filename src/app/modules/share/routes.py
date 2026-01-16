@@ -6,15 +6,11 @@
 import logging
 from datetime import datetime, timedelta
 from flask import request, Response, current_app
-from sqlalchemy import select
 from . import share_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
-from database.flask_models import db, ShareLink, ShareLinkAccessLog, SupervisionRuleRelation
-from app.shared.utils.transaction import transaction
-from app.infrastructure.persistence.repository_factory import RepositoryFactory
-import secrets
+from app.application.use_cases.base import UseCaseStatus
 
 app_logger = logging.getLogger('log')
 
@@ -141,26 +137,29 @@ def share_checkin_page():
         if not token:
             return "缺少token参数", 400
 
-        link = db.session.execute(select(ShareLink).filter_by(token=token)).scalar_one_or_none()
-        if not link or link.expires_at < datetime.now():
-            return "分享链接无效或已过期", 400
+        # 使用UseCase解析分享链接并获取完整对象
+        from app.application.use_cases.share import ResolveShareLinkUseCase
 
-        # 记录访问日志（使用事务管理器）
-        with transaction():
-            access_log = ShareLinkAccessLog(
-                token=link.token,
-                ip_address=request.remote_addr,
-                user_agent=request.headers.get('User-Agent', ''),
-                accessed_at=datetime.now()
-            )
-            db.session.add(access_log)
+        use_case = ResolveShareLinkUseCase()
+        result = use_case.execute(
+            token=token,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', ''),
+            return_full_objects=True
+        )
 
-        # 使用Repository获取规则和用户信息
-        checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
-        user_repository = RepositoryFactory.get_user_repository()
+        if not result.is_success:
+            if result.status == UseCaseStatus.NOT_FOUND:
+                return "分享链接不存在", 404
+            elif result.status == UseCaseStatus.BUSINESS_ERROR:
+                return result.message, 400
+            else:
+                return "分享链接无效", 400
 
-        rule = checkin_rule_repository.find_by_id(link.rule_id)
-        user = user_repository.find_by_id(link.solo_user_id)
+        # 从UseCase结果中获取完整对象
+        link = result.data.get('link')
+        rule = result.data.get('rule')
+        user = result.data.get('user')
 
         if not rule or not user:
             return "分享内容不存在", 404

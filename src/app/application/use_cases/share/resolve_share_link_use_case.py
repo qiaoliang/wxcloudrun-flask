@@ -26,7 +26,8 @@ class ResolveShareLinkUseCase(BaseUseCase):
         token: str,
         ip_address: str = None,
         user_agent: str = None,
-        current_user_id: int = None
+        current_user_id: int = None,
+        return_full_objects: bool = False
     ) -> UseCaseResult:
         """
         执行解析分享链接用例
@@ -36,6 +37,7 @@ class ResolveShareLinkUseCase(BaseUseCase):
             ip_address: 访问者IP地址
             user_agent: 用户代理字符串
             current_user_id: 当前登录用户ID（可选）
+            return_full_objects: 是否返回完整对象（用于页面渲染）
 
         Returns:
             UseCaseResult: 执行结果
@@ -117,16 +119,25 @@ class ResolveShareLinkUseCase(BaseUseCase):
 
             self.logger.info(f'解析分享链接成功: token={token}')
 
-            # 9. 返回结果
+            # 9. 构造返回数据
+            result_data = {
+                'rule_info': rule_info,
+                'inviter_info': inviter_info,
+                'is_expired': False,
+                'is_already_supervisor': is_already_supervisor
+            }
+
+            # 如果需要返回完整对象（用于页面渲染）
+            if return_full_objects:
+                result_data['link'] = link
+                result_data['rule'] = rule
+                result_data['user'] = user
+
+            # 10. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='解析分享链接成功',
-                data={
-                    'rule_info': rule_info,
-                    'inviter_info': inviter_info,
-                    'is_expired': False,
-                    'is_already_supervisor': is_already_supervisor
-                }
+                data=result_data
             )
 
         except Exception as e:
