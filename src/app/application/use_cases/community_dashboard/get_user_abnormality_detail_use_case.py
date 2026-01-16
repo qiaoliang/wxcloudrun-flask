@@ -1,13 +1,16 @@
 """
 获取用户异常值详情用例
 """
-from flask import current_app
-from wxcloudrun.community_dashboard_service import CommunityDashboardService
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetUserAbnormalityDetailUseCase(BaseUseCase):
-    """获取用户异常值详情用例"""
+    """获取用户异常详情用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.dashboard_repository = RepositoryFactory.get_community_dashboard_repository()
 
     def _validate(self, community_id: int, user_id: int, request_user_id: int) -> UseCaseResult:
         """
@@ -40,9 +43,9 @@ class GetUserAbnormalityDetailUseCase(BaseUseCase):
             )
 
         # 检查权限
-        if not CommunityDashboardService.has_permission(request_user_id, community_id):
+        if not self.dashboard_repository.has_permission(request_user_id, community_id):
             return UseCaseResult(
-                status=UseCaseStatus.VALIDATION_ERROR,
+                status=UseCaseStatus.FORBIDDEN,
                 message='无权限访问该社区'
             )
 
@@ -53,7 +56,7 @@ class GetUserAbnormalityDetailUseCase(BaseUseCase):
 
     def _execute(self, community_id: int, user_id: int, request_user_id: int) -> UseCaseResult:
         """
-        执行获取用户异常值详情操作
+        执行获取用户异常详情操作
 
         Args:
             community_id: 社区ID
@@ -63,12 +66,14 @@ class GetUserAbnormalityDetailUseCase(BaseUseCase):
         Returns:
             UseCaseResult: 执行结果
         """
-        # 获取用户异常值详情
-        detail = CommunityDashboardService.get_user_abnormality_detail(community_id, user_id)
+        # 获取用户异常详情
+        detail = self.dashboard_repository.get_user_abnormality_detail(community_id, user_id)
 
-        current_app.logger.info(f'获取用户异常值详情成功: user_id={user_id}')
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f'获取用户异常详情成功: community_id={community_id}, user_id={user_id}')
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
-            message='获取异常值详情成功',
+            message='获取用户异常详情成功',
             data=detail
         )

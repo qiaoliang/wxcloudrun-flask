@@ -1,13 +1,16 @@
 """
 获取异常用户列表用例
 """
-from flask import current_app
-from wxcloudrun.community_dashboard_service import CommunityDashboardService
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetAbnormalUsersUseCase(BaseUseCase):
     """获取异常用户列表用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.dashboard_repository = RepositoryFactory.get_community_dashboard_repository()
 
     def _validate(self, community_id: int, user_id: int, page: int = 1,
                   page_size: int = 20) -> UseCaseResult:
@@ -48,9 +51,9 @@ class GetAbnormalUsersUseCase(BaseUseCase):
             )
 
         # 检查权限
-        if not CommunityDashboardService.has_permission(user_id, community_id):
+        if not self.dashboard_repository.has_permission(user_id, community_id):
             return UseCaseResult(
-                status=UseCaseStatus.VALIDATION_ERROR,
+                status=UseCaseStatus.FORBIDDEN,
                 message='无权限访问该社区'
             )
 
@@ -74,11 +77,13 @@ class GetAbnormalUsersUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         # 获取异常用户列表
-        result = CommunityDashboardService.get_abnormal_users(
+        result = self.dashboard_repository.get_abnormal_users(
             community_id, page, page_size
         )
 
-        current_app.logger.info(
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(
             f'获取异常用户列表成功: community_id={community_id}, '
             f'count={len(result["users"])}, total={result["total"]}'
         )

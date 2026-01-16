@@ -1,13 +1,16 @@
 """
-获取历史趋势数据用例
+获取趋势数据用例
 """
-from flask import current_app
-from wxcloudrun.community_dashboard_service import CommunityDashboardService
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetTrendDataUseCase(BaseUseCase):
-    """获取历史趋势数据用例"""
+    """获取趋势数据用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.dashboard_repository = RepositoryFactory.get_community_dashboard_repository()
 
     def _validate(self, community_id: int, user_id: int, days: int = 7) -> UseCaseResult:
         """
@@ -16,7 +19,7 @@ class GetTrendDataUseCase(BaseUseCase):
         Args:
             community_id: 社区ID
             user_id: 用户ID
-            days: 天数（7或30，默认7）
+            days: 天数（7或30）
 
         Returns:
             UseCaseResult: 验证结果
@@ -33,17 +36,16 @@ class GetTrendDataUseCase(BaseUseCase):
                 message='用户ID无效'
             )
 
-        # 验证天数参数
         if days not in [7, 30]:
             return UseCaseResult(
                 status=UseCaseStatus.VALIDATION_ERROR,
-                message='天数参数只能是 7 或 30'
+                message='天数只能是7或30'
             )
 
         # 检查权限
-        if not CommunityDashboardService.has_permission(user_id, community_id):
+        if not self.dashboard_repository.has_permission(user_id, community_id):
             return UseCaseResult(
-                status=UseCaseStatus.VALIDATION_ERROR,
+                status=UseCaseStatus.FORBIDDEN,
                 message='无权限访问该社区'
             )
 
@@ -54,22 +56,24 @@ class GetTrendDataUseCase(BaseUseCase):
 
     def _execute(self, community_id: int, user_id: int, days: int = 7) -> UseCaseResult:
         """
-        执行获取历史趋势数据操作
+        执行获取趋势数据操作
 
         Args:
             community_id: 社区ID
             user_id: 用户ID
-            days: 天数（7或30，默认7）
+            days: 天数（7或30）
 
         Returns:
             UseCaseResult: 执行结果
         """
         # 获取趋势数据
-        trends = CommunityDashboardService.get_trend_data(community_id, days)
+        trend_data = self.dashboard_repository.get_trend_data(community_id, days)
 
-        current_app.logger.info(f'获取历史趋势数据成功: community_id={community_id}, days={days}')
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f'获取趋势数据成功: community_id={community_id}, days={days}')
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='获取趋势数据成功',
-            data=trends
+            data=trend_data
         )

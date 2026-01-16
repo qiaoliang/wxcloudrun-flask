@@ -21,6 +21,7 @@ from app.domain.repositories.user_daily_abnormality_repository import UserDailyA
 from app.domain.repositories.profile_view_log_repository import ProfileViewLogRepository
 from app.domain.repositories.counters_repository import CountersRepository
 from app.domain.repositories.verification_code_repository import VerificationCodeRepository
+from app.domain.repositories.community_dashboard_repository import CommunityDashboardRepository
 
 from app.infrastructure.persistence.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from app.infrastructure.persistence.sqlalchemy_community_repository import SQLAlchemyCommunityRepository
@@ -38,6 +39,7 @@ from app.infrastructure.persistence.sqlalchemy_user_daily_abnormality_repository
 from app.infrastructure.persistence.sqlalchemy_profile_view_log_repository import SQLAlchemyProfileViewLogRepository
 from app.infrastructure.persistence.sqlalchemy_counters_repository import SQLAlchemyCountersRepository
 from app.infrastructure.persistence.sqlalchemy_verification_code_repository import SQLAlchemyVerificationCodeRepository
+from app.infrastructure.persistence.sqlalchemy_community_dashboard_repository import SQLAlchemyCommunityDashboardRepository
 
 
 class RepositoryFactory:
@@ -59,6 +61,7 @@ class RepositoryFactory:
     _profile_view_log_repository: Optional[ProfileViewLogRepository] = None
     _counters_repository: Optional[CountersRepository] = None
     _verification_code_repository: Optional[VerificationCodeRepository] = None
+    _community_dashboard_repository: Optional[CommunityDashboardRepository] = None
 
     @classmethod
     def get_user_repository(cls) -> UserRepository:
@@ -253,6 +256,18 @@ class RepositoryFactory:
         return cls._verification_code_repository
 
     @classmethod
+    def get_community_dashboard_repository(cls) -> CommunityDashboardRepository:
+        """
+        获取社区仪表板仓储实例
+
+        Returns:
+            CommunityDashboardRepository: 社区仪表板仓储实例
+        """
+        if cls._community_dashboard_repository is None:
+            cls._community_dashboard_repository = SQLAlchemyCommunityDashboardRepository()
+        return cls._community_dashboard_repository
+
+    @classmethod
     def reset(cls):
         """重置仓储实例（主要用于测试）"""
         cls._user_repository = None
@@ -271,3 +286,4 @@ class RepositoryFactory:
         cls._profile_view_log_repository = None
         cls._counters_repository = None
         cls._verification_code_repository = None
+        cls._community_dashboard_repository = None

@@ -1,13 +1,16 @@
 """
 获取社区统计数据用例
 """
-from flask import current_app
-from wxcloudrun.community_dashboard_service import CommunityDashboardService
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetCommunityStatsUseCase(BaseUseCase):
     """获取社区统计数据用例"""
+
+    def __init__(self):
+        """初始化用例，注入依赖的仓储"""
+        self.dashboard_repository = RepositoryFactory.get_community_dashboard_repository()
 
     def _validate(self, community_id: int, user_id: int) -> UseCaseResult:
         """
@@ -33,9 +36,9 @@ class GetCommunityStatsUseCase(BaseUseCase):
             )
 
         # 检查权限
-        if not CommunityDashboardService.has_permission(user_id, community_id):
+        if not self.dashboard_repository.has_permission(user_id, community_id):
             return UseCaseResult(
-                status=UseCaseStatus.VALIDATION_ERROR,
+                status=UseCaseStatus.FORBIDDEN,
                 message='无权限访问该社区'
             )
 
@@ -56,9 +59,11 @@ class GetCommunityStatsUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         # 获取统计数据
-        stats = CommunityDashboardService.get_community_stats(community_id)
+        stats = self.dashboard_repository.get_community_stats(community_id)
 
-        current_app.logger.info(f'获取社区统计数据成功: community_id={community_id}')
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f'获取社区统计数据成功: community_id={community_id}')
         return UseCaseResult(
             status=UseCaseStatus.SUCCESS,
             message='获取统计数据成功',
