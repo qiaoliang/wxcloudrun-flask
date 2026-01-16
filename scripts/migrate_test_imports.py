@@ -41,7 +41,7 @@ IMPORT_REPLACEMENTS = {
 }
 
 # 需要迁移的测试文件列表
-TEST_FILES = [
+UNIT_TEST_FILES = [
     'tests/unit/test_community_service_get_manageable_communities.py',
     'tests/unit/test_user_service.py',
     'tests/unit/test_community_staff_service_refactor.py',
@@ -60,6 +60,18 @@ TEST_FILES = [
     'tests/unit/test_community_rule_status.py',
     'tests/unit/test_user_community_rule_switching.py',
 ]
+
+INTEGRATION_TEST_FILES = [
+    'tests/integration/conftest.py',
+    'tests/integration/test_close_event.py',
+    'tests/integration/test_community_applications.py',
+    'tests/integration/test_community_create.py',
+    'tests/integration/test_community_remove_user.py',
+    'tests/integration/test_events_operations.py',
+    'tests/integration/test_today_schedule.py',
+]
+
+TEST_FILES = UNIT_TEST_FILES + INTEGRATION_TEST_FILES
 
 def migrate_test_file(file_path: str):
     """

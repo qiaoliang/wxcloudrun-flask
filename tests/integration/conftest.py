@@ -480,7 +480,7 @@ class IntegrationTestBase(TestBase):
         Raises:
             ValueError: 当参数无效或操作失败时
         """
-        from wxcloudrun.community_staff_service import CommunityStaffService
+        from app.shared.utils.community_helpers import CommunityRuleHelper
 
         # 如果没有提供操作者ID，使用超级管理员
         if operator_id is None:

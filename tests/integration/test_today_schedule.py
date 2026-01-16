@@ -140,7 +140,7 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
         Returns:
             CommunityCheckinRule: 创建的社区规则对象
         """
-        from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
+        from app.shared.utils.community_helpers import CommunityRuleQueryHelper
         from database.flask_models import UserCommunityRule
 
         # 创建社区打卡规则
@@ -178,7 +178,7 @@ class TestTodayScheduleIntegration(IntegrationTestBase):
             user_id: 用户ID
             community_id: 社区ID
         """
-        from wxcloudrun.community_staff_service import CommunityStaffService
+        from app.shared.utils.community_helpers import CommunityRuleHelper
         from database.flask_models import User
 
         # 添加社区工作人员记录

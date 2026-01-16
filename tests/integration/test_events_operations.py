@@ -37,7 +37,7 @@ class TestEventsOperations(IntegrationTestBase):
             )
             
             # 将用户添加到社区
-            from wxcloudrun.community_service import CommunityService
+            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [user.user_id])
             
             # 保存需要的值，避免在 app_context 外访问 detached 对象
@@ -257,7 +257,7 @@ class TestEventsOperations(IntegrationTestBase):
             )
     
             # 将用户添加到社区
-            from wxcloudrun.community_service import CommunityService
+            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [user.user_id])
     
             # 创建一些事件
