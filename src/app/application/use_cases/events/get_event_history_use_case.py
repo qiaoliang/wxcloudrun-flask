@@ -5,7 +5,7 @@ import logging
 from sqlalchemy.orm import joinedload
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, CommunityEventMessage
+from database.flask_models import db, EventMessage
 
 
 class GetEventHistoryUseCase(BaseUseCase):
@@ -36,9 +36,9 @@ class GetEventHistoryUseCase(BaseUseCase):
 
             # 2. 查询事件消息
             stmt = db.session.execute(
-                db.select(CommunityEventMessage)
-                .where(CommunityEventMessage.event_id == event_id)
-                .order_by(CommunityEventMessage.created_at.asc())
+                db.select(EventMessage)
+                .where(EventMessage.event_id == event_id)
+                .order_by(EventMessage.created_at.asc())
                 .limit(limit)
             )
             messages = stmt.scalars().all()
@@ -49,8 +49,8 @@ class GetEventHistoryUseCase(BaseUseCase):
                 messages_data.append({
                     'message_id': msg.message_id,
                     'event_id': msg.event_id,
-                    'user_id': msg.user_id,
-                    'message': msg.message,
+                    'sender_id': msg.sender_id,
+                    'message_content': msg.message_content,
                     'message_type': msg.message_type,
                     'created_at': msg.created_at.isoformat() if msg.created_at else None
                 })

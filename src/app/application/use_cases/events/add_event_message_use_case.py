@@ -4,8 +4,11 @@
 import logging
 from datetime import datetime
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from app.shared.utils.transaction import transactional
-from database.flask_models import db, CommunityEventMessage
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.events.event_bus import EventBus
+from app.domain.entities.community_event_entity import CommunityEventEntity
+from app.domain.aggregates.community_event_aggregate import CommunityEventAggregate
+from database.flask_models import EventMessage
 
 
 class AddEventMessageUseCase(BaseUseCase):
@@ -14,8 +17,11 @@ class AddEventMessageUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        self.user_repository = RepositoryFactory.get_user_repository()
+        self.community_event_repository = RepositoryFactory.get_community_event_repository()
+        self.event_message_repository = RepositoryFactory.get_event_message_repository()
+        self.event_bus = EventBus()
 
-    @transactional
     def execute(self, event_id: int, user_id: int, message: str, message_type: str = 'text') -> UseCaseResult:
         """
         执行添加事件消息用例
@@ -37,24 +43,58 @@ class AddEventMessageUseCase(BaseUseCase):
                     message='参数不能为空'
                 )
 
-            # 2. 创建事件消息
-            event_message = CommunityEventMessage(
+            # 2. 验证用户是否存在
+            sender = self.user_repository.find_by_id(user_id)
+            if not sender:
+                return UseCaseResult(
+                    status=UseCaseStatus.NOT_FOUND,
+                    message='用户不存在'
+                )
+
+            # 3. 查找事件
+            event = self.community_event_repository.find_by_id(event_id)
+            if not event:
+                return UseCaseResult(
+                    status=UseCaseStatus.NOT_FOUND,
+                    message='事件不存在'
+                )
+
+            # 4. 创建事件聚合根并添加消息
+            event_entity = CommunityEventEntity(event)
+            event_aggregate = CommunityEventAggregate(event_entity, self.event_bus)
+
+            # 在聚合根中添加消息（业务规则在聚合根内验证）
+            try:
+                event_aggregate.add_message(
+                    sender_id=user_id,
+                    message=message,
+                    message_type=message_type
+                )
+            except ValueError as e:
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message=str(e)
+                )
+
+            # 5. 创建事件消息
+            event_message = EventMessage(
                 event_id=event_id,
-                user_id=user_id,
-                message=message,
+                sender_id=user_id,
+                message_content=message,
                 message_type=message_type,
+                status=1,
                 created_at=datetime.now()
             )
 
-            db.session.add(event_message)
+            saved_message = self.event_message_repository.save(event_message)
 
             self.logger.info(f'添加事件消息成功: event_id={event_id}, user_id={user_id}')
 
-            # 3. 返回结果
+            # 6. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='添加消息成功',
-                data={'message_id': event_message.message_id}
+                data={'message_id': saved_message.message_id}
             )
 
         except Exception as e:

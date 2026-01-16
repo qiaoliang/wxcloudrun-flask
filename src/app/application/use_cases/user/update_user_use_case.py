@@ -2,9 +2,13 @@
 更新用户信息用例
 """
 import logging
+from database.flask_models import User
+
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from app.shared.utils.transaction import transactional
-from database.flask_models import db, User
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.entities.user_entity import UserEntity
+from app.domain.aggregates.user_aggregate import UserAggregate
+from app.domain.events.event_bus import EventBus
 
 
 class UpdateUserUseCase(BaseUseCase):
@@ -13,8 +17,9 @@ class UpdateUserUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        self.user_repository = RepositoryFactory.get_user_repository()
+        self.event_bus = EventBus()
 
-    @transactional
     def execute(self, user: User) -> UseCaseResult:
         """
         执行更新用户信息用例
@@ -34,46 +39,44 @@ class UpdateUserUseCase(BaseUseCase):
                 )
 
             # 2. 查询现有用户
-            stmt = db.session.execute(
-                db.select(User).where(User.user_id == user.user_id)
-            )
-            existing_user = stmt.scalar_one_or_none()
-
+            existing_user = self.user_repository.find_by_id(user.user_id)
             if not existing_user:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
                     message='用户不存在'
                 )
 
-            # 3. 更新字段
+            # 3. 创建用户聚合根
+            user_entity = UserEntity(existing_user)
+            user_aggregate = UserAggregate(user_entity)
+
+            # 4. 更新字段（业务规则在聚合根内）
             if user.nickname is not None:
-                existing_user.nickname = user.nickname
+                user_aggregate.update_profile(nickname=user.nickname)
             if user.avatar_url is not None:
-                existing_user.avatar_url = user.avatar_url
+                user_aggregate.update_profile(avatar_url=user.avatar_url)
             if user.name is not None:
-                existing_user.name = user.name
-            if user.work_id is not None:
-                existing_user.work_id = user.work_id
-            if user.phone_number is not None:
-                existing_user.phone_number = user.phone_number
+                user_aggregate.update_profile(name=user.name)
             if user.address is not None:
-                existing_user.address = user.address
+                user_aggregate.update_profile(address=user.address)
             if user.motto is not None:
-                existing_user.motto = user.motto
-            if user.emergency_contact_name is not None:
-                existing_user.emergency_contact_name = user.emergency_contact_name
-            if user.emergency_contact_phone is not None:
-                existing_user.emergency_contact_phone = user.emergency_contact_phone
-            if user.emergency_contact_address is not None:
-                existing_user.emergency_contact_address = user.emergency_contact_address
+                user_aggregate.update_profile(motto=user.motto)
+
+            # 5. 保存更新
+            updated_user = self.user_repository.save(existing_user)
+
+            # 6. 发布领域事件
+            for event in user_aggregate.domain_events:
+                self.event_bus.publish(event)
+            user_aggregate.clear_domain_events()
 
             self.logger.info(f'更新用户信息成功: user_id={user.user_id}')
 
-            # 4. 返回结果
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='更新用户信息成功',
-                data={'user_id': existing_user.user_id}
+                data={'user_id': updated_user.user_id}
             )
 
         except Exception as e:

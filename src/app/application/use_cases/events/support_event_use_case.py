@@ -9,7 +9,9 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.event_bus import EventBus
 from app.domain.events.community_events import EventSupportedEvent
-from database.flask_models import EventMessage, CommunityEvent
+from app.domain.entities.community_event_entity import CommunityEventEntity
+from app.domain.aggregates.community_event_aggregate import CommunityEventAggregate
+from database.flask_models import EventMessage
 
 
 class SupportEventUseCase(BaseUseCase):
@@ -65,14 +67,7 @@ class SupportEventUseCase(BaseUseCase):
                     message='事件不存在'
                 )
 
-            # 4. 验证事件状态
-            if event.status != 1:  # 不是进行中状态
-                return UseCaseResult(
-                    status=UseCaseStatus.BUSINESS_ERROR,
-                    message='事件已结束，无法应援'
-                )
-
-            # 5. 验证发送者是否为社区工作人员
+            # 4. 验证发送者是否为社区工作人员
             is_staff = self.community_staff_repository.exists(event.community_id, sender_id)
             if not is_staff:
                 return UseCaseResult(
@@ -80,7 +75,7 @@ class SupportEventUseCase(BaseUseCase):
                     message='无权限进行应援操作'
                 )
 
-            # 6. 检查是否已经应援过
+            # 5. 检查是否已经应援过
             existing_messages = self.event_message_repository.find_active_by_event_id(event_id)
             for msg in existing_messages:
                 if msg.sender_id == sender_id:
@@ -88,6 +83,23 @@ class SupportEventUseCase(BaseUseCase):
                         status=UseCaseStatus.BUSINESS_ERROR,
                         message='您已经应援过该事件'
                     )
+
+            # 6. 创建事件聚合根并添加消息
+            event_entity = CommunityEventEntity(event)
+            event_aggregate = CommunityEventAggregate(event_entity, self.event_bus)
+
+            # 在聚合根中添加消息（业务规则在聚合根内验证）
+            try:
+                event_aggregate.add_message(
+                    sender_id=sender_id,
+                    message=message_content,
+                    message_type='text'
+                )
+            except ValueError as e:
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message=str(e)
+                )
 
             # 7. 创建应援记录
             support = EventMessage(
