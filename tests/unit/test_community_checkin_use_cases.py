@@ -710,7 +710,7 @@ class TestGetCommunityCheckinRulesUseCase:
         mock_rule1.rule_name = '规则1'
 
         with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.get_by_community_id.return_value = [mock_rule1]
+            mock_repo.find_by_community_id.return_value = [mock_rule1]
             # Act
             result = use_case.execute(community_id)
 
@@ -739,7 +739,11 @@ class TestGetCommunityCheckinRulesUseCase:
         mock_rule3.status = -1
 
         with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.get_by_community_id.return_value = [mock_rule1, mock_rule2, mock_rule3]
+            mock_repo.get_all_grouped_by_status.return_value = {
+                'enabled': [mock_rule1],
+                'disabled': [mock_rule2],
+                'deleted': [mock_rule3]
+            }
             # Act
             result = use_case.execute(community_id, grouped=True)
 
@@ -760,7 +764,7 @@ class TestGetCommunityCheckinRulesUseCase:
         community_id = 1
 
         with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.get_by_community_id.side_effect = Exception('数据库错误')
+            mock_repo.find_by_community_id.side_effect = Exception('数据库错误')
             # Act
             result = use_case.execute(community_id)
 
@@ -896,8 +900,8 @@ class TestGetCommunityCheckinStatsUseCase:
         user_id = 123
         days = 7
 
-        with patch('app.application.use_cases.community_checkin.get_community_checkin_stats_use_case.CommunityService') as mock_service:
-            mock_service.has_community_permission.return_value = False
+        with patch.object(use_case, 'dashboard_repository') as mock_repo:
+            mock_repo.has_permission.return_value = False
             # Act
             result = use_case.execute(community_id, user_id, days)
 
@@ -917,9 +921,9 @@ class TestGetCommunityCheckinStatsUseCase:
         user_id = 123
         days = 7
 
-        with patch('app.application.use_cases.community_checkin.get_community_checkin_stats_use_case.CommunityService') as mock_service:
-            mock_service.has_community_permission.return_value = True
-            mock_service.get_community_checkin_stats.side_effect = Exception('数据库错误')
+        with patch.object(use_case, 'dashboard_repository') as mock_repo:
+            mock_repo.has_permission.return_value = True
+            mock_repo.get_community_checkin_stats.side_effect = Exception('数据库错误')
             # Act
             result = use_case.execute(community_id, user_id, days)
 
@@ -996,21 +1000,6 @@ class TestGetCommunityDailyStatsUseCase:
             # Assert
             assert result.status == UseCaseStatus.SUCCESS
             assert '获取统计信息成功' in result.message
-        # Arrange
-        community_id = 1
-        user_id = 123
-        mock_stats = {'date': '2026-01-15', 'total': 10, 'completed': 8}
-
-        with patch('app.application.use_cases.community_checkin.get_community_daily_stats_use_case.CommunityService') as mock_service:
-            mock_service.has_community_permission.return_value = True
-            mock_service.get_community_daily_stats.return_value = mock_stats
-            # Act
-            result = use_case.execute(community_id, user_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '获取统计信息成功' in result.message
-            assert result.data == mock_stats
 
     def test_execute_no_permission(self, use_case):
         """
@@ -1023,8 +1012,8 @@ class TestGetCommunityDailyStatsUseCase:
         community_id = 1
         user_id = 123
 
-        with patch('app.application.use_cases.community_checkin.get_community_daily_stats_use_case.CommunityService') as mock_service:
-            mock_service.has_community_permission.return_value = False
+        with patch.object(use_case, 'dashboard_repository') as mock_repo:
+            mock_repo.has_permission.return_value = False
             # Act
             result = use_case.execute(community_id, user_id)
 
@@ -1043,9 +1032,9 @@ class TestGetCommunityDailyStatsUseCase:
         community_id = 1
         user_id = 123
 
-        with patch('app.application.use_cases.community_checkin.get_community_daily_stats_use_case.CommunityService') as mock_service:
-            mock_service.has_community_permission.return_value = True
-            mock_service.get_community_daily_stats.side_effect = Exception('数据库错误')
+        with patch.object(use_case, 'dashboard_repository') as mock_repo:
+            mock_repo.has_permission.return_value = True
+            mock_repo.get_community_daily_stats.side_effect = Exception('数据库错误')
             # Act
             result = use_case.execute(community_id, user_id)
 
@@ -1173,7 +1162,7 @@ class TestUpdateCommunityCheckinRuleUseCase:
 
         with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
             mock_repo.find_by_id.return_value = mock_rule
-            mock_repo.update.return_value = mock_rule
+            mock_repo.save.return_value = mock_rule
             # Act
             result = use_case.execute(rule_id, params, user_id)
 

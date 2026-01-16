@@ -78,12 +78,12 @@ class UpdateCommunityCheckinRuleUseCase(BaseUseCase):
             # 更新规则属性
             if 'rule_name' in params:
                 rule.rule_name = params['rule_name']
-            if 'checkin_time' in params:
-                rule.checkin_time = params['checkin_time']
-            if 'timezone' in params:
-                rule.timezone = params['timezone']
-            if 'grace_period_minutes' in params:
-                rule.grace_period_minutes = params['grace_period_minutes']
+            if 'custom_time' in params:
+                rule.custom_time = params['custom_time']
+            if 'frequency_type' in params:
+                rule.frequency_type = params['frequency_type']
+            if 'time_slot_type' in params:
+                rule.time_slot_type = params['time_slot_type']
             if 'icon_url' in params:
                 rule.icon_url = params['icon_url']
 

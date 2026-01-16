@@ -76,7 +76,8 @@ class DeleteCommunityCheckinRuleUseCase(BaseUseCase):
 
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
-                message='删除成功'
+                message='删除成功',
+                data={'rule_id': rule_id}
             )
 
         except Exception as e:
