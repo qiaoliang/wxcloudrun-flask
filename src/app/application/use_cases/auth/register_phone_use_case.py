@@ -19,7 +19,7 @@ from wxcloudrun.utils.validators import (
     _gen_phone_nickname,
     generate_phone_hash
 )
-from .base import BaseUseCase, UseCaseResult
+from app.application.use_cases.base import BaseUseCase, UseCaseResult
 
 
 class RegisterPhoneUseCase(BaseUseCase):
