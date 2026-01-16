@@ -1,5 +1,5 @@
 """
-邀请管理服务
+邀请管理用例
 
 处理邀请列表查询、接受、拒绝、忽略和批量接受逻辑
 """
@@ -12,8 +12,8 @@ from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from database.flask_models import db, SupervisionRuleRelation
 
 
-class InvitationManagementService(BaseUseCase):
-    """邀请管理服务"""
+class InvitationManagementUseCase(BaseUseCase):
+    """邀请管理用例"""
 
     # 邀请状态常量
     STATUS_PENDING = 1  # 待处理

@@ -11,7 +11,7 @@ from app.application.use_cases.supervision.get_guardians_use_case import GetGuar
 from app.application.use_cases.supervision.get_supervision_records_use_case import GetSupervisionRecordsUseCase
 from app.application.use_cases.supervision.get_today_supervision_data_use_case import GetTodaySupervisionDataUseCase
 from app.application.use_cases.supervision.send_internal_invitation_use_case import SendInternalInvitationUseCase
-from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
 from app.application.use_cases.base import UseCaseStatus
 
 
@@ -561,10 +561,10 @@ class TestSendInternalInvitationUseCase:
         assert '一次最多只能邀请3个用户' in result.message
 
 
-class TestInvitationManagementService:
-    """测试InvitationManagementService"""
+class TestInvitationManagementUseCase:
+    """测试InvitationManagementUseCase"""
 
-    @patch('app.application.use_cases.supervision.invitation_management_service.RepositoryFactory')
+    @patch('app.application.use_cases.supervision.invitation_management_use_case.RepositoryFactory')
     def test_should_successfully_accept_invitation(self, mock_repo_factory):
         """应该成功接受邀请"""
         # Arrange
@@ -581,7 +581,7 @@ class TestInvitationManagementService:
 
         mock_relation_repo.find_by_id.return_value = invitation
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
 
         # Act
         result = service.accept_invitation(
@@ -594,7 +594,7 @@ class TestInvitationManagementService:
         assert invitation.status == 2
         mock_relation_repo.update.assert_called_once()
 
-    @patch('app.application.use_cases.supervision.invitation_management_service.RepositoryFactory')
+    @patch('app.application.use_cases.supervision.invitation_management_use_case.RepositoryFactory')
     def test_should_fail_when_accepting_already_accepted_invitation(self, mock_repo_factory):
         """应该在接受已接受的邀请时失败"""
         # Arrange
@@ -608,7 +608,7 @@ class TestInvitationManagementService:
 
         mock_relation_repo.find_by_id.return_value = invitation
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
 
         # Act
         result = service.accept_invitation(
@@ -621,7 +621,7 @@ class TestInvitationManagementService:
         assert result.status == UseCaseStatus.BUSINESS_ERROR
         assert '您已经接受过该邀请' in result.message
 
-    @patch('app.application.use_cases.supervision.invitation_management_service.RepositoryFactory')
+    @patch('app.application.use_cases.supervision.invitation_management_use_case.RepositoryFactory')
     def test_should_successfully_reject_invitation(self, mock_repo_factory):
         """应该成功拒绝邀请"""
         # Arrange
@@ -636,7 +636,7 @@ class TestInvitationManagementService:
 
         mock_relation_repo.find_by_id.return_value = invitation
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
 
         # Act
         result = service.reject_invitation(
@@ -650,7 +650,7 @@ class TestInvitationManagementService:
         assert invitation.status == 3
         mock_relation_repo.update.assert_called_once()
 
-    @patch('app.application.use_cases.supervision.invitation_management_service.RepositoryFactory')
+    @patch('app.application.use_cases.supervision.invitation_management_use_case.RepositoryFactory')
     def test_should_successfully_ignore_invitation(self, mock_repo_factory):
         """应该成功忽略邀请"""
         # Arrange
@@ -666,7 +666,7 @@ class TestInvitationManagementService:
         mock_relation_repo.find_by_id.return_value = invitation
         mock_relation_repo.delete.return_value = True
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
 
         # Act
         result = service.ignore_invitation(
@@ -678,7 +678,7 @@ class TestInvitationManagementService:
         assert result.is_success
         mock_relation_repo.delete.assert_called_once_with(1001)
 
-    @patch('app.application.use_cases.supervision.invitation_management_service.RepositoryFactory')
+    @patch('app.application.use_cases.supervision.invitation_management_use_case.RepositoryFactory')
     def test_should_successfully_batch_accept_invitations(self, mock_repo_factory):
         """应该成功批量接受邀请"""
         # Arrange
@@ -699,7 +699,7 @@ class TestInvitationManagementService:
 
         mock_relation_repo.find_by_id.side_effect = [invitation1, invitation2]
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
 
         # Act
         result = service.batch_accept_invitations(

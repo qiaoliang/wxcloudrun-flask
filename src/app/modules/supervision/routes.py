@@ -17,7 +17,7 @@ from app.application.use_cases.supervision import (
     GetCheckinRuleByIdUseCase,
     SendInternalInvitationUseCase,
     InviteSupervisorUseCase,
-    InvitationManagementService,
+    InvitationManagementUseCase,
     GetSupervisedUsersUseCase,
     GetGuardiansUseCase,
     GetSupervisionRecordsUseCase,
@@ -350,10 +350,10 @@ def get_supervision_invitations(decoded):
             except ValueError:
                 return make_err_response({}, 'status参数格式错误')
 
-        # 使用邀请管理服务获取邀请列表
-        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+        # 使用邀请管理用例获取邀请列表
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
         result = service.get_invitations(
             user_id=user.user_id,
             page=page,
@@ -644,9 +644,9 @@ def get_today_supervision_data(decoded):
             return make_err_response({}, result.message)
 
         # 获取待处理邀请数量
-        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
 
-        invitation_service = InvitationManagementService()
+        invitation_service = InvitationManagementUseCase()
         pending_invitations_result = invitation_service.get_invitations(
             user_id=user.user_id,
             page=1,
@@ -776,10 +776,10 @@ def accept_invitation(decoded, invitation_id):
     user = user_result.data
 
     try:
-        # 使用邀请管理服务接受邀请
-        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+        # 使用邀请管理用例接受邀请
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
         result = service.accept_invitation(
             invitation_id=invitation_id,
             user_id=user.user_id
@@ -820,10 +820,10 @@ def reject_invitation(decoded, invitation_id):
         params = request.get_json() or {}
         reason = params.get('reason', '')
 
-        # 使用邀请管理服务拒绝邀请
-        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+        # 使用邀请管理用例拒绝邀请
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
         result = service.reject_invitation(
             invitation_id=invitation_id,
             user_id=user.user_id,
@@ -860,10 +860,10 @@ def ignore_invitation(decoded, invitation_id):
     user = user_result.data
 
     try:
-        # 使用邀请管理服务忽略邀请
-        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+        # 使用邀请管理用例忽略邀请
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
 
-        service = InvitationManagementService()
+        service = InvitationManagementUseCase()
         result = service.ignore_invitation(
             invitation_id=invitation_id,
             user_id=user.user_id
@@ -906,8 +906,8 @@ def batch_accept_invitations(decoded):
         if not invitation_ids or len(invitation_ids) == 0:
             return make_err_response({}, '缺少invitation_ids参数')
 
-        # 使用邀请管理服务批量接受邀请
-        from app.application.use_cases.supervision.invitation_management_service import InvitationManagementService
+        # 使用邀请管理用例批量接受邀请
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
 
         service = InvitationManagementService()
         result = service.batch_accept_invitations(
