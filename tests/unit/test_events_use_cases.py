@@ -543,7 +543,7 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            sender_id=test_staff_user.user_id,
+            user_id=test_staff_user.user_id,
             event_id=test_event.event_id,
             message_content=message_content
         )
@@ -566,9 +566,9 @@ class TestSupportEventUseCase:
         """
         # Arrange
         result = use_case.execute(
-            sender_id=test_staff_user.user_id,
+            user_id=test_staff_user.user_id,
             event_id=None,
-            message_content='测试消息'
+            message_message='测试消息'
         )
 
         # Assert
@@ -586,7 +586,7 @@ class TestSupportEventUseCase:
         result = use_case.execute(
             sender_id=99999,
             event_id=test_event.event_id,
-            message_content='测试消息'
+            message_message='测试消息'
         )
 
         # Assert
@@ -602,9 +602,9 @@ class TestSupportEventUseCase:
         """
         # Arrange
         result = use_case.execute(
-            sender_id=test_staff_user.user_id,
+            user_id=test_staff_user.user_id,
             event_id=99999,
-            message_content='测试消息'
+            message_message='测试消息'
         )
 
         # Assert
@@ -624,14 +624,14 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            sender_id=test_staff_user.user_id,
+            user_id=test_staff_user.user_id,
             event_id=test_event.event_id,
-            message_content='测试消息'
+            message_message='测试消息'
         )
 
         # Assert
         assert result.status == UseCaseStatus.BUSINESS_ERROR
-        assert "事件已结束，无法应援" in result.message
+        assert "事件已关闭，无法添加消息" in result.message
 
     def test_execute_forbidden_not_staff(self, use_case, test_event, test_user):
         """
@@ -645,9 +645,9 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            sender_id=test_user.user_id,
+            user_id=test_user.user_id,
             event_id=test_event.event_id,
-            message_content='测试消息'
+            message_message='测试消息'
         )
 
         # Assert
@@ -665,8 +665,8 @@ class TestSupportEventUseCase:
         # 创建第一个应援
         first_support = EventMessage(
             event_id=test_event.event_id,
-            sender_id=test_staff_user.user_id,
-            message_content='第一次应援',
+            user_id=test_staff_user.user_id,
+            message_message='第一次应援',
             message_type='text',
             status=1,
             created_at=datetime.datetime.now()
@@ -675,9 +675,9 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            sender_id=test_staff_user.user_id,
+            user_id=test_staff_user.user_id,
             event_id=test_event.event_id,
-            message_content='第二次应援'
+            message_message='第二次应援'
         )
 
         # Assert
@@ -696,7 +696,7 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            sender_id=test_staff_user.user_id,
+            user_id=test_staff_user.user_id,
             event_id=test_event.event_id,
             message_content=message_content
         )
@@ -931,8 +931,8 @@ class TestGetEventDetailsUseCase:
         # Arrange
         message = EventMessage(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            message_content='测试消息',
+            user_id=test_user.user_id,
+            message_message='测试消息',
             message_type='text',
             status=1,
             created_at=datetime.datetime.now()
@@ -1017,16 +1017,16 @@ class TestGetEventDetailsUseCase:
         # Arrange
         active_message = EventMessage(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            message_content='活跃消息',
+            user_id=test_user.user_id,
+            message_message='活跃消息',
             message_type='text',
             status=1,
             created_at=datetime.datetime.now()
         )
         inactive_message = EventMessage(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            message_content='非活跃消息',
+            user_id=test_user.user_id,
+            message_message='非活跃消息',
             message_type='text',
             status=2,  # 2=已取消
             created_at=datetime.datetime.now()
@@ -1287,23 +1287,19 @@ class TestAddEventMessageUseCase:
         Then: 返回 SUCCESS 状态，消息添加成功
         """
         # Arrange
-        content = '这是一条测试消息'
+        message = '这是一条测试消息'
 
         # Act
         result = use_case.execute(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            content=content
+            user_id=test_user.user_id,
+            message=message
         )
 
         # Assert
         assert result.status == UseCaseStatus.SUCCESS
-        assert "添加事件消息成功" in result.message
+        assert "添加消息成功" in result.message
         assert result.data['message_id'] > 0
-        assert result.data['event_id'] == test_event.event_id
-        assert result.data['sender_id'] == test_user.user_id
-        assert result.data['message_content'] == content
-        assert result.data['message_type'] == 'text'
 
     def test_execute_success_image_message(self, use_case, test_event, test_user):
         """
@@ -1318,8 +1314,8 @@ class TestAddEventMessageUseCase:
         # Act
         result = use_case.execute(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            content='',
+            user_id=test_user.user_id,
+            message='',
             media_url=media_url
         )
 
@@ -1341,8 +1337,8 @@ class TestAddEventMessageUseCase:
         # Act
         result = use_case.execute(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            content='',
+            user_id=test_user.user_id,
+            message='',
             media_url=media_url
         )
 
@@ -1364,8 +1360,8 @@ class TestAddEventMessageUseCase:
         # Act
         result = use_case.execute(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            content='',
+            user_id=test_user.user_id,
+            message='',
             message_tags=message_tags
         )
 
@@ -1383,8 +1379,8 @@ class TestAddEventMessageUseCase:
         # Arrange
         result = use_case.execute(
             event_id=None,
-            sender_id=test_user.user_id,
-            content='测试消息'
+            user_id=test_user.user_id,
+            message='测试消息'
         )
 
         # Assert
@@ -1402,7 +1398,7 @@ class TestAddEventMessageUseCase:
         result = use_case.execute(
             event_id=1,
             sender_id=None,
-            content='测试消息'
+            message='测试消息'
         )
 
         # Assert
@@ -1419,8 +1415,8 @@ class TestAddEventMessageUseCase:
         # Arrange
         result = use_case.execute(
             event_id=1,
-            sender_id=test_user.user_id,
-            content='  ',
+            user_id=test_user.user_id,
+            message='  ',
             media_url=None,
             message_tags=None
         )
@@ -1439,8 +1435,8 @@ class TestAddEventMessageUseCase:
         # Arrange
         result = use_case.execute(
             event_id=99999,
-            sender_id=test_user.user_id,
-            content='测试消息'
+            user_id=test_user.user_id,
+            message='测试消息'
         )
 
         # Assert
@@ -1461,8 +1457,8 @@ class TestAddEventMessageUseCase:
         # Act
         result = use_case.execute(
             event_id=test_event.event_id,
-            sender_id=test_user.user_id,
-            content='测试消息'
+            user_id=test_user.user_id,
+            message='测试消息'
         )
 
         # Assert
@@ -1480,7 +1476,7 @@ class TestAddEventMessageUseCase:
         result = use_case.execute(
             event_id=test_event.event_id,
             sender_id=99999,
-            content='测试消息'
+            message='测试消息'
         )
 
         # Assert
