@@ -11,8 +11,18 @@ from . import supervision_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
-from wxcloudrun.user_service import UserService
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
+from app.application.use_cases.supervision import (
+    GetUserByIdUseCase,
+    GetUserByOpenIdUseCase,
+    GetCheckinRuleByIdUseCase,
+    SendInternalInvitationUseCase,
+    InviteSupervisorUseCase,
+    InvitationManagementService,
+    GetSupervisedUsersUseCase,
+    GetGuardiansUseCase,
+    GetSupervisionRecordsUseCase,
+    GetTodaySupervisionDataUseCase
+)
 from database.flask_models import db, SupervisionRuleRelation, CheckinRecord, CheckinRule
 from app.shared.utils.transaction import transaction
 
@@ -30,10 +40,12 @@ def invite_supervisor_internal(decoded):
     current_app.logger.info('=== 开始执行站内邀请监督者接口 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取请求参数
@@ -79,10 +91,12 @@ def invite_supervisor(decoded):
     current_app.logger.info('=== 开始执行邀请监督者接口 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取请求参数
@@ -93,14 +107,17 @@ def invite_supervisor(decoded):
 
         # 支持使用 target_user_id 或 target_openid 查询被邀请用户
         if target_user_id:
-            target_user = UserService.query_user_by_id(target_user_id)
+            get_target_user_use_case = GetUserByIdUseCase()
+            target_user_result = get_target_user_use_case.execute(user_id=target_user_id)
         elif target_openid:
-            target_user = UserService.query_user_by_openid(target_openid)
+            get_target_user_use_case = GetUserByOpenIdUseCase()
+            target_user_result = get_target_user_use_case.execute(openid=target_openid)
         else:
             return make_err_response({}, '缺少target_user_id或target_openid参数')
 
-        if not target_user:
+        if not target_user_result.is_success:
             return make_err_response({}, '被邀请用户不存在')
+        target_user = target_user_result.data
 
         # 使用应用服务用例邀请监督者
         from app.application.use_cases.supervision import InviteSupervisorUseCase
@@ -132,10 +149,12 @@ def create_invite_link(decoded):
     current_app.logger.info('=== 开始创建监督邀请链接 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         params = request.get_json()
@@ -182,11 +201,16 @@ def create_invite_link(decoded):
 
         # 保存邀请信息到数据库
         # 为每个规则创建监督关系记录
+        get_rule_use_case = GetCheckinRuleByIdUseCase()
         for rule_id in rule_ids:
             # 检查规则是否存在且属于当前用户
-            rule = UserCheckinRuleService.query_rule_by_id(rule_id)
-            if not rule or rule.user_id != user.user_id:
-                current_app.logger.warning(f'规则 {rule_id} 不存在或不属于用户 {user.user_id}')
+            rule_result = get_rule_use_case.execute(rule_id=rule_id)
+            if not rule_result.is_success:
+                current_app.logger.warning(f'规则 {rule_id} 不存在')
+                continue
+            rule = rule_result.data
+            if rule.user_id != user.user_id:
+                current_app.logger.warning(f'规则 {rule_id} 不属于用户 {user.user_id}')
                 continue
 
             # 创建监督关系记录（状态为1=待确认）
@@ -244,9 +268,11 @@ def resolve_invite_link():
             return make_err_response({}, '邀请链接已过期')
 
         # 获取被监督人信息
-        solo_user = UserService.query_user_by_id(relations[0].solo_user_id)
-        if not solo_user:
+        get_user_use_case = GetUserByIdUseCase()
+        solo_user_result = get_user_use_case.execute(user_id=relations[0].solo_user_id)
+        if not solo_user_result.is_success:
             return make_err_response({}, '被监督人不存在')
+        solo_user = solo_user_result.data
 
         # 获取规则信息
         rule_ids = [r.rule_id for r in relations]
@@ -303,10 +329,12 @@ def get_supervision_invitations(decoded):
     current_app.logger.info('=== 开始获取邀请列表 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取查询参数
@@ -355,10 +383,12 @@ def accept_supervision(decoded):
     current_app.logger.info('=== 开始接受监督邀请 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         params = request.get_json()
@@ -404,10 +434,12 @@ def reject_supervision(decoded):
     current_app.logger.info('=== 开始拒绝监督邀请 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         params = request.get_json()
@@ -450,10 +482,12 @@ def get_my_supervised_users(decoded):
     current_app.logger.info('=== 开始获取我监督的用户列表 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取查询参数
@@ -490,10 +524,12 @@ def get_my_guardians(decoded):
     current_app.logger.info('=== 开始获取监督我的用户列表 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取查询参数
@@ -530,10 +566,12 @@ def get_supervision_records(decoded):
     current_app.logger.info('=== 开始获取监督记录 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取查询参数
@@ -576,10 +614,12 @@ def get_today_supervision_data(decoded):
     current_app.logger.info('=== 开始获取今日监护数据 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取查询参数
@@ -641,10 +681,12 @@ def send_reminder(decoded):
     current_app.logger.info('=== 开始发送提醒 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         params = request.get_json()
@@ -668,14 +710,20 @@ def send_reminder(decoded):
             return make_err_response({}, '监督关系不存在或未激活')
 
         # 获取被监护人信息
-        supervised_user = UserService.query_user_by_id(supervised_user_id)
-        if not supervised_user or not supervised_user.wechat_openid:
-            return make_err_response({}, '被监护人不存在或未绑定微信')
+        get_supervised_user_use_case = GetUserByIdUseCase()
+        supervised_user_result = get_supervised_user_use_case.execute(user_id=supervised_user_id)
+        if not supervised_user_result.is_success:
+            return make_err_response({}, '被监护人不存在')
+        supervised_user = supervised_user_result.data
+        if not supervised_user.wechat_openid:
+            return make_err_response({}, '被监护人未绑定微信')
 
         # 获取规则信息
-        rule = UserCheckinRuleService.query_rule_by_id(rule_id)
-        if not rule:
+        get_rule_use_case = GetCheckinRuleByIdUseCase()
+        rule_result = get_rule_use_case.execute(rule_id=rule_id)
+        if not rule_result.is_success:
             return make_err_response({}, '打卡规则不存在')
+        rule = rule_result.data
 
         # 获取模板内容
         if template_type == 'custom' and template_content:
@@ -720,10 +768,12 @@ def accept_invitation(decoded, invitation_id):
     current_app.logger.info('=== 开始接受邀请 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 使用邀请管理服务接受邀请
@@ -758,10 +808,12 @@ def reject_invitation(decoded, invitation_id):
     current_app.logger.info('=== 开始拒绝邀请 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取请求参数
@@ -800,10 +852,12 @@ def ignore_invitation(decoded, invitation_id):
     current_app.logger.info('=== 开始忽略邀请 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 使用邀请管理服务忽略邀请
@@ -837,10 +891,12 @@ def batch_accept_invitations(decoded):
     current_app.logger.info('=== 开始批量接受邀请 ===')
 
     user_id = decoded.get('user_id')
-    user = UserService.query_user_by_id(user_id)
-    if not user:
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
+    user = user_result.data
 
     try:
         # 获取请求参数
