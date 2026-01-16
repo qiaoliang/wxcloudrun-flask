@@ -9,8 +9,8 @@ sys.path.insert(0, project_root)
 
 from database.flask_models import User, Community, CommunityCheckinRule
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from wxcloudrun.community_service import CommunityService
+from app.shared.utils.community_helpers import CommunityRuleQueryHelper
+from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
 from wxcloudrun.user_service import UserService
 from wxcloudrun.user_service import random_str
 import uuid as uuid_str

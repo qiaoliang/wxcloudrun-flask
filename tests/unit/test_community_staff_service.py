@@ -14,7 +14,7 @@ src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 sys.path.insert(0, src_path)
 
 from database.flask_models import User, Community, CommunityStaff
-from wxcloudrun.community_staff_service import CommunityStaffService
+from app.shared.utils.community_helpers import CommunityRuleHelper
 from test_constants import TEST_CONSTANTS
 from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
 from hashlib import sha256

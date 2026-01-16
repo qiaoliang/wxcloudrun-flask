@@ -5,8 +5,8 @@ import pytest
 from datetime import datetime
 from hashlib import sha256
 from database.flask_models import db, User, Community, CommunityApplication, CommunityCheckinRule, UserCommunityRule
-from wxcloudrun.community_service import CommunityService
-from wxcloudrun.community_staff_service import CommunityStaffService
+from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
+from app.shared.utils.community_helpers import CommunityRuleHelper
 from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
 from test_constants import TEST_CONSTANTS
 

@@ -7,7 +7,7 @@ from sqlalchemy import select
 from hashlib import sha256
 
 from database.flask_models import Community, User
-from wxcloudrun.community_service import CommunityService
+from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
 from test_data_generator import (
     generate_unique_phone_number,
     generate_unique_openid,

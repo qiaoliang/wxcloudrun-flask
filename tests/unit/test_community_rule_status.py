@@ -4,8 +4,8 @@
 """
 import pytest
 from datetime import datetime, date
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
+from app.shared.utils.community_helpers import CommunityRuleQueryHelper
+from app.shared.utils.community_helpers import CommunityRuleQueryHelper
 from database.flask_models import CommunityCheckinRule, UserCommunityRule, User, Community, CommunityStaff
 
 # 添加上级目录到路径以导入test_data_generator

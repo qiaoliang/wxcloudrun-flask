@@ -14,7 +14,7 @@ from datetime import datetime
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from database.flask_models import User, Community, CommunityStaff
-from wxcloudrun.community_service import CommunityService
+from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
 from const_default import DEFAULT_COMMUNITY_ID, DEFAULT_BLACK_ROOM_ID, DEFAULT_COMMUNITY_NAME, DEFAULT_BLACK_ROOM_NAME
 from test_data_generator import generate_unique_phone_number, generate_unique_openid, generate_unique_nickname
 from test_constants import TEST_CONSTANTS

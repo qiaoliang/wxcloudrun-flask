@@ -6,8 +6,8 @@ import string
 from datetime import datetime
 
 from database.flask_models import db, User, Community, CommunityCheckinRule, CheckinRule, UserCommunityRule
-from wxcloudrun.community_staff_service import CommunityStaffService
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
+from app.shared.utils.community_helpers import CommunityRuleHelper
+from app.shared.utils.community_helpers import CommunityRuleQueryHelper
 
 
 

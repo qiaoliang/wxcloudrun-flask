@@ -12,8 +12,8 @@ from database.flask_models import (
     UserDailyAbnormality, UserCommunityRule
 )
 from wxcloudrun.community_dashboard_service import CommunityDashboardService
-from wxcloudrun.community_service import CommunityService
-from wxcloudrun.community_checkin_rule_service import CommunityCheckinRuleService
+from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
+from app.shared.utils.community_helpers import CommunityRuleQueryHelper
 from app.shared.constants.roles import Role
 import uuid as uuid_str
 

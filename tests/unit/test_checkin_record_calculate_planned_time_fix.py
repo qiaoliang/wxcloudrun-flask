@@ -3,7 +3,7 @@
 """
 import unittest
 from datetime import datetime, date, time
-from wxcloudrun.user_checkin_rule_service import UserCheckinRuleService
+from app.shared.utils.community_helpers import CommunityRuleQueryHelper
 
 
 class TestCalculatePlannedTimeFix(unittest.TestCase):
