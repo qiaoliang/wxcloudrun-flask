@@ -86,13 +86,46 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     user = db.session.get(User, application.user_id)
                     if user:
                         user.community_id = application.target_community_id
+                        user.community_joined_at = datetime.now()
 
                     # 同步社区打卡规则到用户
-                    from wxcloudrun.community_staff_service import CommunityStaffService
-                    CommunityStaffService._activate_new_community_rules(
-                        application.user_id,
-                        application.target_community_id
+                    # 获取新社区的所有启用规则
+                    from database.flask_models import UserCommunityRule, CommunityCheckinRule
+                    from sqlalchemy import select
+
+                    stmt_new = select(CommunityCheckinRule).where(
+                        CommunityCheckinRule.community_id == application.target_community_id,
+                        CommunityCheckinRule.status == 1  # 启用状态
                     )
+                    new_community_rules = db.session.execute(stmt_new).scalars().all()
+
+                    activated_count = 0
+
+                    # 为用户创建或激活规则映射
+                    for rule in new_community_rules:
+                        # 查找是否已存在映射记录
+                        stmt_mapping = select(UserCommunityRule).where(
+                            UserCommunityRule.user_id == application.user_id,
+                            UserCommunityRule.community_rule_id == rule.community_rule_id
+                        )
+                        existing_mapping = db.session.execute(stmt_mapping).scalar_one_or_none()
+
+                        if existing_mapping:
+                            # 如果存在且当前是停用状态，重新激活
+                            if not existing_mapping.is_active:
+                                existing_mapping.is_active = True
+                                activated_count += 1
+                        else:
+                            # 如果不存在，创建新映射
+                            new_mapping = UserCommunityRule(
+                                user_id=application.user_id,
+                                community_rule_id=rule.community_rule_id,
+                                is_active=True
+                            )
+                            db.session.add(new_mapping)
+                            activated_count += 1
+
+                    logger.info(f"用户{application.user_id}已激活{activated_count}个新社区规则")
 
                     # 记录审计日志
                     audit_log = UserAuditLog(

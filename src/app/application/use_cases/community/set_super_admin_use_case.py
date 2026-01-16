@@ -2,11 +2,11 @@
 设置超级管理员用例
 """
 import logging
+from sqlalchemy import select
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, User, UserAuditLog
-from app.shared.constants.roles import Role
-from wxcloudrun.community_staff_service import CommunityStaffService
+from database.flask_models import db, User, UserAuditLog, CommunityStaff
+from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
 
 logger = logging.getLogger(__name__)
 
@@ -103,12 +103,25 @@ class SetSuperAdminUseCase(BaseUseCase):
                         data={'success': True, 'message': '该用户不是超级管理员'}
                     )
 
-                # 先临时将角色改为普通用户，以便 _recalculate_user_role 可以正确计算
-                target_user.role = Role.SOLO
-                db.session.flush()
-
                 # 取消超级管理员身份，根据工作人员身份重新计算role
-                new_role = CommunityStaffService._recalculate_user_role(target_user_id)
+                # 查询用户在所有社区的工作人员角色
+                stmt = select(CommunityStaff).where(
+                    CommunityStaff.user_id == target_user_id,
+                    CommunityStaff.removed_at.is_(None)
+                )
+                staff_records = db.session.execute(stmt).scalars().all()
+
+                # 重新计算用户角色
+                if not staff_records:
+                    # 如果没有任何工作人员记录，设为普通用户
+                    new_role = Role.SOLO
+                else:
+                    # 检查是否有主管角色
+                    has_manager = any(record.role == STAFF_ROLE_MANAGER for record in staff_records)
+                    new_role = Role.MANAGER if has_manager else Role.STAFF
+
+                target_user.role = new_role
+                db.session.flush()
 
                 # 记录审计日志
                 audit_log = UserAuditLog(
