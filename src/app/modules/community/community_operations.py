@@ -12,6 +12,13 @@ from database.flask_models import db, User, Community
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.utils.validators import _audit
 from app.shared.constants.roles import Role
+from app.application.use_cases.community import (
+    CreateCommunityUseCase,
+    UpdateCommunityUseCase,
+    DeleteCommunityUseCase,
+    ToggleCommunityStatusUseCase,
+    CheckCommunityPermissionUseCase
+)
 
 app_logger = logging.getLogger('log')
 

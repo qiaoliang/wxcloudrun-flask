@@ -18,6 +18,8 @@ from .verify_user_community_access_use_case import VerifyUserCommunityAccessUseC
 from .get_community_members_use_case import GetCommunityMembersUseCase
 from .remove_user_from_community_use_case import RemoveUserFromCommunityUseCase
 from .add_users_to_community_use_case import AddUsersToCommunityUseCase
+from .search_users_use_case import SearchUsersUseCase
+from .search_manageable_communities_use_case import SearchManageableCommunitiesUseCase
 
 __all__ = [
     'CreateCommunityUseCase',
@@ -35,5 +37,7 @@ __all__ = [
     'VerifyUserCommunityAccessUseCase',
     'GetCommunityMembersUseCase',
     'RemoveUserFromCommunityUseCase',
-    'AddUsersToCommunityUseCase'
+    'AddUsersToCommunityUseCase',
+    'SearchUsersUseCase',
+    'SearchManageableCommunitiesUseCase'
 ]
