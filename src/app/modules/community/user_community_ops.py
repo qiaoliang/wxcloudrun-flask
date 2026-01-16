@@ -10,7 +10,7 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
 from database.flask_models import db, User, Community
 from wxcloudrun.utils.validators import _audit
-from .utils import _format_community_info
+from app.application.use_cases.community import FormatCommunityInfoUseCase
 
 app_logger = logging.getLogger('log')
 
@@ -48,10 +48,15 @@ def get_user_community():
         if not has_access:
             return make_err_response({}, '用户不属于该社区')
 
-        community_data = _format_community_info(community)
+        # 使用UseCase格式化社区信息
+        format_use_case = FormatCommunityInfoUseCase()
+        format_result = format_use_case.execute(community)
+
+        if not format_result.is_success:
+            return make_err_response({}, format_result.message)
 
         current_app.logger.info(f'获取用户社区信息成功: user_id={user_id}, community_id={user.community_id}')
-        return make_succ_response(community_data)
+        return make_succ_response(format_result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取用户社区信息失败: {str(e)}', exc_info=True)

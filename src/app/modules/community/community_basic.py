@@ -14,9 +14,10 @@ from app.application.use_cases.community import (
     GetManagedCommunitiesUseCase,
     GetAvailableCommunitiesUseCase,
     SearchManageableCommunitiesUseCase,
-    CheckCommunityPermissionUseCase
+    CheckCommunityPermissionUseCase,
+    FormatCommunityInfoUseCase
 )
-from .utils import _check_superadmin_permission, _format_community_info
+from .utils import _check_superadmin_permission
 
 app_logger = logging.getLogger('log')
 
@@ -58,11 +59,13 @@ def get_communities():
         stmt = select(Community)
         communities = db.session.execute(stmt).scalars().all()
 
-        # 格式化社区信息
+        # 使用UseCase格式化社区信息
+        format_use_case = FormatCommunityInfoUseCase()
         communities_data = []
         for community in communities:
-            community_data = _format_community_info(community, include_worker_stats=True)
-            communities_data.append(community_data)
+            result = format_use_case.execute(community, include_worker_stats=True)
+            if result.is_success:
+                communities_data.append(result.data)
 
         current_app.logger.info(f'获取社区列表成功，共 {len(communities_data)} 个社区')
         return make_succ_response({'communities': communities_data})
@@ -93,11 +96,13 @@ def get_community_list():
         if not result.is_success:
             return make_err_response({}, result.message)
 
-        # 格式化社区信息（包含主管信息）
+        # 使用UseCase格式化社区信息（包含主管信息）
+        format_use_case = FormatCommunityInfoUseCase()
         communities_data = []
         for community in result.data.get('communities', []):
-            community_data = _format_community_info(community, include_worker_stats=True)
-            communities_data.append(community_data)
+            format_result = format_use_case.execute(community, include_worker_stats=True)
+            if format_result.is_success:
+                communities_data.append(format_result.data)
 
         current_app.logger.info(f'获取用户社区列表成功，共 {len(communities_data)} 个社区')
         return make_succ_response({'communities': communities_data})
@@ -128,11 +133,13 @@ def get_available_communities():
         if not result.is_success:
             return make_err_response({}, result.message)
 
-        # 格式化社区信息
+        # 使用UseCase格式化社区信息
+        format_use_case = FormatCommunityInfoUseCase()
         communities_data = []
         for community in result.data.get('communities', []):
-            community_data = _format_community_info(community)
-            communities_data.append(community_data)
+            format_result = format_use_case.execute(community)
+            if format_result.is_success:
+                communities_data.append(format_result.data)
 
         current_app.logger.info(f'获取可加入社区列表成功，共 {len(communities_data)} 个社区')
         return make_succ_response({'communities': communities_data})
