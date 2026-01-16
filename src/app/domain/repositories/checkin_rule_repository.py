@@ -45,3 +45,8 @@ class CheckinRuleRepository(ABC):
     def soft_delete(self, rule_id: int) -> bool:
         """软删除打卡规则"""
         pass
+
+    @abstractmethod
+    def find_active_rules(self) -> List[CheckinRule]:
+        """查找所有启用的打卡规则"""
+        pass

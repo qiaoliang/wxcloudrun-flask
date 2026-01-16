@@ -69,3 +69,15 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
             self.session.flush()
             return True
         return False
+
+    def find_active_rules(self) -> List[CheckinRule]:
+        """查找所有启用的打卡规则"""
+        from sqlalchemy import and_
+        
+        stmt = select(CheckinRule).where(
+            and_(
+                CheckinRule.status != 2  # 排除已删除的规则
+            )
+        )
+        
+        return list(self.session.execute(stmt).scalars().all())

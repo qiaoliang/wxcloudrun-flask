@@ -174,3 +174,12 @@ class SQLAlchemyCommunityCheckinRuleRepository(CommunityCheckinRuleRepository):
                 result['deleted'].append(rule)
 
         return result
+
+    def find_active_rules(self) -> List[CommunityCheckinRule]:
+        """查找所有启用的社区打卡规则"""
+        query = select(CommunityCheckinRule).where(
+            CommunityCheckinRule.status == 1
+        )
+
+        result = db.session.execute(query)
+        return list(result.scalars().all())

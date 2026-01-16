@@ -130,3 +130,8 @@ class CommunityCheckinRuleRepository(ABC):
             按状态分组的规则字典 {'enabled': [], 'disabled': [], 'deleted': []}
         """
         pass
+
+    @abstractmethod
+    def find_active_rules(self) -> List[CommunityCheckinRule]:
+        """查找所有启用的社区打卡规则"""
+        pass

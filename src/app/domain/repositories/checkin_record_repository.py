@@ -75,3 +75,31 @@ class CheckinRecordRepository(ABC):
     def count_by_user_id(self, user_id: int, start_date: Optional[date] = None, end_date: Optional[date] = None) -> int:
         """统计用户打卡记录数量"""
         pass
+
+    @abstractmethod
+    def find_by_rule_and_date(self, rule_id: int, check_date: date, rule_source: str = 'personal') -> List[CheckinRecord]:
+        """根据规则ID和日期查询打卡记录"""
+        pass
+
+    @abstractmethod
+    def find_by_community_rule_and_users(
+        self,
+        community_rule_id: int,
+        user_ids: List[int],
+        planned_time: datetime
+    ) -> List[CheckinRecord]:
+        """根据社区规则ID和用户列表查询打卡记录"""
+        pass
+
+    @abstractmethod
+    def create(
+        self,
+        rule_id: int,
+        user_id: int,
+        checkin_time: Optional[datetime],
+        planned_time: datetime,
+        status: int,
+        rule_source: str = 'personal'
+    ) -> CheckinRecord:
+        """创建打卡记录"""
+        pass

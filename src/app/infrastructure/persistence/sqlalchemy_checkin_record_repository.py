@@ -127,3 +127,74 @@ class SQLAlchemyCheckinRecordRepository(CheckinRecordRepository):
             stmt = stmt.where(CheckinRecord.planned_time <= datetime.combine(end_date, datetime.max.time()))
         
         return len(list(self.session.execute(stmt).scalars().all()))
+
+    def find_by_rule_and_date(self, rule_id: int, check_date: date, rule_source: str = 'personal') -> List[CheckinRecord]:
+        """根据规则ID和日期查询打卡记录"""
+        from sqlalchemy import func
+        
+        if rule_source == 'community':
+            stmt = select(CheckinRecord).where(
+                and_(
+                    CheckinRecord.community_rule_id == rule_id,
+                    func.date(CheckinRecord.planned_time) == check_date
+                )
+            )
+        else:
+            stmt = select(CheckinRecord).where(
+                and_(
+                    CheckinRecord.rule_id == rule_id,
+                    func.date(CheckinRecord.planned_time) == check_date
+                )
+            )
+        
+        return list(self.session.execute(stmt).scalars().all())
+
+    def find_by_community_rule_and_users(
+        self,
+        community_rule_id: int,
+        user_ids: List[int],
+        planned_time: datetime
+    ) -> List[CheckinRecord]:
+        """根据社区规则ID和用户列表查询打卡记录"""
+        stmt = select(CheckinRecord).where(
+            and_(
+                CheckinRecord.community_rule_id == community_rule_id,
+                CheckinRecord.user_id.in_(user_ids),
+                CheckinRecord.planned_time >= planned_time,
+                CheckinRecord.planned_time < planned_time + timedelta(days=1)
+            )
+        )
+        
+        return list(self.session.execute(stmt).scalars().all())
+
+    def create(
+        self,
+        rule_id: int,
+        user_id: int,
+        checkin_time: Optional[datetime],
+        planned_time: datetime,
+        status: int,
+        rule_source: str = 'personal'
+    ) -> CheckinRecord:
+        """创建打卡记录"""
+        if rule_source == 'community':
+            record = CheckinRecord(
+                community_rule_id=rule_id,
+                user_id=user_id,
+                solo_user_id=user_id,
+                checkin_time=checkin_time,
+                status=status,
+                planned_time=planned_time
+            )
+        else:
+            record = CheckinRecord(
+                rule_id=rule_id,
+                user_id=user_id,
+                checkin_time=checkin_time,
+                status=status,
+                planned_time=planned_time
+            )
+        
+        self.session.add(record)
+        self.session.flush()
+        return record
