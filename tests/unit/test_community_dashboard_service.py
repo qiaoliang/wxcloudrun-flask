@@ -11,7 +11,7 @@ from database.flask_models import (
     User, Community, CommunityCheckinRule, CheckinRecord,
     UserDailyAbnormality, UserCommunityRule
 )
-from wxcloudrun.community_dashboard_service import CommunityDashboardService
+# CommunityDashboardService已删除，请使用Repository
 from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
 from app.shared.utils.community_helpers import CommunityRuleQueryHelper
 from app.shared.constants.roles import Role

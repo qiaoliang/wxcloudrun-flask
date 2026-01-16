@@ -8,7 +8,7 @@ from database.flask_models import (
     db, User, Community, CommunityCheckinRule,
     UserCommunityRule, CommunityStaff
 )
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 
 
 logger = logging.getLogger(__name__)
@@ -18,7 +18,7 @@ class CommunityRuleHelper:
     """社区规则辅助类"""
 
     @staticmethod
-    @transaction
+    @transactional
     def activate_new_community_rules(user_id: int, community_id: int):
         """
         为新加入社区的用户激活社区打卡规则

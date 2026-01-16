@@ -38,6 +38,10 @@ IMPORT_REPLACEMENTS = {
     # CommunityEventService保持不变（暂时）
     # UserService保持不变（暂时）
     # random_str保持不变
+    # CommunityDashboardService -> 删除（已删除）
+    'from wxcloudrun.community_dashboard_service import CommunityDashboardService': (
+        '# CommunityDashboardService已删除，请使用Repository'
+    ),
 }
 
 # 需要迁移的测试文件列表
