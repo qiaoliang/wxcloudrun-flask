@@ -6,5 +6,6 @@
 from .login_wechat_use_case import LoginWeChatUseCase
 from .refresh_token_use_case import RefreshTokenUseCase
 from .logout_use_case import LogoutUseCase
+from .register_phone_use_case import RegisterPhoneUseCase
 
-__all__ = ['LoginWeChatUseCase', 'RefreshTokenUseCase', 'LogoutUseCase']
+__all__ = ['LoginWeChatUseCase', 'RefreshTokenUseCase', 'LogoutUseCase', 'RegisterPhoneUseCase']

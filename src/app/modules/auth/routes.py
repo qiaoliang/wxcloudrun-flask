@@ -23,7 +23,6 @@ from app.shared.utils.auth_helpers import (
     normalize_and_hash_phone,
     query_user_by_phone_hash_with_timing
 )
-from wxcloudrun.user_service import UserService
 from database.flask_models import db, User
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname
 from const_default import DEFAULT_COMMUNITY_NAME
@@ -143,6 +142,11 @@ def logout():
 @auth_bp.route('/auth/register_phone', methods=['POST'])
 @limiter.limit("5 per minute;20 per hour", error_message="注册请求过于频繁，请稍后再试")
 def register_phone():
+    """
+    手机号注册接口
+    """
+    current_app.logger.info('=== 开始执行手机号注册接口 ===')
+
     try:
         params = request.get_json() or {}
         phone = params.get('phone') or params.get('phone_number')
@@ -150,55 +154,30 @@ def register_phone():
         nickname = params.get('nickname')
         avatar_url = params.get('avatar_url')
         password = params.get('password')
+
         if not phone or not code:
+            current_app.logger.warning('注册请求缺少phone或code参数')
             return make_err_response({}, '缺少phone或code参数')
 
-        # 使用辅助函数标准化电话号码并生成 hash
-        normalized_phone, phone_hash = normalize_and_hash_phone(phone, current_app.logger)
+        # 调用应用服务层处理注册逻辑
+        from app.application.use_cases.auth import RegisterPhoneUseCase
 
-        if not _verify_sms_code(normalized_phone, 'register', code):
-            return make_err_response({}, 'INVALID_CAPTCHA')
-        if password:
-            pwd = str(password)
-            if len(pwd) < 8 or (not any(c.isalpha() for c in pwd)) or (not any(c.isdigit() for c in pwd)):
-                return make_err_response({}, '密码强度不足')
-        existing = UserService.query_user_by_phone_hash(phone_hash)
-
-        # 严格按策略1：不验证密码，直接提示账号已存在
-        if existing:
-            current_app.logger.info(f'手机号已注册，提示用户直接登录: {phone}')
-            return make_err_response({'code': 'PHONE_EXISTS'}, '该手机号已注册，请直接登录')
-
-        # Create new user using UserService to avoid session issues
-        # Generate masked phone number for display purposes only
-        masked = normalized_phone[:3] + '****' + normalized_phone[-4:] if len(normalized_phone) >= 7 else normalized_phone
-        current_app.logger.info(f"Creating user with masked phone: {masked} (phone_hash will be used for uniqueness)")
-        nick = nickname or _gen_phone_nickname()
-
-        # For phone users, create user with phone_number only (UserService will set wechat_openid to empty)
-        # 如果没有提供密码，使用默认密码 F00000000（用于邀请链接注册的用户）
-        default_password = password if password else 'F00000000'
-        user = User(phone_number=normalized_phone, nickname=nick, avatar_url=avatar_url, role=1, status=1)
-        user.password = default_password
-
-        # Use UserService.create_user to properly handle sessions
-        user = UserService.create_user(user)
-        _audit(user.user_id, 'register_phone', {'phone': normalized_phone})
-
-        # 刷新用户的 community 关系，确保能获取到 community_name
-        db.session.refresh(user)
-        db.session.expire(user, ['community'])
-
-        # 使用辅助函数生成token
-        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
-        if error_response:
-            return error_response
-
-        # 使用统一的响应格式
-        response_data = _format_user_login_response(
-            user, token, refresh_token, is_new_user=True
+        use_case = RegisterPhoneUseCase()
+        result = use_case.execute(
+            phone=phone,
+            code=code,
+            nickname=nickname,
+            avatar_url=avatar_url,
+            password=password
         )
-        return make_succ_response(response_data)
+
+        if result.is_success:
+            current_app.logger.info('手机号注册成功')
+            return make_succ_response(result.data)
+        else:
+            current_app.logger.warning(f'手机号注册失败: {result.message}')
+            return make_err_response({}, result.message)
+
     except Exception as e:
         current_app.logger.error(f'手机号注册失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'注册失败: {str(e)}')
@@ -369,7 +348,12 @@ def login_phone():
         refresh_token = generate_refresh_token(user, expires_days=7)
 
         current_app.logger.info('保存refresh token到数据库...')
-        UserService.update_user_by_id(user)
+        # 使用 UpdateUserUseCase 更新用户信息
+        from app.application.use_cases.user import UpdateUserUseCase
+        update_use_case = UpdateUserUseCase()
+        update_result = update_use_case.execute(user)
+        if not update_result.is_success:
+            current_app.logger.warning(f'更新用户信息失败: {update_result.message}')
         _audit(user.user_id, 'login_phone', {'phone': phone})
 
         current_app.logger.info('=== 手机号登录接口执行完成 ===')

@@ -46,25 +46,28 @@ def execute_timed_query(query_func, query_name, *args, **kwargs):
 def generate_auth_tokens(user, app_logger):
     """
     生成 JWT token 和 refresh token
-    
+
     Args:
         user: 用户对象
         app_logger: Flask 应用的 logger
-        
+
     Returns:
         tuple: (token, refresh_token, error_response)
     """
     from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
-    from wxcloudrun.user_service import UserService
-    
+
     app_logger.info('开始生成JWT token...')
     token, error_response = generate_jwt_token(user, expires_hours=2)
     if error_response:
         return None, None, error_response
-    
+
     refresh_token = generate_refresh_token(user, expires_days=7)
-    UserService.update_user_by_id(user)
-    
+    from app.application.use_cases.user import UpdateUserUseCase
+    update_use_case = UpdateUserUseCase()
+    update_result = update_use_case.execute(user)
+    if not update_result.is_success:
+        app_logger.warning(f'更新用户信息失败: {update_result.message}')
+
     app_logger.info('保存refresh token到数据库...')
     return token, refresh_token, None
 
@@ -100,11 +103,16 @@ def ensure_user_nickname(user, app_logger):
         app_logger: Flask 应用的 logger
     """
     from wxcloudrun.utils.validators import _gen_phone_nickname
-    
+
     if not user.nickname:
         user.nickname = _gen_phone_nickname()
-        UserService.update_user_by_id(user)
-        app_logger.info(f'已更新用户昵称: {user.nickname}')
+        from app.application.use_cases.user import UpdateUserUseCase
+        update_use_case = UpdateUserUseCase()
+        update_result = update_use_case.execute(user)
+        if not update_result.is_success:
+            app_logger.warning(f'更新用户昵称失败: {update_result.message}')
+        else:
+            app_logger.info(f'已更新用户昵称: {user.nickname}')
 
 
 def verify_sms_code_dual_purpose(phone, code, app_logger):
@@ -192,10 +200,18 @@ def query_user_by_phone_hash_with_timing(phone_hash, app_logger):
     Returns:
         User: 用户对象，如果不存在则返回 None
     """
-    from wxcloudrun.user_service import UserService
-    
-    return execute_timed_query(
-        UserService.query_user_by_phone_hash,
-        'UserService.query_user_by_phone_hash',
-        phone_hash
-    )
+    from app.application.use_cases.user import GetUserByPhoneHashUseCase
+    from database.flask_models import db, User
+
+    get_user_use_case = GetUserByPhoneHashUseCase()
+    result = get_user_use_case.execute(phone_hash)
+
+    if result.is_success:
+        # UseCase 返回的是字典，需要重新查询 User 对象
+        user_id = result.data.get('user_id')
+        if user_id:
+            stmt = db.session.execute(
+                db.select(User).where(User.user_id == user_id)
+            )
+            return stmt.scalar_one_or_none()
+    return None

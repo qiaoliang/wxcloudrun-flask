@@ -9,7 +9,6 @@ from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
 from database.flask_models import db, User, Community
-from wxcloudrun.community_service import CommunityService
 from wxcloudrun.utils.validators import _audit
 from .utils import _format_community_info
 
@@ -42,7 +41,11 @@ def get_user_community():
             return make_err_response({}, '社区不存在')
 
         # 检查用户是否真的属于该社区
-        if not CommunityService.verify_user_community_access(user_id, user.community_id):
+        from app.application.use_cases.community import VerifyUserCommunityAccessUseCase
+        verify_access_use_case = VerifyUserCommunityAccessUseCase()
+        access_result = verify_access_use_case.execute(user_id, user.community_id)
+        has_access = access_result.data.get('has_access', False) if access_result.is_success else False
+        if not has_access:
             return make_err_response({}, '用户不属于该社区')
 
         community_data = _format_community_info(community)
@@ -78,18 +81,20 @@ def switch_user_community():
             return make_err_response({}, '缺少社区ID')
 
         # 切换社区
-        success = CommunityService.switch_user_community(user_id, community_id)
+        user = db.session.get(User, user_id)
+        if not user:
+            return make_err_response({}, '用户不存在')
 
-        if success:
-            # 记录审计日志
-            _audit(user_id, 'switch_community', {
-                'community_id': community_id
-            })
+        user.community_id = community_id
+        db.session.commit()
 
-            current_app.logger.info(f'切换用户社区成功: user_id={user_id}, community_id={community_id}')
-            return make_succ_response({'message': '切换成功'})
-        else:
-            return make_err_response({}, '切换失败')
+        # 记录审计日志
+        _audit(user_id, 'switch_community', {
+            'community_id': community_id
+        })
+
+        current_app.logger.info(f'切换用户社区成功: user_id={user_id}, community_id={community_id}')
+        return make_succ_response({'message': '切换成功'})
 
     except Exception as e:
         current_app.logger.error(f'切换用户社区失败: {str(e)}', exc_info=True)
@@ -121,11 +126,26 @@ def create_community_user():
             return make_err_response({}, '缺少社区ID或用户数据')
 
         # 检查权限
-        if not CommunityService.has_community_permission(operator_id, community_id):
+        from app.application.use_cases.community import CheckCommunityPermissionUseCase
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(operator_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
         # 创建用户
-        user = CommunityService.create_user_in_community(community_id, user_data, operator_id)
+        # TODO: 需要实现 CreateUserInCommunityUseCase
+        # 临时使用直接创建的方式
+        user = User(
+            phone_number=user_data.get('phone_number'),
+            nickname=user_data.get('nickname', ''),
+            name=user_data.get('name', ''),
+            avatar_url=user_data.get('avatar_url', ''),
+            role=user_data.get('role', 1),
+            community_id=community_id
+        )
+        db.session.add(user)
+        db.session.commit()
         if user:
             # 记录审计日志
             _audit(operator_id, 'create_community_user', {

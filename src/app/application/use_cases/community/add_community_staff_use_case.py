@@ -3,6 +3,7 @@
 """
 import logging
 from typing import List, Dict
+from sqlalchemy import select
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory

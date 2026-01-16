@@ -12,7 +12,6 @@ from flask import request, current_app
 from sqlalchemy import select, delete
 from . import user_bp
 from app.shared import make_succ_response, make_err_response
-from wxcloudrun.user_service import UserService
 from database.flask_models import db, User, SupervisionRuleRelation, UserMedicalHistory
 from app.shared.utils.auth import verify_token
 from app.shared.utils.transaction import transaction
@@ -369,13 +368,19 @@ def bind_phone():
             return make_err_response({}, 'INVALID_CAPTCHA')
 
         user_id = decoded.get('user_id')
-        user = UserService.query_user_by_id(user_id)
-        if not user:
+        from app.application.use_cases.user import GetUserByIdUseCase
+        get_user_use_case = GetUserByIdUseCase()
+        get_user_result = get_user_use_case.execute(user_id)
+        if not get_user_result.is_success:
             return make_err_response({}, '用户不存在')
+        user = get_user_result.data
 
         # 检查手机号是否已被绑定
         phone_hash = _calculate_phone_hash(normalized_phone)
-        existing_user = UserService.query_user_by_phone_hash(phone_hash)
+        from app.application.use_cases.user import GetUserByPhoneHashUseCase
+        get_by_phone_use_case = GetUserByPhoneHashUseCase()
+        existing_user_result = get_by_phone_use_case.execute(phone_hash)
+        existing_user = existing_user_result.data if existing_user_result.is_success else None
 
         if existing_user and existing_user.user_id != user_id:
             # 检查是否是同一用户的不同账号（微信账号和手机号账号）
@@ -401,7 +406,11 @@ def bind_phone():
 
         # 绑定手机号
         user.phone_number = normalized_phone
-        UserService.update_user_by_id(user)
+        from app.application.use_cases.user import UpdateUserUseCase
+        update_use_case = UpdateUserUseCase()
+        update_result = update_use_case.execute(user)
+        if not update_result.is_success:
+            current_app.logger.warning(f'更新用户信息失败: {update_result.message}')
 
         # 记录审计日志
         _audit(user_id, 'bind_phone', {'phone': normalized_phone})
@@ -436,9 +445,12 @@ def bind_wechat():
             return make_err_response({}, '缺少code参数')
 
         user_id = decoded.get('user_id')
-        user = UserService.query_user_by_id(user_id)
-        if not user:
+        from app.application.use_cases.user import GetUserByIdUseCase
+        get_user_use_case = GetUserByIdUseCase()
+        get_user_result = get_user_use_case.execute(user_id)
+        if not get_user_result.is_success:
             return make_err_response({}, '用户不存在')
+        user = get_user_result.data
 
         # 调用微信API获取用户信息
         from wxcloudrun.wxchat_api import get_user_info_by_code
@@ -453,7 +465,10 @@ def bind_wechat():
             return make_err_response({}, '微信API返回数据不完整')
 
         # 检查openid是否已被绑定
-        existing_user = UserService.query_user_by_openid(openid)
+        from app.application.use_cases.user import GetUserByOpenidUseCase
+        get_by_openid_use_case = GetUserByOpenidUseCase()
+        existing_user_result = get_by_openid_use_case.execute(openid)
+        existing_user = existing_user_result.data if existing_user_result.is_success else None
 
         if existing_user and existing_user.user_id != user_id:
             # 检查是否是同一用户的不同账号（微信账号和手机号账号）
@@ -489,7 +504,11 @@ def bind_wechat():
         if avatar_url and avatar_url.startswith(('http://', 'https://')):
             user.avatar_url = avatar_url
 
-        UserService.update_user_by_id(user)
+        from app.application.use_cases.user import UpdateUserUseCase
+        update_use_case = UpdateUserUseCase()
+        update_result = update_use_case.execute(user)
+        if not update_result.is_success:
+            current_app.logger.warning(f'更新用户信息失败: {update_result.message}')
 
         # 记录审计日志
         _audit(user_id, 'bind_wechat', {'openid': openid})
@@ -524,13 +543,18 @@ def verify_community():
             return make_err_response({}, '缺少社区ID')
 
         user_id = decoded.get('user_id')
-        user = UserService.query_user_by_id(user_id)
-        if not user:
+        from app.application.use_cases.user import GetUserByIdUseCase
+        get_user_use_case = GetUserByIdUseCase()
+        get_user_result = get_user_use_case.execute(user_id)
+        if not get_user_result.is_success:
             return make_err_response({}, '用户不存在')
+        user = get_user_result.data
 
         # 验证社区成员关系
-        from wxcloudrun.community_service import CommunityService
-        is_member = CommunityService.verify_user_community_access(user_id, community_id)
+        from app.application.use_cases.community import CheckCommunityPermissionUseCase
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(user_id, community_id)
+        is_member = permission_result.data.get('has_permission', False) if permission_result.is_success else False
 
         if is_member:
             response_data = {
@@ -560,13 +584,14 @@ def get_my_active_event(decoded):
     try:
         user_id = decoded.get('user_id')
 
-        from wxcloudrun.community_event_service import CommunityEventService
-        result = CommunityEventService.get_user_active_event(user_id)
+        from app.application.use_cases.events import GetUserActiveEventUseCase
+        get_event_use_case = GetUserActiveEventUseCase()
+        result = get_event_use_case.execute(user_id)
 
-        if result['success']:
-            return make_succ_response(result)
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
+            return make_err_response(result.message)
 
     except Exception as e:
         current_app.logger.error(f"获取用户进行中事件API异常: {str(e)}", exc_info=True)
@@ -600,8 +625,9 @@ def add_event_message(decoded, event_id):
         if message_type in ['voice', 'image'] and not media_url:
             return make_err_response('缺少媒体文件')
 
-        from wxcloudrun.community_event_service import CommunityEventService
-        result = CommunityEventService.add_event_message(
+        from app.application.use_cases.events import AddEventMessageUseCase
+        add_message_use_case = AddEventMessageUseCase()
+        result = add_message_use_case.execute(
             event_id=event_id,
             user_id=user_id,
             message_type=message_type,
@@ -610,10 +636,10 @@ def add_event_message(decoded, event_id):
             media_duration=media_duration
         )
 
-        if result['success']:
-            return make_succ_response(result)
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
+            return make_err_response(result.message)
 
     except Exception as e:
         current_app.logger.error(f"添加事件消息API异常: {str(e)}", exc_info=True)
@@ -625,13 +651,14 @@ def add_event_message(decoded, event_id):
 def get_event_history(decoded, event_id):
     """获取事件历史记录"""
     try:
-        from wxcloudrun.community_event_service import CommunityEventService
-        result = CommunityEventService.get_event_history(event_id)
+        from app.application.use_cases.events import GetEventHistoryUseCase
+        get_history_use_case = GetEventHistoryUseCase()
+        result = get_history_use_case.execute(event_id)
 
-        if result['success']:
-            return make_succ_response(result)
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['message'])
+            return make_err_response(result.message)
 
     except Exception as e:
         current_app.logger.error(f"获取事件历史API异常: {str(e)}", exc_info=True)
@@ -837,7 +864,11 @@ def log_profile_view(decoded):
         if not viewed_user_id or not community_id:
             return make_err_response({}, '缺少必要参数')
 
-        UserService.log_profile_view(viewer_id, viewed_user_id, community_id)
+        from app.application.use_cases.user import LogProfileViewUseCase
+        log_view_use_case = LogProfileViewUseCase()
+        log_result = log_view_use_case.execute(viewer_id, viewed_user_id, community_id)
+        if not log_result.is_success:
+            current_app.logger.warning(f'记录浏览信息失败: {log_result.message}')
         return make_succ_response({'message': '记录成功'})
     except Exception as e:
         current_app.logger.error(f"记录浏览信息失败: {str(e)}", exc_info=True)
@@ -861,7 +892,11 @@ def log_view_guardian(decoded):
         if not guardian_id or not ward_user_id or not community_id:
             return make_err_response({}, '缺少必要参数')
 
-        UserService.log_view_guardian_info(viewer_id, guardian_id, ward_user_id, community_id)
+        from app.application.use_cases.user import LogViewGuardianInfoUseCase
+        log_guardian_use_case = LogViewGuardianInfoUseCase()
+        log_result = log_guardian_use_case.execute(viewer_id, guardian_id, ward_user_id, community_id)
+        if not log_result.is_success:
+            current_app.logger.warning(f'记录查看监护人信息失败: {log_result.message}')
         return make_succ_response({'message': '记录成功'})
     except Exception as e:
         current_app.logger.error(f"记录查看监护人信息失败: {str(e)}", exc_info=True)
@@ -880,8 +915,13 @@ def get_profile_view_logs(decoded):
         if not community_id:
             return make_err_response({}, '缺少社区ID')
 
-        logs = UserService.get_profile_view_logs(community_id, viewer_id, limit)
-        return make_succ_response({'logs': logs})
+        from app.application.use_cases.user import GetProfileViewLogsUseCase
+        get_logs_use_case = GetProfileViewLogsUseCase()
+        logs_result = get_logs_use_case.execute(community_id, viewer_id, limit)
+        if logs_result.is_success:
+            return make_succ_response(logs_result.data)
+        else:
+            return make_err_response(logs_result.message)
     except Exception as e:
         current_app.logger.error(f"获取浏览记录列表失败: {str(e)}", exc_info=True)
         return make_err_response({}, f'获取浏览记录列表失败: {str(e)}')

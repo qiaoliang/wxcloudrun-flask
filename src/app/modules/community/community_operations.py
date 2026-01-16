@@ -9,7 +9,6 @@ from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
 from database.flask_models import db, User, Community
-from wxcloudrun.community_service import CommunityService
 from wxcloudrun.community_staff_service import CommunityStaffService
 from wxcloudrun.utils.validators import _audit
 from app.shared.constants.roles import Role
@@ -163,7 +162,11 @@ def update_community():
             return make_err_response({}, '缺少社区ID')
 
         # 检查权限
-        if not CommunityService.has_community_permission(user_id, community_id):
+        from app.application.use_cases.community import CheckCommunityPermissionUseCase
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(user_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
         # 使用应用服务用例更新社区信息
@@ -233,9 +236,11 @@ def toggle_community_status():
             return make_err_response({}, '缺少状态参数')
 
         # 切换状态
-        result = CommunityService.toggle_community_status(community_id, status)
+        from app.application.use_cases.community import ToggleCommunityStatusUseCase
+        toggle_status_use_case = ToggleCommunityStatusUseCase()
+        result = toggle_status_use_case.execute(community_id, status)
 
-        if result:
+        if result.is_success:
             # 记录审计日志
             _audit(user_id, 'toggle_community_status', {
                 'community_id': community_id
@@ -244,7 +249,7 @@ def toggle_community_status():
             current_app.logger.info(f'切换社区状态成功: community_id={community_id}')
             return make_succ_response({'message': '切换成功'})
         else:
-            return make_err_response({}, '切换失败')
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'切换社区状态失败: {str(e)}', exc_info=True)

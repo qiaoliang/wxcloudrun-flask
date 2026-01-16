@@ -10,6 +10,14 @@ from .update_community_use_case import UpdateCommunityUseCase
 from .delete_community_use_case import DeleteCommunityUseCase
 from .join_community_use_case import JoinCommunityUseCase
 from .leave_community_use_case import LeaveCommunityUseCase
+from .check_community_permission_use_case import CheckCommunityPermissionUseCase
+from .get_available_communities_use_case import GetAvailableCommunitiesUseCase
+from .get_managed_communities_use_case import GetManagedCommunitiesUseCase
+from .toggle_community_status_use_case import ToggleCommunityStatusUseCase
+from .verify_user_community_access_use_case import VerifyUserCommunityAccessUseCase
+from .get_community_members_use_case import GetCommunityMembersUseCase
+from .remove_user_from_community_use_case import RemoveUserFromCommunityUseCase
+from .add_users_to_community_use_case import AddUsersToCommunityUseCase
 
 __all__ = [
     'CreateCommunityUseCase',
@@ -19,5 +27,13 @@ __all__ = [
     'UpdateCommunityUseCase',
     'DeleteCommunityUseCase',
     'JoinCommunityUseCase',
-    'LeaveCommunityUseCase'
+    'LeaveCommunityUseCase',
+    'CheckCommunityPermissionUseCase',
+    'GetAvailableCommunitiesUseCase',
+    'GetManagedCommunitiesUseCase',
+    'ToggleCommunityStatusUseCase',
+    'VerifyUserCommunityAccessUseCase',
+    'GetCommunityMembersUseCase',
+    'RemoveUserFromCommunityUseCase',
+    'AddUsersToCommunityUseCase'
 ]

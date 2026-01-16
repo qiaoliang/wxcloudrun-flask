@@ -8,7 +8,7 @@ from flask import current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from wxcloudrun.community_service import CommunityService
+from database.flask_models import db, User
 
 app_logger = logging.getLogger('log')
 
@@ -28,12 +28,20 @@ def check_community_access(community_id):
 
     try:
         # 检查权限
-        has_permission = CommunityService.has_community_permission(user_id, community_id)
+        from app.application.use_cases.community import CheckCommunityPermissionUseCase
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(user_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
 
         # 获取用户在社区中的角色
         user_role = None
         if has_permission:
-            user_role = CommunityService.get_user_role_in_community(user_id, community_id)
+            stmt = db.session.execute(
+                db.select(User).where(User.user_id == user_id)
+            )
+            user = stmt.scalar_one_or_none()
+            if user:
+                user_role = user.role_name
 
         response_data = {
             'community_id': community_id,
