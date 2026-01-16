@@ -13,7 +13,6 @@ from typing import Dict, Optional
 
 from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
 from wxcloudrun.wxchat_api import get_user_info_by_code
-from wxcloudrun.community_service import CommunityService
 from database.flask_models import db, User
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
@@ -26,6 +25,7 @@ class LoginWeChatUseCase(BaseUseCase):
     def __init__(self):
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
+        self.community_repository = RepositoryFactory.get_community_repository()
 
     def _validate(self, code: str, nickname: Optional[str] = None, 
                   avatar_url: Optional[str] = None) -> UseCaseResult:
@@ -181,9 +181,14 @@ class LoginWeChatUseCase(BaseUseCase):
             # 检查并补充社区信息
             if not user.community_id:
                 try:
-                    CommunityService.assign_user_to_community(user, DEFAULT_COMMUNITY_NAME)
-                    updated = True
-                    self.logger.info(f'用户已分配到默认社区: {DEFAULT_COMMUNITY_NAME}')
+                    # 查找默认社区
+                    community = self.community_repository.find_by_name(DEFAULT_COMMUNITY_NAME)
+                    if community:
+                        user.community_id = community.community_id
+                        updated = True
+                        self.logger.info(f'用户已分配到默认社区: {DEFAULT_COMMUNITY_NAME}')
+                    else:
+                        self.logger.warning(f'默认社区不存在: {DEFAULT_COMMUNITY_NAME}')
                 except Exception as e:
                     self.logger.error(f'分配用户到默认社区失败: {str(e)}')
 
