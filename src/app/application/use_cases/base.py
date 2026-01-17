@@ -46,6 +46,23 @@ class UseCaseResult:
             'errors': self.errors
         }
 
+    @staticmethod
+    def success(data: Any = None, message: str = "操作成功") -> 'UseCaseResult':
+        """创建成功结果"""
+        return UseCaseResult(
+            status=UseCaseStatus.SUCCESS,
+            message=message,
+            data=data
+        )
+
+    @staticmethod
+    def fail(message: str, status: UseCaseStatus = UseCaseStatus.FAILURE) -> 'UseCaseResult':
+        """创建失败结果"""
+        return UseCaseResult(
+            status=status,
+            message=message
+        )
+
 
 class UseCaseError(Exception):
     """用例执行异常"""
