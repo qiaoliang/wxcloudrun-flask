@@ -56,9 +56,15 @@ class MergeAccountsUseCase(BaseUseCase):
 
             # 3. 迁移用户信息
             # 只有当主账号没有该信息时，才从次要账号迁移
+            migrated_openid = None
             if secondary.wechat_openid and not primary.wechat_openid:
-                primary.wechat_openid = secondary.wechat_openid
-                self.logger.info(f'迁移 wechat_openid: {secondary.wechat_openid[:20]}...')
+                migrated_openid = secondary.wechat_openid
+                # 先清空次要账号的 wechat_openid，避免唯一约束冲突
+                secondary.wechat_openid = None
+                self.supervision_relation_repository.update(secondary)
+                # 再更新主账号
+                primary.wechat_openid = migrated_openid
+                self.logger.info(f'迁移 wechat_openid: {migrated_openid[:20]}...')
 
             if secondary.phone_number and not primary.phone_number:
                 primary.phone_number = secondary.phone_number

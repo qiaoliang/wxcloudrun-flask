@@ -95,21 +95,24 @@ class TestMergeAccountsUseCase:
     @pytest.fixture
     def test_supervision_relations(self, test_session, test_user_with_phone, test_checkin_rule):
         """创建测试监督关系"""
-        # 创建监督者
-        supervisor = User(
-            wechat_openid="supervisor_openid",
-            phone_number="13900002222",
-            phone_hash="supervisor_hash",
-            nickname="监督者",
-            role=1,
-            status=1
-        )
-        test_session.add(supervisor)
+        # 创建3个不同的监督者
+        supervisors = []
+        for i in range(3):
+            supervisor = User(
+                wechat_openid=f"supervisor_openid_{i}",
+                phone_number=f"1390000222{i}",
+                phone_hash=f"supervisor_hash_{i}",
+                nickname=f"监督者{i}",
+                role=1,
+                status=1
+            )
+            test_session.add(supervisor)
+            supervisors.append(supervisor)
         test_session.flush()
 
-        # 创建监督关系
+        # 创建3条不同的监督关系
         relations = []
-        for i in range(3):
+        for i, supervisor in enumerate(supervisors):
             relation = SupervisionRuleRelation(
                 solo_user_id=test_user_with_phone.user_id,
                 supervisor_user_id=supervisor.user_id,
