@@ -66,7 +66,7 @@ class TestCheckinRecordEntityStateTransitions:
         assert entity.checkin_status == 2
 
     def test_cancel_checkin(self):
-        """测试取消打卡"""
+        """测试取消打卡(映射到 MISSED 状态)"""
         entity = CheckinRecordEntity.create(
             record_id=1,
             rule_id=10,
@@ -77,7 +77,7 @@ class TestCheckinRecordEntityStateTransitions:
         entity.cancel()
 
         assert entity.is_cancelled is True
-        assert entity.checkin_status == 3
+        assert entity.checkin_status == 2  # CANCELLED 映射到 MISSED
 
 class TestCheckinRecordEntityBusinessRules:
     """测试业务规则"""
