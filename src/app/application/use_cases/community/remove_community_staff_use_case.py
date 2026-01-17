@@ -2,9 +2,9 @@
 移除社区工作人员用例（重构后 - 符合DDD架构）
 
 重构要点：
-- 移除直接导入 database.flask_models 中的 db, User, CommunityStaff, Community
-- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
-- 所有数据库操作通过Repository抽象层
+- 使用 with transaction() 确保事务一致性
+- 使用 AuditLogRepository 记录审计日志
+- 消除 db.session.add() 直接访问
 """
 
 import logging
@@ -13,6 +13,7 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transaction
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
 
 logger = logging.getLogger(__name__)
@@ -33,6 +34,7 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
         self.staff_repository = RepositoryFactory.get_community_staff_repository()
+        self.audit_log_repository = RepositoryFactory.get_audit_log_repository()  # ✅ 新增
 
     def execute(
         self,
@@ -94,16 +96,14 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
                 new_role = self._recalculate_user_role(target_user_id)
                 logger.info(f'用户{target_user_id}的角色重新计算为: {new_role}')
 
-            # 7. 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
+            # 7. 记录审计日志
             if operator_user_id and target_user:
-                from database.flask_models import UserAuditLog
-                audit_log = UserAuditLog(
+                # ✅ 使用Repository保存审计日志
+                self.audit_log_repository.create(
                     user_id=operator_user_id,
                     action="remove_community_staff",
                     detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={target_user_id}, 角色={removed_role}，用户当前角色={target_user.role}"
                 )
-                from database.flask_models import db
-                db.session.add(audit_log)
 
             logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={target_user_id}, 角色={removed_role}")
 
