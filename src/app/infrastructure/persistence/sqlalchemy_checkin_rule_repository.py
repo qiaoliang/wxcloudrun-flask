@@ -53,8 +53,30 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
 
         将领域实体转换为 ORM 模型并保存
         """
+        # 转换 custom_time: 字符串 -> time 对象
+        custom_time_obj = None
+        if entity.custom_time:
+            if isinstance(entity.custom_time, str):
+                from datetime import time as time_class
+                try:
+                    custom_time_obj = time_class.fromisoformat(entity.custom_time)
+                except ValueError:
+                    pass
+            elif isinstance(entity.custom_time, time):
+                custom_time_obj = entity.custom_time
+
+        # 转换 week_days: 字符串 -> 整数位掩码
+        week_days_int = entity.week_days
+        if entity.week_days and isinstance(entity.week_days, str):
+            # 字符串 "1,3,5" 转换为位掩码整数
+            try:
+                days = [int(d.strip()) for d in entity.week_days.split(',')]
+                week_days_int = sum(1 << (day - 1) for day in days)
+            except (ValueError, AttributeError):
+                week_days_int = 127  # 默认所有天
+
         orm_model = CheckinRule(
-            rule_id=entity.rule_id,
+            rule_id=entity.rule_id if entity.rule_id != 0 else None,
             user_id=entity.user_id,
             rule_name=entity.rule_name,
             frequency_type=entity.frequency_type,
@@ -62,8 +84,8 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
             status=entity.status,
             community_id=entity.community_id,
             icon_url=entity.icon_url,
-            custom_time=entity.custom_time,
-            week_days=entity.week_days,
+            custom_time=custom_time_obj,
+            week_days=week_days_int,
             custom_start_date=entity.custom_start_date,
             custom_end_date=entity.custom_end_date,
             created_at=entity.created_at,
@@ -93,8 +115,30 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
         orm_model.status = entity.status
         orm_model.community_id = entity.community_id
         orm_model.icon_url = entity.icon_url
-        orm_model.custom_time = entity.custom_time
-        orm_model.week_days = entity.week_days
+
+        # 转换 custom_time: 字符串 -> time 对象
+        if entity.custom_time:
+            if isinstance(entity.custom_time, str):
+                from datetime import time as time_class
+                try:
+                    orm_model.custom_time = time_class.fromisoformat(entity.custom_time)
+                except ValueError:
+                    orm_model.custom_time = None
+            elif isinstance(entity.custom_time, time):
+                orm_model.custom_time = entity.custom_time
+        else:
+            orm_model.custom_time = None
+
+        # 转换 week_days: 字符串 -> 整数位掩码
+        if entity.week_days and isinstance(entity.week_days, str):
+            try:
+                days = [int(d.strip()) for d in entity.week_days.split(',')]
+                orm_model.week_days = sum(1 << (day - 1) for day in days)
+            except (ValueError, AttributeError):
+                orm_model.week_days = 127
+        elif entity.week_days:
+            orm_model.week_days = entity.week_days
+
         orm_model.custom_start_date = entity.custom_start_date
         orm_model.custom_end_date = entity.custom_end_date
         orm_model.updated_at = entity.updated_at
@@ -166,6 +210,14 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
         Returns:
             CheckinRuleEntity: 领域实体
         """
+        # 转换 custom_time: time 对象 -> 字符串
+        custom_time_str = None
+        if orm_model.custom_time:
+            custom_time_str = orm_model.custom_time.strftime('%H:%M:%S')
+
+        # 转换 week_days: 整数位掩码 -> 字符串
+        week_days_str = str(orm_model.week_days) if orm_model.week_days is not None else None
+
         return CheckinRuleEntity(
             rule_id=orm_model.rule_id,
             user_id=orm_model.user_id,
@@ -175,8 +227,8 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
             status=orm_model.status,
             community_id=orm_model.community_id,
             icon_url=orm_model.icon_url,
-            custom_time=orm_model.custom_time,
-            week_days=orm_model.week_days,
+            custom_time=custom_time_str,
+            week_days=week_days_str,
             custom_start_date=orm_model.custom_start_date,
             custom_end_date=orm_model.custom_end_date,
             created_at=orm_model.created_at,

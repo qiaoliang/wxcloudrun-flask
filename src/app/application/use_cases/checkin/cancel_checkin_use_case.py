@@ -1,5 +1,5 @@
 """
-取消打卡用例
+取消打卡用例(重构版 - 符合DDD架构)
 """
 import logging
 
@@ -60,14 +60,15 @@ class CancelCheckinUseCase(BaseUseCase):
                     )
 
             # 4. 检查打卡状态（只有未完成的打卡可以取消）
-            if record.status == 1:  # 1=已打卡
+            if record.is_completed:  # 已打卡
                 return UseCaseResult(
                     status=UseCaseStatus.BUSINESS_ERROR,
                     message='打卡已完成，无法取消'
                 )
 
             # 5. 取消打卡记录
-            self.checkin_record_repository.cancel(record_id)
+            record.cancel()
+            self.checkin_record_repository.update_entity(record)
 
             self.logger.info(f'取消打卡成功: record_id={record_id}')
 

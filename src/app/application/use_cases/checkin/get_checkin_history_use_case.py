@@ -116,14 +116,18 @@ class GetCheckinHistoryUseCase(BaseUseCase):
             # 8. 构造响应数据
             record_list = []
             for record in paged_records:
+                # 根据 checkin_status 确定 status_name
+                status_map = {0: '未打卡', 1: '已打卡', 2: '已错过', 3: '已取消'}
+                status_name = status_map.get(record.checkin_status, '未知')
+
                 record_list.append({
                     'record_id': record.record_id,
                     'user_id': record.user_id,
                     'rule_id': record.rule_id,
                     'checkin_time': record.checkin_time.strftime('%Y-%m-%d %H:%M:%S') if record.checkin_time else None,
-                    'status': record.status,
-                    'status_name': record.status_name,
-                    'planned_time': record.planned_time.strftime('%Y-%m-%d %H:%M:%S') if record.planned_time else None
+                    'status': record.checkin_status,
+                    'status_name': status_name,
+                    'planned_time': record.planned_checkin_time.strftime('%Y-%m-%d %H:%M:%S') if record.planned_checkin_time else None
                 })
 
             response_data = {
