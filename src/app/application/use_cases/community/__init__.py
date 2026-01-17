@@ -26,6 +26,7 @@ from .get_admin_list_use_case import GetAdminListUseCase
 from .create_community_application_use_case import CreateCommunityApplicationUseCase
 from .get_community_applications_use_case import GetCommunityApplicationsUseCase
 from .format_community_info_use_case import FormatCommunityInfoUseCase
+from .get_all_communities_use_case import GetAllCommunitiesUseCase
 
 __all__ = [
     'CreateCommunityUseCase',
@@ -51,5 +52,6 @@ __all__ = [
     'GetAdminListUseCase',
     'CreateCommunityApplicationUseCase',
     'GetCommunityApplicationsUseCase',
-    'FormatCommunityInfoUseCase'
+    'FormatCommunityInfoUseCase',
+    'GetAllCommunitiesUseCase'
 ]

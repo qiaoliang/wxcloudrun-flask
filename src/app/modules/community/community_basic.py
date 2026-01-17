@@ -5,18 +5,18 @@
 
 import logging
 from flask import request, current_app
-from sqlalchemy import select
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from database.flask_models import db, User, Community
 from app.application.use_cases.community import (
     GetManagedCommunitiesUseCase,
     GetAvailableCommunitiesUseCase,
     SearchManageableCommunitiesUseCase,
     CheckCommunityPermissionUseCase,
-    FormatCommunityInfoUseCase
+    FormatCommunityInfoUseCase,
+    GetAllCommunitiesUseCase
 )
+from app.application.use_cases.auth import GetCurrentUserUseCase
 from .utils import _check_superadmin_permission
 
 app_logger = logging.getLogger('log')
@@ -46,7 +46,11 @@ def get_communities():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
+
+    # 使用GetCurrentUserUseCase获取用户对象
+    get_user_use_case = GetCurrentUserUseCase()
+    user_result = get_user_use_case.execute(user_id)
+    user = user_result.data if user_result.is_success else None
 
     # 检查权限
     error = _check_superadmin_permission(user)
@@ -54,10 +58,14 @@ def get_communities():
         return error
 
     try:
-        # 使用 SQLAlchemy 2.0 的 select() 语句
-        # 查询所有社区
-        stmt = select(Community)
-        communities = db.session.execute(stmt).scalars().all()
+        # 使用GetAllCommunitiesUseCase查询所有社区
+        get_all_use_case = GetAllCommunitiesUseCase()
+        result = get_all_use_case.execute()
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
+
+        communities = result.data.get('communities', [])
 
         # 使用UseCase格式化社区信息
         format_use_case = FormatCommunityInfoUseCase()

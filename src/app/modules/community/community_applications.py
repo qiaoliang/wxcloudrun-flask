@@ -110,7 +110,6 @@ def approve_application(application_id):
         return error_response
 
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
 
     try:
         # 使用应用服务用例处理申请
@@ -143,7 +142,6 @@ def reject_application(application_id):
         return error_response
 
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
 
     try:
         params = request.get_json()

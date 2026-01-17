@@ -9,6 +9,7 @@ from app.domain.entities.user_entity import UserEntity
 from app.domain.aggregates.user_aggregate import UserAggregate
 from app.domain.events.event_bus import EventBus
 from app.domain.repositories.user_repository import UserRepository
+from database.flask_models import User
 
 
 class UpdateUserUseCase(BaseUseCase):

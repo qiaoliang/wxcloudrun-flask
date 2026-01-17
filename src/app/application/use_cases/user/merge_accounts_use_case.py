@@ -8,6 +8,7 @@ from typing import Optional
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.user_repository import UserRepository
+from database.flask_models import User
 
 
 class MergeAccountsUseCase(BaseUseCase):

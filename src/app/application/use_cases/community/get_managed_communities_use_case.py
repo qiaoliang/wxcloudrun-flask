@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import joinedload
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from app.domain.repositories.communitystaff_repository import CommunityStaffRepository
+from app.domain.repositories.community_staff_repository import CommunityStaffRepository
 from app.domain.repositories.community_repository import CommunityRepository
 
 

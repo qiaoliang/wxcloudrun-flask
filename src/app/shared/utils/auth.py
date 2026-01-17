@@ -182,6 +182,39 @@ def require_community_manager():
     return decorator
 
 
+def require_community_staff():
+    """
+    装饰器：要求用户是社区工作人员（包括主管、专员、普通成员）或超级管理员
+    """
+    def decorator(f):
+        from functools import wraps
+
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            # 验证token
+            decoded, error_response = verify_token()
+            if error_response:
+                return error_response
+
+            user_id = decoded.get('user_id')
+            from database.flask_models import User
+            user = db.session.get(User, user_id)
+
+            if not user:
+                return make_err_response({}, '用户不存在')
+
+            # 检查是否为社区工作人员或超级管理员
+            if user.role < 2 and user.role != 4:  # 普通用户以下且不是超级管理员
+                return make_err_response({}, '需要社区工作人员权限')
+
+            # 将用户信息添加到请求上下文
+            request.current_user = user
+            return f(*args, **kwargs)
+
+        return decorated_function
+    return decorator
+
+
 def require_superadmin():
     """
     装饰器：要求用户是超级系统管理员

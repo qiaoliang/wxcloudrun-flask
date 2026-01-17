@@ -6,7 +6,7 @@ from sqlalchemy import or_, and_
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.domain.repositories.community_repository import CommunityRepository
-from app.domain.repositories.communitystaff_repository import CommunityStaffRepository
+from app.domain.repositories.community_staff_repository import CommunityStaffRepository
 
 
 class SearchManageableCommunitiesUseCase(BaseUseCase):

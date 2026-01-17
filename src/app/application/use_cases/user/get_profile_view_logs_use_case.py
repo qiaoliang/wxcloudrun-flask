@@ -5,7 +5,7 @@
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
 from database.flask_models import UserAuditLog
 from sqlalchemy import select, desc
-from app.domain.repositories.profileviewlog_repository import ProfileViewLogRepository
+from app.domain.repositories.profile_view_log_repository import ProfileViewLogRepository
 
 
 class GetProfileViewLogsUseCase(BaseUseCase):

@@ -17,6 +17,7 @@ from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from const_default import DEFAULT_COMMUNITY_NAME
 from app.domain.repositories.user_repository import UserRepository
+from database.flask_models import User
 
 
 class LoginWeChatUseCase(BaseUseCase):

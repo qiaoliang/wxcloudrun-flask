@@ -60,6 +60,15 @@ class SQLAlchemyCommunityRepository(CommunityRepository):
         stmt = select(Community)
         return db.session.execute(stmt).scalars().all()
 
+    def get_all(self) -> List[Community]:
+        """
+        获取所有社区
+
+        Returns:
+            List[Community]: 所有社区列表
+        """
+        return self.find_all()
+
     def exists(self, entity_id: int) -> bool:
         """
         检查社区是否存在

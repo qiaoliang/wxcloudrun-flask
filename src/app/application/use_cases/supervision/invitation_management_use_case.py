@@ -10,7 +10,7 @@ from typing import List, Optional, Dict, Any
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from database.flask_models import SupervisionRuleRelation
-from app.domain.repositories.supervisionrelation_repository import SupervisionRelationRepository
+from app.domain.repositories.supervision_relation_repository import SupervisionRelationRepository
 
 
 class InvitationManagementUseCase(BaseUseCase):

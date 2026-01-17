@@ -121,3 +121,13 @@ class CommunityRepository(BaseRepository[Community]):
             Optional[Community]: 社区对象，如果不存在则返回 None
         """
         pass
+
+    @abstractmethod
+    def get_all(self) -> List[Community]:
+        """
+        获取所有社区
+
+        Returns:
+            List[Community]: 所有社区列表
+        """
+        pass

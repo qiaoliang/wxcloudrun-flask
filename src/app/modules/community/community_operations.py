@@ -16,8 +16,10 @@ from app.application.use_cases.community import (
     UpdateCommunityUseCase,
     DeleteCommunityUseCase,
     ToggleCommunityStatusUseCase,
-    CheckCommunityPermissionUseCase
+    CheckCommunityPermissionUseCase,
+    AddCommunityStaffUseCase
 )
+from app.application.use_cases.auth import GetCurrentUserUseCase
 
 app_logger = logging.getLogger('log')
 
@@ -33,7 +35,11 @@ def create_community():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
+
+    # 使用GetCurrentUserUseCase获取用户对象
+    get_user_use_case = GetCurrentUserUseCase()
+    user_result = get_user_use_case.execute(user_id)
+    user = user_result.data if user_result.is_success else None
 
     # 检查权限
     if not user or user.role < 3:  # 社区管理员及以上
@@ -59,8 +65,6 @@ def create_community():
             return make_err_response({}, '社区名称不能为空')
 
         # 使用应用服务用例创建社区
-        from app.application.use_cases.community import CreateCommunityUseCase
-
         use_case = CreateCommunityUseCase()
         result = use_case.execute(
             name=name,
@@ -85,8 +89,6 @@ def create_community():
         # 如果指定了主管，将主管添加到 CommunityStaff 表
         if manager_id:
             try:
-                from app.application.use_cases.community import AddCommunityStaffUseCase
-
                 add_staff_use_case = AddCommunityStaffUseCase()
                 add_staff_result = add_staff_use_case.execute(
                     operator_user_id=user_id,
@@ -121,11 +123,11 @@ def create_community():
         })
 
         current_app.logger.info(f'创建社区成功: community_id={community_id}, name={name}, manager_id={manager_id}')
-        
+
         # 获取社区对象以获取 created_at
         community = db.session.get(Community, community_id)
         created_at = community.created_at.isoformat() if community and community.created_at else None
-        
+
         return make_succ_response({
             'community_id': community_id,
             'name': result.data.get('name'),
@@ -228,7 +230,11 @@ def toggle_community_status():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
+
+    # 使用GetCurrentUserUseCase获取用户对象
+    get_user_use_case = GetCurrentUserUseCase()
+    user_result = get_user_use_case.execute(user_id)
+    user = user_result.data if user_result.is_success else None
 
     # 检查权限
     if not user or user.role == Role.SOLO:  # 只有超级管理员可以切换状态
@@ -248,7 +254,6 @@ def toggle_community_status():
             return make_err_response({}, '缺少状态参数')
 
         # 切换状态
-        from app.application.use_cases.community import ToggleCommunityStatusUseCase
         toggle_status_use_case = ToggleCommunityStatusUseCase()
         result = toggle_status_use_case.execute(community_id, status)
 
@@ -279,7 +284,11 @@ def delete_community():
         return error_response
 
     user_id = decoded.get('user_id')
-    user = db.session.get(User, user_id)
+
+    # 使用GetCurrentUserUseCase获取用户对象
+    get_user_use_case = GetCurrentUserUseCase()
+    user_result = get_user_use_case.execute(user_id)
+    user = user_result.data if user_result.is_success else None
 
     # 检查权限
     if not user or user.role < 4:  # 只有超级管理员可以删除社区
@@ -295,8 +304,6 @@ def delete_community():
             return make_err_response({}, '缺少社区ID')
 
         # 使用应用服务用例删除社区
-        from app.application.use_cases.community import DeleteCommunityUseCase
-
         use_case = DeleteCommunityUseCase()
         result = use_case.execute(
             community_id=community_id,
