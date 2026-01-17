@@ -931,8 +931,8 @@ class TestGetEventDetailsUseCase:
         # Arrange
         message = EventMessage(
             event_id=test_event.event_id,
-            user_id=test_user.user_id,
-            message_message='测试消息',
+            sender_id=test_user.user_id,
+            message_content='测试消息',
             message_type='text',
             status=1,
             created_at=datetime.datetime.now()
@@ -1017,16 +1017,16 @@ class TestGetEventDetailsUseCase:
         # Arrange
         active_message = EventMessage(
             event_id=test_event.event_id,
-            user_id=test_user.user_id,
-            message_message='活跃消息',
+            sender_id=test_user.user_id,
+            message_content='活跃消息',
             message_type='text',
             status=1,
             created_at=datetime.datetime.now()
         )
         inactive_message = EventMessage(
             event_id=test_event.event_id,
-            user_id=test_user.user_id,
-            message_message='非活跃消息',
+            sender_id=test_user.user_id,
+            message_content='非活跃消息',
             message_type='text',
             status=2,  # 2=已取消
             created_at=datetime.datetime.now()
