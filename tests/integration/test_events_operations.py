@@ -89,6 +89,9 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
     
+            # 设置 manager 的 community_id
+            manager.community_id = community.community_id
+    
             # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
     

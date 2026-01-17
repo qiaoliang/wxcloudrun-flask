@@ -7,6 +7,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.community_repository import CommunityRepository
 from app.domain.repositories.user_repository import UserRepository
+from database.flask_models import db, User
 
 
 class CheckCommunityPermissionUseCase(BaseUseCase):
