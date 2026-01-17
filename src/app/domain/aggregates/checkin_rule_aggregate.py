@@ -4,7 +4,7 @@
 打卡规则聚合是打卡规则相关的核心业务概念，包含规则本身及其关联的打卡记录。
 """
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
 from app.domain.entities.checkin_record_entity import CheckinRecordEntity
@@ -22,11 +22,11 @@ class CheckinRuleAggregate:
     """
     打卡规则聚合根
 
-    聚合边界：
-    - CheckinRuleEntity（打卡规则实体）
-    - CheckinRecordEntity（打卡记录）
+    聚合边界:
+    - CheckinRuleEntity(打卡规则实体)
+    - CheckinRecordEntity(打卡记录)
 
-    业务不变性：
+    业务不变性:
     - 规则必须关联到一个有效的用户
     - 规则的启用/禁用必须符合业务规则
     - 打卡记录必须符合规则的时间要求
@@ -75,6 +75,12 @@ class CheckinRuleAggregate:
             record_id: 打卡记录ID
             checkin_time: 打卡时间
         """
+        # 查找记录并更新状态
+        record = next((r for r in self._records if r.record_id == record_id), None)
+        if record:
+            record.complete(checkin_time)
+
+        # 发布事件
         event = CheckinCompletedEvent(
             record_id=record_id,
             user_id=self._rule.user_id,
@@ -92,6 +98,12 @@ class CheckinRuleAggregate:
             record_id: 打卡记录ID
             scheduled_time: 计划打卡时间
         """
+        # 查找记录并更新状态
+        record = next((r for r in self._records if r.record_id == record_id), None)
+        if record:
+            record.mark_missed()
+
+        # 发布事件
         event = CheckinMissedEvent(
             record_id=record_id,
             user_id=self._rule.user_id,
@@ -109,6 +121,12 @@ class CheckinRuleAggregate:
             record_id: 打卡记录ID
             reason: 取消原因
         """
+        # 查找记录并更新状态
+        record = next((r for r in self._records if r.record_id == record_id), None)
+        if record:
+            record.cancel()
+
+        # 发布事件
         event = CheckinCancelledEvent(
             record_id=record_id,
             user_id=self._rule.user_id,
@@ -158,7 +176,7 @@ class CheckinRuleAggregate:
         """
         return [
             record for record in self._records
-            if record.checkin_date.date() == date.date()
+            if record.planned_checkin_time.date() == date.date()
         ]
 
     def get_today_record(self, date: datetime) -> Optional[CheckinRecordEntity]:
@@ -169,7 +187,7 @@ class CheckinRuleAggregate:
             date: 日期
 
         Returns:
-            打卡记录，如果不存在则返回 None
+            打卡记录,如果不存在则返回 None
         """
         records = self.get_records_by_date(date)
         return records[0] if records else None
@@ -184,10 +202,10 @@ class CheckinRuleAggregate:
         Returns:
             错过的打卡记录列表
         """
-        cutoff_date = datetime.now() - datetime.timedelta(days=days)
+        cutoff_date = datetime.now() - timedelta(days=days)
         return [
             record for record in self._records
-            if record.is_missed() and record.checkin_date >= cutoff_date
+            if record.is_missed and record.planned_checkin_time >= cutoff_date
         ]
 
     def calculate_completion_rate(self, days: int = 7) -> float:
@@ -198,18 +216,18 @@ class CheckinRuleAggregate:
             days: 天数
 
         Returns:
-            完成率（0-1之间的浮点数）
+            完成率(0-1之间的浮点数)
         """
-        cutoff_date = datetime.now() - datetime.timedelta(days=days)
+        cutoff_date = datetime.now() - timedelta(days=days)
         recent_records = [
             record for record in self._records
-            if record.checkin_date >= cutoff_date
+            if record.planned_checkin_time >= cutoff_date
         ]
 
         if not recent_records:
             return 0.0
 
-        completed = sum(1 for record in recent_records if record.is_completed())
+        completed = sum(1 for record in recent_records if record.is_completed)
         return completed / len(recent_records)
 
     def __eq__(self, other) -> bool:
