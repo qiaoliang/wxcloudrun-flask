@@ -14,6 +14,7 @@ from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.application.use_cases.community.handle_user_community_change_use_case import HandleUserCommunityChangeUseCase
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, STAFF_ROLE_MANAGER
 from app.shared.utils.transaction import transaction
+from database.flask_models import db, CommunityEvent, UserAuditLog
 
 logger = logging.getLogger(__name__)
 
