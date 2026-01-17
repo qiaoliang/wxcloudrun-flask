@@ -91,6 +91,7 @@ class TestEventsOperations(IntegrationTestBase):
     
             # 设置 manager 的 community_id
             manager.community_id = community.community_id
+            self.db.session.flush()
     
             # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
@@ -150,6 +151,9 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
     
+            # 设置 manager 的 community_id
+            manager.community_id = community.community_id
+    
             # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
     
@@ -159,7 +163,7 @@ class TestEventsOperations(IntegrationTestBase):
     
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=user.user_id,
+            event_result = use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='详细事件',
                 description='这是一个需要详细信息的测试事件',
@@ -169,7 +173,7 @@ class TestEventsOperations(IntegrationTestBase):
     
             # 保存需要的值
             manager_phone_number = manager.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
             
             # 显式提交到外层事务
@@ -205,6 +209,10 @@ class TestEventsOperations(IntegrationTestBase):
                 creator=manager
             )
     
+            # 设置 manager 和 supporter 的 community_id
+            manager.community_id = community.community_id
+            supporter.community_id = community.community_id
+    
             # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
             self.add_community_staff(community.community_id, supporter.user_id, 'staff', manager.user_id)
@@ -215,7 +223,7 @@ class TestEventsOperations(IntegrationTestBase):
     
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=user.user_id,
+            event_result = use_case.execute(user_id=user.user_id,
                 community_id=community.community_id,
                 title='需要帮助',
                 description='老人需要紧急帮助',
@@ -224,7 +232,7 @@ class TestEventsOperations(IntegrationTestBase):
     
             # 保存需要的值
             supporter_phone_number = supporter.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
             
             # 显式提交到外层事务
@@ -263,7 +271,8 @@ class TestEventsOperations(IntegrationTestBase):
             )
     
             # 将用户添加到社区
-            CommunityService.add_users_to_community(community.community_id, [user.user_id])
+            add_users_use_case = AddUsersToCommunityUseCase()
+            add_users_use_case.execute(community.community_id, [user.user_id])
     
             # 创建一些事件
             use_case = CreateEventUseCase()

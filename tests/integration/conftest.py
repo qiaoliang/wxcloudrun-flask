@@ -276,13 +276,10 @@ class TestBase:
 
         return getattr(client, method.lower())(endpoint, data=data, headers=headers)
 
-    def assert_api_success(self, response, expected_data_keys=None):
+def assert_api_success(self, response, expected_data_keys=None):
         """标准成功响应断言"""
         assert response.status_code == 200
         data = json.loads(response.data)
-        # 临时调试输出
-        if data['code'] != 1:
-            print(f"DEBUG: API Response: {json.dumps(data, indent=2, ensure_ascii=False)}")
         assert data['code'] == 1
         assert data['msg'] == 'success'
         assert 'data' in data
