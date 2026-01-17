@@ -460,7 +460,7 @@ class TestUpdateCheckinRuleUseCase:
         assert updated_rule.rule_name == '新名称'
         assert updated_rule.icon_url == 'https://example.com/icon.png'
         assert updated_rule.frequency_type == 1
-        assert updated_rule.custom_time == time(9, 0)
+        assert updated_rule.custom_time == '09:00:00'  # 实体使用字符串格式
         assert updated_rule.status == 0
 
 

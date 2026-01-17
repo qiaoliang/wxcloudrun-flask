@@ -76,20 +76,27 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                         record = r
                         break
 
-                # 确定状态名称
+                # 确定 status 名称
                 status_name = 'pending'  # 默认状态
                 if record:
                     if record.is_completed:  # 已打卡
                         status_name = 'checked'
                     elif record.is_missed:  # 已错过
                         status_name = 'unchecked'
+
+                # 处理 custom_time 显示格式 (从 HH:MM:SS 转为 HH:MM)
+                custom_time_display = None
+                if rule.custom_time:
+                    # custom_time 现在是字符串格式 "HH:MM:SS"
+                    custom_time_display = rule.custom_time[:5]  # 取前5个字符 "HH:MM"
+
                 checkin_item = {
                     'rule_id': rule.rule_id,
                     'rule_name': rule.rule_name,
                     'icon_url': rule.icon_url,
                     'frequency_type': rule.frequency_type,
                     'time_slot_type': rule.time_slot_type,
-                    'custom_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
+                    'custom_time': custom_time_display,
                     'status': status_name,
                     'checkin_time': None,
                     'record_id': None

@@ -13,8 +13,7 @@ class CheckinStatus(Enum):
     """打卡状态枚举"""
     PENDING = 0  # 未打卡
     COMPLETED = 1  # 已打卡
-    MISSED = 2  # 已错过
-    CANCELLED = 3  # 已取消
+    MISSED = 2  # 已错过/已撤销 (CANCELLED 映射到 MISSED)
 
 
 @dataclass
@@ -84,8 +83,8 @@ class CheckinRecordEntity:
 
     @property
     def is_cancelled(self) -> bool:
-        """是否已取消"""
-        return self.checkin_status == CheckinStatus.CANCELLED.value
+        """是否已取消(映射到 MISSED 状态)"""
+        return self.checkin_status == CheckinStatus.MISSED.value
 
     @property
     def actual_checkin_time(self) -> Optional[datetime]:
@@ -112,8 +111,8 @@ class CheckinRecordEntity:
         self.updated_at = datetime.now()
 
     def cancel(self) -> None:
-        """取消打卡"""
-        self.checkin_status = CheckinStatus.CANCELLED.value
+        """取消打卡(映射到 MISSED 状态)"""
+        self.checkin_status = CheckinStatus.MISSED.value
         self.updated_at = datetime.now()
 
     def update_checkin_time(self, checkin_time: datetime) -> None:
