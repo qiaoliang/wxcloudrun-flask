@@ -498,18 +498,17 @@ class IntegrationTestBase(TestBase):
             from database.flask_models import CommunityStaff
             from app.shared.constants.roles import Role
 
-            # 映射角色名称到角色ID
-            role_id_map = {
-                'staff': Role.STAFF,
-                'manager': Role.MANAGER
+            # 映射角色名称到角色字符串
+            role_str_map = {
+                'staff': 'staff',
+                'manager': 'manager'
             }
-            role_id = role_id_map.get(role, Role.STAFF)
+            role_str = role_str_map.get(role, 'staff')
 
             staff_record = CommunityStaff(
                 community_id=community_id,
                 user_id=user_id,
-                role=role_id,
-                added_by=operator_id,
+                role=role_str,
                 added_at=cls.db.func.now()
             )
             cls.db.session.add(staff_record)

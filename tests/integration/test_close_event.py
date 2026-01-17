@@ -1,5 +1,6 @@
 from app.application.use_cases.events.create_event_use_case import CreateEventUseCase
 from app.application.use_cases.events.close_event_use_case import CloseEventUseCase
+from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
 """
 关闭事件集成测试
 测试事件关闭功能的各种场景
@@ -29,6 +30,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_by_creator')
             manager = self.create_standard_test_user(role=3, test_context='close_by_creator_manager')
@@ -42,11 +46,12 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id])
+            add_users_use_case = AddUsersToCommunityUseCase()
+            add_users_use_case.execute(community.community_id, [creator.user_id])
 
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个需要关闭的测试事件',
@@ -55,7 +60,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 保存需要的值
             creator_phone_number = creator.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
@@ -90,6 +95,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_by_target_creator')
             target_user = self.create_standard_test_user(role=1, test_context='close_by_target')
@@ -104,11 +112,12 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将用户添加到社区
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id, target_user.user_id])
+            add_users_use_case = AddUsersToCommunityUseCase()
+            add_users_use_case.execute(community.community_id, [creator.user_id, target_user.user_id])
 
             # 创建事件，指定目标用户
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='针对目标用户的事件',
                 description='这是一个针对特定用户的事件',
@@ -119,7 +128,7 @@ class TestCloseEvent(IntegrationTestBase):
             # 保存需要的值
             creator_phone_number = creator.phone_number
             target_user_phone_number = target_user.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
@@ -156,6 +165,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_by_staff_creator')
             staff = self.create_standard_test_user(role=2, test_context='close_by_staff')
@@ -171,11 +183,11 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, staff.user_id, 'staff', manager.user_id)
 
             # 将创建者添加到社区
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id])
+            add_users_use_case.execute(community.community_id, [creator.user_id])
 
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要工作人员处理的事件',
                 description='这是一个需要工作人员介入的事件',
@@ -185,7 +197,7 @@ class TestCloseEvent(IntegrationTestBase):
             # 保存需要的值
             creator_phone_number = creator.phone_number
             staff_phone_number = staff.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
@@ -220,6 +232,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_unauthorized_creator')
             unauthorized_user = self.create_standard_test_user(role=1, test_context='close_unauthorized')
@@ -234,11 +249,11 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 只将创建者添加到社区，不添加无权限用户
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id])
+            add_users_use_case.execute(community.community_id, [creator.user_id])
 
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='无权限用户无法关闭的事件',
                 description='这是一个只有特定人员才能关闭的事件',
@@ -248,7 +263,7 @@ class TestCloseEvent(IntegrationTestBase):
             # 保存需要的值
             creator_phone_number = creator.phone_number
             unauthorized_phone_number = unauthorized_user.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
@@ -279,6 +294,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_already_closed_creator')
             manager = self.create_standard_test_user(role=3, test_context='close_already_closed_manager')
@@ -292,11 +310,11 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id])
+            add_users_use_case.execute(community.community_id, [creator.user_id])
 
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='已关闭的事件',
                 description='这是一个已经关闭的事件',
@@ -305,7 +323,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 第一次关闭事件
             use_case = CloseEventUseCase()
-            close_result = use_case.execute(event_id=event["event"]["event_id"],
+            close_result = event_result = use_case.execute(event_id=event_result.data['event']['event_id'],
                 user_id=creator.user_id,
                 closure_reason='第一次关闭，这是一个足够长的关闭原因'
             )
@@ -314,7 +332,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 保存需要的值
             creator_phone_number = creator.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
@@ -345,6 +363,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_short_reason_creator')
             manager = self.create_standard_test_user(role=3, test_context='close_short_reason_manager')
@@ -358,11 +379,11 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id])
+            add_users_use_case.execute(community.community_id, [creator.user_id])
 
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个测试事件',
@@ -371,7 +392,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 保存需要的值
             creator_phone_number = creator.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
@@ -402,6 +423,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_long_reason_creator')
             manager = self.create_standard_test_user(role=3, test_context='close_long_reason_manager')
@@ -415,11 +439,11 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id])
+            add_users_use_case.execute(community.community_id, [creator.user_id])
 
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个测试事件',
@@ -428,7 +452,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 保存需要的值
             creator_phone_number = creator.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
@@ -459,6 +483,9 @@ class TestCloseEvent(IntegrationTestBase):
         nonexistent_event_id = 999999
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户
             user = self.create_standard_test_user(role=1, test_context='close_nonexistent')
 
@@ -493,6 +520,9 @@ class TestCloseEvent(IntegrationTestBase):
         community_id = None
 
         with self.app.app_context():
+
+            # 初始化添加用户到社区的用例
+            add_users_use_case = AddUsersToCommunityUseCase()
             # 创建用户和社区
             creator = self.create_standard_test_user(role=1, test_context='close_no_reason_creator')
             manager = self.create_standard_test_user(role=3, test_context='close_no_reason_manager')
@@ -506,11 +536,11 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            CommunityService.add_users_to_community(community.community_id, [creator.user_id])
+            add_users_use_case.execute(community.community_id, [creator.user_id])
 
             # 创建事件
             use_case = CreateEventUseCase()
-            use_case.execute(user_id=creator.user_id,
+            event_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='需要关闭的事件',
                 description='这是一个测试事件',
@@ -519,7 +549,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 保存需要的值
             creator_phone_number = creator.phone_number
-            event_id = event["event"]["event_id"]
+            event_id = event_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
