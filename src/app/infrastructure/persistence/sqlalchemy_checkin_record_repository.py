@@ -70,14 +70,14 @@ class SQLAlchemyCheckinRecordRepository(CheckinRecordRepository):
         将领域实体转换为 ORM 模型并保存
         """
         orm_model = CheckinRecord(
-            record_id=entity.record_id,
+            record_id=entity.record_id if entity.record_id != 0 else None,
             rule_id=entity.rule_id,
             user_id=entity.user_id,
             community_rule_id=entity.community_rule_id,
             solo_user_id=entity.solo_user_id,
-            planned_checkin_time=entity.planned_checkin_time,
-            checkin_status=entity.checkin_status,
+            planned_time=entity.planned_checkin_time,  # 映射: planned_checkin_time -> planned_time
             checkin_time=entity.checkin_time,
+            status=entity.checkin_status,  # 映射: checkin_status -> status
             created_at=entity.created_at,
             updated_at=entity.updated_at
         )
@@ -97,9 +97,9 @@ class SQLAlchemyCheckinRecordRepository(CheckinRecordRepository):
         if not orm_model:
             raise ValueError(f"CheckinRecord with id {entity.record_id} not found")
 
-        # 更新 ORM 模型属性
-        orm_model.checkin_status = entity.checkin_status
+        # 更新 ORM 模型属性 (注意属性名映射)
         orm_model.checkin_time = entity.checkin_time
+        orm_model.status = entity.checkin_status  # 映射: checkin_status -> status
         orm_model.updated_at = entity.updated_at
 
         self.session.flush()
@@ -129,10 +129,10 @@ class SQLAlchemyCheckinRecordRepository(CheckinRecordRepository):
             record_id=orm_model.record_id,
             rule_id=orm_model.rule_id,
             user_id=orm_model.user_id,
-            planned_checkin_time=orm_model.planned_checkin_time,
+            planned_checkin_time=orm_model.planned_time,  # 映射: planned_time -> planned_checkin_time
             community_rule_id=orm_model.community_rule_id,
             solo_user_id=orm_model.solo_user_id,
-            checkin_status=orm_model.checkin_status,
+            checkin_status=orm_model.status,  # 映射: status -> checkin_status
             checkin_time=orm_model.checkin_time,
             created_at=orm_model.created_at,
             updated_at=orm_model.updated_at
