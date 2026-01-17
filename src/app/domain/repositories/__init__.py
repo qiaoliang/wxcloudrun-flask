@@ -11,8 +11,12 @@
 
 from .community_application_repository import CommunityApplicationRepository
 from .audit_log_repository import AuditLogRepository
+from .checkin_rule_repository import CheckinRuleRepository
+from .checkin_record_repository import CheckinRecordRepository
 
 __all__ = [
     'CommunityApplicationRepository',
     'AuditLogRepository',
+    'CheckinRuleRepository',
+    'CheckinRecordRepository',
 ]

@@ -9,8 +9,12 @@
 
 from .sqlalchemy_community_application_repository import SQLAlchemyCommunityApplicationRepository
 from .sqlalchemy_audit_log_repository import SQLAlchemyAuditLogRepository
+from .sqlalchemy_checkin_rule_repository import SQLAlchemyCheckinRuleRepository
+from .sqlalchemy_checkin_record_repository import SQLAlchemyCheckinRecordRepository
 
 __all__ = [
     'SQLAlchemyCommunityApplicationRepository',
     'SQLAlchemyAuditLogRepository',
+    'SQLAlchemyCheckinRuleRepository',
+    'SQLAlchemyCheckinRecordRepository',
 ]
