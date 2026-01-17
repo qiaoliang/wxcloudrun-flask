@@ -145,7 +145,7 @@ class TestSendVerificationCodeUseCase:
                                         assert result.status == UseCaseStatus.FAILURE
                                         assert "验证码发送失败" in result.message
 
-    def test_execute_update_existing_record(self, use_case, mock_phone, mock_purpose):
+    def test_execute_update_existing_record(self, use_case, mock_phone, mock_purpose, test_session):
         """
         测试执行成功 - 更新已有记录
         Given: 手机号已有验证码记录
@@ -154,20 +154,29 @@ class TestSendVerificationCodeUseCase:
         """
         # Arrange
         now = datetime.now()
-        mock_vc = Mock()
-        mock_vc.last_sent_at = now - timedelta(seconds=120)  # 120秒前发送过，超过60秒限制
+        # 创建一个真正的 VerificationCode 对象
+        existing_vc = VerificationCode(
+            phone_number=mock_phone,
+            purpose=mock_purpose,
+            code_hash='old_hash',
+            salt='old_salt',
+            expires_at=now + timedelta(minutes=10),
+            last_sent_at=now - timedelta(seconds=120)  # 120秒前发送过，超过60秒限制
+        )
+        test_session.add(existing_vc)
+        test_session.commit()
 
         with patch('app.application.use_cases.sms.send_verification_code_use_case.should_use_real_sms', return_value=False):
             with patch('app.application.use_cases.sms.send_verification_code_use_case.normalize_phone_number', return_value=mock_phone):
                 with patch('app.application.use_cases.sms.send_verification_code_use_case.generate_code', return_value='123456'):
                     with patch('app.application.use_cases.sms.send_verification_code_use_case.secrets.token_hex', return_value='test_salt'):
                         with patch('app.application.use_cases.sms.send_verification_code_use_case._hash_code', return_value='test_hash'):
-                            with patch('app.application.use_cases.sms.send_verification_code_use_case.transaction'):
-                                with patch.object(db.session, 'execute', return_value=MagicMock(scalar_one_or_none=MagicMock(return_value=mock_vc))):
-                                    # Act
-                                    result = use_case.execute(mock_phone, mock_purpose)
+                            # Act
+                            result = use_case.execute(mock_phone, mock_purpose)
 
-                                    # Assert
-                                    assert result.status == UseCaseStatus.SUCCESS
-                                    assert mock_vc.code_hash == 'test_hash'
-                                    assert mock_vc.salt == 'test_salt'
+                            # Assert
+                            assert result.status == UseCaseStatus.SUCCESS
+                            # 刷新对象以获取最新值
+                            test_session.refresh(existing_vc)
+                            assert existing_vc.code_hash == 'test_hash'
+                            assert existing_vc.salt == 'test_salt'

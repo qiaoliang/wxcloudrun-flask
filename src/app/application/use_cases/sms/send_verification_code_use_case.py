@@ -9,6 +9,8 @@ from config import should_use_real_sms
 from app.shared.utils.transaction import transaction
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.domain.repositories.verification_code_repository import VerificationCodeRepository
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from database.flask_models import VerificationCode
 import secrets
 
 
@@ -17,7 +19,7 @@ class SendVerificationCodeUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
-        self.verification_code_repo = VerificationCodeRepository()
+        self.verification_code_repo = RepositoryFactory.get_verification_code_repository()
 
     def _validate(self, phone: str, purpose: str = 'register') -> UseCaseResult:
         """
@@ -85,16 +87,15 @@ class SendVerificationCodeUseCase(BaseUseCase):
         with transaction():
             if vc:
                 # 更新现有记录
-                self.verification_code_repo.update_verification_code(
-                    vc,
-                    code_hash=code_hash,
-                    salt=salt,
-                    expires_at=now + timedelta(minutes=_code_expiry_minutes()),
-                    last_sent_at=now
-                )
+                vc.code_hash = code_hash
+                vc.salt = salt
+                vc.expires_at = now + timedelta(minutes=_code_expiry_minutes())
+                vc.last_sent_at = now
+                vc.updated_at = now
+                self.verification_code_repo.save(vc)
             else:
                 # 创建新记录
-                self.verification_code_repo.create_verification_code(
+                new_vc = VerificationCode(
                     phone_number=normalized_phone,
                     purpose=purpose,
                     code_hash=code_hash,
@@ -102,6 +103,7 @@ class SendVerificationCodeUseCase(BaseUseCase):
                     expires_at=now + timedelta(minutes=_code_expiry_minutes()),
                     last_sent_at=now
                 )
+                self.verification_code_repo.save(new_vc)
 
         # 发送短信
         if is_mock_env:
