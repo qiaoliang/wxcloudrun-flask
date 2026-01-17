@@ -5,6 +5,7 @@
 import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.user_repository import UserRepository
 
 
@@ -14,7 +15,7 @@ class SearchUsersUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
-        self.user_repo = UserRepository()
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def _validate(self, keyword: str, page: int, per_page: int, search_type: str = 'all', exclude_blackroom: bool = False) -> UseCaseResult:
         """验证参数"""

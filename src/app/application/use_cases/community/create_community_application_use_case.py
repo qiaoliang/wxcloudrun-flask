@@ -11,6 +11,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseSt
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from datetime import datetime
 from sqlalchemy import select
+from database.flask_models import db, CommunityApplication
 
 
 class CreateCommunityApplicationUseCase(BaseUseCase):

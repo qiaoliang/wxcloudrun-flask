@@ -11,7 +11,7 @@ class TestAddEventMessageUseCase:
     """测试AddEventMessageUseCase"""
 
     @patch('app.application.use_cases.events.add_event_message_use_case.RepositoryFactory')
-    @patch('app.application.use_cases.events.add_event_message_use_case.EventBus')
+    @patch('app.application.use_cases.events.add_event_message_use_case.event_bus')
     def test_should_successfully_add_event_message(self, mock_event_bus, mock_repo_factory):
         """应该成功添加事件消息"""
         # Arrange - 准备测试数据和Mock
@@ -39,9 +39,6 @@ class TestAddEventMessageUseCase:
         saved_message.message_id = 1
         mock_message_repo.save.return_value = saved_message
 
-        mock_event_bus_instance = Mock()
-        mock_event_bus.return_value = mock_event_bus_instance
-
         use_case = AddEventMessageUseCase()
 
         # Act - 执行被测试的方法
@@ -60,7 +57,7 @@ class TestAddEventMessageUseCase:
         mock_user_repo.find_by_id.assert_called_once_with(1)
         mock_event_repo.find_by_id.assert_called_once_with(1)
         mock_message_repo.save.assert_called_once()
-        mock_event_bus_instance.publish.assert_called()  # 验证领域事件被发布
+        mock_event_bus.publish.assert_called()  # 验证领域事件被发布
 
     @patch('app.application.use_cases.events.add_event_message_use_case.RepositoryFactory')
     def test_should_fail_when_event_not_found(self, mock_repo_factory):

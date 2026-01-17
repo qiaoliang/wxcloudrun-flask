@@ -1,5 +1,3 @@
-from app.application.use_cases.events.create_event_use_case import CreateEventUseCase
-from app.application.use_cases.events.close_event_use_case import CloseEventUseCase
 """
 事件管理集成测试
 Happy path: 成功创建事件、获取事件列表、创建应援
@@ -17,6 +15,7 @@ sys.path.insert(0, src_path)
 from tests.integration.conftest import IntegrationTestBase
 from test_constants import TEST_CONSTANTS
 from database.flask_models import db
+from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
 
 
 class TestEventsOperations(IntegrationTestBase):
@@ -39,7 +38,8 @@ class TestEventsOperations(IntegrationTestBase):
             )
             
             # 将用户添加到社区
-            CommunityService.add_users_to_community(community.community_id, [user.user_id])
+            add_users_use_case = AddUsersToCommunityUseCase()
+            add_users_use_case.execute(community.community_id, [user.user_id])
             
             # 保存需要的值，避免在 app_context 外访问 detached 对象
             phone_number = user.phone_number

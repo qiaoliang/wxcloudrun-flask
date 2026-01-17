@@ -3,6 +3,7 @@
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.user_repository import UserRepository
 
 
@@ -11,7 +12,7 @@ class GetCommunityMembersUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
-        self.user_repo = UserRepository()
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def execute(self, community_id: int, page: int = 1, per_page: int = 20) -> UseCaseResult:
         """

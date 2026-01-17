@@ -5,8 +5,10 @@ import logging
 from datetime import datetime
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.domain.events.event_bus import EventBus
+from app.domain.events.event_bus import EventBus, event_bus
+from app.domain.events.community_events import EventMessageAddedEvent
 from app.domain.entities.community_event_entity import CommunityEventEntity
+from app.domain.entities.event_message_entity import EventMessageEntity
 from app.domain.aggregates.community_event_aggregate import CommunityEventAggregate
 from database.flask_models import EventMessage
 
@@ -59,17 +61,30 @@ class AddEventMessageUseCase(BaseUseCase):
                     message='事件不存在'
                 )
 
+            # 3.5 检查事件状态，已关闭的事件不能添加消息
+            if event.status != 1:  # 1=进行中，2=已解决，3=已取消
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message='事件已关闭'
+                )
+
             # 4. 创建事件聚合根并添加消息
             event_entity = CommunityEventEntity(event)
-            event_aggregate = CommunityEventAggregate(event_entity, self.event_bus)
+            event_aggregate = CommunityEventAggregate(event_entity)
 
             # 在聚合根中添加消息（业务规则在聚合根内验证）
             try:
-                event_aggregate.add_message(
+                # 先创建 EventMessage 对象
+                event_message_obj = EventMessage(
+                    event_id=event_id,
                     sender_id=user_id,
-                    message=message,
-                    message_type=message_type
+                    message_content=message,
+                    message_type=message_type,
+                    status=1,
+                    created_at=datetime.now()
                 )
+                message_entity = EventMessageEntity(event_message_obj)
+                event_aggregate.add_message(message_entity)
             except ValueError as e:
                 return UseCaseResult(
                     status=UseCaseStatus.BUSINESS_ERROR,
@@ -90,7 +105,16 @@ class AddEventMessageUseCase(BaseUseCase):
 
             self.logger.info(f'添加事件消息成功: event_id={event_id}, user_id={user_id}')
 
-            # 6. 返回结果
+            # 6. 发布领域事件
+            event_message_added = EventMessageAddedEvent(
+                event_id=event_id,
+                sender_id=user_id,
+                message_type=message_type,
+                message_content=message
+            )
+            event_bus.publish(event_message_added)
+
+            # 7. 返回结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='添加消息成功',

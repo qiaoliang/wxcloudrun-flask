@@ -3,6 +3,7 @@
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from sqlalchemy import select
 from app.domain.repositories.user_repository import UserRepository
 
@@ -10,7 +11,7 @@ from app.domain.repositories.user_repository import UserRepository
 class VerifyUserCommunityAccessUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
-        self.user_repo = UserRepository()
+        self.user_repository = RepositoryFactory.get_user_repository()
 
 
     """验证用户社区访问权限用例"""

@@ -11,6 +11,7 @@ from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityCreatedEvent
 from app.domain.events.event_bus import event_bus
 from app.domain.repositories.community_repository import CommunityRepository
+from database.flask_models import Community
 
 
 class CreateCommunityUseCase(BaseUseCase):
@@ -18,7 +19,6 @@ class CreateCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
-        self.community_repo = CommunityRepository()
         self.logger = logging.getLogger(__name__)
         self.community_repository = RepositoryFactory.get_community_repository()
         self.user_repository = RepositoryFactory.get_user_repository()

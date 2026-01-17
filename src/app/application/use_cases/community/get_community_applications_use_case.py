@@ -1,22 +1,25 @@
 """
 获取社区申请列表用例
 """
+import logging
+from typing import Optional
+from sqlalchemy import select, func
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
-from sqlalchemy import select, func
-from typing import Optional
-from app.domain.repositories.community_repository import CommunityRepository
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from database.flask_models import db, CommunityApplication
 
 
 class GetCommunityApplicationsUseCase(BaseUseCase):
-    def __init__(self):
-        super().__init__()
-        self.community_repo = CommunityRepository()
-
-
     """获取社区申请列表用例"""
 
-    def _validate(self, user_id: int, page: int = 1, per_page: int = 20, 
+    def __init__(self):
+        super().__init__()
+        self.logger = logging.getLogger(__name__)
+        self.community_repository = RepositoryFactory.get_community_repository()
+        self.user_repository = RepositoryFactory.get_user_repository()
+
+    def _validate(self, user_id: int, page: int = 1, per_page: int = 20,
                   status_filter: Optional[str] = None) -> UseCaseResult:
         """
         验证参数
@@ -68,9 +71,11 @@ class GetCommunityApplicationsUseCase(BaseUseCase):
             UseCaseResult: 包含申请列表和分页信息
         """
         try:
+            session = db.session
+
             # 构建查询条件
             conditions = [CommunityApplication.user_id == user_id]
-            
+
             # 状态过滤
             if status_filter:
                 status_map = {
@@ -90,7 +95,7 @@ class GetCommunityApplicationsUseCase(BaseUseCase):
             count_stmt = select(func.count()).select_from(CommunityApplication)
             for condition in conditions:
                 count_stmt = count_stmt.where(condition)
-            total_result = db.session.execute(count_stmt)
+            total_result = session.execute(count_stmt)
             total = total_result.scalar()
 
             # 查询申请列表
@@ -102,7 +107,7 @@ class GetCommunityApplicationsUseCase(BaseUseCase):
                 .limit(per_page)
                 .offset(offset)
             )
-            applications = db.session.execute(stmt).scalars().all()
+            applications = session.execute(stmt).scalars().all()
 
             # 构造返回数据
             applications_data = []
@@ -137,6 +142,7 @@ class GetCommunityApplicationsUseCase(BaseUseCase):
             )
 
         except Exception as e:
+            self.logger.error(f"获取申请列表失败: {str(e)}", exc_info=True)
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f"获取申请列表失败: {str(e)}"

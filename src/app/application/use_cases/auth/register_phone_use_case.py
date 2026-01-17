@@ -18,6 +18,7 @@ from wxcloudrun.utils.validators import (
 )
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
 from app.domain.repositories.user_repository import UserRepository
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class RegisterPhoneUseCase(BaseUseCase):
@@ -26,7 +27,7 @@ class RegisterPhoneUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.PWD_SALT = "default_salt"  # 应该从配置中读取
-        self.user_repo = UserRepository()
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def _pwd_hash(self, pwd: str) -> str:
         """密码哈希"""

@@ -16,7 +16,7 @@ class MergeAccountsUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
-        self.user_repo = UserRepository()
+        self.user_repository = RepositoryFactory.get_user_repository()
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()

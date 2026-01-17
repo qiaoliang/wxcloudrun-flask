@@ -4,6 +4,7 @@
 import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.user_repository import UserRepository
 from app.domain.repositories.community_staff_repository import CommunityStaffRepository
 from app.domain.repositories.community_repository import CommunityRepository
@@ -18,9 +19,9 @@ class GetAdminListUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
-        self.user_repo = UserRepository()
+        self.user_repository = RepositoryFactory.get_user_repository()
         self.community_staff_repo = CommunityStaffRepository()
-        self.community_repo = CommunityRepository()
+        self.community_repository = RepositoryFactory.get_community_repository()
 
     def execute(self) -> UseCaseResult:
         """

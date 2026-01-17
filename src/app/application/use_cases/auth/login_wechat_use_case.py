@@ -24,8 +24,6 @@ class LoginWeChatUseCase(BaseUseCase):
     """微信登录用例"""
 
     def __init__(self):
-        self.user_repo = UserRepository()
-
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()

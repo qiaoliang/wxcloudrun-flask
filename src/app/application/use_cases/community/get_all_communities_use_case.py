@@ -4,6 +4,7 @@
 import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.community_repository import CommunityRepository
 
 
@@ -12,7 +13,7 @@ class GetAllCommunitiesUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
-        self.community_repo = CommunityRepository()
+        self.community_repository = RepositoryFactory.get_community_repository()
         self.logger = logging.getLogger(__name__)
 
     def execute(self) -> UseCaseResult:
