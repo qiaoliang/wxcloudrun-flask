@@ -314,7 +314,7 @@ class CheckinRecord(db.Model):
     checkin_time = Column(db.DateTime, comment='实际打卡时间', index=True)
     checkin_type = Column(db.String(50), comment='打卡类型')
     content = Column(db.Text, comment='打卡内容')
-    status = Column(db.Integer, default=0, comment='打卡状态: 0=未打卡, 1=已打卡, 2=已撤销', index=True)
+    status = Column(db.Integer, default=0, comment='打卡状态: 0=未打卡, 1=已打卡, 2=已错过, 3=已取消', index=True)
     updated_at = Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
     created_at = Column(db.DateTime, default=datetime.now, index=True)
 
@@ -330,7 +330,7 @@ class CheckinRecord(db.Model):
         db.Index('idx_checkin_record_user_status', 'user_id', 'status'),
         db.Index('idx_checkin_record_rule_status', 'rule_id', 'status'),
         db.Index('idx_checkin_record_planned_time_status', 'planned_time', 'status'),
-        db.CheckConstraint('status IN (0, 1, 2)', name='ck_checkin_record_status'),  # 0=未打卡, 1=已打卡, 2=已撤销
+        db.CheckConstraint('status IN (0, 1, 2, 3)', name='ck_checkin_record_status'),  # 0=未打卡, 1=已打卡, 2=已错过, 3=已取消
     )
 
     # 关系 - 使用 back_populates 替代 backref
