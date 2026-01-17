@@ -40,10 +40,10 @@ class TestCommunityListAPI(IntegrationTestBase):
             cls.test_phone_number = cls.test_user.phone_number  # 存储手机号码
             cls.test_user_id = cls.test_user.user_id  # 存储用户ID
             cls.test_user_nickname = cls.test_user.nickname  # 存储用户昵称
-            
+
             # 创建多个测试社区以验证列表功能
             cls.test_communities = []
-            
+
             # 创建普通社区（应该出现在列表中）
             community1 = cls.create_test_community(
                 name='公开测试社区1',
@@ -52,15 +52,17 @@ class TestCommunityListAPI(IntegrationTestBase):
                 status=1  # 启用状态
             )
             cls.test_communities.append(community1)
-            
+            print(f"✅ 创建社区1: {community1.community_id}, {community1.name}, status={community1.status}, is_default={getattr(community1, 'is_default', None)}")
+
             community2 = cls.create_test_community(
-                name='公开测试社区2', 
+                name='公开测试社区2',
                 creator=cls.test_user,
                 description='第二个公开测试社区',
                 status=1  # 启用状态
             )
             cls.test_communities.append(community2)
-            
+            print(f"✅ 创建社区2: {community2.community_id}, {community2.name}, status={community2.status}, is_default={getattr(community2, 'is_default', None)}")
+
             # 创建禁用社区（不应该出现在列表中）
             disabled_community = cls.create_test_community(
                 name='禁用测试社区',
@@ -68,7 +70,8 @@ class TestCommunityListAPI(IntegrationTestBase):
                 description='这个社区被禁用了',
                 status=2  # 禁用状态
             )
-            
+            print(f"✅ 创建禁用社区: {disabled_community.community_id}, status={disabled_community.status}")
+
             # 创建默认社区（不应该出现在列表中）
             default_community = cls.create_test_community(
                 name='安卡大家庭',
@@ -77,7 +80,15 @@ class TestCommunityListAPI(IntegrationTestBase):
                 status=1,
                 is_default=True
             )
-            
+            print(f"✅ 创建默认社区: {default_community.community_id}, is_default={getattr(default_community, 'is_default', None)}")
+
+            # 查询数据库中的所有社区
+            from database.flask_models import Community
+            all_communities = cls.db.session.query(Community).all()
+            print(f"✅ 数据库中的所有社区数量: {len(all_communities)}")
+            for c in all_communities:
+                print(f"  - {c.community_id}: {c.name}, status={c.status}, is_default={getattr(c, 'is_default', None)}")
+
             # 保存预期数据用于验证
             cls.expected_communities = [community1, community2]
 

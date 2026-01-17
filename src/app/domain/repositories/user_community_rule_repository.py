@@ -144,3 +144,21 @@ class UserCommunityRuleRepository(ABC):
             映射数量
         """
         pass
+
+    @abstractmethod
+    def deactivate_by_user_and_community(
+        self,
+        user_id: int,
+        community_id: int
+    ) -> int:
+        """
+        停用用户在指定社区的所有规则映射
+
+        Args:
+            user_id: 用户ID
+            community_id: 社区ID
+
+        Returns:
+            int: 停用的规则数量
+        """
+        pass

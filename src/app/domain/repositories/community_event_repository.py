@@ -94,3 +94,25 @@ class CommunityEventRepository(ABC):
     def count_by_community_id(self, community_id: int, status: Optional[int] = None) -> int:
         """统计社区事件数量"""
         pass
+
+    @abstractmethod
+    def batch_transfer_events(
+        self,
+        source_community_id: int,
+        target_community_id: int,
+        user_ids: List[int],
+        status: Optional[int] = None
+    ) -> int:
+        """
+        批量转移事件到目标社区
+
+        Args:
+            source_community_id: 源社区ID
+            target_community_id: 目标社区ID
+            user_ids: 用户ID列表
+            status: 事件状态（可选，默认只转移进行中的事件）
+
+        Returns:
+            int: 转移的事件数量
+        """
+        pass

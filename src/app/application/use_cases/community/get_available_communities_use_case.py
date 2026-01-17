@@ -2,7 +2,6 @@
 获取可加入社区列表用例
 """
 import logging
-from sqlalchemy.orm import joinedload
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
@@ -28,13 +27,8 @@ class GetAvailableCommunitiesUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-            # 1. 查询所有社区
-            stmt = db.session.execute(
-                db.select(Community)
-                .where(Community.status == 1)  # 只返回正常状态的社区
-                .order_by(Community.created_at.desc())
-            )
-            communities = stmt.scalars().all()
+            # 1. 使用 Repository 查询所有活跃社区
+            communities = self.community_repository.find_active_communities()
 
             # 2. 构造社区列表
             communities_data = []
@@ -49,8 +43,7 @@ class GetAvailableCommunitiesUseCase(BaseUseCase):
                     'community_id': community.community_id,
                     'name': community.name,
                     'description': community.description,
-                    'address': community.address,
-                    'contact_phone': community.contact_phone,
+                    'location': community.location,
                     'status': community.status,
                     'is_member': is_member,
                     'created_at': community.created_at.isoformat() if community.created_at else None

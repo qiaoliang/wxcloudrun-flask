@@ -194,3 +194,35 @@ class SQLAlchemyUserCommunityRuleRepository(UserCommunityRuleRepository):
 
         result = db.session.execute(query)
         return result.scalar() or 0
+
+    def deactivate_by_user_and_community(
+        self,
+        user_id: int,
+        community_id: int
+    ) -> int:
+        """
+        停用用户在指定社区的所有规则映射
+
+        Args:
+            user_id: 用户ID
+            community_id: 社区ID
+
+        Returns:
+            int: 停用的规则数量
+        """
+        from database.flask_models import CommunityCheckinRule
+        from sqlalchemy import select
+
+        stmt = select(UserCommunityRule).join(CommunityCheckinRule).where(
+            UserCommunityRule.user_id == user_id,
+            CommunityCheckinRule.community_id == community_id,
+            UserCommunityRule.is_active == True
+        )
+        mappings = list(db.session.execute(stmt).scalars().all())
+
+        deactivated_count = 0
+        for mapping in mappings:
+            mapping.is_active = False
+            deactivated_count += 1
+
+        return deactivated_count

@@ -145,3 +145,39 @@ class SQLAlchemyCommunityEventRepository(CommunityEventRepository):
             stmt = stmt.where(CommunityEvent.status == status)
         
         return len(list(self.session.execute(stmt).scalars().all()))
+
+    def batch_transfer_events(
+        self,
+        source_community_id: int,
+        target_community_id: int,
+        user_ids: List[int],
+        status: Optional[int] = None
+    ) -> int:
+        """
+        批量转移事件到目标社区
+
+        Args:
+            source_community_id: 源社区ID
+            target_community_id: 目标社区ID
+            user_ids: 用户ID列表
+            status: 事件状态（可选，默认只转移进行中的事件）
+
+        Returns:
+            int: 转移的事件数量
+        """
+        from sqlalchemy import update
+
+        stmt = update(CommunityEvent).where(
+            CommunityEvent.community_id == source_community_id,
+            CommunityEvent.target_user_id.in_(user_ids)
+        )
+
+        if status is not None:
+            stmt = stmt.where(CommunityEvent.status == status)
+
+        stmt = stmt.values(
+            {'community_id': target_community_id}
+        )
+
+        result = self.session.execute(stmt)
+        return result.rowcount
