@@ -61,40 +61,46 @@ class TestCounterUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '需要 counter_id 参数' in result.message
 
-    @patch('app.application.use_cases.misc.counter_use_case.db')
+    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
     @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    def test_execute_increment_new_counter(self, mock_transaction, mock_db):
+    def test_execute_increment_new_counter(self, mock_transaction, mock_repo_factory):
         """测试增加新计数器"""
         # Arrange
-        mock_db.session.execute.return_value.scalar_one_or_none.return_value = None
+        mock_counters_repo = MagicMock()
+        mock_counters_repo.find_by_id.return_value = None  # 计数器不存在
+        mock_counters_repo.save.return_value = MagicMock(id=1, count=1)
+        mock_repo_factory.get_counters_repository.return_value = mock_counters_repo
         mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
         mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
 
         use_case = CounterUseCase()
-        
+
         # Act
         result = use_case._execute('increment', {'counter_id': 1})
-        
+
         # Assert
         assert result.status == UseCaseStatus.SUCCESS
         assert result.message == '计数增加成功'
         assert result.data['id'] == 1
         assert result.data['count'] == 1
 
-    @patch('app.application.use_cases.misc.counter_use_case.db')
+    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
     @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    def test_execute_increment_existing_counter(self, mock_transaction, mock_db):
+    def test_execute_increment_existing_counter(self, mock_transaction, mock_repo_factory):
         """测试增加现有计数器"""
         # Arrange
         mock_counter = MagicMock()
         mock_counter.count = 5
         mock_counter.id = 1
-        mock_db.session.execute.return_value.scalar_one_or_none.return_value = mock_counter
+        mock_counters_repo = MagicMock()
+        mock_counters_repo.find_by_id.return_value = mock_counter
+        mock_counters_repo.save.return_value = mock_counter
+        mock_repo_factory.get_counters_repository.return_value = mock_counters_repo
         mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
         mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
 
         use_case = CounterUseCase()
-        
+
         # Act
         result = use_case._execute('increment', {'counter_id': 1})
         
@@ -102,59 +108,66 @@ class TestCounterUseCase:
         assert result.status == UseCaseStatus.SUCCESS
         assert result.data['count'] == 6
 
-    @patch('app.application.use_cases.misc.counter_use_case.db')
+    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
     @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    def test_execute_reset_success(self, mock_transaction, mock_db):
+    def test_execute_reset_success(self, mock_transaction, mock_repo_factory):
         """测试重置计数器成功"""
         # Arrange
         mock_counter = MagicMock()
         mock_counter.count = 10
         mock_counter.id = 1
-        mock_db.session.execute.return_value.scalar_one_or_none.return_value = mock_counter
+        mock_counters_repo = MagicMock()
+        mock_counters_repo.find_by_id.return_value = mock_counter
+        mock_counters_repo.save.return_value = mock_counter
+        mock_repo_factory.get_counters_repository.return_value = mock_counters_repo
         mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
         mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
 
         use_case = CounterUseCase()
-        
+
         # Act
         result = use_case._execute('reset', {'counter_id': 1})
-        
+
         # Assert
         assert result.status == UseCaseStatus.SUCCESS
         assert result.data['count'] == 0
 
-    @patch('app.application.use_cases.misc.counter_use_case.db')
-    def test_execute_reset_not_found(self, mock_db):
+    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
+    def test_execute_reset_not_found(self, mock_repo_factory):
         """测试重置不存在的计数器"""
         # Arrange
-        mock_db.session.execute.return_value.scalar_one_or_none.return_value = None
+        mock_counters_repo = MagicMock()
+        mock_counters_repo.find_by_id.return_value = None
+        mock_repo_factory.get_counters_repository.return_value = mock_counters_repo
 
         use_case = CounterUseCase()
-        
+
         # Act
         result = use_case._execute('reset', {'counter_id': 999})
-        
+
         # Assert
         assert result.status == UseCaseStatus.NOT_FOUND
         assert '不存在' in result.message
 
-    @patch('app.application.use_cases.misc.counter_use_case.db')
-    def test_execute_get_not_found(self, mock_db):
+    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
+    def test_execute_get_not_found(self, mock_repo_factory):
         """测试获取不存在的计数器"""
         # Arrange
-        mock_db.session.execute.return_value.scalar_one_or_none.return_value = None
+        mock_counters_repo = MagicMock()
+        mock_counters_repo.find_by_id.return_value = None
+        mock_repo_factory.get_counters_repository.return_value = mock_counters_repo
 
         use_case = CounterUseCase()
-        
+
         # Act
         result = use_case._execute('get', {'id': 999})
-        
+
         # Assert
         assert result.status == UseCaseStatus.NOT_FOUND
         assert '不存在' in result.message
 
-    @patch('app.application.use_cases.misc.counter_use_case.db')
-    def test_execute_list_success(self, mock_db):
+    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
+    def test_execute_list_success(self, mock_repo_factory):
         """测试列出所有计数器"""
         # Arrange
         mock_counter1 = MagicMock()
@@ -163,32 +176,33 @@ class TestCounterUseCase:
         mock_counter2 = MagicMock()
         mock_counter2.id = 2
         mock_counter2.count = 10
-        mock_db.session.execute.return_value.scalars.return_value.all.return_value = [mock_counter1, mock_counter2]
+        mock_counters_repo = MagicMock()
+        mock_counters_repo.find_all.return_value = [mock_counter1, mock_counter2]
+        mock_repo_factory.get_counters_repository.return_value = mock_counters_repo
 
         use_case = CounterUseCase()
-        
+
         # Act
         result = use_case._execute('list', {})
-        
+
         # Assert
         assert result.status == UseCaseStatus.SUCCESS
         assert len(result.data['counters']) == 2
         assert result.data['counters'][0]['id'] == 1
         assert result.data['counters'][1]['count'] == 10
 
-    @patch('app.application.use_cases.misc.counter_use_case.db')
-    @patch('app.application.use_cases.misc.counter_use_case.transaction')
-    def test_execute_clear_success(self, mock_transaction, mock_db):
+    @patch('app.application.use_cases.misc.counter_use_case.RepositoryFactory')
+    def test_execute_clear_success(self, mock_repo_factory):
         """测试清除所有计数器"""
         # Arrange
-        mock_transaction.return_value.__enter__ = MagicMock(return_value=None)
-        mock_transaction.return_value.__exit__ = MagicMock(return_value=None)
+        mock_counters_repo = MagicMock()
+        mock_repo_factory.get_counters_repository.return_value = mock_counters_repo
 
         use_case = CounterUseCase()
-        
+
         # Act
         result = use_case._execute('clear', {})
-        
+
         # Assert
         assert result.status == UseCaseStatus.SUCCESS
         assert '清除' in result.message

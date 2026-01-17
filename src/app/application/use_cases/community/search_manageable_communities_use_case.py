@@ -16,7 +16,7 @@ class SearchManageableCommunitiesUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.community_repository = RepositoryFactory.get_community_repository()
-        self.community_staff_repo = CommunityStaffRepository()
+        self.community_staff_repository = RepositoryFactory.get_community_staff_repository()
         self.logger = logging.getLogger(__name__)
 
     def _validate(self, user_id: int, keyword: str, page: int, per_page: int, **kwargs) -> UseCaseResult:
