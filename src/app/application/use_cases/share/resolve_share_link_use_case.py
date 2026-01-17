@@ -102,11 +102,19 @@ class ResolveShareLinkUseCase(BaseUseCase):
                 is_already_supervisor = existing_relation is not None
 
             # 8. 构造响应数据
+            # custom_time 可能是字符串(HH:MM:SS)或datetime.time对象
+            checkin_time = None
+            if rule.custom_time:
+                if isinstance(rule.custom_time, str):
+                    checkin_time = rule.custom_time[:5]  # HH:MM:SS -> HH:MM
+                elif hasattr(rule.custom_time, 'strftime'):
+                    checkin_time = rule.custom_time.strftime('%H:%M')
+
             rule_info = {
                 'rule_id': rule.rule_id,
                 'rule_name': rule.rule_name,
                 'description': '',
-                'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
+                'checkin_time': checkin_time,
                 'frequency': 'daily',  # 简化处理，实际应根据 rule.frequency_type 判断
                 'is_enabled': rule.status == 1
             }

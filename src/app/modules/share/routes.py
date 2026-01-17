@@ -164,6 +164,14 @@ def share_checkin_page():
         if not rule or not user:
             return "分享内容不存在", 404
 
+        # 处理 custom_time (可能是字符串或datetime.time对象)
+        checkin_time_display = '未设置'
+        if rule.custom_time:
+            if isinstance(rule.custom_time, str):
+                checkin_time_display = rule.custom_time[:5]
+            elif hasattr(rule.custom_time, 'strftime'):
+                checkin_time_display = rule.custom_time.strftime('%H:%M')
+
         # 渲染HTML页面
         html_content = f"""
         <!DOCTYPE html>
@@ -249,7 +257,7 @@ def share_checkin_page():
                 <div class="info">
                     <div class="info-item">
                         <span class="info-label">打卡时间：</span>
-                        <span class="info-value">{rule.custom_time.strftime('%H:%M') if rule.custom_time else '未设置'}</span>
+                        <span class="info-value">{checkin_time_display}</span>
                     </div>
                     <div class="info-item">
                         <span class="info-label">重复周期：</span>
