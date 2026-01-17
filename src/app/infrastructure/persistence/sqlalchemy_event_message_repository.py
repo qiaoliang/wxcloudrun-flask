@@ -25,10 +25,12 @@ class SQLAlchemyEventMessageRepository(EventMessageRepository):
         """根据ID查找事件消息"""
         return self.session.get(EventMessage, message_id)
 
-    def find_by_event_id(self, event_id: int) -> List[EventMessage]:
+    def find_by_event_id(self, event_id: int, limit: int = None) -> List[EventMessage]:
         """根据事件ID查找消息"""
         stmt = select(EventMessage).where(EventMessage.event_id == event_id)
         stmt = stmt.order_by(EventMessage.created_at.asc())
+        if limit:
+            stmt = stmt.limit(limit)
         return list(self.session.execute(stmt).scalars().all())
 
     def find_by_sender_id(self, sender_id: int) -> List[EventMessage]:

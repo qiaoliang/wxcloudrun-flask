@@ -1,20 +1,29 @@
 """
-获取社区未处理的求助事件用例
+获取社区未处理的求助事件用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db
+- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 import logging
-from sqlalchemy import select
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import db, CommunityEvent
 
 
 class GetPendingEventsUseCase(BaseUseCase):
     """获取社区未处理的求助事件用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
         self.community_repository = RepositoryFactory.get_community_repository()
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
 
@@ -45,13 +54,12 @@ class GetPendingEventsUseCase(BaseUseCase):
                 )
 
             # 3. 查询未处理的call_for_help类型事件
-            stmt = select(CommunityEvent).where(
-                CommunityEvent.community_id == community_id,
-                CommunityEvent.event_type == 'call_for_help',
-                CommunityEvent.status == 1
-            ).order_by(CommunityEvent.created_at.desc())
-
-            events = db.session.execute(stmt).scalars().all()
+            # ✅ 使用Repository代替 db.session.execute(select(CommunityEvent)...)
+            events = self.community_event_repository.find_by_community_id(
+                community_id,
+                status=1,  # 待处理
+                event_type='call_for_help'
+            )
 
             # 4. 构造响应数据
             event_list = []

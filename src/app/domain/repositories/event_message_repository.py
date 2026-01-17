@@ -16,7 +16,7 @@ class EventMessageRepository(ABC):
         pass
 
     @abstractmethod
-    def find_by_event_id(self, event_id: int) -> List[EventMessage]:
+    def find_by_event_id(self, event_id: int, limit: int = None) -> List[EventMessage]:
         """根据事件ID查找消息"""
         pass
 

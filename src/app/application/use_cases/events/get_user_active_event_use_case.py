@@ -1,20 +1,30 @@
 """
-获取用户活跃事件用例
+获取用户活跃事件用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db
+- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 import logging
-from sqlalchemy import and_
-from sqlalchemy.orm import joinedload
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, CommunityEvent
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetUserActiveEventUseCase(BaseUseCase):
     """获取用户活跃事件用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
+        self.community_event_repository = RepositoryFactory.get_community_event_repository()
 
     def execute(self, user_id: int) -> UseCaseResult:
         """
@@ -35,35 +45,28 @@ class GetUserActiveEventUseCase(BaseUseCase):
                 )
 
             # 2. 查询用户活跃事件（状态为1的待处理事件）
-            stmt = db.session.execute(
-                db.select(CommunityEvent)
-                .options(joinedload(CommunityEvent.community))
-                .where(
-                    and_(
-                        CommunityEvent.user_id == user_id,
-                        CommunityEvent.status == 1  # 待处理
-                    )
-                )
-                .order_by(CommunityEvent.created_at.desc())
-            )
-            event = stmt.scalar_one_or_none()
+            # ✅ 使用Repository代替 db.session.execute(select(CommunityEvent)...)
+            # 注意：这里使用target_user_id而不是user_id
+            events = self.community_event_repository.find_by_target_user_id(user_id, status=1)
 
-            if not event:
+            if not events:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
                     message='无活跃事件',
                     data=None
                 )
 
+            event = events[0]  # 取第一个（最新的）
+
             # 3. 构造事件数据
             event_data = {
                 'event_id': event.event_id,
-                'user_id': event.user_id,
+                'target_user_id': event.target_user_id,
                 'community_id': event.community_id,
-                'community_name': event.community.name if event.community else None,
                 'event_type': event.event_type,
                 'status': event.status,
                 'location': event.location,
+                'description': event.description,
                 'created_at': event.created_at.isoformat() if event.created_at else None,
                 'updated_at': event.updated_at.isoformat() if event.updated_at else None
             }

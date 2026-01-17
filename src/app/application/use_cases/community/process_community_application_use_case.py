@@ -1,11 +1,18 @@
 """
-处理社区申请用例
+处理社区申请用例（重构后 - 部分符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db, User
+- 使用现有Repository接口访问数据
+- CommunityApplication暂无Repository，保留直接访问（待后续创建）
+
+注：CommunityApplicationRepository创建后可进一步优化
 """
 import logging
 from datetime import datetime
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, User, CommunityApplication, UserAuditLog
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.utils.transaction import transaction
 
 logger = logging.getLogger(__name__)
@@ -15,8 +22,17 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
     """处理社区申请用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入所有需要的Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
+        self.user_repository = RepositoryFactory.get_user_repository()
+        self.community_checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
+        self.user_community_rule_repository = RepositoryFactory.get_user_community_rule_repository()
 
     def execute(
         self,
@@ -51,8 +67,9 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     message='处理者ID不能为空'
                 )
 
-            # 2. 查询申请
-            application = db.session.get(CommunityApplication, application_id)
+            # 2. 查询申请（CommunityApplication暂无Repository，保留直接访问）
+            from database.flask_models import CommunityApplication
+            application = CommunityApplication.query.get(application_id)
             if not application:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
@@ -67,7 +84,8 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                 )
 
             # 4. 验证处理者存在
-            processor = db.session.get(User, processor_id)
+            # ✅ 使用Repository代替 db.session.get(User, processor_id)
+            processor = self.user_repository.find_by_id(processor_id)
             if not processor:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
@@ -83,51 +101,50 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     application.updated_at = datetime.now()
 
                     # 将用户加入社区
-                    user = db.session.get(User, application.user_id)
+                    # ✅ 使用Repository代替 db.session.get(User, application.user_id)
+                    user = self.user_repository.find_by_id(application.user_id)
                     if user:
                         user.community_id = application.target_community_id
                         user.community_joined_at = datetime.now()
+                        self.user_repository.save(user)
 
                     # 同步社区打卡规则到用户
-                    # 获取新社区的所有启用规则
-                    from database.flask_models import UserCommunityRule, CommunityCheckinRule
-                    from sqlalchemy import select
-
-                    stmt_new = select(CommunityCheckinRule).where(
-                        CommunityCheckinRule.community_id == application.target_community_id,
-                        CommunityCheckinRule.status == 1  # 启用状态
+                    # ✅ 使用Repository获取新社区的所有启用规则
+                    new_community_rules = self.community_checkin_rule_repository.find_active_by_community(
+                        application.target_community_id
                     )
-                    new_community_rules = db.session.execute(stmt_new).scalars().all()
 
                     activated_count = 0
 
                     # 为用户创建或激活规则映射
                     for rule in new_community_rules:
-                        # 查找是否已存在映射记录
-                        stmt_mapping = select(UserCommunityRule).where(
-                            UserCommunityRule.user_id == application.user_id,
-                            UserCommunityRule.community_rule_id == rule.community_rule_id
+                        # ✅ 使用Repository查找是否已存在映射记录
+                        existing_mapping = self.user_community_rule_repository.find_by_user_and_rule(
+                            application.user_id, rule.community_rule_id
                         )
-                        existing_mapping = db.session.execute(stmt_mapping).scalar_one_or_none()
 
                         if existing_mapping:
                             # 如果存在且当前是停用状态，重新激活
                             if not existing_mapping.is_active:
                                 existing_mapping.is_active = True
+                                self.user_community_rule_repository.save(existing_mapping)
                                 activated_count += 1
                         else:
                             # 如果不存在，创建新映射
+                            from database.flask_models import UserCommunityRule
                             new_mapping = UserCommunityRule(
                                 user_id=application.user_id,
                                 community_rule_id=rule.community_rule_id,
                                 is_active=True
                             )
-                            db.session.add(new_mapping)
+                            # ✅ 使用Repository代替 db.session.add(new_mapping)
+                            self.user_community_rule_repository.save(new_mapping)
                             activated_count += 1
 
                     logger.info(f"用户{application.user_id}已激活{activated_count}个新社区规则")
 
-                    # 记录审计日志
+                    # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
+                    from database.flask_models import UserAuditLog, db
                     audit_log = UserAuditLog(
                         user_id=processor_id,
                         action="approve_community_application",
@@ -158,7 +175,8 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     application.processed_by = processor_id
                     application.updated_at = datetime.now()
 
-                    # 记录审计日志
+                    # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
+                    from database.flask_models import UserAuditLog, db
                     audit_log = UserAuditLog(
                         user_id=processor_id,
                         action="reject_community_application",

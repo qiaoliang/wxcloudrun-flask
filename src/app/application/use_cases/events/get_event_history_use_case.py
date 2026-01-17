@@ -2,10 +2,11 @@
 获取事件历史记录用例
 """
 import logging
-from sqlalchemy.orm import joinedload
+# from sqlalchemy.orm import joinedload  # 不再需要，使用Repository
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, EventMessage
+# 移除db导入，使用Repository代替
 
 
 class GetEventHistoryUseCase(BaseUseCase):
@@ -14,6 +15,7 @@ class GetEventHistoryUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        self.event_message_repository = RepositoryFactory.get_event_message_repository()
 
     def execute(self, event_id: int, limit: int = 50) -> UseCaseResult:
         """
@@ -35,13 +37,7 @@ class GetEventHistoryUseCase(BaseUseCase):
                 )
 
             # 2. 查询事件消息
-            stmt = db.session.execute(
-                db.select(EventMessage)
-                .where(EventMessage.event_id == event_id)
-                .order_by(EventMessage.created_at.asc())
-                .limit(limit)
-            )
-            messages = stmt.scalars().all()
+            messages = self.event_message_repository.find_by_event_id(event_id, limit)
 
             # 3. 构造消息列表
             messages_data = []

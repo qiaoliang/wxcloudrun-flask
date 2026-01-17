@@ -1,14 +1,28 @@
 """
-根据微信 OpenID 获取用户用例
+根据微信 OpenID 获取用户用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db
+- 使用UserRepository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
-from database.flask_models import db, User
-from sqlalchemy.orm import joinedload
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetUserByOpenidUseCase(BaseUseCase):
     """根据微信 OpenID 获取用户用例"""
+
+    def __init__(self):
+        """
+        初始化用例，注入UserRepository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
+        super().__init__()
+        # ✅ 通过RepositoryFactory获取UserRepository接口
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def execute(self, openid: str) -> UseCaseResult:
         """
@@ -25,10 +39,8 @@ class GetUserByOpenidUseCase(BaseUseCase):
                 return UseCaseResult.fail("微信 OpenID 不能为空")
 
             # 查询用户
-            stmt = db.session.execute(
-                db.select(User).options(joinedload(User.community)).where(User.wechat_openid == openid)
-            )
-            user = stmt.scalar_one_or_none()
+            # ✅ 使用Repository代替 db.session.execute(select(User)...)
+            user = self.user_repository.find_by_openid(openid)
 
             if not user:
                 return UseCaseResult.fail("用户不存在")
