@@ -205,37 +205,11 @@ class TestCommunityCreateIntegration(IntegrationTestBase):
         assert data['code'] == 0
         assert '社区名称不能为空' in data['msg']
 
-    def test_community_service_signature_compatibility(self):
-        """测试CommunityService.create_community方法签名兼容性"""
-        import inspect
-
-        # 验证方法签名
-        sig = inspect.signature(CommunityService.create_community)
-        params = list(sig.parameters.keys())
-
-        # 确认avatar_url不在参数列表中
-        assert 'avatar_url' not in params
-
-        # 确认必需参数存在
-        required_params = ['name', 'description', 'creator_id']
-        for param in required_params:
-            assert param in params
-
-        # 测试直接调用服务方法
-        with self.app.app_context():
-            community = CommunityService.create_community(
-                name='直接服务调用测试',
-                description='通过直接调用CommunityService创建',
-                creator_id=self.test_user_id
-            )
-
-            assert community is not None
-            assert community.name == '直接服务调用测试'
-            assert community.creator_id == self.test_user_id
-
-            # 清理测试数据
-            self.db.session.delete(community)
-            self.db.session.commit()
+    # 已删除: test_community_service_signature_compatibility
+    # 删除原因: DDD 架构改造后，CommunityService 已被 CreateCommunityUseCase 替代
+    # 该测试验证的是已废弃的 Service 层方法，不再适用
+    # 社区创建功能现在通过 CreateCommunityUseCase.execute() 实现
+    # 相关测试已由 test_create_community_with_all_valid_params 等测试覆盖
 
     def test_create_community_permission_validation(self):
         """测试社区创建权限验证"""

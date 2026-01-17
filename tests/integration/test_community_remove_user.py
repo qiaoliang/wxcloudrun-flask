@@ -14,6 +14,7 @@ sys.path.insert(0, src_path)
 
 from tests.integration.conftest import IntegrationTestBase
 from test_constants import TEST_CONSTANTS
+from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
 
 
 class TestCommunityRemoveUser(IntegrationTestBase):
@@ -37,11 +38,17 @@ class TestCommunityRemoveUser(IntegrationTestBase):
             # 创建普通用户
             member = self.create_standard_test_user(role=1, test_context='remove_user_member')
 
-            # 将用户添加到社区
-            CommunityService.add_users_to_community(community.community_id, [member.user_id])
+            # 将用户添加到社区（使用 UseCase 替代 Service）
+            add_users_use_case = AddUsersToCommunityUseCase()
+            result = add_users_use_case.execute(community.community_id, [member.user_id])
 
-            # 验证用户已在社区中
-            assert member.community_id == community.community_id
+            # 验证用户添加成功
+            assert result.is_success
+
+            # 重新查询用户以获取更新后的 community_id
+            from database.flask_models import User
+            updated_member = self.db.session.get(User, member.user_id)
+            assert updated_member.community_id == community.community_id
 
             # 提交数据到外层事务
             self.db.session.commit()
