@@ -2,16 +2,15 @@
 创建社区申请用例（重构后 - 符合DDD架构）
 
 重构要点：
-- 移除直接导入 database.flask_models 中的 db, CommunityApplication, Community, User
+- 移除直接导入 database.flask_models 中的 db, CommunityApplication
 - 使用Repository接口访问数据，符合依赖倒置原则（DIP）
-- 所有数据库操作通过Repository抽象层
+- 使用 with transaction() 确保事务一致性
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transaction
 from datetime import datetime
-from sqlalchemy import select
-from database.flask_models import db, CommunityApplication
 
 
 class CreateCommunityApplicationUseCase(BaseUseCase):
@@ -27,6 +26,7 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
         # ✅ 通过RepositoryFactory获取Repository接口
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
+        self.community_application_repository = RepositoryFactory.get_community_application_repository()
 
     def _validate(self, user_id: int, community_id: int, message: str = "") -> UseCaseResult:
         """
@@ -99,16 +99,10 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
                     message="您已经是该社区的成员"
                 )
 
-            # TODO: 需要创建CommunityApplicationRepository后再重构
-            # 暂时保留直接访问
-            # 检查是否已经有待审核的申请
-            existing_application = db.session.execute(
-                select(CommunityApplication).where(
-                    CommunityApplication.user_id == user_id,
-                    CommunityApplication.target_community_id == community_id,
-                    CommunityApplication.status == 1  # 待审核
-                )
-            ).scalar_one_or_none()
+            # ✅ 使用Repository检查是否已经有待审核的申请
+            existing_application = self.community_application_repository.find_pending_by_user_and_community(
+                user_id, community_id
+            )
 
             if existing_application:
                 return UseCaseResult(
@@ -116,32 +110,35 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
                     message="您已经有一个待审核的申请"
                 )
 
-            # 创建申请
-            application = CommunityApplication(
-                user_id=user_id,
-                target_community_id=community_id,
-                status=1,  # 待审核
-                reason=message,
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
+            # ✅ 使用事务上下文管理器确保事务一致性
+            with transaction():
+                # 创建申请
+                from database.flask_models import CommunityApplication
+                application = CommunityApplication(
+                    user_id=user_id,
+                    target_community_id=community_id,
+                    status=1,  # 待审核
+                    reason=message,
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
 
-            db.session.add(application)
-            db.session.flush()  # 获取application_id
+                # ✅ 使用Repository保存
+                self.community_application_repository.save(application)
 
-            response_data = {
-                'application_id': application.application_id,
-                'message': '申请提交成功'
-            }
+                response_data = {
+                    'application_id': application.application_id,
+                    'message': '申请提交成功'
+                }
 
-            return UseCaseResult(
-                status=UseCaseStatus.SUCCESS,
-                message="申请提交成功",
-                data=response_data
-            )
+                return UseCaseResult(
+                    status=UseCaseStatus.SUCCESS,
+                    message="申请提交成功",
+                    data=response_data
+                )
 
         except Exception as e:
-            db.session.rollback()
+            # ✅ 事务会自动回滚
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f"申请提交失败: {str(e)}"
