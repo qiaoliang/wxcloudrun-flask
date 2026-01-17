@@ -16,6 +16,11 @@ from tests.integration.conftest import IntegrationTestBase
 from test_constants import TEST_CONSTANTS
 from database.flask_models import db
 from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
+from app.application.use_cases.events.create_event_use_case import CreateEventUseCase
+from app.application.use_cases.events.get_community_events_use_case import GetCommunityEventsUseCase
+from app.application.use_cases.events.get_event_details_use_case import GetEventDetailsUseCase
+from app.application.use_cases.events.support_event_use_case import SupportEventUseCase
+from app.application.use_cases.events.get_community_stats_use_case import GetCommunityStatsUseCase
 
 
 class TestEventsOperations(IntegrationTestBase):
