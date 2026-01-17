@@ -13,6 +13,7 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.infrastructure.transaction.transaction_manager import transaction
 from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
 from app.domain.entities.checkin_record_entity import CheckinRecordEntity
 from app.domain.aggregates.checkin_rule_aggregate import CheckinRuleAggregate
@@ -29,6 +30,7 @@ class PerformCheckinUseCase(BaseUseCase):
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
 
+    @transaction
     def execute(
         self,
         rule_id: int,
@@ -37,6 +39,8 @@ class PerformCheckinUseCase(BaseUseCase):
     ) -> UseCaseResult:
         """
         执行打卡用例
+
+        事务边界: 查询规则 -> 验证权限 -> 创建记录 -> 保存, 所有操作在同一事务中
 
         Args:
             rule_id: 规则ID

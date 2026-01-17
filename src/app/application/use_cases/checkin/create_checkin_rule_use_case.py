@@ -7,6 +7,7 @@ from typing import Optional, Dict, Any
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.infrastructure.transaction.transaction_manager import transaction
 from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
 
 
@@ -19,6 +20,7 @@ class CreateCheckinRuleUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
 
+    @transaction
     def execute(
         self,
         user_id: int,
@@ -26,6 +28,8 @@ class CreateCheckinRuleUseCase(BaseUseCase):
     ) -> UseCaseResult:
         """
         执行创建打卡规则用例
+
+        事务边界: 验证用户 -> 解析参数 -> 创建实体 -> 保存规则, 所有操作在同一事务中
 
         Args:
             user_id: 用户ID

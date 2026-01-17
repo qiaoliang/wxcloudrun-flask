@@ -5,6 +5,7 @@ import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.infrastructure.transaction.transaction_manager import transaction
 from database.flask_models import CheckinRule
 
 
@@ -17,9 +18,12 @@ class DeleteCheckinRuleUseCase(BaseUseCase):
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
+    @transaction
     def execute(self, rule_id: int, user_id: int) -> UseCaseResult:
         """
         执行删除打卡规则用例
+
+        事务边界: 验证权限 -> 软删除规则, 所有操作在同一事务中
 
         Args:
             rule_id: 规则ID

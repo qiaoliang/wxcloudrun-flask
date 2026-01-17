@@ -5,6 +5,7 @@ import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.infrastructure.transaction.transaction_manager import transaction
 
 
 class CancelCheckinUseCase(BaseUseCase):
@@ -16,9 +17,12 @@ class CancelCheckinUseCase(BaseUseCase):
         self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
+    @transaction
     def execute(self, record_id: int, user_id: int, reason: str = None) -> UseCaseResult:
         """
         执行取消打卡用例
+
+        事务边界: 验证权限 -> 检查状态 -> 取消打卡, 所有操作在同一事务中
 
         Args:
             record_id: 打卡记录ID
