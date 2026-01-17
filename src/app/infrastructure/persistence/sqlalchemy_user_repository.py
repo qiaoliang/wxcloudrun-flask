@@ -188,3 +188,74 @@ class SQLAlchemyUserRepository(UserRepository):
             bool: 如果存在返回 True，否则返回 False
         """
         return self.find_by_phone_hash(phone_hash) is not None
+
+    def search_users_paginated(self, keyword: str, page: int, per_page: int, search_type: str = 'all', exclude_blackroom: bool = False) -> tuple[List[dict], int]:
+        """
+        分页搜索用户
+
+        Args:
+            keyword: 搜索关键词
+            page: 页码
+            per_page: 每页数量
+            search_type: 搜索类型 (all, phone, nickname)
+            exclude_blackroom: 是否排除黑名单房间
+
+        Returns:
+            tuple[List[dict], int]: (用户数据列表, 总数)
+        """
+        from sqlalchemy import func, and_
+        from database.flask_models import Community
+
+        # 构建查询条件
+        conditions = []
+
+        if search_type == 'phone':
+            conditions.append(User.phone_number.like(f'%{keyword}%'))
+        elif search_type == 'nickname':
+            conditions.append(User.nickname.like(f'%{keyword}%'))
+        else:  # all
+            conditions.append(
+                or_(
+                    User.nickname.like(f'%{keyword}%'),
+                    User.phone_number.like(f'%{keyword}%'),
+                    User.name.like(f'%{keyword}%')
+                )
+            )
+
+        # 排除黑房间
+        if exclude_blackroom:
+            stmt = select(Community).where(Community.is_blackhouse == True)
+            blackroom_communities = db.session.execute(stmt).scalars().all()
+            blackroom_ids = [c.community_id for c in blackroom_communities]
+            if blackroom_ids:
+                conditions.append(User.community_id.notin_(blackroom_ids))
+
+        # 构建查询
+        stmt = select(User).where(and_(*conditions))
+
+        # 获取总数
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = db.session.execute(count_stmt).scalar() or 0
+
+        # 分页
+        offset = (page - 1) * per_page
+        stmt = stmt.offset(offset).limit(per_page)
+
+        # 执行查询
+        users = db.session.execute(stmt).scalars().all()
+
+        # 转换为字典列表
+        users_data = []
+        for user in users:
+            users_data.append({
+                'user_id': user.user_id,
+                'nickname': user.nickname,
+                'name': user.name,
+                'phone_number': user.phone_number,
+                'avatar_url': user.avatar_url,
+                'community_id': user.community_id,
+                'role': user.role,
+                'status': user.status
+            })
+
+        return users_data, total

@@ -58,7 +58,7 @@ class SearchUsersUseCase(BaseUseCase):
         """
         try:
             # 使用Repository进行搜索
-            users_data, total = self.user_repo.search_users_paginated(
+            users_data, total = self.user_repository.search_users_paginated(
                 keyword=keyword,
                 page=page,
                 per_page=per_page,

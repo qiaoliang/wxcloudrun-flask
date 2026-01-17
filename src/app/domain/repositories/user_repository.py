@@ -93,6 +93,23 @@ class UserRepository(BaseRepository[User]):
         pass
 
     @abstractmethod
+    def search_users_paginated(self, keyword: str, page: int, per_page: int, search_type: str = 'all', exclude_blackroom: bool = False) -> tuple[List[dict], int]:
+        """
+        分页搜索用户
+
+        Args:
+            keyword: 搜索关键词
+            page: 页码
+            per_page: 每页数量
+            search_type: 搜索类型 (all, phone, nickname)
+            exclude_blackroom: 是否排除黑名单房间
+
+        Returns:
+            tuple[List[dict], int]: (用户数据列表, 总数)
+        """
+        pass
+
+    @abstractmethod
     def exists_by_openid(self, openid: str) -> bool:
         """
         检查微信openid是否存在
