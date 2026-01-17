@@ -1,12 +1,17 @@
 """
-关闭社区事件用例
+关闭社区事件用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db, CommunityEvent, CommunityStaff
+- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 import logging
 from datetime import datetime
-from sqlalchemy import select
+from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, CommunityEvent, CommunityStaff
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.utils.transaction import transaction
 
 logger = logging.getLogger(__name__)
@@ -16,8 +21,16 @@ class CloseCommunityEventUseCase(BaseUseCase):
     """关闭社区事件用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入所有需要的Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
+        self.event_repository = RepositoryFactory.get_community_event_repository()
+        self.staff_repository = RepositoryFactory.get_community_staff_repository()
 
     def execute(
         self,
@@ -43,7 +56,8 @@ class CloseCommunityEventUseCase(BaseUseCase):
                 return validation_result
 
             # 2. 验证事件存在
-            event = db.session.get(CommunityEvent, event_id)
+            # ✅ 使用Repository代替 db.session.get(CommunityEvent, event_id)
+            event = self.event_repository.find_by_id(event_id)
             if not event:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
@@ -70,13 +84,16 @@ class CloseCommunityEventUseCase(BaseUseCase):
 
             # 6. 更新事件
             with transaction():
-                event.status = 2  # 已完成
-                event.completed_at = datetime.now()
-                event.closed_by = user_id
-                event.closed_at = datetime.now()
-                event.closure_type = closure_type
-                event.closure_reason = closure_reason
-                db.session.flush()
+                # ✅ 使用Repository的close_event方法
+                self.event_repository.close_event(
+                    event_id,
+                    user_id,
+                    closure_type,
+                    closure_reason
+                )
+
+                # 重新获取事件以获取更新后的数据
+                event = self.event_repository.find_by_id(event_id)
 
             logger.info(f"用户{user_id}关闭了事件{event_id}，类型：{closure_type}，原因：{closure_reason}")
 
@@ -119,7 +136,7 @@ class CloseCommunityEventUseCase(BaseUseCase):
             message='参数验证通过'
         )
 
-    def _check_permission(self, event: CommunityEvent, user_id: int) -> dict:
+    def _check_permission(self, event, user_id: int) -> dict:
         """
         检查用户是否有权限关闭事件
 
@@ -136,13 +153,10 @@ class CloseCommunityEventUseCase(BaseUseCase):
         # 检查是否为目标用户
         is_target_user = (event.target_user_id == user_id)
 
-        # 检查是否为社区工作人员
-        stmt_staff = select(CommunityStaff).where(
-            CommunityStaff.community_id == event.community_id,
-            CommunityStaff.user_id == user_id,
-            CommunityStaff.removed_at.is_(None)
-        )
-        is_staff = db.session.execute(stmt_staff).scalar_one_or_none() is not None
+        # ✅ 使用Repository检查是否为社区工作人员
+        is_staff = self.staff_repository.find_active_by_community_and_user(
+            event.community_id, user_id
+        ) is not None
 
         # 只有事件发起者、目标用户或社区工作人员可以关闭事件
         if not (is_creator or is_target_user or is_staff):

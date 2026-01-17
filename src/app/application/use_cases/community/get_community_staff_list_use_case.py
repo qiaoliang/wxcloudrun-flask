@@ -1,13 +1,17 @@
 """
-获取社区工作人员列表用例
+获取社区工作人员列表用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db, User, CommunityStaff
+- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 
 import logging
 from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
-from database.flask_models import db, User, CommunityStaff
-from sqlalchemy import select, func
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import STAFF_ROLE_MANAGER, STAFF_ROLE_STAFF
 
 logger = logging.getLogger(__name__)
@@ -17,8 +21,16 @@ class GetCommunityStaffListUseCase(BaseUseCase):
     """获取社区工作人员列表用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入所有需要的Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
+        self.user_repository = RepositoryFactory.get_user_repository()
+        self.staff_repository = RepositoryFactory.get_community_staff_repository()
 
     def execute(
         self,
@@ -45,43 +57,51 @@ class GetCommunityStaffListUseCase(BaseUseCase):
             if not validation_result.is_success:
                 return validation_result
 
-            # 2. 构建查询
-            stmt = select(CommunityStaff).where(
-                CommunityStaff.community_id == community_id,
-                CommunityStaff.removed_at.is_(None)
-            )
-
-            # 角色筛选
+            # 2. 获取工作人员列表
+            # ✅ 使用Repository代替 db.session.execute(select(CommunityStaff)...)
             if role and role != 'all':
                 if role == 'manager':
-                    stmt = stmt.where(CommunityStaff.role == STAFF_ROLE_MANAGER)
+                    staff_list = self.staff_repository.find_by_community_and_role(
+                        community_id, STAFF_ROLE_MANAGER, include_removed=False
+                    )
                 elif role == 'staff':
-                    stmt = stmt.where(CommunityStaff.role == STAFF_ROLE_STAFF)
+                    staff_list = self.staff_repository.find_by_community_and_role(
+                        community_id, STAFF_ROLE_STAFF, include_removed=False
+                    )
+                else:
+                    staff_list = []
+            else:
+                staff_list = self.staff_repository.find_by_community_id(
+                    community_id, include_removed=False
+                )
 
-            # 获取总数
-            count_stmt = select(func.count()).select_from(CommunityStaff).where(
-                CommunityStaff.community_id == community_id,
-                CommunityStaff.removed_at.is_(None)
-            )
+            # 3. 获取总数
+            # ✅ 使用Repository获取总数
             if role and role != 'all':
                 if role == 'manager':
-                    count_stmt = count_stmt.where(CommunityStaff.role == STAFF_ROLE_MANAGER)
+                    total_count = self.staff_repository.count_by_community_id(
+                        community_id, STAFF_ROLE_MANAGER
+                    )
                 elif role == 'staff':
-                    count_stmt = count_stmt.where(CommunityStaff.role == STAFF_ROLE_STAFF)
+                    total_count = self.staff_repository.count_by_community_id(
+                        community_id, STAFF_ROLE_STAFF
+                    )
+                else:
+                    total_count = 0
+            else:
+                total_count = self.staff_repository.count_by_community_id(community_id)
 
-            total_count = db.session.execute(count_stmt).scalar()
+            # 4. 分页处理
+            # 手动实现分页
+            start_idx = (page - 1) * limit
+            end_idx = start_idx + limit
+            paginated_staff_list = staff_list[start_idx:end_idx]
 
-            # 添加排序和分页
-            stmt = stmt.order_by(CommunityStaff.added_at.desc())
-            stmt = stmt.offset((page - 1) * limit).limit(limit)
-
-            # 执行查询
-            staff_list = db.session.execute(stmt).scalars().all()
-
-            # 3. 构造返回数据
+            # 5. 构造返回数据
             staff_data = []
-            for staff in staff_list:
-                user = db.session.get(User, staff.user_id)
+            for staff in paginated_staff_list:
+                # ✅ 使用Repository代替 db.session.get(User, staff.user_id)
+                user = self.user_repository.find_by_id(staff.user_id)
                 if user:
                     staff_info = {
                         'staff_id': staff.id,
