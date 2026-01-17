@@ -21,9 +21,15 @@ from app.application.use_cases.supervision import (
     GetSupervisedUsersUseCase,
     GetGuardiansUseCase,
     GetSupervisionRecordsUseCase,
-    GetTodaySupervisionDataUseCase
+    GetTodaySupervisionDataUseCase,
+    CreateSupervisionInviteLinkUseCase,
+    ResolveSupervisionInviteLinkUseCase,
+    AcceptSupervisionUseCase,
+    RejectSupervisionUseCase,
+    SendReminderUseCase
 )
-from database.flask_models import db, SupervisionRuleRelation, CheckinRecord, CheckinRule
+# 移除 db 直接访问，改用 UseCase
+# from database.flask_models import db, SupervisionRuleRelation, CheckinRecord, CheckinRule
 from app.shared.utils.transaction import transaction
 
 app_logger = logging.getLogger('log')
@@ -164,77 +170,19 @@ def create_invite_link(decoded):
         if not rule_ids:
             return make_err_response({}, '缺少rule_ids参数')
 
-        # 生成邀请token
-        import secrets
-        import qrcode
-        import os
-        invite_token = secrets.token_urlsafe(32)
-        expires_at = datetime.now() + timedelta(hours=expire_hours)
-
-        # 生成二维码
-        qrcode_dir = 'static/supervision_qrcodes'
-        os.makedirs(qrcode_dir, exist_ok=True)
-
-        # 构建小程序路径
-        mini_path = f"/pages/supervisor-invite/supervisor-invite?token={invite_token}"
-
-        # 创建二维码
-        qr = qrcode.QRCode(
-            version=1,
-            error_correction=qrcode.constants.ERROR_CORRECT_L,
-            box_size=10,
-            border=4,
+        # 使用 CreateSupervisionInviteLinkUseCase 创建邀请链接
+        use_case = CreateSupervisionInviteLinkUseCase()
+        result = use_case.execute(
+            user_id=user.user_id,
+            rule_ids=rule_ids,
+            expire_hours=expire_hours
         )
-        qr.add_data(mini_path)
-        qr.make(fit=True)
 
-        # 生成图片
-        img = qr.make_image(fill_color="black", back_color="white")
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
-        # 保存到文件
-        filename = f"{invite_token}.png"
-        filepath = os.path.join(qrcode_dir, filename)
-        img.save(filepath)
-
-        # 构建二维码URL
-        qrcode_url = f"/static/supervision_qrcodes/{filename}"
-
-        # 保存邀请信息到数据库
-        # 为每个规则创建监督关系记录
-        get_rule_use_case = GetCheckinRuleByIdUseCase()
-        for rule_id in rule_ids:
-            # 检查规则是否存在且属于当前用户
-            rule_result = get_rule_use_case.execute(rule_id=rule_id)
-            if not rule_result.is_success:
-                current_app.logger.warning(f'规则 {rule_id} 不存在')
-                continue
-            rule = rule_result.data
-            if rule.user_id != user.user_id:
-                current_app.logger.warning(f'规则 {rule_id} 不属于用户 {user.user_id}')
-                continue
-
-            # 创建监督关系记录（状态为1=待确认）
-            relation = SupervisionRuleRelation(
-                solo_user_id=user.user_id,
-                supervisor_user_id=user.user_id,  # 暂时设置为发起人，等待监督人接受后更新
-                rule_id=rule_id,
-                status=1,  # 1=待确认
-                invite_token=invite_token,
-                invite_expires_at=expires_at
-            )
-            db.session.add(relation)
-
-        db.session.commit()
-
-        invite_data = {
-            'token': invite_token,
-            'url': qrcode_url,
-            'mini_path': mini_path,
-            'expire_at': expires_at.isoformat()
-        }
-
-        current_app.logger.info(f'用户 {user.user_id} 创建监督邀请链接成功，token: {invite_token}')
-        return make_succ_response(invite_data)
+        current_app.logger.info(f'用户 {user.user_id} 创建监督邀请链接成功，token: {result.data.get("token")}')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'创建邀请链接失败: {str(e)}', exc_info=True)
@@ -253,65 +201,15 @@ def resolve_invite_link():
         if not invite_token:
             return make_err_response({}, '缺少token参数')
 
-        # 从数据库查询邀请信息
-        relations = db.session.query(SupervisionRuleRelation).filter_by(
-            invite_token=invite_token,
-            status=1  # 1=待确认
-        ).all()
+        # 使用 ResolveSupervisionInviteLinkUseCase 解析邀请链接
+        use_case = ResolveSupervisionInviteLinkUseCase()
+        result = use_case.execute(invite_token=invite_token)
 
-        if not relations:
-            return make_err_response({}, '邀请链接不存在或已过期')
-
-        # 检查邀请是否过期
-        now = datetime.now()
-        if relations[0].invite_expires_at and relations[0].invite_expires_at < now:
-            return make_err_response({}, '邀请链接已过期')
-
-        # 获取被监督人信息
-        get_user_use_case = GetUserByIdUseCase()
-        solo_user_result = get_user_use_case.execute(user_id=relations[0].solo_user_id)
-        if not solo_user_result.is_success:
-            return make_err_response({}, '被监督人不存在')
-        solo_user = solo_user_result.data
-
-        # 获取规则信息
-        rule_ids = [r.rule_id for r in relations]
-        rules = db.session.query(CheckinRule).filter(
-            CheckinRule.rule_id.in_(rule_ids)
-        ).all()
-
-        # 构建规则信息（返回第一个规则的详细信息）
-        rule_info = None
-        if rules:
-            rule = rules[0]
-            rule_info = {
-                'rule_id': rule.rule_id,
-                'rule_name': rule.rule_name,
-                'rule_type': rule.rule_type,
-                'checkin_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else '灵活时间',
-                'frequency': 'daily' if rule.frequency_type == 0 else 'weekly'
-            }
-
-        # 构建邀请人信息
-        inviter_info = {
-            'user_id': solo_user.user_id,
-            'nickname': solo_user.nickname or '未知用户',
-            'phone_number': solo_user.phone_number,
-            'avatar_url': solo_user.avatar_url or ''
-        }
-
-        # 构建返回数据
-        invite_data = {
-            'relation_id': relations[0].relation_id,
-            'rule_info': rule_info,
-            'inviter_info': inviter_info,
-            'expires_at': relations[0].invite_expires_at.isoformat() if relations[0].invite_expires_at else None,
-            'is_expired': relations[0].invite_expires_at and relations[0].invite_expires_at < now,
-            'is_already_supervisor': False  # 需要在实际应用中检查当前用户是否已经是监督人
-        }
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(f'解析监督邀请链接成功，token: {invite_token}')
-        return make_succ_response(invite_data)
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'解析邀请链接失败: {str(e)}', exc_info=True)
@@ -396,27 +294,18 @@ def accept_supervision(decoded):
         if not relation_id:
             return make_err_response({}, '缺少relation_id参数')
 
-        # 查询监督关系
-        relation = db.session.query(SupervisionRuleRelation).filter_by(
-            relation_id=relation_id
-        ).first()
+        # 使用 AcceptSupervisionUseCase 接受监督邀请
+        use_case = AcceptSupervisionUseCase()
+        result = use_case.execute(
+            relation_id=relation_id,
+            user_id=user.user_id
+        )
 
-        if not relation:
-            return make_err_response({}, '监督关系不存在')
-
-        # 验证当前用户是监督人
-        if relation.supervisor_user_id != user.user_id:
-            return make_err_response({}, '无权限操作此监督关系')
-
-        # 更新监督关系状态为已激活
-        relation.status = 2  # 2 = 已激活
-        db.session.commit()
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(f'用户 {user.user_id} 接受监督邀请成功，关系ID: {relation_id}')
-        return make_succ_response({
-            'relation_id': relation_id,
-            'status': 2  # 2 = 已激活
-        })
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'接受监督邀请失败: {str(e)}', exc_info=True)
@@ -449,24 +338,19 @@ def reject_supervision(decoded):
         if not relation_id:
             return make_err_response({}, '缺少relation_id参数')
 
-        # 查询监督关系
-        relation = db.session.query(SupervisionRuleRelation).filter_by(
-            relation_id=relation_id
-        ).first()
+        # 使用 RejectSupervisionUseCase 拒绝监督邀请
+        use_case = RejectSupervisionUseCase()
+        result = use_case.execute(
+            relation_id=relation_id,
+            user_id=user.user_id,
+            reason=reason
+        )
 
-        if not relation:
-            return make_err_response({}, '监督关系不存在')
-
-        # 验证当前用户是监督人
-        if relation.supervisor_user_id != user.user_id:
-            return make_err_response({}, '无权限操作此监督关系')
-
-        # 删除监督关系（拒绝）
-        db.session.delete(relation)
-        db.session.commit()
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         current_app.logger.info(f'用户 {user.user_id} 拒绝监督邀请，关系ID: {relation_id}，原因: {reason}')
-        return make_succ_response({'message': '拒绝监督邀请成功'})
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'拒绝监督邀请失败: {str(e)}', exc_info=True)
@@ -698,57 +582,20 @@ def send_reminder(decoded):
         if not supervised_user_id or not rule_id:
             return make_err_response({}, '缺少必要参数：supervised_user_id 和 rule_id')
 
-        # 验证监督关系
-        relation = db.session.query(SupervisionRuleRelation).filter_by(
-            supervisor_user_id=user.user_id,
-            solo_user_id=supervised_user_id,
+        # 使用 SendReminderUseCase 发送提醒
+        use_case = SendReminderUseCase()
+        result = use_case.execute(
+            user_id=user.user_id,
+            supervised_user_id=supervised_user_id,
             rule_id=rule_id,
-            status=2  # 2 = 已激活
-        ).first()
+            template_type=template_type,
+            template_content=template_content
+        )
 
-        if not relation:
-            return make_err_response({}, '监督关系不存在或未激活')
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
-        # 获取被监护人信息
-        get_supervised_user_use_case = GetUserByIdUseCase()
-        supervised_user_result = get_supervised_user_use_case.execute(user_id=supervised_user_id)
-        if not supervised_user_result.is_success:
-            return make_err_response({}, '被监护人不存在')
-        supervised_user = supervised_user_result.data
-        if not supervised_user.wechat_openid:
-            return make_err_response({}, '被监护人未绑定微信')
-
-        # 获取规则信息
-        get_rule_use_case = GetCheckinRuleByIdUseCase()
-        rule_result = get_rule_use_case.execute(rule_id=rule_id)
-        if not rule_result.is_success:
-            return make_err_response({}, '打卡规则不存在')
-        rule = rule_result.data
-
-        # 获取模板内容
-        if template_type == 'custom' and template_content:
-            message_content = template_content
-        else:
-            # 使用默认模板
-            default_templates = {
-                'default': '该打卡了',
-                'remember': '记得吃药',
-                'wake_up': '该起床了',
-                'sleep': '该睡觉了'
-            }
-            message_content = default_templates.get(template_type, '该打卡了')
-
-        # TODO: 调用微信模板消息接口发送通知
-        # 这里先返回成功，实际项目中需要集成微信 API
-        current_app.logger.info(f'用户 {user.user_id} 向用户 {supervised_user_id} 发送提醒: {message_content}')
-
-        # 记录提醒发送日志（可选）
-        # 可以创建一个 ReminderLog 表来记录所有提醒发送记录
-
-        return make_succ_response({
-            'message_id': f'msg_{datetime.now().strftime("%Y%m%d%H%M%S")}',
-            'sent_at': datetime.now().isoformat()
-        })
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'发送提醒失败: {str(e)}', exc_info=True)

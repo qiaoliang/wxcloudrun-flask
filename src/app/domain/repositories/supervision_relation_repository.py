@@ -126,3 +126,44 @@ class SupervisionRelationRepository(ABC):
             int: 更新的记录数
         """
         pass
+
+    @abstractmethod
+    def find_by_invite_token(self, invite_token: str, status: Optional[int] = None) -> List[SupervisionRuleRelation]:
+        """
+        根据邀请令牌查找监督关系
+
+        Args:
+            invite_token: 邀请令牌
+            status: 可选的状态过滤
+
+        Returns:
+            List[SupervisionRuleRelation]: 监督关系列表
+        """
+        pass
+
+    @abstractmethod
+    def update_status(self, relation_id: int, new_status: int) -> bool:
+        """
+        更新监督关系状态
+
+        Args:
+            relation_id: 监督关系ID
+            new_status: 新状态值
+
+        Returns:
+            bool: 更新是否成功
+        """
+        pass
+
+    @abstractmethod
+    def delete_entity(self, relation: SupervisionRuleRelation) -> bool:
+        """
+        删除监督关系实体
+
+        Args:
+            relation: 监督关系对象
+
+        Returns:
+            bool: 删除是否成功
+        """
+        pass

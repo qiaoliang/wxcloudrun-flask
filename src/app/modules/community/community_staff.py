@@ -9,7 +9,7 @@ from flask import request, current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from database.flask_models import db, User
+# 移除未使用的 db 和 User 导入,已通过 UseCase 访问数据
 from wxcloudrun.utils.validators import _audit
 from app.application.use_cases.community.get_community_staff_list_use_case import GetCommunityStaffListUseCase
 from app.application.use_cases.community.add_community_staff_use_case import AddCommunityStaffUseCase

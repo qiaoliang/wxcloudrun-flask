@@ -8,7 +8,7 @@ from flask import request, current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from database.flask_models import db, User, Community
+# 移除 db 直接访问,改用 UseCase 返回的完整数据
 from wxcloudrun.utils.validators import _audit
 from app.shared.constants.roles import Role
 from app.application.use_cases.community import (
@@ -104,17 +104,6 @@ def create_community():
                 current_app.logger.error(f'添加主管到 CommunityStaff 表失败: {str(e)}', exc_info=True)
                 # 不影响社区创建成功，只记录错误
 
-        # 获取主管信息
-        manager = None
-        if manager_id:
-            manager_user = db.session.get(User, manager_id)
-            if manager_user:
-                manager = {
-                    'user_id': manager_user.user_id,
-                    'nickname': manager_user.nickname,
-                    'avatar_url': manager_user.avatar_url
-                }
-
         # 记录审计日志
         _audit(user_id, 'create_community', {
             'community_id': community_id,
@@ -124,27 +113,25 @@ def create_community():
 
         current_app.logger.info(f'创建社区成功: community_id={community_id}, name={name}, manager_id={manager_id}')
 
-        # 获取社区对象以获取 created_at
-        community = db.session.get(Community, community_id)
-        created_at = community.created_at.isoformat() if community and community.created_at else None
-
+        # 直接返回 UseCase 的结果（已包含所有必要信息）
         return make_succ_response({
             'community_id': community_id,
             'name': result.data.get('name'),
             'description': result.data.get('description'),
             'creator_id': result.data.get('creator_id'),
-            'manager_id': manager_id,
-            'manager_name': manager['nickname'] if manager else None,
-            'manager': manager,
-            'location': location,
-            'location_lat': location_lat,
-            'location_lon': location_lon,
-            'province': province,
-            'city': city,
-            'district': district,
-            'street': street,
+            'manager_id': result.data.get('manager_id'),
+            'manager_name': result.data.get('manager', {}).get('nickname') if result.data.get('manager') else None,
+            'manager': result.data.get('manager'),
+            'location': result.data.get('location'),
+            'location_lat': result.data.get('location_lat'),
+            'location_lon': result.data.get('location_lon'),
+            'province': result.data.get('province'),
+            'city': result.data.get('city'),
+            'district': result.data.get('district'),
+            'street': result.data.get('street'),
             'status': result.data.get('status'),
-            'created_at': created_at,
+            'created_at': result.data.get('created_at'),
+            'settings': result.data.get('settings'),
             'message': '创建成功'
         })
 
@@ -313,19 +300,14 @@ def delete_community():
         if not result.is_success:
             return make_err_response({}, result.message)
 
-        # 获取社区信息用于返回
-        community = db.session.get(Community, community_id)
-
         # 记录审计日志
         _audit(user_id, 'delete_community', {
             'community_id': community_id
         })
 
         current_app.logger.info(f'删除社区成功: community_id={community_id}')
-        return make_succ_response({
-            'community_id': community_id,
-            'community_name': community.name if community else ''
-        })
+        # 直接返回 UseCase 的结果（已包含社区名称）
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'删除社区失败: {str(e)}', exc_info=True)

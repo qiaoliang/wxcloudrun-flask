@@ -123,7 +123,18 @@ class CreateCommunityUseCase(BaseUseCase):
             )
             event_bus.publish(event)
 
-            # 7. 返回结果
+            # 7. 查询主管详细信息（如果指定了 manager_id）
+            manager_details = None
+            if manager_id:
+                manager = self.user_repository.find_by_id(manager_id)
+                if manager:
+                    manager_details = {
+                        'user_id': manager.user_id,
+                        'nickname': manager.nickname,
+                        'avatar_url': manager.avatar_url
+                    }
+
+            # 8. 返回完整结果
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='社区创建成功',
@@ -133,7 +144,17 @@ class CreateCommunityUseCase(BaseUseCase):
                     'description': saved_community.description,
                     'creator_id': saved_community.creator_id,
                     'location': saved_community.location,
-                    'status': saved_community.status
+                    'location_lat': saved_community.location_lat,
+                    'location_lon': saved_community.location_lon,
+                    'province': saved_community.province,
+                    'city': saved_community.city,
+                    'district': saved_community.district,
+                    'street': saved_community.street,
+                    'status': saved_community.status,
+                    'created_at': saved_community.created_at.isoformat() if saved_community.created_at else None,
+                    'manager_id': manager_id,
+                    'manager': manager_details,
+                    'settings': json.loads(saved_community.settings) if saved_community.settings else None
                 }
             )
 

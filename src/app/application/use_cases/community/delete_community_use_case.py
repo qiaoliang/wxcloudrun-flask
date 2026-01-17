@@ -82,12 +82,13 @@ class DeleteCommunityUseCase(BaseUseCase):
             )
             event_bus.publish(event)
 
-            # 7. 返回结果
+            # 7. 返回结果（包含社区名称）
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='社区删除成功',
                 data={
-                    'community_id': community_id
+                    'community_id': community_id,
+                    'community_name': community_name
                 }
             )
 

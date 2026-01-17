@@ -55,3 +55,16 @@ class CheckinRuleRepository(ABC):
     def find_all_day_rules(self) -> List[CheckinRule]:
         """查找所有启用的全天打卡规则"""
         pass
+
+    @abstractmethod
+    def find_by_ids(self, rule_ids: List[int]) -> List[CheckinRule]:
+        """
+        根据ID列表查找打卡规则
+
+        Args:
+            rule_ids: 规则ID列表
+
+        Returns:
+            List[CheckinRule]: 打卡规则列表
+        """
+        pass

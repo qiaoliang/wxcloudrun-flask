@@ -11,7 +11,7 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
 from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only
-from database.flask_models import db, User
+# 移除未使用的 db 和 User 导入，已通过 UseCase 访问数据
 
 app_logger = logging.getLogger('log')
 

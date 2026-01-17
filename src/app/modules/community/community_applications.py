@@ -14,7 +14,7 @@ from app.application.use_cases.community import (
     ProcessCommunityApplicationUseCase
 )
 from app.application.use_cases.base import UseCaseStatus
-from database.flask_models import db, User
+# 移除未使用的 db 和 User 导入,已通过 UseCase 访问数据
 from wxcloudrun.utils.validators import _audit
 
 app_logger = logging.getLogger('log')

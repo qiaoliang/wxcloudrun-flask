@@ -8,9 +8,15 @@ from flask import request, current_app
 from . import community_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import verify_token
-from database.flask_models import db, User, Community
+# 移除 db 直接访问,改用 UseCase
 from wxcloudrun.utils.validators import _audit
-from app.application.use_cases.community import FormatCommunityInfoUseCase
+from app.application.use_cases.community import (
+    FormatCommunityInfoUseCase,
+    GetUserWithCommunityUseCase,
+    UpdateUserCommunityUseCase,
+    CreateUserInCommunityUseCase,
+    CheckCommunityPermissionUseCase
+)
 
 app_logger = logging.getLogger('log')
 
@@ -29,34 +35,15 @@ def get_user_community():
     current_app.logger.info(f'用户ID: {user_id}')
 
     try:
-        user = db.session.get(User, user_id)
-        if not user:
-            return make_err_response({}, '用户不存在')
+        # ✅ 使用 GetUserWithCommunityUseCase 获取用户和社区信息
+        use_case = GetUserWithCommunityUseCase()
+        result = use_case.execute(user_id)
 
-        if not user.community_id:
-            return make_err_response({}, '用户未加入社区')
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
-        community = db.session.get(Community, user.community_id)
-        if not community:
-            return make_err_response({}, '社区不存在')
-
-        # 检查用户是否真的属于该社区
-        from app.application.use_cases.community import VerifyUserCommunityAccessUseCase
-        verify_access_use_case = VerifyUserCommunityAccessUseCase()
-        access_result = verify_access_use_case.execute(user_id, user.community_id)
-        has_access = access_result.data.get('has_access', False) if access_result.is_success else False
-        if not has_access:
-            return make_err_response({}, '用户不属于该社区')
-
-        # 使用UseCase格式化社区信息
-        format_use_case = FormatCommunityInfoUseCase()
-        format_result = format_use_case.execute(community)
-
-        if not format_result.is_success:
-            return make_err_response({}, format_result.message)
-
-        current_app.logger.info(f'获取用户社区信息成功: user_id={user_id}, community_id={user.community_id}')
-        return make_succ_response(format_result.data)
+        current_app.logger.info(f'获取用户社区信息成功: user_id={user_id}')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取用户社区信息失败: {str(e)}', exc_info=True)
@@ -85,13 +72,12 @@ def switch_user_community():
         if not community_id:
             return make_err_response({}, '缺少社区ID')
 
-        # 切换社区
-        user = db.session.get(User, user_id)
-        if not user:
-            return make_err_response({}, '用户不存在')
+        # ✅ 使用 UpdateUserCommunityUseCase 切换社区
+        use_case = UpdateUserCommunityUseCase()
+        result = use_case.execute(user_id, community_id)
 
-        user.community_id = community_id
-        db.session.commit()
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
         # 记录审计日志
         _audit(user_id, 'switch_community', {
@@ -99,7 +85,7 @@ def switch_user_community():
         })
 
         current_app.logger.info(f'切换用户社区成功: user_id={user_id}, community_id={community_id}')
-        return make_succ_response({'message': '切换成功'})
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'切换用户社区失败: {str(e)}', exc_info=True)
@@ -138,33 +124,26 @@ def create_community_user():
         if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
-        # 创建用户
-        # TODO: 需要实现 CreateUserInCommunityUseCase
-        # 临时使用直接创建的方式
-        user = User(
-            phone_number=user_data.get('phone_number'),
-            nickname=user_data.get('nickname', ''),
-            name=user_data.get('name', ''),
-            avatar_url=user_data.get('avatar_url', ''),
-            role=user_data.get('role', 1),
-            community_id=community_id
+        # ✅ 使用 CreateUserInCommunityUseCase 创建用户
+        use_case = CreateUserInCommunityUseCase()
+        result = use_case.execute(
+            operator_id=operator_id,
+            community_id=community_id,
+            user_data=user_data
         )
-        db.session.add(user)
-        db.session.commit()
-        if user:
-            # 记录审计日志
-            _audit(operator_id, 'create_community_user', {
-                'community_id': community_id,
-                'created_user_id': user.user_id
-            })
 
-            current_app.logger.info(f'在社区中创建用户成功: community_id={community_id}, user_id={user.user_id}')
-            return make_succ_response({
-                'user_id': user.user_id,
-                'message': '创建成功'
-            })
-        else:
-            return make_err_response({}, '创建失败')
+        if not result.is_success:
+            return make_err_response({}, result.message)
+
+        # 记录审计日志
+        created_user_id = result.data.get('user_id')
+        _audit(operator_id, 'create_community_user', {
+            'community_id': community_id,
+            'created_user_id': created_user_id
+        })
+
+        current_app.logger.info(f'在社区中创建用户成功: community_id={community_id}, user_id={created_user_id}')
+        return make_succ_response(result.data)
     except Exception as e:
         current_app.logger.error(f'在社区中创建用户失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'创建用户失败: {str(e)}')

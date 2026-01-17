@@ -19,7 +19,7 @@ from app.shared.utils.auth_helpers import (
     verify_sms_code_dual_purpose,
     normalize_and_hash_phone
 )
-from database.flask_models import db, User
+# 移除未使用的 db 和 User 导入，已通过 UseCase 和 Repository 访问数据
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname
 from const_default import DEFAULT_COMMUNITY_NAME
 from error_code import INVALID_CAPTCHA

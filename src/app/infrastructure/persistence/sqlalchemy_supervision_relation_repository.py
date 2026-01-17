@@ -171,3 +171,56 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
         result = db.session.execute(stmt)
         db.session.commit()
         return result.rowcount
+
+    def find_by_invite_token(self, invite_token: str, status: Optional[int] = None) -> List[SupervisionRuleRelation]:
+        """
+        根据邀请令牌查找监督关系
+
+        Args:
+            invite_token: 邀请令牌
+            status: 可选的状态过滤
+
+        Returns:
+            List[SupervisionRuleRelation]: 监督关系列表
+        """
+        stmt = select(SupervisionRuleRelation).filter_by(invite_token=invite_token)
+        if status is not None:
+            stmt = stmt.filter_by(status=status)
+        return db.session.execute(stmt).scalars().all()
+
+    def update_status(self, relation_id: int, new_status: int) -> bool:
+        """
+        更新监督关系状态
+
+        Args:
+            relation_id: 监督关系ID
+            new_status: 新状态值
+
+        Returns:
+            bool: 更新是否成功
+        """
+        stmt = update(SupervisionRuleRelation).where(
+            SupervisionRuleRelation.relation_id == relation_id
+        ).values(status=new_status)
+
+        result = db.session.execute(stmt)
+        db.session.commit()
+        return result.rowcount > 0
+
+    def delete_entity(self, relation: SupervisionRuleRelation) -> bool:
+        """
+        删除监督关系实体
+
+        Args:
+            relation: 监督关系对象
+
+        Returns:
+            bool: 删除是否成功
+        """
+        try:
+            db.session.delete(relation)
+            db.session.commit()
+            return True
+        except Exception:
+            db.session.rollback()
+            return False
