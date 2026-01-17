@@ -1,105 +1,107 @@
 """
 打卡记录仓储接口
+
+仓储接口定义在领域层,遵循依赖倒置原则
 """
 from abc import ABC, abstractmethod
 from typing import List, Optional
-from datetime import datetime, date
+from datetime import datetime
 
-from database.flask_models import CheckinRecord
+from app.domain.entities.checkin_record_entity import CheckinRecordEntity
 
 
 class CheckinRecordRepository(ABC):
     """打卡记录仓储接口"""
 
     @abstractmethod
-    def find_by_id(self, record_id: int) -> Optional[CheckinRecord]:
-        """根据ID查找打卡记录"""
+    def find_by_id(self, record_id: int) -> Optional[CheckinRecordEntity]:
+        """
+        根据ID查找打卡记录
+
+        Args:
+            record_id: 记录ID
+
+        Returns:
+            Optional[CheckinRecordEntity]: 领域实体,不存在返回 None
+        """
         pass
 
     @abstractmethod
-    def find_by_user_id(
-        self, 
-        user_id: int, 
-        start_date: Optional[date] = None, 
-        end_date: Optional[date] = None
-    ) -> List[CheckinRecord]:
-        """根据用户ID查找打卡记录"""
+    def find_by_rule_id(self, rule_id: int) -> List[CheckinRecordEntity]:
+        """
+        根据规则ID查找打卡记录
+
+        Args:
+            rule_id: 规则ID
+
+        Returns:
+            List[CheckinRecordEntity]: 领域实体列表
+        """
         pass
 
     @abstractmethod
-    def find_by_rule_id(
-        self, 
-        rule_id: int, 
-        start_date: Optional[date] = None, 
-        end_date: Optional[date] = None
-    ) -> List[CheckinRecord]:
-        """根据规则ID查找打卡记录"""
+    def find_by_user_id(self, user_id: int, limit: int = 100) -> List[CheckinRecordEntity]:
+        """
+        根据用户ID查找打卡记录
+
+        Args:
+            user_id: 用户ID
+            limit: 返回数量限制
+
+        Returns:
+            List[CheckinRecordEntity]: 领域实体列表
+        """
         pass
 
     @abstractmethod
-    def find_today_records(self, user_id: int) -> List[CheckinRecord]:
-        """查找用户今日的打卡记录"""
+    def find_today_records(self, user_id: int, rule_id: int) -> List[CheckinRecordEntity]:
+        """
+        查找用户今天对某个规则的打卡记录
+
+        Args:
+            user_id: 用户ID
+            rule_id: 规则ID
+
+        Returns:
+            List[CheckinRecordEntity]: 领域实体列表
+        """
         pass
 
     @abstractmethod
-    def find_missed_records(
-        self, 
-        user_id: int, 
-        start_date: Optional[date] = None, 
-        end_date: Optional[date] = None
-    ) -> List[CheckinRecord]:
-        """查找用户漏打卡记录"""
+    def save_entity(self, entity: CheckinRecordEntity) -> CheckinRecordEntity:
+        """
+        保存打卡记录实体
+
+        Args:
+            entity: 打卡记录领域实体
+
+        Returns:
+            CheckinRecordEntity: 保存后的实体(包含生成的ID)
+        """
         pass
 
     @abstractmethod
-    def save(self, record: CheckinRecord) -> CheckinRecord:
-        """保存打卡记录"""
-        pass
+    def update_entity(self, entity: CheckinRecordEntity) -> CheckinRecordEntity:
+        """
+        更新打卡记录实体
 
-    @abstractmethod
-    def update(self, record: CheckinRecord) -> CheckinRecord:
-        """更新打卡记录"""
+        Args:
+            entity: 打卡记录领域实体
+
+        Returns:
+            CheckinRecordEntity: 更新后的实体
+        """
         pass
 
     @abstractmethod
     def delete(self, record_id: int) -> bool:
-        """删除打卡记录"""
-        pass
+        """
+        删除打卡记录
 
-    @abstractmethod
-    def cancel(self, record_id: int) -> bool:
-        """取消打卡记录"""
-        pass
+        Args:
+            record_id: 记录ID
 
-    @abstractmethod
-    def count_by_user_id(self, user_id: int, start_date: Optional[date] = None, end_date: Optional[date] = None) -> int:
-        """统计用户打卡记录数量"""
-        pass
-
-    @abstractmethod
-    def find_by_rule_and_date(self, rule_id: int, check_date: date, rule_source: str = 'personal') -> List[CheckinRecord]:
-        """根据规则ID和日期查询打卡记录"""
-        pass
-
-    @abstractmethod
-    def find_by_community_rule_and_users(
-        self,
-        community_rule_id: int,
-        user_ids: List[int],
-        planned_time: datetime
-    ) -> List[CheckinRecord]:
-        """根据社区规则ID和用户列表查询打卡记录"""
-        pass
-
-    @abstractmethod
-    def create(
-        self,
-        rule_id: int,
-        user_id: int,
-        checkin_time: Optional[datetime],
-        planned_time: datetime,
-        status: int,
-        rule_source: str = 'personal'
-    ) -> CheckinRecord:
-        """创建打卡记录"""
+        Returns:
+            bool: 是否删除成功
+        """
         pass
