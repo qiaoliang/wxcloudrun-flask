@@ -22,6 +22,8 @@ from app.domain.repositories.profile_view_log_repository import ProfileViewLogRe
 from app.domain.repositories.counters_repository import CountersRepository
 from app.domain.repositories.verification_code_repository import VerificationCodeRepository
 from app.domain.repositories.community_dashboard_repository import CommunityDashboardRepository
+from app.domain.repositories.community_application_repository import CommunityApplicationRepository
+from app.domain.repositories.audit_log_repository import AuditLogRepository
 
 from app.infrastructure.persistence.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from app.infrastructure.persistence.sqlalchemy_community_repository import SQLAlchemyCommunityRepository
@@ -40,6 +42,8 @@ from app.infrastructure.persistence.sqlalchemy_profile_view_log_repository impor
 from app.infrastructure.persistence.sqlalchemy_counters_repository import SQLAlchemyCountersRepository
 from app.infrastructure.persistence.sqlalchemy_verification_code_repository import SQLAlchemyVerificationCodeRepository
 from app.infrastructure.persistence.sqlalchemy_community_dashboard_repository import SQLAlchemyCommunityDashboardRepository
+from app.infrastructure.persistence.sqlalchemy_community_application_repository import SQLAlchemyCommunityApplicationRepository
+from app.infrastructure.persistence.sqlalchemy_audit_log_repository import SQLAlchemyAuditLogRepository
 
 
 class RepositoryFactory:
@@ -62,6 +66,8 @@ class RepositoryFactory:
     _counters_repository: Optional[CountersRepository] = None
     _verification_code_repository: Optional[VerificationCodeRepository] = None
     _community_dashboard_repository: Optional[CommunityDashboardRepository] = None
+    _community_application_repository: Optional[CommunityApplicationRepository] = None
+    _audit_log_repository: Optional[AuditLogRepository] = None
 
     @classmethod
     def get_user_repository(cls) -> UserRepository:
@@ -268,6 +274,30 @@ class RepositoryFactory:
         return cls._community_dashboard_repository
 
     @classmethod
+    def get_community_application_repository(cls) -> CommunityApplicationRepository:
+        """
+        获取社区申请仓储实例
+
+        Returns:
+            CommunityApplicationRepository: 社区申请仓储实例
+        """
+        if cls._community_application_repository is None:
+            cls._community_application_repository = SQLAlchemyCommunityApplicationRepository()
+        return cls._community_application_repository
+
+    @classmethod
+    def get_audit_log_repository(cls) -> AuditLogRepository:
+        """
+        获取审计日志仓储实例
+
+        Returns:
+            AuditLogRepository: 审计日志仓储实例
+        """
+        if cls._audit_log_repository is None:
+            cls._audit_log_repository = SQLAlchemyAuditLogRepository()
+        return cls._audit_log_repository
+
+    @classmethod
     def reset(cls):
         """重置仓储实例（主要用于测试）"""
         cls._user_repository = None
@@ -287,3 +317,5 @@ class RepositoryFactory:
         cls._counters_repository = None
         cls._verification_code_repository = None
         cls._community_dashboard_repository = None
+        cls._community_application_repository = None
+        cls._audit_log_repository = None

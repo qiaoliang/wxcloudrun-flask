@@ -6,3 +6,11 @@
 2. 封装数据库访问细节
 3. 提供事务管理
 """
+
+from .sqlalchemy_community_application_repository import SQLAlchemyCommunityApplicationRepository
+from .sqlalchemy_audit_log_repository import SQLAlchemyAuditLogRepository
+
+__all__ = [
+    'SQLAlchemyCommunityApplicationRepository',
+    'SQLAlchemyAuditLogRepository',
+]

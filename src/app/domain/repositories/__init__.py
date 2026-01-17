@@ -8,3 +8,11 @@
 
 仓储遵循依赖倒置原则，领域层定义接口，基础设施层实现。
 """
+
+from .community_application_repository import CommunityApplicationRepository
+from .audit_log_repository import AuditLogRepository
+
+__all__ = [
+    'CommunityApplicationRepository',
+    'AuditLogRepository',
+]
