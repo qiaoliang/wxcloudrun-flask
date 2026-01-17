@@ -276,7 +276,7 @@ class TestBase:
 
         return getattr(client, method.lower())(endpoint, data=data, headers=headers)
 
-def assert_api_success(self, response, expected_data_keys=None):
+    def assert_api_success(self, response, expected_data_keys=None):
         """标准成功响应断言"""
         assert response.status_code == 200
         data = json.loads(response.data)
@@ -298,10 +298,6 @@ def assert_api_success(self, response, expected_data_keys=None):
 
         if expected_msg_pattern:
             assert expected_msg_pattern in data['msg'], f"错误消息不匹配: {data['msg']}"
-
-        return data
-
-        return data
 
         return data
 
