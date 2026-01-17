@@ -150,12 +150,15 @@ class CheckinRuleEntity:
         if not self.is_enabled or self.is_deleted:
             return None
 
-        # 自定义时间
+        # 自定义时间 (custom_time 可能是字符串或 time 对象)
         if self.time_slot_type == 4 and self.custom_time:
             try:
-                time_obj = time.fromisoformat(self.custom_time)
-                return datetime.combine(reference_date.date(), time_obj)
-            except ValueError:
+                if isinstance(self.custom_time, str):
+                    time_obj = time.fromisoformat(self.custom_time)
+                    return datetime.combine(reference_date.date(), time_obj)
+                elif isinstance(self.custom_time, time):
+                    return datetime.combine(reference_date.date(), self.custom_time)
+            except (ValueError, TypeError):
                 return None
 
         # 预定义时间段

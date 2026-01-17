@@ -1,5 +1,5 @@
 """
-创建打卡规则用例
+创建打卡规则用例(重构版 - 符合DDD架构)
 """
 import logging
 from datetime import datetime, time, date
@@ -7,7 +7,7 @@ from typing import Optional, Dict, Any
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import CheckinRule
+from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
 
 
 class CreateCheckinRuleUseCase(BaseUseCase):
@@ -85,22 +85,28 @@ class CreateCheckinRuleUseCase(BaseUseCase):
                         message='结束日期不能早于开始日期'
                     )
 
-            # 7. 创建打卡规则
-            new_rule = CheckinRule(
+            # 7. 创建打卡规则实体
+            # custom_time 需要转换为字符串格式以符合实体要求
+            custom_time_str = None
+            if custom_time:
+                custom_time_str = custom_time.strftime('%H:%M:%S')
+
+            new_rule = CheckinRuleEntity.create(
+                rule_id=0,  # 将由数据库生成
                 user_id=user_id,
-                community_id=user.community_id,
                 rule_name=rule_data['rule_name'],
-                icon_url=rule_data.get('icon_url'),
                 frequency_type=rule_data.get('frequency_type', 0),
                 time_slot_type=rule_data.get('time_slot_type', 4),
-                custom_time=custom_time,
+                status=1,
+                community_id=user.community_id,
+                icon_url=rule_data.get('icon_url'),
+                custom_time=custom_time_str,
+                week_days=str(week_days) if isinstance(week_days, int) else week_days,
                 custom_start_date=custom_start_date,
-                custom_end_date=custom_end_date,
-                week_days=week_days,
-                status=1
+                custom_end_date=custom_end_date
             )
 
-            saved_rule = self.checkin_rule_repository.save(new_rule)
+            saved_rule = self.checkin_rule_repository.save_entity(new_rule)
 
             self.logger.info(f'创建打卡规则成功: rule_id={saved_rule.rule_id}, user_id={user_id}')
 
