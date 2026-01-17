@@ -113,7 +113,7 @@ class TestAddEventMessageUseCase:
         # Assert
         assert not result.is_success
         assert result.status == UseCaseStatus.NOT_FOUND
-        assert '用户不存在' in result.message
+        assert '发送者不存在' in result.message
 
     @patch('app.application.use_cases.events.add_event_message_use_case.RepositoryFactory')
     def test_should_fail_when_event_already_closed(self, mock_repo_factory):
@@ -164,7 +164,7 @@ class TestAddEventMessageUseCase:
         # Assert
         assert not result.is_success
         assert result.status == UseCaseStatus.VALIDATION_ERROR
-        assert '参数不能为空' in result.message
+        assert '事件ID不能为空' in result.message
 
     @patch('app.application.use_cases.events.add_event_message_use_case.RepositoryFactory')
     def test_should_fail_when_user_id_is_empty(self, mock_repo_factory):
@@ -182,7 +182,7 @@ class TestAddEventMessageUseCase:
         # Assert
         assert not result.is_success
         assert result.status == UseCaseStatus.VALIDATION_ERROR
-        assert '参数不能为空' in result.message
+        assert '发送者ID不能为空' in result.message
 
     @patch('app.application.use_cases.events.add_event_message_use_case.RepositoryFactory')
     def test_should_fail_when_message_is_empty(self, mock_repo_factory):
@@ -200,7 +200,7 @@ class TestAddEventMessageUseCase:
         # Assert
         assert not result.is_success
         assert result.status == UseCaseStatus.VALIDATION_ERROR
-        assert '参数不能为空' in result.message
+        assert '请至少提供文字内容、媒体文件或快捷指令' in result.message
 
     @patch('app.application.use_cases.events.add_event_message_use_case.RepositoryFactory')
     @patch('app.application.use_cases.events.add_event_message_use_case.EventBus')
