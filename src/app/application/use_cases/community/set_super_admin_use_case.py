@@ -2,15 +2,16 @@
 设置超级管理员用例（重构后 - 符合DDD架构）
 
 重构要点：
-- 移除直接导入 database.flask_models 中的 db, User, CommunityStaff
-- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
-- 所有数据库操作通过Repository抽象层
+- 使用 with transaction() 确保事务一致性
+- 使用 AuditLogRepository 记录审计日志
+- 消除 db.session.add() 直接访问
 """
 import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
+from app.shared.utils.transaction import transaction
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ class SetSuperAdminUseCase(BaseUseCase):
         # ✅ 通过RepositoryFactory获取Repository接口
         self.user_repository = RepositoryFactory.get_user_repository()
         self.staff_repository = RepositoryFactory.get_community_staff_repository()
+        self.audit_log_repository = RepositoryFactory.get_audit_log_repository()  # ✅ 新增
 
     def execute(
         self,
@@ -90,17 +92,18 @@ class SetSuperAdminUseCase(BaseUseCase):
                         data={'success': True, 'message': '该用户已经是超级管理员'}
                     )
 
-                target_user.role = Role.SUPER_ADMIN
-                # ✅ 使用Repository代替 db.session.flush()
-                self.user_repository.save(target_user)
+                # ✅ 使用事务上下文管理器确保事务一致性
+                with transaction():
+                    target_user.role = Role.SUPER_ADMIN
+                    # ✅ 使用Repository代替 db.session.flush()
+                    self.user_repository.save(target_user)
 
-                # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                audit_log = UserAuditLog(
-                    user_id=operator_user_id,
-                    action="set_super_admin",
-                    detail=f"将用户{target_user_id}设置为超级管理员"
-                )
-                db.session.add(audit_log)
+                    # ✅ 使用Repository保存审计日志
+                    self.audit_log_repository.create(
+                        user_id=operator_user_id,
+                        action="set_super_admin",
+                        detail=f"将用户{target_user_id}设置为超级管理员"
+                    )
 
                 logger.info(f'用户{operator_user_id}将用户{target_user_id}设置为超级管理员')
 
@@ -131,17 +134,18 @@ class SetSuperAdminUseCase(BaseUseCase):
                     has_manager = any(record.role == STAFF_ROLE_MANAGER for record in staff_records)
                     new_role = Role.MANAGER if has_manager else Role.STAFF
 
-                target_user.role = new_role
-                # ✅ 使用Repository代替 db.session.flush()
-                self.user_repository.save(target_user)
+                # ✅ 使用事务上下文管理器确保事务一致性
+                with transaction():
+                    target_user.role = new_role
+                    # ✅ 使用Repository代替 db.session.flush()
+                    self.user_repository.save(target_user)
 
-                # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                audit_log = UserAuditLog(
-                    user_id=operator_user_id,
-                    action="remove_super_admin",
-                    detail=f"取消用户{target_user_id}的超级管理员身份，新角色为{new_role}"
-                )
-                db.session.add(audit_log)
+                    # ✅ 使用Repository保存审计日志
+                    self.audit_log_repository.create(
+                        user_id=operator_user_id,
+                        action="remove_super_admin",
+                        detail=f"取消用户{target_user_id}的超级管理员身份，新角色为{new_role}"
+                    )
 
                 logger.info(f'用户{operator_user_id}取消用户{target_user_id}的超级管理员身份，新角色为{new_role}')
 
