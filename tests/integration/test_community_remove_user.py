@@ -35,6 +35,10 @@ class TestCommunityRemoveUser(IntegrationTestBase):
             # 添加主管到社区
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
+            # 设置 manager 的 community_id（权限检查需要）
+            manager.community_id = community.community_id
+            self.db.session.flush()
+
             # 创建普通用户
             member = self.create_standard_test_user(role=1, test_context='remove_user_member')
 
