@@ -314,7 +314,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 创建事件
             use_case = CreateEventUseCase()
-            event_result = use_case.execute(user_id=creator.user_id,
+            create_result = use_case.execute(user_id=creator.user_id,
                 community_id=community.community_id,
                 title='已关闭的事件',
                 description='这是一个已经关闭的事件',
@@ -323,7 +323,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 第一次关闭事件
             use_case = CloseEventUseCase()
-            close_result = event_result = use_case.execute(event_id=event_result.data['event']['event_id'],
+            close_result = use_case.execute(event_id=create_result.data['event']['event_id'],
                 user_id=creator.user_id,
                 closure_reason='第一次关闭，这是一个足够长的关闭原因'
             )
@@ -332,7 +332,7 @@ class TestCloseEvent(IntegrationTestBase):
 
             # 保存需要的值
             creator_phone_number = creator.phone_number
-            event_id = event_result.data['event']['event_id']
+            event_id = create_result.data['event']['event_id']
             community_id = community.community_id
 
             # 显式提交到外层事务
