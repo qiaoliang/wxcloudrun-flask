@@ -1,12 +1,12 @@
 """
-报告漏打卡用例
+报告漏打卡用例(重构版 - 符合DDD架构)
 """
 import logging
 from datetime import datetime
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import CheckinRecord
+from app.domain.entities.checkin_record_entity import CheckinRecordEntity
 
 
 class ReportMissCheckinUseCase(BaseUseCase):
@@ -46,15 +46,15 @@ class ReportMissCheckinUseCase(BaseUseCase):
                 )
 
             # 2. 查询打卡规则
-            rule = self.checkin_rule_repository.find_by_id(rule_id)
-            if not rule:
+            rule_entity = self.checkin_rule_repository.find_by_id(rule_id)
+            if not rule_entity:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
                     message='打卡规则不存在'
                 )
 
             # 3. 验证权限（只有规则创建者可以报告）
-            if rule.user_id != user_id:
+            if rule_entity.user_id != user_id:
                 user = self.user_repository.find_by_id(user_id)
                 if not user or user.role not in [3, 4]:  # 不是社区主管或超级管理员
                     return UseCaseResult(
@@ -64,22 +64,19 @@ class ReportMissCheckinUseCase(BaseUseCase):
 
             # 4. 检查今日是否已有打卡记录
             today = datetime.now().date()
-            today_records = self.checkin_record_repository.find_today_records(user_id)
-            
-            # 查找该规则今日的打卡记录
-            rule_today_records = [r for r in today_records if r.rule_id == rule_id]
+            today_records = self.checkin_record_repository.find_today_records(user_id, rule_id)
 
-            if rule_today_records:
+            if today_records:
                 # 检查是否已完成打卡
-                completed_records = [r for r in rule_today_records if r.status == 1]  # 1=已打卡
+                completed_records = [r for r in today_records if r.is_completed]
                 if completed_records:
                     return UseCaseResult(
                         status=UseCaseStatus.BUSINESS_ERROR,
-                        message='今日已完成打卡，无法报告漏打卡'
+                        message='今日已完成打卡,无法报告漏打卡'
                     )
 
-                # 检查是否已报告漏打卡（status=2表示已撤销/漏打卡）
-                missed_records = [r for r in rule_today_records if r.status == 2]
+                # 检查是否已报告漏打卡
+                missed_records = [r for r in today_records if r.is_missed]
                 if missed_records:
                     return UseCaseResult(
                         status=UseCaseStatus.BUSINESS_ERROR,
@@ -87,17 +84,19 @@ class ReportMissCheckinUseCase(BaseUseCase):
                     )
 
             # 5. 创建漏打卡记录
-            from database.flask_models import CheckinRecord
-            planned_time = rule.custom_time if rule.custom_time else datetime.now().time()
-            miss_record = CheckinRecord(
-                user_id=user_id,
-                rule_id=rule_id,
-                checkin_time=datetime.now(),
-                planned_time=datetime.combine(today, planned_time),
-                status=2,  # 2=已撤销/漏打卡
-            )
+            planned_time = rule_entity.calculate_planned_checkin_time()
+            if not planned_time:
+                planned_time = datetime.now()
 
-            saved_record = self.checkin_record_repository.save(miss_record)
+            miss_record = CheckinRecordEntity.create(
+                record_id=0,  # 将由数据库生成
+                rule_id=rule_id,
+                user_id=user_id,
+                planned_checkin_time=planned_time
+            )
+            miss_record.mark_missed()
+
+            saved_record = self.checkin_record_repository.save_entity(miss_record)
 
             self.logger.info(f'报告漏打卡成功: rule_id={rule_id}, record_id={saved_record.record_id}')
 
@@ -109,7 +108,7 @@ class ReportMissCheckinUseCase(BaseUseCase):
                     'record_id': saved_record.record_id,
                     'rule_id': saved_record.rule_id,
                     'user_id': saved_record.user_id,
-                    'checkin_time': saved_record.checkin_time.isoformat() if saved_record.checkin_time else None,
+                    'checkin_time': saved_record.actual_checkin_time.isoformat() if saved_record.actual_checkin_time else None,
                     'status': 'missed'
                 }
             )

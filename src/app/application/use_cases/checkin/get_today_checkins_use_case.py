@@ -1,12 +1,13 @@
 """
-获取今日打卡用例
+获取今日打卡用例(重构版 - 符合DDD架构)
 """
 import logging
 from datetime import date, datetime
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import CheckinRule, CheckinRecord
+from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
+from app.domain.entities.checkin_record_entity import CheckinRecordEntity
 
 
 class GetTodayCheckinsUseCase(BaseUseCase):
@@ -58,7 +59,12 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                     today_rules.append(rule)
 
             # 6. 获取今日的打卡记录
-            today_records = self.checkin_record_repository.find_today_records(user_id)
+            all_records = self.checkin_record_repository.find_by_user_id(user_id, limit=1000)
+            # 筛选今日的记录
+            today_records = [
+                r for r in all_records
+                if r.planned_checkin_time.date() == today
+            ]
 
             # 7. 构建结果数据
             checkin_items = []
@@ -73,9 +79,9 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                 # 确定状态名称
                 status_name = 'pending'  # 默认状态
                 if record:
-                    if record.status == 1:  # 已打卡
+                    if record.is_completed:  # 已打卡
                         status_name = 'checked'
-                    elif record.status == 2:  # 已撤销
+                    elif record.is_missed:  # 已错过
                         status_name = 'unchecked'
                 checkin_item = {
                     'rule_id': rule.rule_id,
@@ -90,7 +96,7 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                 }
 
                 if record:
-                    checkin_item['checkin_time'] = record.checkin_time.strftime('%Y-%m-%d %H:%M:%S') if record.checkin_time else None
+                    checkin_item['checkin_time'] = record.actual_checkin_time.strftime('%Y-%m-%d %H:%M:%S') if record.actual_checkin_time else None
                     checkin_item['record_id'] = record.record_id
 
                 checkin_items.append(checkin_item)
@@ -109,8 +115,8 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                     'date': today.isoformat(),
                     'checkin_items': checkin_items,
                     'total': len(checkin_items),
-                    'checked': len([item for item in checkin_items if item['status'] == 1]),
-                    'unchecked': len([item for item in checkin_items if item['status'] == 0])
+                    'checked': len([item for item in checkin_items if item['status'] == 'checked']),
+                    'unchecked': len([item for item in checkin_items if item['status'] == 'unchecked'])
                 }
             )
 
@@ -127,12 +133,12 @@ class GetTodayCheckinsUseCase(BaseUseCase):
                 message=f'获取今日打卡失败: {str(e)}'
             )
 
-    def _should_checkin_today(self, rule: CheckinRule, today: date) -> bool:
+    def _should_checkin_today(self, rule: CheckinRuleEntity, today: date) -> bool:
         """
         判断今天是否需要打卡
 
         Args:
-            rule: 打卡规则
+            rule: 打卡规则领域实体
             today: 今天的日期
 
         Returns:
@@ -145,12 +151,16 @@ class GetTodayCheckinsUseCase(BaseUseCase):
 
         if frequency_type == 1:  # 每周
             today_weekday = today.weekday()  # 0是周一，6是周日
-            return bool(week_days & (1 << today_weekday))
+            # week_days 是逗号分隔的字符串,如 "1,3,5"
+            if week_days:
+                day_list = [int(d.strip()) for d in week_days.split(',')]
+                return today_weekday in day_list
+            return False
         elif frequency_type == 2:  # 工作日
             return today.weekday() < 5  # 周一到周五
         elif frequency_type == 3:  # 自定义日期范围
             if custom_start_date and custom_end_date:
-                return custom_start_date <= today <= custom_end_date
+                return custom_start_date.date() <= today <= custom_end_date.date()
             return False
         else:  # 每天 (frequency_type == 0)
             return True
