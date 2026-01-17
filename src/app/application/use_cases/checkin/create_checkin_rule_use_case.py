@@ -101,7 +101,7 @@ class CreateCheckinRuleUseCase(BaseUseCase):
                 community_id=user.community_id,
                 icon_url=rule_data.get('icon_url'),
                 custom_time=custom_time_str,
-                week_days=str(week_days) if isinstance(week_days, int) else week_days,
+                week_days=week_days,  # 直接使用整数位掩码
                 custom_start_date=custom_start_date,
                 custom_end_date=custom_end_date
             )

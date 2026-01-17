@@ -28,7 +28,7 @@ class CheckinRuleEntity:
     community_id: Optional[int] = None
     icon_url: Optional[str] = None
     custom_time: Optional[str] = None  # HH:MM:SS 格式
-    week_days: Optional[str] = None  # 逗号分隔的星期几,如 "1,3,5"
+    week_days: Optional[int] = None  # 位掩码整数: 1=周一, 2=周二, ..., 64=周日
     custom_start_date: Optional[datetime] = None
     custom_end_date: Optional[datetime] = None
 

@@ -304,7 +304,7 @@ class TestCreateCheckinRuleUseCase:
 
         # Assert
         assert result.status == UseCaseStatus.SUCCESS
-        assert result.data['rule'].week_days == '31'  # 实体使用字符串格式,1+2+4+8+16=31
+        assert result.data['rule'].week_days == 31  # 整数位掩码:1+2+4+8+16=31 (周一到周五)
 
     def test_execute_custom_frequency_invalid_dates(self, use_case, test_user):
         """

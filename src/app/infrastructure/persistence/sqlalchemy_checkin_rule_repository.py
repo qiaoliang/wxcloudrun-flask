@@ -65,24 +65,6 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
             elif isinstance(entity.custom_time, time):
                 custom_time_obj = entity.custom_time
 
-        # 转换 week_days: 字符串 -> 整数位掩码
-        week_days_int = entity.week_days
-        if entity.week_days and isinstance(entity.week_days, str):
-            # 检查是逗号分隔格式还是已经是数字字符串
-            if ',' in entity.week_days:
-                # 字符串 "1,3,5" 转换为位掩码整数
-                try:
-                    days = [int(d.strip()) for d in entity.week_days.split(',')]
-                    week_days_int = sum(1 << (day - 1) for day in days)
-                except (ValueError, AttributeError):
-                    week_days_int = 127  # 默认所有天
-            else:
-                # 已经是数字字符串,直接转换为整数
-                try:
-                    week_days_int = int(entity.week_days)
-                except ValueError:
-                    week_days_int = 127
-
         orm_model = CheckinRule(
             rule_id=entity.rule_id if entity.rule_id != 0 else None,
             user_id=entity.user_id,
@@ -93,7 +75,7 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
             community_id=entity.community_id,
             icon_url=entity.icon_url,
             custom_time=custom_time_obj,
-            week_days=week_days_int,
+            week_days=entity.week_days,  # 直接使用整数位掩码
             custom_start_date=entity.custom_start_date,
             custom_end_date=entity.custom_end_date,
             created_at=entity.created_at,
@@ -123,6 +105,7 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
         orm_model.status = entity.status
         orm_model.community_id = entity.community_id
         orm_model.icon_url = entity.icon_url
+        orm_model.week_days = entity.week_days  # 直接使用整数位掩码
 
         # 转换 custom_time: 字符串 -> time 对象
         if entity.custom_time:
@@ -136,25 +119,6 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
                 orm_model.custom_time = entity.custom_time
         else:
             orm_model.custom_time = None
-
-        # 转换 week_days: 字符串 -> 整数位掩码
-        if entity.week_days and isinstance(entity.week_days, str):
-            # 检查是逗号分隔格式还是已经是数字字符串
-            if ',' in entity.week_days:
-                # 字符串 "1,3,5" 转换为位掩码整数
-                try:
-                    days = [int(d.strip()) for d in entity.week_days.split(',')]
-                    orm_model.week_days = sum(1 << (day - 1) for day in days)
-                except (ValueError, AttributeError):
-                    orm_model.week_days = 127
-            else:
-                # 已经是数字字符串,直接转换为整数
-                try:
-                    orm_model.week_days = int(entity.week_days)
-                except ValueError:
-                    orm_model.week_days = 127
-        elif entity.week_days:
-            orm_model.week_days = entity.week_days
 
         orm_model.custom_start_date = entity.custom_start_date
         orm_model.custom_end_date = entity.custom_end_date
@@ -232,9 +196,6 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
         if orm_model.custom_time:
             custom_time_str = orm_model.custom_time.strftime('%H:%M:%S')
 
-        # 转换 week_days: 整数位掩码 -> 字符串
-        week_days_str = str(orm_model.week_days) if orm_model.week_days is not None else None
-
         return CheckinRuleEntity(
             rule_id=orm_model.rule_id,
             user_id=orm_model.user_id,
@@ -245,7 +206,7 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
             community_id=orm_model.community_id,
             icon_url=orm_model.icon_url,
             custom_time=custom_time_str,
-            week_days=week_days_str,
+            week_days=orm_model.week_days,  # 直接使用整数位掩码
             custom_start_date=orm_model.custom_start_date,
             custom_end_date=orm_model.custom_end_date,
             created_at=orm_model.created_at,

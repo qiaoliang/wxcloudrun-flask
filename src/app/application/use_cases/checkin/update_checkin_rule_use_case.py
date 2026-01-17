@@ -132,7 +132,8 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
             if 'week_days' in rule_data:
                 week_days = rule_data['week_days']
                 if isinstance(week_days, list):
-                    week_days = ','.join(str(d) for d in week_days)
+                    # 将列表转换为位掩码整数: [1,2,3] -> 1+2+4=7
+                    week_days = sum(1 << (day - 1) for day in week_days)
                 rule_entity.week_days = week_days
 
             if 'status' in rule_data:

@@ -158,11 +158,8 @@ class GetTodayCheckinsUseCase(BaseUseCase):
 
         if frequency_type == 1:  # 每周
             today_weekday = today.weekday()  # 0是周一，6是周日
-            # week_days 是逗号分隔的字符串,如 "1,3,5"
-            if week_days:
-                day_list = [int(d.strip()) for d in week_days.split(',')]
-                return today_weekday in day_list
-            return False
+            # week_days 是位掩码整数: 1=周一, 2=周二, ..., 64=周日
+            return bool(week_days & (1 << today_weekday))
         elif frequency_type == 2:  # 工作日
             return today.weekday() < 5  # 周一到周五
         elif frequency_type == 3:  # 自定义日期范围
