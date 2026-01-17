@@ -28,3 +28,12 @@ from .utils.auth import (
     generate_jwt_token,
     generate_refresh_token
 )
+
+# 重新导出路由辅助函数
+from .utils.route_helpers import (
+    with_validated_user,
+    with_user_verification,
+    execute_use_case,
+    handle_use_case_result,
+    get_json_params
+)

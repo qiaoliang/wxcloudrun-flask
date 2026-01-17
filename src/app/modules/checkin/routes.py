@@ -10,8 +10,8 @@ from . import checkin_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
+from app.shared.utils.route_helpers import with_user_verification, get_json_params, execute_use_case, handle_use_case_result
 from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only
-# 移除未使用的 db 和 User 导入，已通过 UseCase 访问数据
 
 app_logger = logging.getLogger('log')
 
@@ -42,39 +42,23 @@ def _rule_to_dict(rule):
 
 
 @checkin_bp.route('/checkin/today', methods=['GET'])
-def get_today_checkin_items():
+@with_user_verification
+def get_today_checkin_items(user_id: int, user: dict):
     """
     获取用户今日打卡事项列表（Controller）
     """
     current_app.logger.info('=== 开始执行获取今日打卡事项接口 ===')
 
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    # 参数验证
-    user_id = decoded.get('user_id')
-    from app.application.use_cases.user import GetUserByIdUseCase
-    get_user_use_case = GetUserByIdUseCase()
-    user_result = get_user_use_case.execute(user_id=user_id)
-    if not user_result.is_success:
-        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
-        return make_err_response({}, '用户不存在')
-    user = user_result.data
+    from app.application.use_cases.checkin import GetTodayCheckinsUseCase
 
     try:
-        # 使用应用服务用例获取今日打卡计划
-        from app.application.use_cases.checkin import GetTodayCheckinsUseCase
-
-        use_case = GetTodayCheckinsUseCase()
-        result = use_case.execute(user_id=user_id)
+        result = execute_use_case(GetTodayCheckinsUseCase, user_id=user_id)
 
         if not result.is_success:
             return make_err_response({}, result.message)
 
         current_app.logger.info(
-            f'成功获取今日打卡事项，用户ID: {user['user_id']}, 事项数量: {len(result.data.get("checkin_items", []))}')
+            f'成功获取今日打卡事项，用户ID: {user["user_id"]}, 事项数量: {len(result.data.get("checkin_items", []))}')
         return make_succ_response(result.data)
 
     except Exception as e:
@@ -83,51 +67,30 @@ def get_today_checkin_items():
 
 
 @checkin_bp.route('/checkin', methods=['POST'])
-def perform_checkin():
+@with_user_verification
+def perform_checkin(user_id: int, user: dict):
     """
     执行打卡操作（Controller）
     """
     current_app.logger.info('=== 开始执行打卡操作接口 ===')
 
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    # 参数验证
-    user_id = decoded.get('user_id')
-    from app.application.use_cases.user import GetUserByIdUseCase
-    get_user_use_case = GetUserByIdUseCase()
-    user_result = get_user_use_case.execute(user_id=user_id)
-    if not user_result.is_success:
-        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
-        return make_err_response({}, '用户不存在')
-    user = user_result.data
-
-    # 获取请求参数
-    params = request.get_json()
-    if not params:
-        current_app.logger.warning('打卡请求缺少请求体参数')
-        return make_err_response({}, '缺少请求参数')
+    # 获取并验证请求参数
+    params, error_msg = get_json_params(required_fields=['rule_id'])
+    if error_msg:
+        current_app.logger.warning(f'打卡请求参数错误: {error_msg}')
+        return make_err_response({}, error_msg)
 
     rule_id = params.get('rule_id')
 
-    if not rule_id:
-        current_app.logger.warning('打卡请求缺少rule_id参数')
-        return make_err_response({}, '缺少规则ID参数')
-
     try:
-        # 使用应用服务用例执行打卡
         from app.application.use_cases.checkin import PerformCheckinUseCase
 
-        use_case = PerformCheckinUseCase()
-        result = use_case.execute(rule_id=rule_id, user_id=user_id)
+        result = execute_use_case(PerformCheckinUseCase, rule_id=rule_id, user_id=user_id)
 
         if not result.is_success:
             return make_err_response({}, result.message)
 
-        current_app.logger.info(
-            f'用户 {user['user_id']} 成功打卡，规则ID: {rule_id}')
+        current_app.logger.info(f'用户 {user["user_id"]} 成功打卡，规则ID: {rule_id}')
         return make_succ_response(result.data)
 
     except Exception as e:

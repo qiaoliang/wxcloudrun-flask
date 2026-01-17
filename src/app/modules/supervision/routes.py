@@ -11,6 +11,7 @@ from . import supervision_bp
 from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
+from app.shared.utils.route_helpers import execute_use_case, get_json_params
 from app.application.use_cases.supervision import (
     GetUserByIdUseCase,
     GetUserByOpenIdUseCase,
@@ -46,39 +47,31 @@ def invite_supervisor_internal(decoded):
     current_app.logger.info('=== 开始执行站内邀请监督者接口 ===')
 
     user_id = decoded.get('user_id')
-    get_user_use_case = GetUserByIdUseCase()
-    user_result = get_user_use_case.execute(user_id=user_id)
-    if not user_result.is_success:
-        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
-        return make_err_response({}, '用户不存在')
-    user = user_result.data
 
     try:
-        # 获取请求参数
-        params = request.get_json()
+        # 使用辅助函数获取并验证请求参数
+        params, error_msg = get_json_params(required_fields=['rule_id'])
+        if error_msg:
+            return make_err_response({}, error_msg)
+
         rule_id = params.get('rule_id')
         receiver_ids = params.get('receiver_ids', [])
         message = params.get('message', '')
 
-        if not rule_id:
-            return make_err_response({}, '缺少rule_id参数')
-
         if not receiver_ids or len(receiver_ids) == 0:
             return make_err_response({}, '缺少receiver_ids参数')
 
-        # 使用应用服务用例发送站内邀请
-        from app.application.use_cases.supervision import SendInternalInvitationUseCase
-
-        use_case = SendInternalInvitationUseCase()
-        result = use_case.execute(
-            sender_id=user.user_id,
+        # 使用辅助函数执行 UseCase
+        result = execute_use_case(
+            SendInternalInvitationUseCase,
+            sender_id=user_id,
             rule_id=rule_id,
             receiver_ids=receiver_ids,
             message=message
         )
 
         if result.is_success:
-            current_app.logger.info(f'用户 {user.user_id} 成功向 {len(receiver_ids)} 个用户发送站内邀请')
+            current_app.logger.info(f'用户 {user_id} 成功向 {len(receiver_ids)} 个用户发送站内邀请')
             return make_succ_response(result.data)
         else:
             return make_err_response({}, result.message)
