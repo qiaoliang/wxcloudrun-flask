@@ -5,7 +5,7 @@ import logging
 from sqlalchemy.orm import joinedload
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, Community
+from app.domain.repositories.community_repository import CommunityRepository
 
 
 class GetAvailableCommunitiesUseCase(BaseUseCase):
@@ -13,6 +13,7 @@ class GetAvailableCommunitiesUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.community_repo = CommunityRepository()
         self.logger = logging.getLogger(__name__)
 
     def execute(self, user_id: int = None) -> UseCaseResult:

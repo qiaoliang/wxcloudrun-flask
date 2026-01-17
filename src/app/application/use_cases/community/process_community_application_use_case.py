@@ -67,9 +67,7 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     message='处理者ID不能为空'
                 )
 
-            # 2. 查询申请（CommunityApplication暂无Repository，保留直接访问）
-            from database.flask_models import CommunityApplication
-            application = CommunityApplication.query.get(application_id)
+            # 2. 查询申请（CommunityApplication暂无Repository，保留直接访问）            application = CommunityApplication.query.get(application_id)
             if not application:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
@@ -131,7 +129,6 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                                 activated_count += 1
                         else:
                             # 如果不存在，创建新映射
-                            from database.flask_models import UserCommunityRule
                             new_mapping = UserCommunityRule(
                                 user_id=application.user_id,
                                 community_rule_id=rule.community_rule_id,
@@ -144,7 +141,6 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     logger.info(f"用户{application.user_id}已激活{activated_count}个新社区规则")
 
                     # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                    from database.flask_models import UserAuditLog, db
                     audit_log = UserAuditLog(
                         user_id=processor_id,
                         action="approve_community_application",
@@ -176,7 +172,6 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     application.updated_at = datetime.now()
 
                     # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                    from database.flask_models import UserAuditLog, db
                     audit_log = UserAuditLog(
                         user_id=processor_id,
                         action="reject_community_application",

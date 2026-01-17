@@ -4,10 +4,10 @@
 import logging
 from typing import Optional
 
-from database.flask_models import User
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.domain.repositories.user_repository import UserRepository
 
 
 class MergeAccountsUseCase(BaseUseCase):
@@ -15,6 +15,7 @@ class MergeAccountsUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.user_repo = UserRepository()
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()

@@ -5,6 +5,7 @@ import logging
 from datetime import datetime
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.shared.utils.transaction import transactional
+# TODO: 需要创建 UserAuditLogRepository 来移除直接数据库访问
 from database.flask_models import db, UserAuditLog
 
 

@@ -100,8 +100,6 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
 
             # TODO: 需要创建CommunityApplicationRepository后再重构
             # 暂时保留直接访问
-            from database.flask_models import db, CommunityApplication
-
             # 检查是否已经有待审核的申请
             existing_application = db.session.execute(
                 select(CommunityApplication).where(
@@ -142,7 +140,6 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
             )
 
         except Exception as e:
-            from database.flask_models import db
             db.session.rollback()
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,

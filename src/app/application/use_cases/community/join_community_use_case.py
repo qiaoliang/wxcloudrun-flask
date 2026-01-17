@@ -8,7 +8,8 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityMemberAddedEvent
 from app.domain.events.event_bus import event_bus
-from database.flask_models import User, Community
+from database.flask_models import Community
+from app.domain.repositories.user_repository import UserRepository
 
 
 class JoinCommunityUseCase(BaseUseCase):
@@ -16,6 +17,7 @@ class JoinCommunityUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.user_repo = UserRepository()
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()

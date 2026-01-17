@@ -3,8 +3,9 @@
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
-from database.flask_models import db, UserAuditLog
 from datetime import datetime
+# TODO: 需要创建 UserAuditLogRepository 来移除直接数据库访问
+from database.flask_models import db, UserAuditLog
 
 
 class LogViewGuardianInfoUseCase(BaseUseCase):

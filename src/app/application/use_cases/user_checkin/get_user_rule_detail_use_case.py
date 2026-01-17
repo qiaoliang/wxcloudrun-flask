@@ -2,6 +2,7 @@
 获取用户打卡规则详情用例
 """
 from flask import has_app_context
+# TODO: 需要创建 CheckinRuleRepository 来移除直接数据库访问
 from database.flask_models import db, CheckinRule
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory

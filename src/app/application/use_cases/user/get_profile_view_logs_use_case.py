@@ -3,11 +3,17 @@
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
-from database.flask_models import db, UserAuditLog
+from database.flask_models import UserAuditLog
 from sqlalchemy import select, desc
+from app.domain.repositories.profileviewlog_repository import ProfileViewLogRepository
 
 
 class GetProfileViewLogsUseCase(BaseUseCase):
+    def __init__(self):
+        super().__init__()
+        self.profile_view_log_repo = ProfileViewLogRepository()
+
+
     """获取浏览记录列表用例"""
 
     def execute(self, community_id: int, viewer_id: int = None, limit: int = 100) -> UseCaseResult:

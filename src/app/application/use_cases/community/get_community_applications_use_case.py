@@ -3,12 +3,17 @@
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
-from database.flask_models import db, CommunityApplication
 from sqlalchemy import select, func
 from typing import Optional
+from app.domain.repositories.community_repository import CommunityRepository
 
 
 class GetCommunityApplicationsUseCase(BaseUseCase):
+    def __init__(self):
+        super().__init__()
+        self.community_repo = CommunityRepository()
+
+
     """获取社区申请列表用例"""
 
     def _validate(self, user_id: int, page: int = 1, per_page: int = 20, 

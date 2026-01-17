@@ -4,6 +4,7 @@
 from flask import has_app_context
 from sqlalchemy import select
 from sqlalchemy.orm import joinedload
+# TODO: 需要创建 CheckinRuleRepository, CommunityCheckinRuleRepository, UserCommunityRuleRepository 来移除直接数据库访问
 from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory

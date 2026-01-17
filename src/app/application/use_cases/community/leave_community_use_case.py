@@ -8,7 +8,6 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityMemberRemovedEvent
 from app.domain.events.event_bus import event_bus
-from database.flask_models import User
 
 
 class LeaveCommunityUseCase(BaseUseCase):

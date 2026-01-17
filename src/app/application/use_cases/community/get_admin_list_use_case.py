@@ -2,10 +2,11 @@
 获取管理员列表用例
 """
 import logging
-from sqlalchemy import select
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, User, CommunityStaff, Community
+from app.domain.repositories.user_repository import UserRepository
+from app.domain.repositories.community_staff_repository import CommunityStaffRepository
+from app.domain.repositories.community_repository import CommunityRepository
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
 
 logger = logging.getLogger(__name__)
@@ -17,6 +18,9 @@ class GetAdminListUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        self.user_repo = UserRepository()
+        self.community_staff_repo = CommunityStaffRepository()
+        self.community_repo = CommunityRepository()
 
     def execute(self) -> UseCaseResult:
         """
@@ -27,19 +31,10 @@ class GetAdminListUseCase(BaseUseCase):
         """
         try:
             # 1. 查询所有超级管理员
-            stmt_super_admin = select(User).where(User.role == Role.SUPER_ADMIN)
-            super_admins = db.session.execute(stmt_super_admin).scalars().all()
+            super_admins = self.user_repo.find_super_admins()
 
             # 2. 查询所有社区主管
-            stmt_managers = select(CommunityStaff, User, Community).join(
-                User, CommunityStaff.user_id == User.user_id
-            ).join(
-                Community, CommunityStaff.community_id == Community.community_id
-            ).where(
-                CommunityStaff.role == STAFF_ROLE_MANAGER,
-                CommunityStaff.removed_at.is_(None)
-            )
-            manager_records = db.session.execute(stmt_managers).all()
+            manager_records = self.community_staff_repo.find_active_managers_with_details()
 
             # 3. 构建结果列表
             admin_list = []

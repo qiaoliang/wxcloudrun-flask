@@ -5,7 +5,8 @@ import logging
 from sqlalchemy import or_, and_
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, Community, CommunityStaff
+from app.domain.repositories.community_repository import CommunityRepository
+from app.domain.repositories.communitystaff_repository import CommunityStaffRepository
 
 
 class SearchManageableCommunitiesUseCase(BaseUseCase):
@@ -13,6 +14,8 @@ class SearchManageableCommunitiesUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.community_repo = CommunityRepository()
+        self.community_staff_repo = CommunityStaffRepository()
         self.logger = logging.getLogger(__name__)
 
     def _validate(self, user_id: int, keyword: str, page: int, per_page: int, **kwargs) -> UseCaseResult:

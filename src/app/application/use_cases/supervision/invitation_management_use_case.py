@@ -9,7 +9,8 @@ from typing import List, Optional, Dict, Any
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import db, SupervisionRuleRelation
+from database.flask_models import SupervisionRuleRelation
+from app.domain.repositories.supervisionrelation_repository import SupervisionRelationRepository
 
 
 class InvitationManagementUseCase(BaseUseCase):
@@ -23,6 +24,7 @@ class InvitationManagementUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.supervision_relation_repo = SupervisionRelationRepository()
         self.logger = logging.getLogger(__name__)
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
         self.user_repository = RepositoryFactory.get_user_repository()

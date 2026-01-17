@@ -151,7 +151,6 @@ class TransferUsersBatchUseCase(BaseUseCase):
                     # ✅ 使用Repository批量转移事件
                     # TODO: 需要在CommunityEventRepository中添加批量转移方法
                     # 暂时保留直接访问，等添加Repository方法后再重构
-                    from database.flask_models import db, CommunityEvent
                     events_transferred = db.session.query(CommunityEvent).filter(
                         CommunityEvent.community_id == source_community_id,
                         CommunityEvent.target_user_id.in_(transfer_result['transferred_user_ids']),
@@ -166,7 +165,6 @@ class TransferUsersBatchUseCase(BaseUseCase):
                 # 2.6 记录审计日志
                 # TODO: 需要创建AuditLogRepository后再重构
                 transferred_user_ids_str = ",".join(map(str, transfer_result['transferred_user_ids']))
-                from database.flask_models import UserAuditLog, db
                 audit_log = UserAuditLog(
                     user_id=operator_user_id,
                     action="batch_transfer_users",

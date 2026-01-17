@@ -3,18 +3,21 @@
 """
 from datetime import datetime, timedelta
 from flask import current_app
-from sqlalchemy import select
-from database.flask_models import db, VerificationCode
 from wxcloudrun.sms_service import create_sms_provider, generate_code
 from wxcloudrun.utils.validators import _code_expiry_minutes, normalize_phone_number, _hash_code
 from config import should_use_real_sms
 from app.shared.utils.transaction import transaction
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.domain.repositories.verification_code_repository import VerificationCodeRepository
 import secrets
 
 
 class SendVerificationCodeUseCase(BaseUseCase):
     """发送验证码用例"""
+
+    def __init__(self):
+        super().__init__()
+        self.verification_code_repo = VerificationCodeRepository()
 
     def _validate(self, phone: str, purpose: str = 'register') -> UseCaseResult:
         """
@@ -34,8 +37,9 @@ class SendVerificationCodeUseCase(BaseUseCase):
         is_mock_env = not should_use_real_sms()
 
         now = datetime.now()
-        vc = db.session.execute(select(VerificationCode).filter_by(
-            phone_number=normalized_phone, purpose=purpose)).scalar_one_or_none()
+        vc = self.verification_code_repo.find_by_phone_and_purpose(
+            normalized_phone, purpose
+        )
 
         # 只在非 mock 环境下检查频率限制
         if not is_mock_env and vc and (now - vc.last_sent_at).total_seconds() < 60:
@@ -67,8 +71,9 @@ class SendVerificationCodeUseCase(BaseUseCase):
         is_mock_env = not should_use_real_sms()
 
         now = datetime.now()
-        vc = db.session.execute(select(VerificationCode).filter_by(
-            phone_number=normalized_phone, purpose=purpose)).scalar_one_or_none()
+        vc = self.verification_code_repo.find_by_phone_and_purpose(
+            normalized_phone, purpose
+        )
 
         code = generate_code(6)
         salt = secrets.token_hex(8)
@@ -80,13 +85,16 @@ class SendVerificationCodeUseCase(BaseUseCase):
         with transaction():
             if vc:
                 # 更新现有记录
-                vc.code_hash = code_hash
-                vc.salt = salt
-                vc.expires_at = now + timedelta(minutes=_code_expiry_minutes())
-                vc.last_sent_at = now
+                self.verification_code_repo.update_verification_code(
+                    vc,
+                    code_hash=code_hash,
+                    salt=salt,
+                    expires_at=now + timedelta(minutes=_code_expiry_minutes()),
+                    last_sent_at=now
+                )
             else:
                 # 创建新记录
-                vc = VerificationCode(
+                self.verification_code_repo.create_verification_code(
                     phone_number=normalized_phone,
                     purpose=purpose,
                     code_hash=code_hash,
@@ -94,7 +102,6 @@ class SendVerificationCodeUseCase(BaseUseCase):
                     expires_at=now + timedelta(minutes=_code_expiry_minutes()),
                     last_sent_at=now
                 )
-                db.session.add(vc)
 
         # 发送短信
         if is_mock_env:

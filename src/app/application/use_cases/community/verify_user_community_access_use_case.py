@@ -3,11 +3,16 @@
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
-from database.flask_models import db, User
 from sqlalchemy import select
+from app.domain.repositories.user_repository import UserRepository
 
 
 class VerifyUserCommunityAccessUseCase(BaseUseCase):
+    def __init__(self):
+        super().__init__()
+        self.user_repo = UserRepository()
+
+
     """验证用户社区访问权限用例"""
 
     def execute(self, user_id: int, community_id: int) -> UseCaseResult:

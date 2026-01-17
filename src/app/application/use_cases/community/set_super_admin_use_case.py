@@ -95,7 +95,6 @@ class SetSuperAdminUseCase(BaseUseCase):
                 self.user_repository.save(target_user)
 
                 # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                from database.flask_models import UserAuditLog, db
                 audit_log = UserAuditLog(
                     user_id=operator_user_id,
                     action="set_super_admin",
@@ -137,7 +136,6 @@ class SetSuperAdminUseCase(BaseUseCase):
                 self.user_repository.save(target_user)
 
                 # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                from database.flask_models import UserAuditLog, db
                 audit_log = UserAuditLog(
                     user_id=operator_user_id,
                     action="remove_super_admin",

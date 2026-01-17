@@ -7,7 +7,6 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import Community
 
 
 class GetCommunityDetailsUseCase(BaseUseCase):

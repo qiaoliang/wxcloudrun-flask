@@ -4,7 +4,6 @@
 """
 
 from typing import Optional
-from sqlalchemy import select
 from sqlalchemy.orm import joinedload
 
 from app.shared.utils.transaction import transactional
@@ -12,7 +11,6 @@ from app.shared.utils.auth_helpers import (
     normalize_and_hash_phone,
     generate_auth_tokens
 )
-from database.flask_models import db, User
 from wxcloudrun.utils.validators import (
     normalize_phone_number,
     _mask_phone_number,
@@ -20,6 +18,7 @@ from wxcloudrun.utils.validators import (
     generate_phone_hash
 )
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
+from app.domain.repositories.user_repository import UserRepository
 
 
 class RegisterPhoneUseCase(BaseUseCase):
@@ -28,6 +27,7 @@ class RegisterPhoneUseCase(BaseUseCase):
     def __init__(self):
         super().__init__()
         self.PWD_SALT = "default_salt"  # 应该从配置中读取
+        self.user_repo = UserRepository()
 
     def _pwd_hash(self, pwd: str) -> str:
         """密码哈希"""
@@ -110,13 +110,10 @@ class RegisterPhoneUseCase(BaseUseCase):
             return UseCaseResult.failure('REGISTRATION_FAILED', f'注册失败: {str(e)}')
 
     @transactional
-    def _query_user_by_phone_hash(self, phone_hash: str) -> Optional[User]:
+    def _query_user_by_phone_hash(self, phone_hash: str):
         """根据手机号哈希查询用户"""
         try:
-            stmt = select(User).options(joinedload(User.community)).where(
-                User.phone_hash == phone_hash
-            )
-            user = db.session.execute(stmt).scalar_one_or_none()
+            user = self.user_repo.find_by_phone_hash_with_community(phone_hash)
             if user:
                 self.logger.info(
                     f"query_user_by_phone_hash: user_id={user.user_id}, "
@@ -135,7 +132,7 @@ class RegisterPhoneUseCase(BaseUseCase):
         nickname: Optional[str],
         avatar_url: Optional[str],
         password: Optional[str]
-    ) -> User:
+    ):
         """创建新用户"""
         # 生成脱敏号码用于显示
         masked = normalized_phone[:3] + '****' + normalized_phone[-4:] if len(normalized_phone) >= 7 else normalized_phone
@@ -147,7 +144,7 @@ class RegisterPhoneUseCase(BaseUseCase):
         default_password = password if password else 'F00000000'
 
         # 创建用户对象
-        user = User(
+        user = self.user_repo.create_user(
             phone_number=masked,  # 存储脱敏号码
             phone_hash=phone_hash,  # 哈希值使用原始号码
             nickname=nick,
@@ -158,14 +155,6 @@ class RegisterPhoneUseCase(BaseUseCase):
             password_hash=self._pwd_hash(default_password),
             password_salt=self.PWD_SALT
         )
-
-        # 保存到数据库
-        db.session.add(user)
-        db.session.flush()
-
-        # 刷新用户的 community 关系，确保能获取到 community_name
-        db.session.refresh(user)
-        db.session.expire(user, ['community'])
 
         self.logger.info(f"User created successfully: user_id={user.user_id}")
         return user
@@ -180,7 +169,7 @@ class RegisterPhoneUseCase(BaseUseCase):
 
     def _format_login_response(
         self,
-        user: User,
+        user,
         token: str,
         refresh_token: str,
         is_new_user: bool

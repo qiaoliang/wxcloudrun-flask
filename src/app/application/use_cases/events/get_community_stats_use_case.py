@@ -6,6 +6,7 @@ from sqlalchemy import select, func
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+# TODO: 需要创建 CommunityEventRepository 来移除直接数据库访问
 from database.flask_models import db, CommunityEvent
 
 

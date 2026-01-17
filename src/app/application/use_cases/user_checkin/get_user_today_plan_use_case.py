@@ -16,6 +16,7 @@ def _get_logger():
 from datetime import datetime, date, time
 from sqlalchemy import select, func
 from sqlalchemy.orm import noload
+# TODO: 需要创建 CheckinRuleRepository, CommunityCheckinRuleRepository, UserCommunityRuleRepository, CheckinRecordRepository 来移除直接数据库访问
 from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule, CheckinRecord
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory

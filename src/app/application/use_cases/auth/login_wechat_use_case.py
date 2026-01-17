@@ -13,16 +13,18 @@ from typing import Dict, Optional
 
 from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
 from wxcloudrun.wxchat_api import get_user_info_by_code
-from database.flask_models import db, User
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from const_default import DEFAULT_COMMUNITY_NAME
+from app.domain.repositories.user_repository import UserRepository
 
 
 class LoginWeChatUseCase(BaseUseCase):
     """微信登录用例"""
 
     def __init__(self):
+        self.user_repo = UserRepository()
+
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()

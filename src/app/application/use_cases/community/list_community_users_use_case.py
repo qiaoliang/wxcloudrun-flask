@@ -6,7 +6,7 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import User
+from app.domain.repositories.user_repository import UserRepository
 
 
 class ListCommunityUsersUseCase(BaseUseCase):
@@ -14,6 +14,7 @@ class ListCommunityUsersUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.user_repo = UserRepository()
         self.logger = logging.getLogger(__name__)
         self.community_repository = RepositoryFactory.get_community_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
