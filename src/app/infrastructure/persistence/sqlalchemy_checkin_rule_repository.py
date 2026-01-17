@@ -68,12 +68,20 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
         # 转换 week_days: 字符串 -> 整数位掩码
         week_days_int = entity.week_days
         if entity.week_days and isinstance(entity.week_days, str):
-            # 字符串 "1,3,5" 转换为位掩码整数
-            try:
-                days = [int(d.strip()) for d in entity.week_days.split(',')]
-                week_days_int = sum(1 << (day - 1) for day in days)
-            except (ValueError, AttributeError):
-                week_days_int = 127  # 默认所有天
+            # 检查是逗号分隔格式还是已经是数字字符串
+            if ',' in entity.week_days:
+                # 字符串 "1,3,5" 转换为位掩码整数
+                try:
+                    days = [int(d.strip()) for d in entity.week_days.split(',')]
+                    week_days_int = sum(1 << (day - 1) for day in days)
+                except (ValueError, AttributeError):
+                    week_days_int = 127  # 默认所有天
+            else:
+                # 已经是数字字符串,直接转换为整数
+                try:
+                    week_days_int = int(entity.week_days)
+                except ValueError:
+                    week_days_int = 127
 
         orm_model = CheckinRule(
             rule_id=entity.rule_id if entity.rule_id != 0 else None,
@@ -131,11 +139,20 @@ class SQLAlchemyCheckinRuleRepository(CheckinRuleRepository):
 
         # 转换 week_days: 字符串 -> 整数位掩码
         if entity.week_days and isinstance(entity.week_days, str):
-            try:
-                days = [int(d.strip()) for d in entity.week_days.split(',')]
-                orm_model.week_days = sum(1 << (day - 1) for day in days)
-            except (ValueError, AttributeError):
-                orm_model.week_days = 127
+            # 检查是逗号分隔格式还是已经是数字字符串
+            if ',' in entity.week_days:
+                # 字符串 "1,3,5" 转换为位掩码整数
+                try:
+                    days = [int(d.strip()) for d in entity.week_days.split(',')]
+                    orm_model.week_days = sum(1 << (day - 1) for day in days)
+                except (ValueError, AttributeError):
+                    orm_model.week_days = 127
+            else:
+                # 已经是数字字符串,直接转换为整数
+                try:
+                    orm_model.week_days = int(entity.week_days)
+                except ValueError:
+                    orm_model.week_days = 127
         elif entity.week_days:
             orm_model.week_days = entity.week_days
 
