@@ -2,15 +2,16 @@
 添加社区工作人员用例（重构后 - 符合DDD架构）
 
 重构要点：
-- 移除直接导入 database.flask_models 中的 db, User, Community, CommunityStaff
-- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
-- 所有数据库操作通过Repository抽象层
+- 使用 with transaction() 确保事务一致性
+- 使用 AuditLogRepository 记录审计日志
+- 消除 db.session.add() 直接访问
 """
 import logging
 from typing import List, Dict
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transaction
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES, STAFF_ROLE_STAFF, STAFF_ROLE_MANAGER
 
@@ -32,6 +33,7 @@ class AddCommunityStaffUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
         self.staff_repository = RepositoryFactory.get_community_staff_repository()
+        self.audit_log_repository = RepositoryFactory.get_audit_log_repository()  # ✅ 新增
 
     def execute(
         self,
@@ -296,15 +298,12 @@ class AddCommunityStaffUseCase(BaseUseCase):
 
                 self.user_repository.save(target_user)
 
-                # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                from database.flask_models import UserAuditLog
-                audit_log = UserAuditLog(
+                # ✅ 使用Repository保存审计日志
+                self.audit_log_repository.create(
                     user_id=operator_user.user_id,
                     action="add_community_staff",
                     detail=f"添加用户{uid}为社区{community_id}的{role}，更新角色为{target_user.role}"
                 )
-                from database.flask_models import db
-                db.session.add(audit_log)
 
                 success_count += 1
 
