@@ -86,15 +86,22 @@ class SupportEventUseCase(BaseUseCase):
 
             # 6. 创建事件聚合根并添加消息
             event_entity = CommunityEventEntity(event)
-            event_aggregate = CommunityEventAggregate(event_entity, self.event_bus)
+            event_aggregate = CommunityEventAggregate(event_entity)
 
             # 在聚合根中添加消息（业务规则在聚合根内验证）
             try:
-                event_aggregate.add_message(
+                from app.domain.entities.event_message_entity import EventMessageEntity
+                # 创建 EventMessage 对象
+                message_obj = EventMessage(
+                    event_id=event_id,
                     sender_id=sender_id,
-                    message=message_content,
-                    message_type='text'
+                    message_content=message_content,
+                    message_type='text',
+                    status=1,
+                    created_at=datetime.now()
                 )
+                message_entity = EventMessageEntity(message_obj)
+                event_aggregate.add_message(message_entity)
             except ValueError as e:
                 return UseCaseResult(
                     status=UseCaseStatus.BUSINESS_ERROR,

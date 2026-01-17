@@ -543,7 +543,7 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            user_id=test_staff_user.user_id,
+            sender_id=test_staff_user.user_id,
             event_id=test_event.event_id,
             message_content=message_content
         )
@@ -566,9 +566,9 @@ class TestSupportEventUseCase:
         """
         # Arrange
         result = use_case.execute(
-            user_id=test_staff_user.user_id,
+            sender_id=test_staff_user.user_id,
             event_id=None,
-            message_message='测试消息'
+            message_content='测试消息'
         )
 
         # Assert
@@ -586,7 +586,7 @@ class TestSupportEventUseCase:
         result = use_case.execute(
             sender_id=99999,
             event_id=test_event.event_id,
-            message_message='测试消息'
+            message_content='测试消息'
         )
 
         # Assert
@@ -602,9 +602,9 @@ class TestSupportEventUseCase:
         """
         # Arrange
         result = use_case.execute(
-            user_id=test_staff_user.user_id,
+            sender_id=test_staff_user.user_id,
             event_id=99999,
-            message_message='测试消息'
+            message_content='测试消息'
         )
 
         # Assert
@@ -624,9 +624,9 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            user_id=test_staff_user.user_id,
+            sender_id=test_staff_user.user_id,
             event_id=test_event.event_id,
-            message_message='测试消息'
+            message_content='测试消息'
         )
 
         # Assert
@@ -645,9 +645,9 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            user_id=test_user.user_id,
+            sender_id=test_user.user_id,
             event_id=test_event.event_id,
-            message_message='测试消息'
+            message_content='测试消息'
         )
 
         # Assert
@@ -665,8 +665,8 @@ class TestSupportEventUseCase:
         # 创建第一个应援
         first_support = EventMessage(
             event_id=test_event.event_id,
-            user_id=test_staff_user.user_id,
-            message_message='第一次应援',
+            sender_id=test_staff_user.user_id,
+            message_content='第一次应援',
             message_type='text',
             status=1,
             created_at=datetime.datetime.now()
@@ -675,9 +675,9 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            user_id=test_staff_user.user_id,
+            sender_id=test_staff_user.user_id,
             event_id=test_event.event_id,
-            message_message='第二次应援'
+            message_content='第二次应援'
         )
 
         # Assert
@@ -696,7 +696,7 @@ class TestSupportEventUseCase:
 
         # Act
         result = use_case.execute(
-            user_id=test_staff_user.user_id,
+            sender_id=test_staff_user.user_id,
             event_id=test_event.event_id,
             message_content=message_content
         )

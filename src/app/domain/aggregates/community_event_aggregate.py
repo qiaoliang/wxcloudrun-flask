@@ -53,10 +53,14 @@ class CommunityEventAggregate:
             message: 事件消息实体
 
         Raises:
-            ValueError: 如果消息不属于该事件
+            ValueError: 如果消息不属于该事件或事件已关闭
         """
         if message.event_id != self._event.event_id:
             raise ValueError("消息不属于该事件")
+
+        # 只有待处理的事件才能添加消息
+        if not self._event.is_pending:
+            raise ValueError("事件已关闭，无法添加消息")
 
         self._messages.append(message)
 
