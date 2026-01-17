@@ -1,6 +1,8 @@
 """
 打卡功能模块路由
+
 负责参数验证、调用 UseCase 层、返回响应
+遵循 DDD 架构: Controller → DTO → Entity
 """
 
 import logging
@@ -11,34 +13,10 @@ from app.shared import make_succ_response, make_err_response
 from app.shared.decorators import login_required
 from app.shared.utils.auth import verify_token
 from app.shared.utils.route_helpers import with_user_verification, get_json_params, execute_use_case, handle_use_case_result
+from app.application.dtos import CheckinRuleDTO, CheckinRecordDTO
 from wxcloudrun.utils.timeutil import parse_date_only, parse_time_only
 
 app_logger = logging.getLogger('log')
-
-
-def _rule_to_dict(rule):
-    """
-    将规则对象转换为字典
-    :param rule: CheckinRule 对象
-    :return: 字典格式的规则数据
-    """
-    return {
-        'rule_id': rule.rule_id,
-        'user_id': rule.user_id,
-        'community_id': rule.community_id,
-        'rule_type': rule.rule_type,
-        'rule_name': rule.rule_name,
-        'icon_url': rule.icon_url,
-        'frequency_type': rule.frequency_type,
-        'time_slot_type': rule.time_slot_type,
-        'custom_time': rule.custom_time.isoformat() if rule.custom_time else None,
-        'week_days': rule.week_days,
-        'custom_start_date': rule.custom_start_date.isoformat() if rule.custom_start_date else None,
-        'custom_end_date': rule.custom_end_date.isoformat() if rule.custom_end_date else None,
-        'status': rule.status,
-        'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M:%S') if rule.created_at else None,
-        'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M:%S') if rule.updated_at else None
-    }
 
 
 @checkin_bp.route('/checkin/today', methods=['GET'])
@@ -320,11 +298,11 @@ def manage_checkin_rules():
             if rule_id:
                 # 单个规则
                 rule = result.data.get('rule')
-                response_data = _rule_to_dict(rule)
+                response_data = CheckinRuleDTO.from_entity(rule)
             else:
                 # 所有规则
                 rules = result.data.get('rules', [])
-                response_data = {'rules': [_rule_to_dict(r) for r in rules]}
+                response_data = {'rules': CheckinRuleDTO.from_entity_list(rules)}
 
             current_app.logger.info(f'用户 {user['user_id']} 成功查询打卡规则')
             return make_succ_response(response_data)
@@ -360,7 +338,7 @@ def manage_checkin_rules():
 
             rule = result.data.get('rule')
             current_app.logger.info(f'用户 {user['user_id']} 成功创建打卡规则')
-            return make_succ_response({'rule': _rule_to_dict(rule)})
+            return make_succ_response({'rule': CheckinRuleDTO.from_entity(rule)})
 
         elif method == 'PUT':
             # 更新打卡规则
@@ -385,7 +363,7 @@ def manage_checkin_rules():
 
             rule = result.data.get('rule')
             current_app.logger.info(f'用户 {user['user_id']} 成功更新打卡规则')
-            return make_succ_response({'rule': _rule_to_dict(rule)})
+            return make_succ_response({'rule': CheckinRuleDTO.from_entity(rule)})
 
         elif method == 'DELETE':
             # 删除打卡规则
