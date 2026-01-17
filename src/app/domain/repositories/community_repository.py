@@ -108,3 +108,16 @@ class CommunityRepository(BaseRepository[Community]):
             List[Community]: 社区列表
         """
         pass
+
+    @abstractmethod
+    def find_by_id(self, community_id: int) -> Optional[Community]:
+        """
+        根据ID查找社区
+
+        Args:
+            community_id: 社区ID
+
+        Returns:
+            Optional[Community]: 社区对象，如果不存在则返回 None
+        """
+        pass

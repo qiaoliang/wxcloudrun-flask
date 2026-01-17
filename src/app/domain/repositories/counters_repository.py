@@ -1,5 +1,7 @@
 """
 计数器仓储接口
+
+定义计数器相关的数据访问操作。
 """
 from abc import ABC, abstractmethod
 from typing import List, Optional
@@ -11,7 +13,7 @@ class CountersRepository(ABC):
     """计数器仓储接口"""
 
     @abstractmethod
-    def find_by_id(self, counter_id: int) -> Optional[Counters]:
+    def find_by_id(self, counter_id: str) -> Optional[Counters]:
         """
         根据ID查找计数器
 
@@ -19,7 +21,7 @@ class CountersRepository(ABC):
             counter_id: 计数器ID
 
         Returns:
-            计数器对象，如果不存在则返回 None
+            Optional[Counters]: 计数器对象，如果不存在则返回 None
         """
         pass
 
@@ -29,7 +31,7 @@ class CountersRepository(ABC):
         查找所有计数器
 
         Returns:
-            计数器列表
+            List[Counters]: 计数器列表
         """
         pass
 
@@ -42,68 +44,16 @@ class CountersRepository(ABC):
             counter: 计数器对象
 
         Returns:
-            保存后的计数器对象
+            Counters: 保存后的计数器对象
         """
         pass
 
     @abstractmethod
-    def increment(self, counter_id: int) -> Optional[Counters]:
-        """
-        增加计数器的值
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            更新后的计数器对象，如果不存在则返回 None
-        """
-        pass
-
-    @abstractmethod
-    def reset(self, counter_id: int) -> Optional[Counters]:
-        """
-        重置计数器的值
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            更新后的计数器对象，如果不存在则返回 None
-        """
-        pass
-
-    @abstractmethod
-    def delete(self, counter_id: int) -> bool:
-        """
-        删除计数器
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            是否删除成功
-        """
-        pass
-
-    @abstractmethod
-    def delete_all(self) -> int:
+    def delete_all(self) -> bool:
         """
         删除所有计数器
 
         Returns:
-            删除的计数器数量
-        """
-        pass
-
-    @abstractmethod
-    def create_or_get(self, counter_id: int) -> Counters:
-        """
-        创建或获取计数器
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            计数器对象
+            bool: 是否成功删除
         """
         pass

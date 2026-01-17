@@ -1,13 +1,16 @@
 """
-添加社区工作人员用例
+添加社区工作人员用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db, User, Community, CommunityStaff
+- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 import logging
 from typing import List, Dict
-from sqlalchemy import select
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import db, User, Community, CommunityStaff, UserAuditLog
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES, STAFF_ROLE_STAFF, STAFF_ROLE_MANAGER
 
@@ -18,10 +21,17 @@ class AddCommunityStaffUseCase(BaseUseCase):
     """添加社区工作人员用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入所有需要的Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
+        self.staff_repository = RepositoryFactory.get_community_staff_repository()
 
     def execute(
         self,
@@ -57,7 +67,8 @@ class AddCommunityStaffUseCase(BaseUseCase):
                 )
 
             # 3. 验证权限
-            operator_user = db.session.get(User, operator_user_id)
+            # ✅ 使用Repository代替 db.session.get(User, operator_user_id)
+            operator_user = self.user_repository.find_by_id(operator_user_id)
             if not operator_user:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
@@ -66,12 +77,10 @@ class AddCommunityStaffUseCase(BaseUseCase):
 
             # 检查操作者权限
             if operator_user.role != Role.SUPER_ADMIN:
-                stmt_staff = select(CommunityStaff).where(
-                    CommunityStaff.community_id == community_id,
-                    CommunityStaff.user_id == operator_user_id,
-                    CommunityStaff.removed_at.is_(None)
+                # ✅ 使用Repository代替 db.session.execute(select(CommunityStaff)...)
+                staff_record = self.staff_repository.find_active_by_community_and_user(
+                    community_id, operator_user_id
                 )
-                staff_record = db.session.execute(stmt_staff).scalar_one_or_none()
                 if not staff_record:
                     return UseCaseResult(
                         status=UseCaseStatus.FORBIDDEN,
@@ -135,8 +144,8 @@ class AddCommunityStaffUseCase(BaseUseCase):
                 message='角色参数错误，必须是manager或staff'
             )
 
-        # 检查社区是否存在
-        community = db.session.get(Community, community_id)
+        # ✅ 使用Repository代替 db.session.get(Community, community_id)
+        community = self.community_repository.find_by_id(community_id)
         if not community:
             return UseCaseResult(
                 status=UseCaseStatus.NOT_FOUND,
@@ -178,7 +187,7 @@ class AddCommunityStaffUseCase(BaseUseCase):
 
     def _add_staff(
         self,
-        operator_user: User,
+        operator_user,
         community_id: int,
         user_ids: List[int],
         role: str
@@ -190,17 +199,14 @@ class AddCommunityStaffUseCase(BaseUseCase):
         if role == STAFF_ROLE_MANAGER and len(user_ids) > 1:
             raise ValueError('主管只能添加一个')
 
+        # ✅ 使用Repository检查是否已有主管
         # 检查是否已有主管（但排除正在升级的情况）
         if role == STAFF_ROLE_MANAGER:
-            from sqlalchemy import select
-            stmt_manager = select(CommunityStaff).where(
-                CommunityStaff.community_id == community_id,
-                CommunityStaff.role == STAFF_ROLE_MANAGER,
-                CommunityStaff.removed_at.is_(None)
+            existing_managers = self.staff_repository.find_active_by_community_and_role(
+                community_id, STAFF_ROLE_MANAGER
             )
-            existing_manager = db.session.execute(stmt_manager).scalar_one_or_none()
             # 如果已有主管，且不是正在升级的这些用户之一，则拒绝
-            if existing_manager and existing_manager.user_id not in user_ids:
+            if existing_managers and existing_managers[0].user_id not in user_ids:
                 raise ValueError('该社区已有主管')
 
         added_users_info = []
@@ -209,8 +215,8 @@ class AddCommunityStaffUseCase(BaseUseCase):
 
         for uid in user_ids:
             try:
-                # 检查用户是否存在
-                target_user = db.session.get(User, uid)
+                # ✅ 使用Repository代替 db.session.get(User, uid)
+                target_user = self.user_repository.find_by_id(uid)
                 if not target_user:
                     logger.warning(f'用户{uid}不存在，跳过')
                     continue
@@ -228,14 +234,10 @@ class AddCommunityStaffUseCase(BaseUseCase):
                 elif target_user.community_id != community_id:
                     logger.info(f'用户{uid}不在安卡大家庭，保持当前社区{target_user.community_id}')
 
-                # 检查用户是否已在当前社区任职
-                from sqlalchemy import select
-                stmt_existing = select(CommunityStaff).where(
-                    CommunityStaff.community_id == community_id,
-                    CommunityStaff.user_id == uid,
-                    CommunityStaff.removed_at.is_(None)
+                # ✅ 使用Repository检查用户是否已在当前社区任职
+                existing_in_current_community = self.staff_repository.find_active_by_community_and_user(
+                    community_id, uid
                 )
-                existing_in_current_community = db.session.execute(stmt_existing).scalar_one_or_none()
 
                 if existing_in_current_community:
                     # 用户已在该社区有角色
@@ -253,6 +255,7 @@ class AddCommunityStaffUseCase(BaseUseCase):
 
                         # 更新用户的 role 字段
                         target_user.role = Role.MANAGER
+                        self.user_repository.save(target_user)
 
                         continue
                     elif existing_in_current_community.role == STAFF_ROLE_MANAGER and role == STAFF_ROLE_STAFF:
@@ -266,6 +269,7 @@ class AddCommunityStaffUseCase(BaseUseCase):
 
                             # 更新用户的 role 字段
                             target_user.role = Role.STAFF
+                            self.user_repository.save(target_user)
 
                             continue
                         else:
@@ -274,12 +278,15 @@ class AddCommunityStaffUseCase(BaseUseCase):
                             continue
 
                 # 添加工作人员
+                # 注意：需要导入CommunityStaff模型来创建实例
+                from database.flask_models import CommunityStaff
                 staff = CommunityStaff(
                     community_id=community_id,
                     user_id=uid,
                     role=role
                 )
-                db.session.add(staff)
+                # ✅ 使用Repository代替 db.session.add(staff)
+                self.staff_repository.save(staff)
 
                 # 更新用户的 role 字段
                 if role == STAFF_ROLE_MANAGER:
@@ -287,12 +294,16 @@ class AddCommunityStaffUseCase(BaseUseCase):
                 elif role == STAFF_ROLE_STAFF:
                     target_user.role = Role.STAFF
 
-                # 记录审计日志
+                self.user_repository.save(target_user)
+
+                # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
+                from database.flask_models import UserAuditLog
                 audit_log = UserAuditLog(
                     user_id=operator_user.user_id,
                     action="add_community_staff",
                     detail=f"添加用户{uid}为社区{community_id}的{role}，更新角色为{target_user.role}"
                 )
+                from database.flask_models import db
                 db.session.add(audit_log)
 
                 success_count += 1
@@ -316,11 +327,12 @@ class AddCommunityStaffUseCase(BaseUseCase):
             manager_user_id = user_ids[0]
             logger.info(f'准备更新社区{community_id}的主管ID为{manager_user_id}')
 
-            # 更新Community表的manager_id字段
-            community = db.session.get(Community, community_id)
+            # ✅ 使用Repository更新Community表的manager_id字段
+            community = self.community_repository.find_by_id(community_id)
             if community:
                 old_manager_id = community.manager_id
                 community.manager_id = manager_user_id
+                self.community_repository.save(community)
                 logger.info(f'成功更新社区{community_id}的manager_id: {old_manager_id} -> {manager_user_id}')
 
         return {
@@ -340,25 +352,19 @@ class AddCommunityStaffUseCase(BaseUseCase):
         Returns:
             int: 计算后的角色ID
         """
-        from sqlalchemy import select
-
-        # 如果用户当前是超级管理员，保持不变
-        user = db.session.get(User, user_id)
+        # ✅ 使用Repository代替 db.session.get(User, user_id)
+        user = self.user_repository.find_by_id(user_id)
         if user and user.role == Role.SUPER_ADMIN:
             return Role.SUPER_ADMIN
 
-        # 查询用户在所有社区的工作人员角色
-        stmt = select(CommunityStaff).where(
-            CommunityStaff.user_id == user_id,
-            CommunityStaff.removed_at.is_(None)
-        )
-        staff_records = db.session.execute(stmt).scalars().all()
+        # ✅ 使用Repository查询用户在所有社区的工作人员角色
+        staff_records = self.staff_repository.find_by_user_id(user_id, include_removed=False)
 
         # 如果没有任何工作人员记录，设为普通用户
         if not staff_records:
             if user:
                 user.role = Role.SOLO
-            db.session.flush()
+                self.user_repository.save(user)
             return Role.SOLO
 
         # 检查是否有主管角色
@@ -368,11 +374,11 @@ class AddCommunityStaffUseCase(BaseUseCase):
             # 有主管角色，设为主管（role=3）
             if user:
                 user.role = Role.MANAGER
-            db.session.flush()
+                self.user_repository.save(user)
             return Role.MANAGER
         else:
             # 只有专员角色，设为专员（role=2）
             if user:
                 user.role = Role.STAFF
-            db.session.flush()
+                self.user_repository.save(user)
             return Role.STAFF

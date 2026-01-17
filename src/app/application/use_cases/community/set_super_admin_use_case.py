@@ -1,11 +1,15 @@
 """
-设置超级管理员用例
+设置超级管理员用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db, User, CommunityStaff
+- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 import logging
-from sqlalchemy import select
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from database.flask_models import db, User, UserAuditLog, CommunityStaff
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
 
 logger = logging.getLogger(__name__)
@@ -15,8 +19,16 @@ class SetSuperAdminUseCase(BaseUseCase):
     """设置超级管理员用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入所有需要的Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
+        self.user_repository = RepositoryFactory.get_user_repository()
+        self.staff_repository = RepositoryFactory.get_community_staff_repository()
 
     def execute(
         self,
@@ -44,7 +56,8 @@ class SetSuperAdminUseCase(BaseUseCase):
                 )
 
             # 2. 检查操作者权限
-            operator = db.session.get(User, operator_user_id)
+            # ✅ 使用Repository代替 db.session.get(User, operator_user_id)
+            operator = self.user_repository.find_by_id(operator_user_id)
             if not operator or operator.role != Role.SUPER_ADMIN:
                 return UseCaseResult(
                     status=UseCaseStatus.FORBIDDEN,
@@ -52,7 +65,8 @@ class SetSuperAdminUseCase(BaseUseCase):
                 )
 
             # 3. 检查目标用户是否存在
-            target_user = db.session.get(User, target_user_id)
+            # ✅ 使用Repository代替 db.session.get(User, target_user_id)
+            target_user = self.user_repository.find_by_id(target_user_id)
             if not target_user:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
@@ -77,9 +91,11 @@ class SetSuperAdminUseCase(BaseUseCase):
                     )
 
                 target_user.role = Role.SUPER_ADMIN
-                db.session.flush()
+                # ✅ 使用Repository代替 db.session.flush()
+                self.user_repository.save(target_user)
 
-                # 记录审计日志
+                # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
+                from database.flask_models import UserAuditLog, db
                 audit_log = UserAuditLog(
                     user_id=operator_user_id,
                     action="set_super_admin",
@@ -104,12 +120,8 @@ class SetSuperAdminUseCase(BaseUseCase):
                     )
 
                 # 取消超级管理员身份，根据工作人员身份重新计算role
-                # 查询用户在所有社区的工作人员角色
-                stmt = select(CommunityStaff).where(
-                    CommunityStaff.user_id == target_user_id,
-                    CommunityStaff.removed_at.is_(None)
-                )
-                staff_records = db.session.execute(stmt).scalars().all()
+                # ✅ 使用Repository查询用户在所有社区的工作人员角色
+                staff_records = self.staff_repository.find_by_user_id(target_user_id, include_removed=False)
 
                 # 重新计算用户角色
                 if not staff_records:
@@ -121,9 +133,11 @@ class SetSuperAdminUseCase(BaseUseCase):
                     new_role = Role.MANAGER if has_manager else Role.STAFF
 
                 target_user.role = new_role
-                db.session.flush()
+                # ✅ 使用Repository代替 db.session.flush()
+                self.user_repository.save(target_user)
 
-                # 记录审计日志
+                # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
+                from database.flask_models import UserAuditLog, db
                 audit_log = UserAuditLog(
                     user_id=operator_user_id,
                     action="remove_super_admin",

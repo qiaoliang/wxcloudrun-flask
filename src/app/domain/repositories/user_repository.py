@@ -117,3 +117,16 @@ class UserRepository(BaseRepository[User]):
             bool: 如果存在返回 True，否则返回 False
         """
         pass
+
+    @abstractmethod
+    def find_by_id(self, user_id: int) -> Optional[User]:
+        """
+        根据用户ID查找用户
+
+        Args:
+            user_id: 用户ID
+
+        Returns:
+            Optional[User]: 用户对象，如果不存在则返回 None
+        """
+        pass

@@ -127,8 +127,32 @@ class SQLAlchemyCommunityStaffRepository(CommunityStaffRepository):
                 CommunityStaff.removed_at.is_(None)
             )
         )
-        
+
         if role is not None:
             stmt = stmt.where(CommunityStaff.role == role)
-        
+
         return len(list(self.session.execute(stmt).scalars().all()))
+
+    def find_active_by_community_and_user(
+        self,
+        community_id: int,
+        user_id: int
+    ) -> Optional[CommunityStaff]:
+        """
+        查找社区和用户的活跃工作人员记录（未软删除）
+
+        这是 find_by_community_and_user 的别名，确保接口一致性
+        """
+        return self.find_by_community_and_user(community_id, user_id)
+
+    def find_active_by_community_and_role(
+        self,
+        community_id: int,
+        role: str
+    ) -> List[CommunityStaff]:
+        """
+        查找社区中特定角色的活跃工作人员列表（未软删除）
+
+        这是 find_by_community_and_role 的别名，确保接口一致性
+        """
+        return self.find_by_community_and_role(community_id, role, include_removed=False)

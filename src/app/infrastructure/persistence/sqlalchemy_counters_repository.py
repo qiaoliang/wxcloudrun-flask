@@ -1,17 +1,22 @@
 """
-计数器仓储 SQLAlchemy 实现
+计数器仓储实现
+
+使用SQLAlchemy实现计数器数据访问。
 """
 from typing import List, Optional
+from sqlalchemy import select, delete
 
-from sqlalchemy import select
-from database.flask_models import db, Counters
 from app.domain.repositories.counters_repository import CountersRepository
+from database.flask_models import db, Counters
 
 
 class SQLAlchemyCountersRepository(CountersRepository):
-    """计数器仓储 SQLAlchemy 实现"""
+    """计数器仓储SQLAlchemy实现"""
 
-    def find_by_id(self, counter_id: int) -> Optional[Counters]:
+    def __init__(self):
+        self._session = db.session
+
+    def find_by_id(self, counter_id: str) -> Optional[Counters]:
         """
         根据ID查找计数器
 
@@ -19,20 +24,20 @@ class SQLAlchemyCountersRepository(CountersRepository):
             counter_id: 计数器ID
 
         Returns:
-            计数器对象，如果不存在则返回 None
+            Optional[Counters]: 计数器对象，如果不存在则返回 None
         """
-        return db.session.get(Counters, counter_id)
+        stmt = select(Counters).where(Counters.id == counter_id)
+        return self._session.execute(stmt).scalar_one_or_none()
 
     def find_all(self) -> List[Counters]:
         """
         查找所有计数器
 
         Returns:
-            计数器列表
+            List[Counters]: 计数器列表
         """
-        query = select(Counters).order_by(Counters.id)
-        result = db.session.execute(query)
-        return list(result.scalars().all())
+        stmt = select(Counters)
+        return self._session.execute(stmt).scalars().all()
 
     def save(self, counter: Counters) -> Counters:
         """
@@ -42,93 +47,24 @@ class SQLAlchemyCountersRepository(CountersRepository):
             counter: 计数器对象
 
         Returns:
-            保存后的计数器对象
+            Counters: 保存后的计数器对象
         """
-        db.session.add(counter)
-        db.session.flush()
+        self._session.add(counter)
+        self._session.flush()
+        self._session.refresh(counter)
         return counter
 
-    def increment(self, counter_id: int) -> Optional[Counters]:
-        """
-        增加计数器的值
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            更新后的计数器对象，如果不存在则返回 None
-        """
-        counter = self.find_by_id(counter_id)
-        if counter:
-            counter.count += 1
-            db.session.flush()
-            return counter
-        return None
-
-    def reset(self, counter_id: int) -> Optional[Counters]:
-        """
-        重置计数器的值
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            更新后的计数器对象，如果不存在则返回 None
-        """
-        counter = self.find_by_id(counter_id)
-        if counter:
-            counter.count = 0
-            db.session.flush()
-            return counter
-        return None
-
-    def delete(self, counter_id: int) -> bool:
-        """
-        删除计数器
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            是否删除成功
-        """
-        counter = self.find_by_id(counter_id)
-        if counter:
-            db.session.delete(counter)
-            db.session.flush()
-            return True
-        return False
-
-    def delete_all(self) -> int:
+    def delete_all(self) -> bool:
         """
         删除所有计数器
 
         Returns:
-            删除的计数器数量
+            bool: 是否成功删除
         """
-        query = select(Counters)
-        result = db.session.execute(query)
-        counters = result.scalars().all()
-
-        for counter in counters:
-            db.session.delete(counter)
-
-        db.session.flush()
-        return len(counters)
-
-    def create_or_get(self, counter_id: int) -> Counters:
-        """
-        创建或获取计数器
-
-        Args:
-            counter_id: 计数器ID
-
-        Returns:
-            计数器对象
-        """
-        counter = self.find_by_id(counter_id)
-        if not counter:
-            counter = Counters(id=counter_id, count=0)
-            db.session.add(counter)
-            db.session.flush()
-        return counter
+        try:
+            self._session.execute(delete(Counters))
+            self._session.commit()
+            return True
+        except Exception as e:
+            self._session.rollback()
+            raise e

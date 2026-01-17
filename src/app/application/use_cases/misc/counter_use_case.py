@@ -1,12 +1,16 @@
 """
-计数器用例
+计数器用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db, Counters
+- 使用CountersRepository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 import logging
 from flask import has_app_context
-from sqlalchemy import select, delete
-from database.flask_models import db, Counters
-from app.shared.utils.transaction import transaction
 
+from app.shared.utils.transaction import transaction
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
 
 app_logger = logging.getLogger('log')
@@ -22,6 +26,16 @@ def _get_logger():
 
 class CounterUseCase(BaseUseCase):
     """计数器用例"""
+
+    def __init__(self):
+        """
+        初始化用例，注入CountersRepository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
+        super().__init__()
+        # ✅ 通过RepositoryFactory获取CountersRepository接口
+        self.counters_repository = RepositoryFactory.get_counters_repository()
 
     def _validate(self, action: str, params: dict) -> UseCaseResult:
         """
@@ -48,7 +62,7 @@ class CounterUseCase(BaseUseCase):
                 counter_id = params.get('id')
             else:
                 counter_id = params.get('counter_id')
-            
+
             if counter_id is None:
                 return UseCaseResult(
                     status=UseCaseStatus.VALIDATION_ERROR,
@@ -90,7 +104,7 @@ class CounterUseCase(BaseUseCase):
 
         except Exception as e:
             _get_logger().error(f"计数器操作失败: {str(e)}", exc_info=True)
-            db.session.rollback()
+            # ✅ 移除 db.session.rollback()，由Repository处理事务
             return UseCaseResult(
                 status=UseCaseStatus.FAILURE,
                 message=f'计数器操作失败: {str(e)}',
@@ -99,15 +113,20 @@ class CounterUseCase(BaseUseCase):
 
     def _increment(self, params: dict) -> UseCaseResult:
         """增加计数"""
+        from database.flask_models import Counters  # 仅用于创建实例
+
         counter_id = params.get('counter_id', 1)
-        counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
+        # ✅ 使用Repository代替 db.session.execute(select(Counters)...)
+        counter = self.counters_repository.find_by_id(counter_id)
 
         with transaction():
             if counter:
                 counter.count += 1
+                self.counters_repository.save(counter)
             else:
                 counter = Counters(id=counter_id, count=1)
-                db.session.add(counter)
+                # ✅ 使用Repository代替 db.session.add(counter)
+                self.counters_repository.save(counter)
 
         _get_logger().info(f"计数器 {counter.id} 增加到 {counter.count}")
         return UseCaseResult(
@@ -119,11 +138,13 @@ class CounterUseCase(BaseUseCase):
     def _reset(self, params: dict) -> UseCaseResult:
         """重置计数"""
         counter_id = params.get('counter_id', 1)
-        counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
+        # ✅ 使用Repository代替 db.session.execute(select(Counters)...)
+        counter = self.counters_repository.find_by_id(counter_id)
 
         if counter:
             with transaction():
                 counter.count = 0
+                self.counters_repository.save(counter)
             _get_logger().info(f"计数器 {counter.id} 已重置")
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
@@ -141,7 +162,8 @@ class CounterUseCase(BaseUseCase):
     def _get(self, params: dict) -> UseCaseResult:
         """获取计数"""
         counter_id = params.get('id', 1)
-        counter = db.session.execute(select(Counters).filter_by(id=counter_id)).scalar_one_or_none()
+        # ✅ 使用Repository代替 db.session.execute(select(Counters)...)
+        counter = self.counters_repository.find_by_id(counter_id)
 
         if counter:
             return UseCaseResult(
@@ -158,7 +180,8 @@ class CounterUseCase(BaseUseCase):
 
     def _list(self) -> UseCaseResult:
         """列出所有计数器"""
-        counters = db.session.execute(select(Counters)).scalars().all()
+        # ✅ 使用Repository代替 db.session.execute(select(Counters))
+        counters = self.counters_repository.find_all()
         counter_list = [{'id': c.id, 'count': c.count} for c in counters]
         _get_logger().info(f"获取计数器列表，共 {len(counter_list)} 个计数器")
         return UseCaseResult(
@@ -169,11 +192,18 @@ class CounterUseCase(BaseUseCase):
 
     def _clear(self) -> UseCaseResult:
         """清除所有计数器"""
-        with transaction():
-            db.session.execute(delete(Counters))
-        _get_logger().info("所有计数器已清除")
-        return UseCaseResult(
-            status=UseCaseStatus.SUCCESS,
-            message='所有计数器已清除',
-            data={'message': '所有计数器已清除'}
-        )
+        # ✅ 使用Repository代替 db.session.execute(delete(Counters))
+        success = self.counters_repository.delete_all()
+        if success:
+            _get_logger().info("所有计数器已清除")
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='所有计数器已清除',
+                data={'message': '所有计数器已清除'}
+            )
+        else:
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message='清除计数器失败',
+                data={}
+            )

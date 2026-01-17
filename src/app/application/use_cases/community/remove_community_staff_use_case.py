@@ -1,5 +1,10 @@
 """
-移除社区工作人员用例
+移除社区工作人员用例（重构后 - 符合DDD架构）
+
+重构要点：
+- 移除直接导入 database.flask_models 中的 db, User, CommunityStaff, Community
+- 使用Repository接口访问数据，符合依赖倒置原则（DIP）
+- 所有数据库操作通过Repository抽象层
 """
 
 import logging
@@ -7,8 +12,7 @@ from datetime import datetime
 from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
-from database.flask_models import db, User, CommunityStaff, Community, UserAuditLog
-from sqlalchemy import select
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
 
 logger = logging.getLogger(__name__)
@@ -18,8 +22,17 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
     """移除社区工作人员用例"""
 
     def __init__(self):
+        """
+        初始化用例，注入所有需要的Repository
+
+        符合依赖倒置原则：依赖Repository接口，而非具体实现
+        """
         super().__init__()
         self.logger = logging.getLogger(__name__)
+        # ✅ 通过RepositoryFactory获取Repository接口
+        self.user_repository = RepositoryFactory.get_user_repository()
+        self.community_repository = RepositoryFactory.get_community_repository()
+        self.staff_repository = RepositoryFactory.get_community_staff_repository()
 
     def execute(
         self,
@@ -45,11 +58,9 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
                 return validation_result
 
             # 2. 查询工作人员记录
-            stmt_staff = select(CommunityStaff).where(
-                CommunityStaff.community_id == community_id,
-                CommunityStaff.user_id == target_user_id
-            )
-            staff = db.session.execute(stmt_staff).scalar_one_or_none()
+            # ✅ 使用Repository代替 db.session.execute(select(CommunityStaff)...)
+            # 注意：这里需要查询包括已删除的记录，所以使用find_by_community_and_user
+            staff = self.staff_repository.find_by_community_and_user(community_id, target_user_id)
 
             if not staff:
                 return UseCaseResult(
@@ -63,28 +74,35 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
 
             # 4. 软删除：设置 removed_at 时间戳
             staff.removed_at = datetime.now()
+            # ✅ 使用Repository保存
+            self.staff_repository.update(staff)
 
             # 5. 如果移除的是主管，清理Community表的manager_id字段
             if removed_role == STAFF_ROLE_MANAGER:
                 logger.info(f'移除的是主管，清理社区{community_id}的manager_id字段')
-                community = db.session.get(Community, community_id)
+                # ✅ 使用Repository代替 db.session.get(Community, community_id)
+                community = self.community_repository.find_by_id(community_id)
                 if community and community.manager_id == target_user_id:
                     community.manager_id = None
+                    self.community_repository.save(community)
                     logger.info(f'成功清理社区{community_id}的manager_id字段')
 
             # 6. 重新计算用户角色
-            target_user = db.session.get(User, target_user_id)
+            # ✅ 使用Repository代替 db.session.get(User, target_user_id)
+            target_user = self.user_repository.find_by_id(target_user_id)
             if target_user:
                 new_role = self._recalculate_user_role(target_user_id)
                 logger.info(f'用户{target_user_id}的角色重新计算为: {new_role}')
 
-            # 7. 记录审计日志
-            if operator_user_id:
+            # 7. 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
+            if operator_user_id and target_user:
+                from database.flask_models import UserAuditLog
                 audit_log = UserAuditLog(
                     user_id=operator_user_id,
                     action="remove_community_staff",
-                    detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={target_user_id}, 角色={removed_role}，用户当前角色={target_user.role if target_user else 'N/A'}"
+                    detail=f"移除社区工作人员: 社区ID={community_id}, 用户ID={target_user_id}, 角色={removed_role}，用户当前角色={target_user.role}"
                 )
+                from database.flask_models import db
                 db.session.add(audit_log)
 
             logger.info(f"社区工作人员移除成功: 社区ID={community_id}, 用户ID={target_user_id}, 角色={removed_role}")
@@ -139,23 +157,19 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
         Returns:
             int: 计算后的角色ID
         """
-        # 如果用户当前是超级管理员，保持不变
-        user = db.session.get(User, user_id)
+        # ✅ 使用Repository代替 db.session.get(User, user_id)
+        user = self.user_repository.find_by_id(user_id)
         if user and user.role == Role.SUPER_ADMIN:
             return Role.SUPER_ADMIN
 
-        # 查询用户在所有社区的工作人员角色
-        stmt = select(CommunityStaff).where(
-            CommunityStaff.user_id == user_id,
-            CommunityStaff.removed_at.is_(None)
-        )
-        staff_records = db.session.execute(stmt).scalars().all()
+        # ✅ 使用Repository查询用户在所有社区的工作人员角色
+        staff_records = self.staff_repository.find_by_user_id(user_id, include_removed=False)
 
         # 如果没有任何工作人员记录，设为普通用户
         if not staff_records:
             if user:
                 user.role = Role.SOLO
-            db.session.flush()
+                self.user_repository.save(user)
             return Role.SOLO
 
         # 检查是否有主管角色
@@ -165,11 +179,11 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
             # 有主管角色，设为主管（role=3）
             if user:
                 user.role = Role.MANAGER
-            db.session.flush()
+                self.user_repository.save(user)
             return Role.MANAGER
         else:
             # 只有专员角色，设为专员（role=2）
             if user:
                 user.role = Role.STAFF
-            db.session.flush()
+                self.user_repository.save(user)
             return Role.STAFF

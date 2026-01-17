@@ -79,3 +79,39 @@ class CommunityStaffRepository(ABC):
     def count_by_community_id(self, community_id: int, role: Optional[str] = None) -> int:
         """统计社区工作人员数量"""
         pass
+
+    @abstractmethod
+    def find_active_by_community_and_user(
+        self,
+        community_id: int,
+        user_id: int
+    ) -> Optional[CommunityStaff]:
+        """
+        查找社区和用户的活跃工作人员记录（未软删除）
+
+        Args:
+            community_id: 社区ID
+            user_id: 用户ID
+
+        Returns:
+            Optional[CommunityStaff]: 工作人员记录，如果不存在则返回 None
+        """
+        pass
+
+    @abstractmethod
+    def find_active_by_community_and_role(
+        self,
+        community_id: int,
+        role: str
+    ) -> List[CommunityStaff]:
+        """
+        查找社区中特定角色的活跃工作人员列表（未软删除）
+
+        Args:
+            community_id: 社区ID
+            role: 角色（manager/staff）
+
+        Returns:
+            List[CommunityStaff]: 工作人员列表
+        """
+        pass
