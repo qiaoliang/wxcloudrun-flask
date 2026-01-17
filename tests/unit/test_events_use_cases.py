@@ -1397,7 +1397,7 @@ class TestAddEventMessageUseCase:
         # Arrange
         result = use_case.execute(
             event_id=1,
-            sender_id=None,
+            user_id=None,
             message='测试消息'
         )
 
@@ -1475,7 +1475,7 @@ class TestAddEventMessageUseCase:
         # Arrange
         result = use_case.execute(
             event_id=test_event.event_id,
-            sender_id=99999,
+            user_id=99999,
             message='测试消息'
         )
 
