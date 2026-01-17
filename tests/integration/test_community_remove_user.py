@@ -38,7 +38,6 @@ class TestCommunityRemoveUser(IntegrationTestBase):
             member = self.create_standard_test_user(role=1, test_context='remove_user_member')
 
             # 将用户添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [member.user_id])
 
             # 验证用户已在社区中

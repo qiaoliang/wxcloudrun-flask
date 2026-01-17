@@ -6,8 +6,6 @@ import string
 from datetime import datetime
 
 from database.flask_models import db, User, Community, CommunityCheckinRule, CheckinRule, UserCommunityRule
-from app.shared.utils.community_helpers import CommunityRuleHelper
-from app.shared.utils.community_helpers import CommunityRuleQueryHelper
 
 
 

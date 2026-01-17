@@ -8,8 +8,7 @@ from sqlalchemy.orm import joinedload
 
 from app.shared.utils.transaction import transactional
 from app.shared.utils.auth_helpers import (
-    normalize_and_hash_phone,
-    generate_auth_tokens
+    normalize_and_hash_phone
 )
 from wxcloudrun.utils.validators import (
     normalize_phone_number,
@@ -88,9 +87,15 @@ class RegisterPhoneUseCase(BaseUseCase):
             )
 
             # 生成token
-            token, refresh_token, error_response = generate_auth_tokens(user, self.logger)
-            if error_response:
+            from .generate_auth_tokens_use_case import GenerateAuthTokensUseCase
+            generate_tokens_use_case = GenerateAuthTokensUseCase()
+            tokens_result = generate_tokens_use_case.execute(user)
+
+            if not tokens_result.is_success:
                 return UseCaseResult.failure('TOKEN_GENERATION_FAILED', '生成token失败')
+
+            token = tokens_result.data['token']
+            refresh_token = tokens_result.data['refresh_token']
 
             # 记录审计日志
             self._audit_user(user.user_id, 'register_phone', {'phone': normalized_phone})

@@ -257,6 +257,10 @@ class TestBase:
 
         assert response.status_code == 200
         data = json.loads(response.data)
+        if data['code'] != 1:
+            import sys
+            sys.stdout.write(f"登录失败: phone={phone_number}, password={password}, response={data}\n")
+            sys.stdout.flush()
         assert data['code'] == 1
         return data['data']['token']
 
@@ -480,7 +484,6 @@ class IntegrationTestBase(TestBase):
         Raises:
             ValueError: 当参数无效或操作失败时
         """
-        from app.shared.utils.community_helpers import CommunityRuleHelper
 
         # 如果没有提供操作者ID，使用超级管理员
         if operator_id is None:

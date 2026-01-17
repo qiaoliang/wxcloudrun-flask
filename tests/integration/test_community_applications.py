@@ -74,7 +74,6 @@ class TestCommunityApplications(IntegrationTestBase):
                 self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
                 # 创建社区申请
-                from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
                 application = CommunityService.create_community_application(
                     applicant.user_id,
                     community.community_id,
@@ -124,7 +123,6 @@ class TestCommunityApplications(IntegrationTestBase):
                 self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
                 # 创建社区申请
-                from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
                 application = CommunityService.create_community_application(
                     applicant.user_id,
                     community.community_id,
@@ -173,7 +171,6 @@ class TestCommunityApplications(IntegrationTestBase):
                 self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
                 # 创建社区申请
-                from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
                 application = CommunityService.create_community_application(
                     applicant.user_id,
                     community.community_id,

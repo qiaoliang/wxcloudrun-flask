@@ -17,7 +17,6 @@ class UpdateUserUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
-        self.user_repo = UserRepository()
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
         self.event_bus = EventBus()

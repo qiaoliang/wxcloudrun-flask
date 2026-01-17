@@ -42,7 +42,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
@@ -105,7 +104,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将用户添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id, target_user.user_id])
 
             # 创建事件，指定目标用户
@@ -173,7 +171,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, staff.user_id, 'staff', manager.user_id)
 
             # 将创建者添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
@@ -237,7 +234,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 只将创建者添加到社区，不添加无权限用户
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
@@ -296,7 +292,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
@@ -363,7 +358,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
@@ -421,7 +415,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件
@@ -513,7 +506,6 @@ class TestCloseEvent(IntegrationTestBase):
             self.add_community_staff(community.community_id, manager.user_id, 'manager', manager.user_id)
 
             # 将创建者添加到社区
-            from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
             CommunityService.add_users_to_community(community.community_id, [creator.user_id])
 
             # 创建事件

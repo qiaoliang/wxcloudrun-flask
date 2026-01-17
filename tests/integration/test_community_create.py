@@ -207,7 +207,6 @@ class TestCommunityCreateIntegration(IntegrationTestBase):
 
     def test_community_service_signature_compatibility(self):
         """测试CommunityService.create_community方法签名兼容性"""
-        from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
         import inspect
 
         # 验证方法签名

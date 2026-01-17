@@ -3,8 +3,6 @@
 """
 import pytest
 from database.flask_models import db, User, Community, CommunityStaff
-from app.shared.utils.community_helpers import CommunityPermissionHelper, CommunityRuleHelper
-from app.shared.utils.community_helpers import CommunityRuleHelper
 from app.shared.constants.roles import Role
 from flask import Flask
 

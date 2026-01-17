@@ -15,13 +15,9 @@ from .services import _format_user_login_response
 from app.shared import make_succ_response, make_err_response
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token, verify_token
 from app.shared.utils.auth_helpers import (
-    generate_auth_tokens,
     verify_password,
-    ensure_user_nickname,
     verify_sms_code_dual_purpose,
-    assign_user_to_default_community,
-    normalize_and_hash_phone,
-    query_user_by_phone_hash_with_timing
+    normalize_and_hash_phone
 )
 from database.flask_models import db, User
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname
@@ -212,8 +208,10 @@ def login_phone_code():
 
         current_app.logger.info('SMS验证码验证通过，开始查询用户...')
 
-        # 使用辅助函数执行带时间监控的数据库查询
-        user = query_user_by_phone_hash_with_timing(phone_hash, current_app.logger)
+        # 使用 Repository 获取用户对象（符合 DDD 原则：Repository 用于数据访问）
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
+        user_repository = RepositoryFactory.get_user_repository()
+        user = user_repository.find_by_phone_hash(phone_hash)
 
         if not user:
             current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
@@ -221,13 +219,22 @@ def login_phone_code():
 
         current_app.logger.info(f'找到用户 - user_id: {user.user_id}, nickname: {user.nickname}')
 
-        # 使用辅助函数确保用户有昵称
-        ensure_user_nickname(user, current_app.logger)
+        # 使用 UseCase 确保用户有昵称
+        from app.application.use_cases.auth import EnsureUserNicknameUseCase
+        ensure_nickname_use_case = EnsureUserNicknameUseCase()
+        ensure_nickname_use_case.execute(user)
 
-        # 使用辅助函数生成token
-        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
-        if error_response:
-            return error_response
+        # 使用 UseCase 生成 token
+        from app.application.use_cases.auth import GenerateAuthTokensUseCase
+        generate_tokens_use_case = GenerateAuthTokensUseCase()
+        tokens_result = generate_tokens_use_case.execute(user)
+
+        if not tokens_result.is_success:
+            current_app.logger.error(f'生成token失败: {tokens_result.message}')
+            return make_err_response({}, tokens_result.message)
+
+        token = tokens_result.data['token']
+        refresh_token = tokens_result.data['refresh_token']
 
         _audit(user.user_id, 'login_phone_code', {'phone': phone})
         current_app.logger.info('=== 手机号验证码登录接口执行完成 ===')
@@ -259,12 +266,15 @@ def login_phone_password():
         # 使用辅助函数标准化电话号码并生成 hash
         normalized_phone, phone_hash = normalize_and_hash_phone(phone, current_app.logger)
 
-        # 使用辅助函数执行带时间监控的数据库查询
-        user = query_user_by_phone_hash_with_timing(phone_hash, current_app.logger)
+        # 使用 Repository 获取用户对象
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
+        user_repository = RepositoryFactory.get_user_repository()
+        user = user_repository.find_by_phone_hash(phone_hash)
 
         if not user:
             current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
+
         if not user.password_hash or not user.password_salt:
             current_app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
             return make_err_response({}, '账号未设置密码')
@@ -274,13 +284,23 @@ def login_phone_password():
             return make_err_response({}, '密码不正确')
 
         current_app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
-        # 使用辅助函数确保用户有昵称
-        ensure_user_nickname(user, current_app.logger)
+        # 使用 UseCase 确保用户有昵称
+        from app.application.use_cases.auth import EnsureUserNicknameUseCase
+        ensure_nickname_use_case = EnsureUserNicknameUseCase()
+        ensure_nickname_use_case.execute(user)
 
-        # 使用辅助函数生成token
-        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
-        if error_response:
-            return error_response
+        # 使用 UseCase 生成 token
+        from app.application.use_cases.auth import GenerateAuthTokensUseCase
+        generate_tokens_use_case = GenerateAuthTokensUseCase()
+        tokens_result = generate_tokens_use_case.execute(user)
+
+        if not tokens_result.is_success:
+            current_app.logger.error(f'生成token失败: {tokens_result.message}')
+            return make_err_response({}, tokens_result.message)
+
+        token = tokens_result.data['token']
+        refresh_token = tokens_result.data['refresh_token']
+
         _audit(user.user_id, 'login_phone_password', {'phone': phone})
 
         current_app.logger.info('=== 手机号密码登录接口执行完成 ===')
@@ -323,12 +343,15 @@ def login_phone():
         # 使用辅助函数标准化电话号码并生成 hash
         normalized_phone, phone_hash = normalize_and_hash_phone(phone, current_app.logger)
 
-        # 使用辅助函数执行带时间监控的数据库查询
-        user = query_user_by_phone_hash_with_timing(phone_hash, current_app.logger)
+        # 使用 Repository 获取用户对象
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
+        user_repository = RepositoryFactory.get_user_repository()
+        user = user_repository.find_by_phone_hash(phone_hash)
 
         if not user:
             current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
             return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
+
         if not user.password_hash or not user.password_salt:
             current_app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
             return make_err_response({}, '账号未设置密码')
@@ -338,22 +361,23 @@ def login_phone():
             return make_err_response({}, '密码不正确')
 
         current_app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
-        # 使用辅助函数确保用户有昵称
-        ensure_user_nickname(user, current_app.logger)
+        # 使用 UseCase 确保用户有昵称
+        from app.application.use_cases.auth import EnsureUserNicknameUseCase
+        ensure_nickname_use_case = EnsureUserNicknameUseCase()
+        ensure_nickname_use_case.execute(user)
 
-        # 使用辅助函数生成token
-        token, refresh_token, error_response = generate_auth_tokens(user, current_app.logger)
-        if error_response:
-            return error_response
-        refresh_token = generate_refresh_token(user, expires_days=7)
+        # 使用 UseCase 生成 token
+        from app.application.use_cases.auth import GenerateAuthTokensUseCase
+        generate_tokens_use_case = GenerateAuthTokensUseCase()
+        tokens_result = generate_tokens_use_case.execute(user)
 
-        current_app.logger.info('保存refresh token到数据库...')
-        # 使用 UpdateUserUseCase 更新用户信息
-        from app.application.use_cases.user import UpdateUserUseCase
-        update_use_case = UpdateUserUseCase()
-        update_result = update_use_case.execute(user)
-        if not update_result.is_success:
-            current_app.logger.warning(f'更新用户信息失败: {update_result.message}')
+        if not tokens_result.is_success:
+            current_app.logger.error(f'生成token失败: {tokens_result.message}')
+            return make_err_response({}, tokens_result.message)
+
+        token = tokens_result.data['token']
+        refresh_token = tokens_result.data['refresh_token']
+
         _audit(user.user_id, 'login_phone', {'phone': phone})
 
         current_app.logger.info('=== 手机号登录接口执行完成 ===')
