@@ -74,7 +74,7 @@ def get_today_checkin_items():
             return make_err_response({}, result.message)
 
         current_app.logger.info(
-            f'成功获取今日打卡事项，用户ID: {user.user_id}, 事项数量: {len(result.data.get("checkin_items", []))}')
+            f'成功获取今日打卡事项，用户ID: {user['user_id']}, 事项数量: {len(result.data.get("checkin_items", []))}')
         return make_succ_response(result.data)
 
     except Exception as e:
@@ -127,7 +127,7 @@ def perform_checkin():
             return make_err_response({}, result.message)
 
         current_app.logger.info(
-            f'用户 {user.user_id} 成功打卡，规则ID: {rule_id}')
+            f'用户 {user['user_id']} 成功打卡，规则ID: {rule_id}')
         return make_succ_response(result.data)
 
     except Exception as e:
@@ -180,7 +180,7 @@ def report_miss_checkin():
             return make_err_response({}, result.message)
 
         current_app.logger.info(
-            f'用户 {user.user_id} 成功上报漏打卡，规则ID: {rule_id}')
+            f'用户 {user['user_id']} 成功上报漏打卡，规则ID: {rule_id}')
         return make_succ_response(result.data)
 
     except Exception as e:
@@ -234,7 +234,7 @@ def cancel_checkin():
             return make_err_response({}, result.message)
 
         current_app.logger.info(
-            f'用户 {user.user_id} 成功取消打卡，记录ID: {record_id}')
+            f'用户 {user['user_id']} 成功取消打卡，记录ID: {record_id}')
         return make_succ_response(result.data)
 
     except Exception as e:
@@ -305,7 +305,7 @@ def get_checkin_history():
             return make_err_response({}, result.message)
 
         current_app.logger.info(
-            f'用户 {user.user_id} 成功获取打卡历史记录，记录数: {result.data.get("total", 0)}')
+            f'用户 {user['user_id']} 成功获取打卡历史记录，记录数: {result.data.get("total", 0)}')
         return make_succ_response(result.data)
 
     except Exception as e:
@@ -334,7 +334,7 @@ def manage_checkin_rules():
     if not user_result.is_success:
         current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
         return make_err_response({}, '用户不存在')
-    user = user_result.data
+    user = user_result.data  # user 现在是一个字典
 
     method = request.method
     current_app.logger.info(f'打卡规则管理请求方法: {method}')
@@ -348,7 +348,7 @@ def manage_checkin_rules():
             from app.application.use_cases.checkin import GetCheckinRuleUseCase
 
             use_case = GetCheckinRuleUseCase()
-            result = use_case.execute(user_id=user.user_id, rule_id=int(rule_id) if rule_id else None)
+            result = use_case.execute(user_id=user['user_id'], rule_id=int(rule_id) if rule_id else None)
 
             if not result.is_success:
                 return make_err_response({}, result.message)
@@ -363,7 +363,7 @@ def manage_checkin_rules():
                 rules = result.data.get('rules', [])
                 response_data = {'rules': [_rule_to_dict(r) for r in rules]}
 
-            current_app.logger.info(f'用户 {user.user_id} 成功查询打卡规则')
+            current_app.logger.info(f'用户 {user['user_id']} 成功查询打卡规则')
             return make_succ_response(response_data)
 
         elif method == 'POST':
@@ -396,7 +396,7 @@ def manage_checkin_rules():
                 return make_err_response({}, result.message)
 
             rule = result.data.get('rule')
-            current_app.logger.info(f'用户 {user.user_id} 成功创建打卡规则')
+            current_app.logger.info(f'用户 {user['user_id']} 成功创建打卡规则')
             return make_succ_response({'rule': _rule_to_dict(rule)})
 
         elif method == 'PUT':
@@ -421,7 +421,7 @@ def manage_checkin_rules():
                 return make_err_response({}, result.message)
 
             rule = result.data.get('rule')
-            current_app.logger.info(f'用户 {user.user_id} 成功更新打卡规则')
+            current_app.logger.info(f'用户 {user['user_id']} 成功更新打卡规则')
             return make_succ_response({'rule': _rule_to_dict(rule)})
 
         elif method == 'DELETE':
@@ -439,7 +439,7 @@ def manage_checkin_rules():
             if not result.is_success:
                 return make_err_response({}, result.message)
 
-            current_app.logger.info(f'用户 {user.user_id} 成功删除打卡规则')
+            current_app.logger.info(f'用户 {user['user_id']} 成功删除打卡规则')
             return make_succ_response({'message': '规则删除成功'})
 
         else:
