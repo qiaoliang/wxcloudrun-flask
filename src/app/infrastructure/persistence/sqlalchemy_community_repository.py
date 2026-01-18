@@ -22,11 +22,10 @@ class SQLAlchemyCommunityRepository(CommunityRepository):
             entity: 要保存的社区
 
         Returns:
-            Community: 保存后的社区
+            Community: 保存后的社区（不提交事务，由 UseCase 层管理）
         """
         db.session.add(entity)
         db.session.flush()
-        db.session.commit()
         return entity
 
     def delete(self, entity: Community) -> None:
