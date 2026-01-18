@@ -11,6 +11,7 @@ import logging
 from typing import Optional
 
 from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
+from app.shared.utils.transaction import transactional
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
@@ -42,6 +43,7 @@ class LogoutUseCase(BaseUseCase):
             message="验证通过"
         )
 
+    @transactional
     def _execute(self, openid: str) -> UseCaseResult:
         """
         执行登出

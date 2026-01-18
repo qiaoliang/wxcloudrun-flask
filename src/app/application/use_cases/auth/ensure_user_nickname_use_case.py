@@ -8,6 +8,7 @@
 """
 import logging
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
+from app.shared.utils.transaction import transactional
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
@@ -19,6 +20,7 @@ class EnsureUserNicknameUseCase(BaseUseCase):
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
 
+    @transactional
     def execute(self, user) -> UseCaseResult:
         """
         执行确保用户昵称用例

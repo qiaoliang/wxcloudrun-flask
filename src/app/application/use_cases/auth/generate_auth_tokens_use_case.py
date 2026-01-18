@@ -9,6 +9,7 @@
 import logging
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
+from app.shared.utils.transaction import transactional
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
@@ -20,6 +21,7 @@ class GenerateAuthTokensUseCase(BaseUseCase):
         self.logger = logging.getLogger(__name__)
         self.user_repository = RepositoryFactory.get_user_repository()
 
+    @transactional
     def execute(self, user) -> UseCaseResult:
         """
         执行生成认证Token用例
