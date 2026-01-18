@@ -7,20 +7,20 @@ import logging
 from functools import wraps
 from sqlalchemy.exc import SQLAlchemyError
 from app.extensions import db
+from config import EnvironmentHelper
 
 logger = logging.getLogger(__name__)
 
 
 def transactional(f):
     """
-    事务管理装饰器
+    事务管理装饰器（简化版，符合 DDD 文档示例）
 
-    使用上下文管理器确保事务的原子性：
-    - 成功时自动提交
-    - 失败时自动回滚
+    功能：
+    - 成功时自动提交事务
+    - 失败时自动回滚事务
     - 记录详细的错误日志
-    - 支持嵌套事务（使用 SAVEPOINT）
-    - 在测试环境中使用 begin_nested() + commit()，让外层事务回滚时自动回滚所有修改
+    - 测试环境使用 begin_nested() + commit()，让外层事务回滚时自动回滚所有修改
 
     使用示例:
         @transactional
@@ -38,46 +38,43 @@ def transactional(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         try:
+            # 执行被装饰的函数
+            result = f(*args, **kwargs)
+
             # 检查是否在测试环境中
-            from config import EnvironmentHelper
             if EnvironmentHelper.is_unit():
                 # 测试环境：使用 begin_nested() + commit()，让外层事务回滚时自动回滚所有修改
                 with db.session.begin_nested():
-                    result = f(*args, **kwargs)
                     db.session.commit()  # 提交到 SAVEPOINT，让 test_client 可以访问
                     return result
             else:
-                # 生产环境：使用 begin_nested 支持 SAVEPOINT，允许嵌套事务
-                with db.session.begin_nested():
-                    result = f(*args, **kwargs)
-                    return result
+                # 生产环境：直接提交事务
+                db.session.commit()
+                logger.debug(f"事务提交成功 - 函数: {f.__name__}")
+                return result
+
         except SQLAlchemyError as e:
-            logger.error(f"事务失败 - 函数: {f.__name__}, 错误: {str(e)}")
-            # 上下文管理器会自动回滚到 SAVEPOINT
+            # 数据库异常，回滚事务
+            db.session.rollback()
+            logger.error(f"事务失败（数据库错误）- 函数: {f.__name__}, 错误: {str(e)}")
             raise
+
+        except Exception as e:
+            # 其他异常，回滚事务
+            db.session.rollback()
+            logger.error(f"事务失败（业务异常）- 函数: {f.__name__}, 错误: {str(e)}")
+            raise
+
     return decorated_function
 
 
 def transactional_nested(f):
     """
-    嵌套事务管理装饰器
+    嵌套事务管理装饰器（保持不变）
 
     用于需要独立回滚的嵌套操作场景：
     - 内层事务失败不影响外层事务
     - 适用于可选操作或可容忍失败的场景
-
-    使用示例:
-        @transactional_nested
-        def optional_operation(user_id):
-            # 这个操作失败不会影响主事务
-            record = AuditLog(user_id=user_id, action="optional")
-            db.session.add(record)
-
-    Args:
-        f: 被装饰的函数
-
-    Returns:
-        装饰后的函数
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -87,14 +84,13 @@ def transactional_nested(f):
                 return result
         except SQLAlchemyError as e:
             logger.warning(f"嵌套事务失败 - 函数: {f.__name__}, 错误: {str(e)}")
-            # 嵌套事务失败会回滚到保存点，不影响外层事务
             return None
     return decorated_function
 
 
 class TransactionManager:
     """
-    事务管理器类
+    事务管理器类（保持不变）
 
     提供更灵活的事务控制方式，适用于复杂场景
     """
@@ -178,7 +174,7 @@ class TransactionManager:
 
 def transaction():
     """
-    事务上下文管理器
+    事务上下文管理器（保持不变）
 
     用于复杂操作场景，特别是批量操作或多步骤操作：
     - 成功时自动提交
@@ -199,7 +195,6 @@ def transaction():
     Returns:
         TransactionContext: 事务上下文管理器
     """
-    from config import EnvironmentHelper
 
     class TransactionContext:
         def __enter__(self):
