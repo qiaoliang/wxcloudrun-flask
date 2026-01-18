@@ -26,6 +26,8 @@ class RegisterPhoneUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        import logging
+        self.logger = logging.getLogger(__name__)
         self.PWD_SALT = "default_salt"  # 应该从配置中读取
         self.user_repository = RepositoryFactory.get_user_repository()
 
@@ -64,19 +66,19 @@ class RegisterPhoneUseCase(BaseUseCase):
             normalized_phone, phone_hash = normalize_and_hash_phone(phone, self.logger)
 
             if not _verify_sms_code(normalized_phone, 'register', code):
-                return UseCaseResult.failure('INVALID_CAPTCHA', '验证码错误')
+                return UseCaseResult.fail('验证码错误')
 
             # 验证密码强度
             if password:
                 pwd = str(password)
                 if len(pwd) < 8 or (not any(c.isalpha() for c in pwd)) or (not any(c.isdigit() for c in pwd)):
-                    return UseCaseResult.failure('WEAK_PASSWORD', '密码强度不足')
+                    return UseCaseResult.fail('密码强度不足')
 
             # 检查手机号是否已注册
             existing = self._query_user_by_phone_hash(phone_hash)
             if existing:
                 self.logger.info(f'手机号已注册，提示用户直接登录: {phone}')
-                return UseCaseResult.failure('PHONE_EXISTS', '该手机号已注册，请直接登录')
+                return UseCaseResult.fail('该手机号已注册，请直接登录')
 
             # 创建新用户
             user = self._create_user(
@@ -93,7 +95,7 @@ class RegisterPhoneUseCase(BaseUseCase):
             tokens_result = generate_tokens_use_case.execute(user)
 
             if not tokens_result.is_success:
-                return UseCaseResult.failure('TOKEN_GENERATION_FAILED', '生成token失败')
+                return UseCaseResult.fail('生成token失败')
 
             token = tokens_result.data['token']
             refresh_token = tokens_result.data['refresh_token']
@@ -113,13 +115,13 @@ class RegisterPhoneUseCase(BaseUseCase):
 
         except Exception as e:
             self.logger.error(f'手机号注册失败: {str(e)}', exc_info=True)
-            return UseCaseResult.failure('REGISTRATION_FAILED', f'注册失败: {str(e)}')
+            return UseCaseResult.fail(f'注册失败: {str(e)}')
 
     @transactional
     def _query_user_by_phone_hash(self, phone_hash: str):
         """根据手机号哈希查询用户"""
         try:
-            user = self.user_repo.find_by_phone_hash_with_community(phone_hash)
+            user = self.user_repository.find_by_phone_hash_with_community(phone_hash)
             if user:
                 self.logger.info(
                     f"query_user_by_phone_hash: user_id={user.user_id}, "
@@ -130,7 +132,6 @@ class RegisterPhoneUseCase(BaseUseCase):
             self.logger.info(f"query_user_by_phone_hash errorMsg= {e}")
             return None
 
-    @transactional
     def _create_user(
         self,
         normalized_phone: str,
@@ -149,8 +150,11 @@ class RegisterPhoneUseCase(BaseUseCase):
         # 如果没有提供密码，使用默认密码 F00000000（用于邀请链接注册的用户）
         default_password = password if password else 'F00000000'
 
+        # 导入 User 模型
+        from database.flask_models import User
+
         # 创建用户对象
-        user = self.user_repo.create_user(
+        user = User(
             phone_number=masked,  # 存储脱敏号码
             phone_hash=phone_hash,  # 哈希值使用原始号码
             nickname=nick,
@@ -162,8 +166,11 @@ class RegisterPhoneUseCase(BaseUseCase):
             password_salt=self.PWD_SALT
         )
 
-        self.logger.info(f"User created successfully: user_id={user.user_id}")
-        return user
+        # 使用 save 方法保存用户
+        saved_user = self.user_repository.save(user)
+
+        self.logger.info(f"User created successfully: user_id={saved_user.user_id}")
+        return saved_user
 
     def _audit_user(self, user_id: int, action: str, details: dict):
         """记录用户审计日志"""
@@ -181,7 +188,7 @@ class RegisterPhoneUseCase(BaseUseCase):
         is_new_user: bool
     ) -> dict:
         """格式化登录响应"""
-        from .services import _format_user_login_response
+        from app.modules.auth.services import _format_user_login_response
         return _format_user_login_response(
             user=user,
             token=token,
