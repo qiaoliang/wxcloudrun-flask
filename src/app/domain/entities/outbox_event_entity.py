@@ -1,3 +1,9 @@
+"""
+Outbox 事件领域实体
+
+用于 Outbox 模式中的事件跟踪，确保事件的可靠投递。
+提供事件状态管理、重试计算等功能。
+"""
 from datetime import datetime, timedelta
 from app.domain.enums.outbox_status import OutboxStatus
 
@@ -5,6 +11,13 @@ class OutboxEventEntity:
     """Outbox 事件领域实体"""
 
     def __init__(self, event_type: str, payload: dict):
+        """
+        初始化 Outbox 事件实体
+
+        Args:
+            event_type: 事件类型（如 CheckinCompletedEvent）
+            payload: 事件数据（字典格式）
+        """
         self.id = None
         self.event_type = event_type
         self.payload = payload
