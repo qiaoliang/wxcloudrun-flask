@@ -32,6 +32,9 @@ class CreateCommunityEventUseCase(BaseUseCase):
         self.community_repository = RepositoryFactory.get_community_repository()
         self.event_repository = RepositoryFactory.get_community_event_repository()
 
+    @transactional
+
+
     def execute(
         self,
         user_id: int,

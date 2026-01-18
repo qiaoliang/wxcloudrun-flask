@@ -16,6 +16,9 @@ class GetUserWithCommunityUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
 
+    @transactional
+
+
     def execute(self, user_id: int) -> UseCaseResult:
         """
         执行获取用户社区信息

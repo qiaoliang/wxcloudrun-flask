@@ -22,6 +22,9 @@ class LogProfileViewUseCase(BaseUseCase):
         # ✅ 通过RepositoryFactory获取Repository接口
         self.audit_log_repository = RepositoryFactory.get_audit_log_repository()
 
+    @transactional
+
+
     def execute(self, viewer_id: int, viewed_user_id: int, community_id: int) -> UseCaseResult:
         """
         执行记录用户资料查看日志用例
