@@ -51,8 +51,7 @@ class GetManagedCommunitiesUseCase(BaseUseCase):
                         'community_id': community.community_id,
                         'name': community.name,
                         'description': community.description,
-                        'address': community.address,
-                        'contact_phone': community.contact_phone,
+                        'location': community.location,
                         'status': community.status,
                         'role': staff_relation.role,
                         'created_at': community.created_at.isoformat() if community.created_at else None
