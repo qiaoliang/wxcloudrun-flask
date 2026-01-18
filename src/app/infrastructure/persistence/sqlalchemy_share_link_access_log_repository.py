@@ -20,11 +20,10 @@ class SQLAlchemyShareLinkAccessLogRepository(ShareLinkAccessLogRepository):
             entity: 分享链接访问日志对象
 
         Returns:
-            ShareLinkAccessLog: 保存后的分享链接访问日志对象
+            ShareLinkAccessLog: 保存后的分享链接访问日志对象（不提交事务，由 UseCase 层管理）
         """
         db.session.add(entity)
         db.session.flush()
-        db.session.commit()
         return entity
 
     def find_by_token(self, token: str) -> List[ShareLinkAccessLog]:
