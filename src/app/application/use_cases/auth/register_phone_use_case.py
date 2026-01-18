@@ -174,13 +174,22 @@ class RegisterPhoneUseCase(BaseUseCase):
 
         # 重新加载用户对象以获取关联的 community 数据
         # 因为 save 只做 flush，返回的对象不包含关联关系
+        # 使用 find_by_id 来获取预加载了 community 的完整对象
         reloaded_user = self.user_repository.find_by_id(saved_user.user_id)
 
         if not reloaded_user:
             self.logger.error(f"无法重新加载用户: user_id={saved_user.user_id}")
             return saved_user
 
-        self.logger.info(f"User created successfully: user_id={reloaded_user.user_id}, community_id={reloaded_user.community_id}")
+        # 验证 community 关联是否正确加载
+        if reloaded_user.community_id:
+            if reloaded_user.community:
+                self.logger.info(f"User created successfully: user_id={reloaded_user.user_id}, community_id={reloaded_user.community_id}, community_name={reloaded_user.community.name}")
+            else:
+                self.logger.warning(f"User created but community relation not loaded: user_id={reloaded_user.user_id}, community_id={reloaded_user.community_id}")
+        else:
+            self.logger.warning(f"User created but without community_id: user_id={reloaded_user.user_id}")
+
         return reloaded_user
 
     def _audit_user(self, user_id: int, action: str, details: dict):
