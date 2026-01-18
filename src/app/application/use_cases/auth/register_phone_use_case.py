@@ -150,8 +150,9 @@ class RegisterPhoneUseCase(BaseUseCase):
         # 如果没有提供密码，使用默认密码 F00000000（用于邀请链接注册的用户）
         default_password = password if password else 'F00000000'
 
-        # 导入 User 模型
+        # 导入 User 模型和默认社区ID
         from database.flask_models import User
+        from const_default import DEFAULT_COMMUNITY_ID
 
         # 创建用户对象
         user = User(
@@ -163,7 +164,8 @@ class RegisterPhoneUseCase(BaseUseCase):
             status=1,
             wechat_openid=None,
             password_hash=self._pwd_hash(default_password),
-            password_salt=self.PWD_SALT
+            password_salt=self.PWD_SALT,
+            community_id=DEFAULT_COMMUNITY_ID  # 新用户自动加入默认社区（安卡大家庭）
         )
 
         # 使用 save 方法保存用户
