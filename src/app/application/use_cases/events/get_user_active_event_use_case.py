@@ -81,11 +81,14 @@ class GetUserActiveEventUseCase(BaseUseCase):
 
             self.logger.info(f'获取用户活跃事件成功: user_id={user_id}, event_id={event.event_id}')
 
-            # 4. 返回结果
+            # 4. 返回结果 - 前端期望 data.event 格式
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='获取活跃事件成功',
-                data=event_data
+                data={
+                    'event': event_data,
+                    'messages': []  # 初始没有消息
+                }
             )
 
         except Exception as e:
