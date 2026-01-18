@@ -22,11 +22,10 @@ class SQLAlchemyUserRepository(UserRepository):
             entity: 要保存的用户
 
         Returns:
-            User: 保存后的用户
+            User: 保存后的用户（不提交事务，由 UseCase 层管理）
         """
         db.session.add(entity)
-        db.session.flush()
-        db.session.commit()
+        db.session.flush()  # flush 用于获取自增ID，但不提交事务
         return entity
 
     def delete(self, entity: User) -> None:
