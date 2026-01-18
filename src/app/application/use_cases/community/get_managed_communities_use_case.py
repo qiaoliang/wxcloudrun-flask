@@ -2,13 +2,9 @@
 获取可管理社区列表用例
 """
 import logging
-from sqlalchemy import and_, or_
-from sqlalchemy.orm import joinedload
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.domain.repositories.community_staff_repository import CommunityStaffRepository
-from app.domain.repositories.community_repository import CommunityRepository
 
 
 class GetManagedCommunitiesUseCase(BaseUseCase):
@@ -16,7 +12,7 @@ class GetManagedCommunitiesUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
-        self.community_staff_repo = CommunityStaffRepository()
+        self.community_staff_repo = RepositoryFactory.get_community_staff_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
         self.logger = logging.getLogger(__name__)
 
@@ -39,34 +35,35 @@ class GetManagedCommunitiesUseCase(BaseUseCase):
                     message='用户ID不能为空'
                 )
 
-            # 2. 查询用户可管理的社区
-            # 用户可以管理的社区包括：
-            # - 用户是工作人员的社区
-            # - 用户是成员的社区（如果是管理员）
-            
-            # 查询用户作为工作人员的社区
-            stmt_staff = db.session.execute(
-                db.select(Community)
-                .join(CommunityStaff)
-                .where(CommunityStaff.user_id == user_id)
-                .where(Community.status == 1)
-                .order_by(Community.created_at.desc())
-            )
-            staff_communities = stmt_staff.scalars().all()
+            # 2. 查询用户作为工作人员的社区
+            # 用户可以管理的社区包括：用户是工作人员的社区
+            staff_relations = self.community_staff_repo.find_by_user_id(user_id, include_removed=False)
             
             # 构造社区列表
             communities_data = []
-            for community in staff_communities:
-                communities_data.append({
-                    'community_id': community.community_id,
-                    'name': community.name,
-                    'description': community.description,
-                    'address': community.address,
-                    'contact_phone': community.contact_phone,
-                    'status': community.status,
-                    'role': 'staff',
-                    'created_at': community.created_at.isoformat() if community.created_at else None
-                })
+            for staff_relation in staff_relations:
+                # 获取社区对象
+                community = self.community_repository.find_by_id(staff_relation.community_id)
+                
+                # 只返回活跃的社区（status == 1）
+                if community and community.status == 1:
+                    communities_data.append({
+                        'community_id': community.community_id,
+                        'name': community.name,
+                        'description': community.description,
+                        'address': community.address,
+                        'contact_phone': community.contact_phone,
+                        'status': community.status,
+                        'role': staff_relation.role,
+                        'created_at': community.created_at.isoformat() if community.created_at else None
+                    })
+            
+            # 按创建时间倒序排序
+            communities_data.sort(key=lambda x: x['created_at'] or '', reverse=True)
+            
+            # 应用 limit 限制
+            if limit > 0:
+                communities_data = communities_data[:limit]
 
             self.logger.info(f'获取可管理社区列表成功: user_id={user_id}, count={len(communities_data)}')
 
