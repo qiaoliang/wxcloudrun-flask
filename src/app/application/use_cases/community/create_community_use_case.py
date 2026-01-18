@@ -118,7 +118,24 @@ class CreateCommunityUseCase(BaseUseCase):
 
             self.logger.info(f'创建社区成功: community_id={saved_community.community_id}, name={name}')
 
-            # 6. 发布领域事件
+            # 6. 将创建者自动添加到 community_staff 表中（作为管理员）
+            # 直接使用 Repository 避免嵌套事务问题
+            from app.infrastructure.persistence.repository_factory import RepositoryFactory
+            community_staff_repo = RepositoryFactory.get_community_staff_repository()
+            from database.flask_models import CommunityStaff
+            from datetime import datetime
+            
+            staff_record = CommunityStaff(
+                community_id=saved_community.community_id,
+                user_id=creator_id,
+                role='admin',
+                created_at=datetime.now(),
+                updated_at=datetime.now()
+            )
+            community_staff_repo.save(staff_record)
+            self.logger.info(f'已将创建者添加到 CommunityStaff 表: community_id={saved_community.community_id}, creator_id={creator_id}')
+
+            # 7. 发布领域事件
             event = CommunityCreatedEvent(
                 community_id=saved_community.community_id,
                 creator_id=creator_id,
