@@ -75,16 +75,22 @@ class SQLAlchemyOutboxRepository(OutboxRepository):
         Args:
             event_id: 事件 ID
             status: 新状态
+
+        Raises:
+            ValueError: 当事件不存在时
         """
         stmt = select(OutboxEvent).where(OutboxEvent.id == event_id)
+        orm_model = db.session.execute(stmt).scalar_one_or_none()
 
-        orm_model = db.session.execute(stmt).scalar_one()
+        if orm_model is None:
+            raise ValueError(f"OutboxEvent with id {event_id} not found")
+
         orm_model.status = status.value
 
         if status == OutboxStatus.PUBLISHED:
             orm_model.published_at = datetime.now()
 
-        db.session.commit()
+        db.session.flush()
 
     def _to_entity(self, orm_model: OutboxEvent) -> OutboxEventEntity:
         """
