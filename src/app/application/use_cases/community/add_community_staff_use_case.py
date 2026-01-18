@@ -384,3 +384,5 @@ class AddCommunityStaffUseCase(BaseUseCase):
                 user.role = Role.STAFF
                 self.user_repository.save(user)
             return Role.STAFF
+
+from app.shared.utils.transaction import transactional

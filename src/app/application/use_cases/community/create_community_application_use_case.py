@@ -146,3 +146,5 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f"申请提交失败: {str(e)}"
             )
+
+from app.shared.utils.transaction import transactional

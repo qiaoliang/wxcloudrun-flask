@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 创建社区用例
 """
 import json

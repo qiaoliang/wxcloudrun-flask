@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 离开社区用例
 """
 import logging

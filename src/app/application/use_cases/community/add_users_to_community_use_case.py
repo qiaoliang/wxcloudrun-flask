@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 批量添加用户到社区用例（重构后 - 符合DDD架构）
 
 重构要点：

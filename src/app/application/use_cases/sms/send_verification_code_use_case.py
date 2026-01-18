@@ -139,3 +139,4 @@ class SendVerificationCodeUseCase(BaseUseCase):
                     status=UseCaseStatus.FAILURE,
                     message='验证码发送失败'
                 )
+from app.shared.utils.transaction import transactional

@@ -210,3 +210,5 @@ class CounterUseCase(BaseUseCase):
                 message='清除计数器失败',
                 data={}
             )
+
+from app.shared.utils.transaction import transactional

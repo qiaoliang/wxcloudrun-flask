@@ -206,3 +206,5 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f'处理失败: {str(e)}'
             )
+
+from app.shared.utils.transaction import transactional

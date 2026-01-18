@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 启用社区打卡规则用例
 """
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus

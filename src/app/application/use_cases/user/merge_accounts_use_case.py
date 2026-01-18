@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 合并账号用例
 """
 import logging

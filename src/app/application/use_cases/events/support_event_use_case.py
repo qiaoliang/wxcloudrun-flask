@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 支持事件用例
 """
 import logging

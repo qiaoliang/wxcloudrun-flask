@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 更新用户信息用例
 """
 import logging

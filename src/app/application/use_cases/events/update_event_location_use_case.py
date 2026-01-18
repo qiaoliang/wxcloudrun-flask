@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 更新事件位置用例
 """
 import logging

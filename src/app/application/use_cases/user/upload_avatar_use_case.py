@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 上传头像用例
 """
 import logging

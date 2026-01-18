@@ -94,3 +94,4 @@ class ActivateCommunityRulesUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f'激活社区规则失败: {str(e)}'
             )
+from app.shared.utils.transaction import transactional

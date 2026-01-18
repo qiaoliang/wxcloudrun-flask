@@ -167,3 +167,5 @@ class CreateCommunityEventUseCase(BaseUseCase):
             )
 
         return None
+
+from app.shared.utils.transaction import transactional

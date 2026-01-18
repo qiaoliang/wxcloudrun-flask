@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 创建打卡规则用例(重构版 - 符合DDD架构)
 """
 import logging

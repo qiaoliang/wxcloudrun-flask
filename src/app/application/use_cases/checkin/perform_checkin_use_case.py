@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 执行打卡用例(重构版 - 符合DDD架构)
 
 重构要点:

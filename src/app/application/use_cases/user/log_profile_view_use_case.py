@@ -68,3 +68,5 @@ class LogProfileViewUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f'记录查看日志失败: {str(e)}'
             )
+
+from app.shared.utils.transaction import transactional

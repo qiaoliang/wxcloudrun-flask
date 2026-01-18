@@ -1,4 +1,5 @@
 """
+from app.shared.utils.transaction import transactional
 接受监督邀请用例
 """
 import logging

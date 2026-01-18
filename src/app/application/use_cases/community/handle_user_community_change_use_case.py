@@ -212,3 +212,5 @@ class HandleUserCommunityChangeUseCase(BaseUseCase):
 
         logger.info(f"用户{user_id}已激活{activated_count}个新社区规则")
         return activated_count
+
+from app.shared.utils.transaction import transactional

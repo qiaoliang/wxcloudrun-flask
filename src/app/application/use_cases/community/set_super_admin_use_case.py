@@ -170,3 +170,5 @@ class SetSuperAdminUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f'设置失败: {str(e)}'
             )
+
+from app.shared.utils.transaction import transactional
