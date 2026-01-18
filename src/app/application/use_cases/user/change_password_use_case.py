@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 修改密码用例
 """
 import logging
@@ -38,6 +37,7 @@ class ChangePasswordUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user_id:
                 return UseCaseResult(

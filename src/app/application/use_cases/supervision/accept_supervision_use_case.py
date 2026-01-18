@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 接受监督邀请用例
 """
 import logging
@@ -32,6 +31,7 @@ class AcceptSupervisionUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 查询监督关系
             relation = self.supervision_relation_repository.find_by_id(relation_id)
 

@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 解析分享链接用例
 """
 import logging
@@ -47,6 +46,7 @@ class ResolveShareLinkUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not token:
                 return UseCaseResult(

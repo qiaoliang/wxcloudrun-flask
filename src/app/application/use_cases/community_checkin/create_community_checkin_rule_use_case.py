@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 创建社区打卡规则用例
 """
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
@@ -79,6 +78,7 @@ class CreateCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 创建CommunityCheckinRule实体
             rule = CommunityCheckinRule(
                 community_id=community_id,

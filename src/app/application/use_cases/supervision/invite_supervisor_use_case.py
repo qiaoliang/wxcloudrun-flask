@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 邀请监督者用例
 """
 import logging
@@ -41,6 +40,7 @@ class InviteSupervisorUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not inviter_id:
                 return UseCaseResult(

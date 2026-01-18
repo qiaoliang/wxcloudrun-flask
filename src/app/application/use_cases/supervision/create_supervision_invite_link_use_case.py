@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 创建监督邀请链接用例
 """
 import logging
@@ -40,6 +39,7 @@ class CreateSupervisionInviteLinkUseCase(BaseUseCase):
             UseCaseResult: 包含邀请链接信息的结果
         """
         try:
+from app.shared.utils.transaction import transactional
             if not rule_ids:
                 return UseCaseResult.fail('缺少rule_ids参数', status=UseCaseStatus.VALIDATION_ERROR)
 

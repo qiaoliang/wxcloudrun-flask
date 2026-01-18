@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 创建社区用例
 """
 import json
@@ -63,6 +62,7 @@ class CreateCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not name or not name.strip():
                 return UseCaseResult(

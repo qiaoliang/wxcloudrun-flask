@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 从社区移除用户用例（重构后 - 符合DDD架构）
 
 重构要点：
@@ -40,6 +39,7 @@ class RemoveUserFromCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             if not community_id or not target_user_id:
                 return UseCaseResult.fail("参数不能为空")
 

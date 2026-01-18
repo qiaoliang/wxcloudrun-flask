@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 执行打卡用例(重构版 - 符合DDD架构)
 
 重构要点:
@@ -58,6 +57,7 @@ class PerformCheckinUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not rule_id:
                 return UseCaseResult(

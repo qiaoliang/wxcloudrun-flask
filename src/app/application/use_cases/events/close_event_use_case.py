@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 关闭事件用例
 """
 import logging
@@ -45,6 +44,7 @@ class CloseEventUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not event_id:
                 return UseCaseResult(

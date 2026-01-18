@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 更新社区用例
 """
 import json
@@ -63,6 +62,7 @@ class UpdateCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not community_id:
                 return UseCaseResult(

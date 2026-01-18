@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 上传媒体文件用例
 """
 import logging
@@ -93,6 +92,7 @@ class UploadMediaUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             file = request.files['file']
             file_type = request.form.get('file_type', 'image')
 

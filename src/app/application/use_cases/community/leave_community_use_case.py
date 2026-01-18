@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 离开社区用例
 """
 import logging
@@ -33,6 +32,7 @@ class LeaveCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user_id:
                 return UseCaseResult(

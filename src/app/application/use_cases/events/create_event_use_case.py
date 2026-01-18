@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 创建社区事件用例
 """
 import logging
@@ -53,6 +52,7 @@ class CreateEventUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not title or not title.strip():
                 return UseCaseResult(

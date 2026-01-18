@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 上传头像用例
 """
 import logging
@@ -48,6 +47,7 @@ class UploadAvatarUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user_id:
                 return UseCaseResult(

@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 批量添加用户到社区用例（重构后 - 符合DDD架构）
 
 重构要点：
@@ -41,6 +40,7 @@ class AddUsersToCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             if not community_id or not user_ids:
                 return UseCaseResult.fail("参数不能为空")
 

@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 添加事件消息用例
 """
 import logging
@@ -52,6 +51,7 @@ class AddEventMessageUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not event_id:
                 return UseCaseResult(

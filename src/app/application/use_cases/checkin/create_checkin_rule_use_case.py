@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 创建打卡规则用例(重构版 - 符合DDD架构)
 """
 import logging
@@ -7,6 +6,7 @@ from datetime import datetime, time, date
 from typing import Optional, Dict, Any
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
+from app.shared.utils.transaction import transactional
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.infrastructure.transaction.transaction_manager import transaction
 from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
@@ -21,9 +21,7 @@ class CreateCheckinRuleUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
 
-    @transaction
     @transactional
-
     def execute(
         self,
         user_id: int,

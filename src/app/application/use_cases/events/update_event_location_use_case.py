@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 更新事件位置用例
 """
 import logging
@@ -45,6 +44,7 @@ class UpdateEventLocationUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not event_id:
                 return UseCaseResult(

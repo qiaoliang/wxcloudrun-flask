@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 获取用户及其社区信息用例
 """
 import logging
@@ -160,6 +159,7 @@ class CreateUserInCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not community_id or not user_data:
                 return UseCaseResult.fail('缺少社区ID或用户数据', status=UseCaseStatus.VALIDATION_ERROR)

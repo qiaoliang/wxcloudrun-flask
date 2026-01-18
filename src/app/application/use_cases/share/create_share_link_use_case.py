@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 创建分享链接用例
 """
 import logging
@@ -137,6 +136,7 @@ class CreateShareLinkUseCase(BaseUseCase):
             str: 二维码图片URL
         """
         try:
+from app.shared.utils.transaction import transactional
             # 确保目录存在
             os.makedirs(self.qrcode_dir, exist_ok=True)
 

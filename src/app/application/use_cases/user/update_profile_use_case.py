@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 更新用户资料用例
 """
 import logging
@@ -45,6 +44,7 @@ class UpdateProfileUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user_id:
                 return UseCaseResult(

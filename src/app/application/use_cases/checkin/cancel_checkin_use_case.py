@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 取消打卡用例(重构版 - 符合DDD架构)
 """
 import logging
@@ -36,6 +35,7 @@ class CancelCheckinUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not record_id:
                 return UseCaseResult(

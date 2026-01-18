@@ -1,5 +1,4 @@
 """
-from app.shared.utils.transaction import transactional
 合并账号用例
 """
 import logging
@@ -37,6 +36,7 @@ class MergeAccountsUseCase(BaseUseCase):
             UseCaseResult: 执行结果，包含合并后的用户数据
         """
         try:
+from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not account1 or not account2:
                 return UseCaseResult(
