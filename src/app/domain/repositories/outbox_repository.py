@@ -1,3 +1,8 @@
+"""
+Outbox 仓储接口
+
+定义 Outbox 事件的数据访问操作，用于事务性发件箱模式。
+"""
 from abc import ABC, abstractmethod
 from typing import List
 from app.domain.entities.outbox_event_entity import OutboxEventEntity
