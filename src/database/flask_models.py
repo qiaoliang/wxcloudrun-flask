@@ -961,5 +961,27 @@ class ProfileViewLog(db.Model):
         }
 
 
+class OutboxEvent(db.Model):
+    """Outbox 事件 ORM 模型"""
+    __tablename__ = 'outbox_events'
+
+    id = db.Column(db.Integer, primary_key=True, comment='事件ID')
+    event_type = db.Column(db.String(100), nullable=False, comment='事件类型', index=True)
+    payload = db.Column(db.JSON, nullable=False, comment='事件数据')
+    status = db.Column(db.String(20), nullable=False, default='pending', comment='状态', index=True)
+    retry_count = db.Column(db.Integer, nullable=False, default=0, comment='重试次数')
+    created_at = db.Column(db.DateTime, nullable=False, default=datetime.now, comment='创建时间', index=True)
+    published_at = db.Column(db.DateTime, nullable=True, comment='发布时间')
+    next_retry_at = db.Column(db.DateTime, nullable=False, default=datetime.now, comment='下次重试时间', index=True)
+
+    # 索引优化
+    __table_args__ = (
+        db.Index('idx_outbox_event_type', 'event_type'),
+        db.Index('idx_outbox_status', 'status'),
+        db.Index('idx_outbox_status_next_retry', 'status', 'next_retry_at'),
+        db.Index('idx_outbox_created_at', 'created_at'),
+    )
+
+
 # 导出 Base 供 Alembic 使用
 Base = db.Model
