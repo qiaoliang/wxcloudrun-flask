@@ -24,6 +24,7 @@ from app.domain.repositories.verification_code_repository import VerificationCod
 from app.domain.repositories.community_dashboard_repository import CommunityDashboardRepository
 from app.domain.repositories.community_application_repository import CommunityApplicationRepository
 from app.domain.repositories.audit_log_repository import AuditLogRepository
+from app.domain.repositories.outbox_repository import OutboxRepository
 
 from app.infrastructure.persistence.sqlalchemy_user_repository import SQLAlchemyUserRepository
 from app.infrastructure.persistence.sqlalchemy_community_repository import SQLAlchemyCommunityRepository
@@ -44,6 +45,7 @@ from app.infrastructure.persistence.sqlalchemy_verification_code_repository impo
 from app.infrastructure.persistence.sqlalchemy_community_dashboard_repository import SQLAlchemyCommunityDashboardRepository
 from app.infrastructure.persistence.sqlalchemy_community_application_repository import SQLAlchemyCommunityApplicationRepository
 from app.infrastructure.persistence.sqlalchemy_audit_log_repository import SQLAlchemyAuditLogRepository
+from app.infrastructure.persistence.sqlalchemy_outbox_repository import SQLAlchemyOutboxRepository
 
 
 class RepositoryFactory:
@@ -68,6 +70,7 @@ class RepositoryFactory:
     _community_dashboard_repository: Optional[CommunityDashboardRepository] = None
     _community_application_repository: Optional[CommunityApplicationRepository] = None
     _audit_log_repository: Optional[AuditLogRepository] = None
+    _outbox_repository: Optional[OutboxRepository] = None
 
     @classmethod
     def get_user_repository(cls) -> UserRepository:
@@ -298,6 +301,18 @@ class RepositoryFactory:
         return cls._audit_log_repository
 
     @classmethod
+    def get_outbox_repository(cls) -> OutboxRepository:
+        """
+        获取 Outbox 仓储实例
+
+        Returns:
+            OutboxRepository: Outbox 仓储实例
+        """
+        if cls._outbox_repository is None:
+            cls._outbox_repository = SQLAlchemyOutboxRepository()
+        return cls._outbox_repository
+
+    @classmethod
     def reset(cls):
         """重置仓储实例（主要用于测试）"""
         cls._user_repository = None
@@ -319,3 +334,4 @@ class RepositoryFactory:
         cls._community_dashboard_repository = None
         cls._community_application_repository = None
         cls._audit_log_repository = None
+        cls._outbox_repository = None
