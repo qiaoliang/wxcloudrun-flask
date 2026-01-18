@@ -58,11 +58,10 @@ class SQLAlchemyShareLinkRepository(ShareLinkRepository):
             entity: 分享链接对象
 
         Returns:
-            ShareLink: 保存后的分享链接对象
+            ShareLink: 保存后的分享链接对象（不提交事务，由 UseCase 层管理）
         """
         db.session.add(entity)
         db.session.flush()
-        db.session.commit()
         return entity
 
     def update(self, entity: ShareLink) -> ShareLink:
@@ -73,11 +72,10 @@ class SQLAlchemyShareLinkRepository(ShareLinkRepository):
             entity: 分享链接对象
 
         Returns:
-            ShareLink: 更新后的分享链接对象
+            ShareLink: 更新后的分享链接对象（不提交事务，由 UseCase 层管理）
         """
         db.session.merge(entity)
         db.session.flush()
-        db.session.commit()
         return entity
 
     def delete(self, link_id: int) -> bool:
@@ -88,9 +86,8 @@ class SQLAlchemyShareLinkRepository(ShareLinkRepository):
             link_id: 分享链接ID
 
         Returns:
-            bool: 删除是否成功
+            bool: 删除是否成功（不提交事务，由 UseCase 层管理）
         """
         stmt = delete(ShareLink).where(ShareLink.link_id == link_id)
         result = db.session.execute(stmt)
-        db.session.commit()
         return result.rowcount > 0
