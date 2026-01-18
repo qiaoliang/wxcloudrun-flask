@@ -98,11 +98,10 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
             entity: 监督关系对象
 
         Returns:
-            SupervisionRuleRelation: 保存后的监督关系对象
+            SupervisionRuleRelation: 保存后的监督关系对象（不提交事务，由 UseCase 层管理）
         """
         db.session.add(entity)
         db.session.flush()
-        db.session.commit()
         return entity
 
     def update(self, entity: SupervisionRuleRelation) -> SupervisionRuleRelation:
@@ -113,11 +112,10 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
             entity: 监督关系对象
 
         Returns:
-            SupervisionRuleRelation: 更新后的监督关系对象
+            SupervisionRuleRelation: 更新后的监督关系对象（不提交事务，由 UseCase 层管理）
         """
         db.session.merge(entity)
         db.session.flush()
-        db.session.commit()
         return entity
 
     def delete(self, relation_id: int) -> bool:
@@ -128,11 +126,10 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
             relation_id: 监督关系ID
 
         Returns:
-            bool: 删除是否成功
+            bool: 删除是否成功（不提交事务，由 UseCase 层管理）
         """
         stmt = delete(SupervisionRuleRelation).where(SupervisionRuleRelation.relation_id == relation_id)
         result = db.session.execute(stmt)
-        db.session.commit()
         return result.rowcount > 0
 
     def find_expired_invitations(self) -> List[SupervisionRuleRelation]:
@@ -159,7 +156,7 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
             new_status: 新状态值
 
         Returns:
-            int: 更新的记录数
+            int: 更新的记录数（不提交事务，由 UseCase 层管理）
         """
         if not relation_ids:
             return 0
@@ -169,7 +166,6 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
         ).values(status=new_status)
 
         result = db.session.execute(stmt)
-        db.session.commit()
         return result.rowcount
 
     def find_by_invite_token(self, invite_token: str, status: Optional[int] = None) -> List[SupervisionRuleRelation]:
@@ -197,14 +193,13 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
             new_status: 新状态值
 
         Returns:
-            bool: 更新是否成功
+            bool: 更新是否成功（不提交事务，由 UseCase 层管理）
         """
         stmt = update(SupervisionRuleRelation).where(
             SupervisionRuleRelation.relation_id == relation_id
         ).values(status=new_status)
 
         result = db.session.execute(stmt)
-        db.session.commit()
         return result.rowcount > 0
 
     def delete_entity(self, relation: SupervisionRuleRelation) -> bool:
@@ -215,11 +210,11 @@ class SQLAlchemySupervisionRelationRepository(SupervisionRelationRepository):
             relation: 监督关系对象
 
         Returns:
-            bool: 删除是否成功
+            bool: 删除是否成功（不提交事务，由 UseCase 层管理）
         """
         try:
             db.session.delete(relation)
-            db.session.commit()
+            db.session.flush()
             return True
         except Exception:
             db.session.rollback()
