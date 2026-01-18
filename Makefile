@@ -12,8 +12,8 @@ help:
 	@echo "  make test-migration - 运行数据库迁移测试"
 	@echo "  make e2e     - 运行E2E测试（需要Docker）"
 	@echo "  make e2e-single TEST=<test> - 运行单个E2E测试用例"
-	@echo "  make it     - 运行所有集成测试用例"
-	@echo "  make its TEST=<test> - 运行单个集成测试用例"
+	@echo "  make it            - 运行集成测试"
+	@echo "  make it [TEST=<test>] - 运行集成测试（可选指定测试文件）"
 	@echo "  make test-all     - 运行所有测试"
 	@echo "  make test-coverage - 生成测试覆盖率报告"
 	@echo "  make clean        - 清理测试文件"
@@ -30,15 +30,14 @@ help:
 	@echo "  make ut VERBOSE=1  # 详细输出"
 	@echo ""
 	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py  # 运行单个单元测试文件（旧命令，仍可用）"
-	@echo "  make test-integration     # 运行集成测试"
-	@echo "  make test-integration VERBOSE=1  # 详细输出"
+	@echo "  make it            # 运行所有集成测试"
+	@echo "  make it TEST=tests/integration/test_user_integration.py  # 运行单个集成测试文件"
+	@echo "  make it TEST=test_user_integration.py              # 相对路径（自动添加 tests/integration/ 前缀）"
+	@echo "  make it VERBOSE=1  # 详细输出"
+	@echo ""
+	@echo "  make its TEST=tests/integration/test_user_integration.py  # 运行单个集成测试文件（旧命令，仍可用）"
+	@echo "  make test-integration     # 运行集成测试（旧命令，仍可用）"
 	@echo "  make test-migration       # 运行迁移测试"
-	@echo "  make test-migration VERBOSE=1  # 详细输出"
-	@echo "  make e2e-single TEST=test_multi_community_role_e2e.py  # 运行单个E2E测试文件"
-	@echo "  make e2e-single TEST=test_multi_community_role_e2e.py::TestMultiCommunityRole::test_user_can_join_multiple_communities  # 运行单个测试函数"
-	@echo "  make it            # 运行所有集成测试用例"
-	@echo "  make its TEST=tests/integration/test_user_integration.py  # 运行单个集成测试文件"
-	@echo "  make its TEST=tests/integration/test_user_integration.py::TestUserIntegration::test_user_creation_and_isolation  # 运行单个集成测试函数"
 
 # 设置测试环境
 setup:
@@ -105,16 +104,43 @@ ut-s: setup
 	fi
 
 # 运行集成测试（使用智能配置）
+# 使用方法:
+#   make it                                                 # 运行所有集成测试
+#   make it TEST=tests/integration/test_user_integration.py      # 完整路径
+#   make it TEST=test_user_integration.py                        # 相对路径
 it: setup
-	@echo "=== 运行所有集成测试用例 ==="
+	@echo "=== 运行集成测试 ==="
 	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
 	source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python smart_test_runner.py tests/integration/ -v; \
+	if [ -z "$(TEST)" ]; then \
+		echo "运行所有集成测试用例..."; \
+		if [ "$(VERBOSE)" = "1" ]; then \
+			python smart_test_runner.py tests/integration/ -v; \
+		else \
+			python smart_test_runner.py tests/integration/; \
+		fi \
 	else \
-		python smart_test_runner.py tests/integration/; \
+		if [ -f "$(TEST)" ]; then \
+			echo "运行测试文件: $(TEST)"; \
+			if [ "$(VERBOSE)" = "1" ]; then \
+				python smart_test_runner.py $(TEST) -v; \
+			else \
+				python smart_test_runner.py $(TEST); \
+			fi \
+		elif [ -f "tests/integration/$(TEST)" ]; then \
+			echo "运行测试文件: tests/integration/$(TEST)"; \
+			if [ "$(VERBOSE)" = "1" ]; then \
+				python smart_test_runner.py tests/integration/$(TEST) -v; \
+			else \
+				python smart_test_runner.py tests/integration/$(TEST); \
+			fi \
+		else \
+			echo "错误: 测试文件不存在: $(TEST)"; \
+			echo "请检查文件路径或使用 make help 查看用法"; \
+			exit 1; \
+		fi \
 	fi
-	@echo "✓ 所有集成测试完成"
+	@echo "✓ 集成测试完成"
 
 # 运行单个集成测试
 its: setup
