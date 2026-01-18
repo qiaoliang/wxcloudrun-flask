@@ -163,6 +163,8 @@ def create_app(config_name=None):
     from database.flask_models import (
         User, Community, CheckinRule, CheckinRecord,
         UserAuditLog, Counters, OutboxEvent  # 添加 OutboxEvent
+
+    # 6. 注册蓝图
     register_blueprints(app)
     
     # 7. 注册错误处理器
