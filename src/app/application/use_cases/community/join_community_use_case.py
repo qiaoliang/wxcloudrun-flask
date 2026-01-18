@@ -21,6 +21,9 @@ class JoinCommunityUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_repository = RepositoryFactory.get_community_repository()
 
+    @transactional
+
+
     def execute(self, user_id: int, community_name: str) -> UseCaseResult:
         """
         执行加入社区用例

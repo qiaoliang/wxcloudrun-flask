@@ -53,6 +53,9 @@ class UpdateCommunityCheckinRuleUseCase(BaseUseCase):
             message='验证通过'
         )
 
+    @transactional
+
+
     def _execute(self, rule_id: int, params: dict, user_id: int) -> UseCaseResult:
         """
         执行更新社区打卡规则操作

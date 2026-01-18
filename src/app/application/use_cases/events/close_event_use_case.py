@@ -23,6 +23,9 @@ class CloseEventUseCase(BaseUseCase):
         self.community_staff_repository = RepositoryFactory.get_community_staff_repository()
         self.event_bus = EventBus()
 
+    @transactional
+
+
     def execute(
         self,
         user_id: int,

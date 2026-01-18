@@ -19,6 +19,9 @@ class InviteSupervisorUseCase(BaseUseCase):
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
+    @transactional
+
+
     def execute(
         self,
         inviter_id: int,

@@ -23,6 +23,9 @@ class CreateCommunityUseCase(BaseUseCase):
         self.community_repository = RepositoryFactory.get_community_repository()
         self.user_repository = RepositoryFactory.get_user_repository()
 
+    @transactional
+
+
     def execute(
         self,
         name: str,

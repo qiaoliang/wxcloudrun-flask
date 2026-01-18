@@ -62,6 +62,9 @@ class CreateCommunityCheckinRuleUseCase(BaseUseCase):
             message='验证通过'
         )
 
+    @transactional
+
+
     def _execute(self, params: dict, community_id: int, user_id: int) -> UseCaseResult:
         """
         执行创建社区打卡规则操作

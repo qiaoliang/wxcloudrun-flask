@@ -40,6 +40,9 @@ class DisableCommunityCheckinRuleUseCase(BaseUseCase):
             message='验证通过'
         )
 
+    @transactional
+
+
     def _execute(self, rule_id: int, user_id: int) -> UseCaseResult:
         """
         执行禁用社区打卡规则操作

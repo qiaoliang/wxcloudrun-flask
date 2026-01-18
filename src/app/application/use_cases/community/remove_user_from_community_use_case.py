@@ -24,6 +24,9 @@ class RemoveUserFromCommunityUseCase(BaseUseCase):
         # ✅ 通过RepositoryFactory获取Repository接口
         self.user_repository = RepositoryFactory.get_user_repository()
 
+    @transactional
+
+
     def execute(self, community_id: int, target_user_id: int) -> UseCaseResult:
         """
         从社区移除用户

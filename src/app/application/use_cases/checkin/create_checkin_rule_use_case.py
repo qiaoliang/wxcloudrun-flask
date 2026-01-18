@@ -21,6 +21,8 @@ class CreateCheckinRuleUseCase(BaseUseCase):
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
 
     @transaction
+    @transactional
+
     def execute(
         self,
         user_id: int,

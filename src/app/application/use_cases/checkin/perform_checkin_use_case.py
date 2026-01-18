@@ -35,6 +35,8 @@ class PerformCheckinUseCase(BaseUseCase):
         self.event_bus = getattr(current_app, 'event_bus', None)
 
     @transaction
+    @transactional
+
     def execute(
         self,
         rule_id: int,

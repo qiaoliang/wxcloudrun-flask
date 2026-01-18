@@ -36,6 +36,9 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
         self.staff_repository = RepositoryFactory.get_community_staff_repository()
         self.audit_log_repository = RepositoryFactory.get_audit_log_repository()  # ✅ 新增
 
+    @transactional
+
+
     def execute(
         self,
         community_id: int,

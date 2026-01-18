@@ -23,6 +23,9 @@ class CreateSupervisionInviteLinkUseCase(BaseUseCase):
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
         self.get_checkin_rule_use_case = GetCheckinRuleByIdUseCase()
 
+    @transactional
+
+
     def execute(self, user_id: int, rule_ids: List[int], expire_hours: int = 24) -> UseCaseResult:
         """
         执行创建监督邀请链接

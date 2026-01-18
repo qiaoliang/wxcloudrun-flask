@@ -55,6 +55,9 @@ class SendVerificationCodeUseCase(BaseUseCase):
             message="验证通过"
         )
 
+    @transactional
+
+
     def _execute(self, phone: str, purpose: str = 'register') -> UseCaseResult:
         """
         执行发送验证码操作

@@ -18,6 +18,8 @@ class ActivateCommunityRulesUseCase(BaseUseCase):
         self.user_rule_repo = RepositoryFactory.get_user_community_rule_repository()
 
     @transaction
+    @transactional
+
     def execute(self, user_id: int, community_id: int) -> UseCaseResult:
         """
         执行激活社区规则用例

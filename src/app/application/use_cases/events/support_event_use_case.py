@@ -26,6 +26,9 @@ class SupportEventUseCase(BaseUseCase):
         self.community_staff_repository = RepositoryFactory.get_community_staff_repository()
         self.event_bus = EventBus()
 
+    @transactional
+
+
     def execute(
         self,
         sender_id: int,

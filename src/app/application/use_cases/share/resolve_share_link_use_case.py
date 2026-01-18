@@ -21,6 +21,9 @@ class ResolveShareLinkUseCase(BaseUseCase):
         self.share_link_access_log_repository = RepositoryFactory.get_share_link_access_log_repository()
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
+    @transactional
+
+
     def execute(
         self,
         token: str,

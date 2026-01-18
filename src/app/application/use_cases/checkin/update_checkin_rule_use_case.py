@@ -21,6 +21,8 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
 
     @transaction
+    @transactional
+
     def execute(
         self,
         rule_id: int,

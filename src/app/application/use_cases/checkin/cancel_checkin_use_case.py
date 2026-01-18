@@ -18,6 +18,8 @@ class CancelCheckinUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
 
     @transaction
+    @transactional
+
     def execute(self, record_id: int, user_id: int, reason: str = None) -> UseCaseResult:
         """
         执行取消打卡用例

@@ -23,6 +23,9 @@ class CreateShareLinkUseCase(BaseUseCase):
         self.share_link_repository = RepositoryFactory.get_share_link_repository()
         self.qrcode_dir = 'static/qrcodes'
 
+    @transactional
+
+
     def execute(
         self,
         user_id: int,

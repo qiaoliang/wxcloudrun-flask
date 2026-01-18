@@ -24,6 +24,9 @@ class AddEventMessageUseCase(BaseUseCase):
         self.event_message_repository = RepositoryFactory.get_event_message_repository()
         self.event_bus = EventBus()
 
+    @transactional
+
+
     def execute(
         self,
         event_id: int,

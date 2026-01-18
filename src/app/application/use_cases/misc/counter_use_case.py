@@ -74,6 +74,9 @@ class CounterUseCase(BaseUseCase):
             message="验证通过"
         )
 
+    @transactional
+
+
     def _execute(self, action: str, params: dict) -> UseCaseResult:
         """
         执行计数器操作

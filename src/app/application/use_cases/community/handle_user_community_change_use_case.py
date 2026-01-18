@@ -34,6 +34,9 @@ class HandleUserCommunityChangeUseCase(BaseUseCase):
         self.community_checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
         self.user_community_rule_repository = RepositoryFactory.get_user_community_rule_repository()
 
+    @transactional
+
+
     def execute(
         self,
         user_id: int,

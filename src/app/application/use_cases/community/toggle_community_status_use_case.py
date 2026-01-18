@@ -24,6 +24,9 @@ class ToggleCommunityStatusUseCase(BaseUseCase):
         # ✅ 通过RepositoryFactory获取Repository接口
         self.community_repository = RepositoryFactory.get_community_repository()
 
+    @transactional
+
+
     def execute(self, community_id: int, status: int) -> UseCaseResult:
         """
         切换社区状态

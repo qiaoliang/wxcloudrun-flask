@@ -25,6 +25,9 @@ class AddUsersToCommunityUseCase(BaseUseCase):
         # ✅ 通过RepositoryFactory获取Repository接口
         self.user_repository = RepositoryFactory.get_user_repository()
 
+    @transactional
+
+
     def execute(self, community_id: int, user_ids: list) -> UseCaseResult:
         """
         批量添加用户到社区

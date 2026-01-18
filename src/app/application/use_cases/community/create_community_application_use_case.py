@@ -63,6 +63,9 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
             message="验证通过"
         )
 
+    @transactional
+
+
     def _execute(self, user_id: int, community_id: int, message: str = "") -> UseCaseResult:
         """
         执行创建社区申请

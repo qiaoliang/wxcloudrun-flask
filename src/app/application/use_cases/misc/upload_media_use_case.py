@@ -81,6 +81,9 @@ class UploadMediaUseCase(BaseUseCase):
             message="验证通过"
         )
 
+    @transactional
+
+
     def _execute(self) -> UseCaseResult:
         """
         执行上传媒体文件操作

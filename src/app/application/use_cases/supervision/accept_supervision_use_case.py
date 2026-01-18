@@ -16,6 +16,9 @@ class AcceptSupervisionUseCase(BaseUseCase):
         super().__init__()
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
+    @transactional
+
+
     def execute(self, relation_id: int, user_id: int) -> UseCaseResult:
         """
         执行接受监督邀请
