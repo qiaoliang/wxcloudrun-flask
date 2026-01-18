@@ -1,5 +1,9 @@
 """
 测试 OutboxEvent ORM 模型
+
+测试范围：
+- OutboxEvent 模型的基本创建
+- 字段属性验证
 """
 import pytest
 from datetime import datetime
