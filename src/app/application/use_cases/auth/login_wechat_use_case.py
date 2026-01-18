@@ -14,6 +14,7 @@ from typing import Dict, Optional
 from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
 from wxcloudrun.wxchat_api import get_user_info_by_code
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
+from app.shared.utils.transaction import transactional
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from const_default import DEFAULT_COMMUNITY_NAME
 from app.domain.repositories.user_repository import UserRepository
@@ -52,6 +53,7 @@ class LoginWeChatUseCase(BaseUseCase):
             message="验证通过"
         )
 
+    @transactional
     def _execute(self, code: str, nickname: Optional[str] = None,
                  avatar_url: Optional[str] = None) -> UseCaseResult:
         """

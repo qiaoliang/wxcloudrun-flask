@@ -14,6 +14,7 @@ from typing import Dict
 
 from ..base import BaseUseCase, UseCaseResult, UseCaseError, UseCaseStatus
 from app.shared.utils.auth import generate_jwt_token, generate_refresh_token
+from app.shared.utils.transaction import transactional
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
@@ -45,6 +46,7 @@ class RefreshTokenUseCase(BaseUseCase):
             message="验证通过"
         )
 
+    @transactional
     def _execute(self, refresh_token: str) -> UseCaseResult:
         """
         执行刷新 token
