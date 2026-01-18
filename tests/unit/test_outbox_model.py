@@ -7,7 +7,7 @@
 """
 import pytest
 from datetime import datetime
-from src.database.flask_models import OutboxEvent
+from database.flask_models import OutboxEvent
 
 def test_outbox_model_creation():
     """测试 OutboxEvent ORM 模型创建"""
