@@ -31,8 +31,8 @@ class PerformCheckinUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.checkin_rule_repository = RepositoryFactory.get_checkin_rule_repository()
         self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
-        # 注入增强事件总线
-        self.event_bus = current_app.event_bus
+        # 注入增强事件总线（如果可用）
+        self.event_bus = getattr(current_app, 'event_bus', None)
 
     @transaction
     def execute(
@@ -133,14 +133,15 @@ class PerformCheckinUseCase(BaseUseCase):
                 updated_record = self.checkin_record_repository.save_entity(new_record)
 
             # 8. 发布领域事件（事务成功后）
-            event = CheckinCompletedEvent(
-                record_id=updated_record.record_id,
-                user_id=user_id,
-                rule_id=rule_id,
-                checkin_time=checkin_time
-            )
-            self.event_bus.publish_with_fallback(event)
-            self.logger.info(f'发布打卡完成事件: record_id={updated_record.record_id}')
+            if self.event_bus is not None:
+                event = CheckinCompletedEvent(
+                    record_id=updated_record.record_id,
+                    user_id=user_id,
+                    rule_id=rule_id,
+                    checkin_time=checkin_time
+                )
+                self.event_bus.publish_with_fallback(event)
+                self.logger.info(f'发布打卡完成事件: record_id={updated_record.record_id}')
 
             self.logger.info(f'执行打卡成功: rule_id={rule_id}, user_id={user_id}, record_id={updated_record.record_id}')
 
