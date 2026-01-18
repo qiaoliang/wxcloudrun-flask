@@ -120,20 +120,27 @@ class CreateCommunityUseCase(BaseUseCase):
 
             # 6. 将创建者自动添加到 community_staff 表中（作为管理员）
             # 直接使用 Repository 避免嵌套事务问题
-            from app.infrastructure.persistence.repository_factory import RepositoryFactory
-            community_staff_repo = RepositoryFactory.get_community_staff_repository()
-            from database.flask_models import CommunityStaff
-            from datetime import datetime
-            
-            staff_record = CommunityStaff(
-                community_id=saved_community.community_id,
-                user_id=creator_id,
-                role='admin',
-                created_at=datetime.now(),
-                updated_at=datetime.now()
-            )
-            community_staff_repo.save(staff_record)
-            self.logger.info(f'已将创建者添加到 CommunityStaff 表: community_id={saved_community.community_id}, creator_id={creator_id}')
+            try:
+                self.logger.info(f'开始添加创建者到 CommunityStaff 表...')
+                from app.infrastructure.persistence.repository_factory import RepositoryFactory
+                community_staff_repo = RepositoryFactory.get_community_staff_repository()
+                from database.flask_models import CommunityStaff
+                from datetime import datetime
+                
+                staff_record = CommunityStaff(
+                    community_id=saved_community.community_id,
+                    user_id=creator_id,
+                    role='admin',
+                    created_at=datetime.now(),
+                    updated_at=datetime.now()
+                )
+                self.logger.info(f'准备保存 staff_record: community_id={staff_record.community_id}, user_id={staff_record.user_id}, role={staff_record.role}')
+                
+                saved_staff = community_staff_repo.save(staff_record)
+                self.logger.info(f'已将创建者添加到 CommunityStaff 表: community_id={saved_community.community_id}, creator_id={creator_id}, staff_id={saved_staff.id if hasattr(saved_staff, "id") else "N/A"}')
+            except Exception as e:
+                self.logger.error(f'添加创建者到 CommunityStaff 表失败: {str(e)}', exc_info=True)
+                # 不抛出异常,让社区创建继续完成
 
             # 7. 发布领域事件
             event = CommunityCreatedEvent(
