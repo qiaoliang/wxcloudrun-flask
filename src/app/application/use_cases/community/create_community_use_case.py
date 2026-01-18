@@ -130,7 +130,7 @@ class CreateCommunityUseCase(BaseUseCase):
                 staff_record = CommunityStaff(
                     community_id=saved_community.community_id,
                     user_id=creator_id,
-                    role='admin',
+                    role='manager',
                     created_at=datetime.now(),
                     updated_at=datetime.now()
                 )
