@@ -162,7 +162,13 @@ def create_app(config_name=None):
     # 注意：模型导入必须在db.init_app之后，但在注册蓝图之前
     from database.flask_models import (
         User, Community, CheckinRule, CheckinRecord,
-        UserAuditLog, Counters, OutboxEvent  # 添加 OutboxEvent
+        UserAuditLog, Counters, OutboxEvent
+    )
+
+    # 创建所有数据库表（包括 outbox_events）
+    with app.app_context():
+        db.create_all()
+        app.logger.info("数据库表创建完成：包括 outbox_events 表")
 
     # 6. 注册蓝图
     register_blueprints(app)
