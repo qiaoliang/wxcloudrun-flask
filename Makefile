@@ -6,8 +6,8 @@
 help:
 	@echo "可用的测试命令:"
 	@echo "  make setup        - 设置测试环境"
-	@echo "  make ut    - 运行单元测试"
-	@echo "  make ut-s TEST=<test> - 运行单个单元测试用例"
+	@echo "  make ut           - 运行单元测试"
+	@echo "  make ut [TEST=<test>] - 运行单元测试（可选指定测试文件）"
 	@echo "  make test-integration - 运行集成测试"
 	@echo "  make test-migration - 运行数据库迁移测试"
 	@echo "  make e2e     - 运行E2E测试（需要Docker）"
@@ -24,11 +24,12 @@ help:
 	@echo "  make test-migration-performance - 运行性能测试"
 	@echo ""
 	@echo "示例:"
-	@echo "  make ut            # 运行单元测试"
+	@echo "  make ut            # 运行所有单元测试"
+	@echo "  make ut TEST=tests/unit/test_user_service.py  # 运行单个测试文件"
+	@echo "  make ut TEST=test_user_service.py              # 相对路径（自动添加 tests/unit/ 前缀）"
 	@echo "  make ut VERBOSE=1  # 详细输出"
-	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py  # 运行单个单元测试文件"
-	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService  # 运行单个测试类"
-	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py::TestCommunityCheckinRuleService::test_create_rule  # 运行单个测试函数"
+	@echo ""
+	@echo "  make ut-s TEST=tests/unit/test_community_checkin_rule_service.py  # 运行单个单元测试文件（旧命令，仍可用）"
 	@echo "  make test-integration     # 运行集成测试"
 	@echo "  make test-integration VERBOSE=1  # 详细输出"
 	@echo "  make test-migration       # 运行迁移测试"
@@ -52,14 +53,40 @@ setup:
 	@echo "环境设置完成"
 
 # 运行单元测试（使用智能配置）
+# 使用方法:
+#   make ut                                    # 运行所有单元测试
+#   make ut TEST=tests/unit/test_user_service.py       # 完整路径
+#   make ut TEST=test_user_service.py                  # 相对路径
 ut: setup
 	@echo "运行单元测试..."
 	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
 	source venv_py312/bin/activate && \
-	if [ "$(VERBOSE)" = "1" ]; then \
-		python smart_test_runner.py tests/unit/ -v; \
+	if [ -z "$(TEST)" ]; then \
+		if [ "$(VERBOSE)" = "1" ]; then \
+			python smart_test_runner.py tests/unit/ -v; \
+		else \
+			python smart_test_runner.py tests/unit/; \
+		fi \
 	else \
-		python smart_test_runner.py tests/unit/; \
+		if [ -f "$(TEST)" ]; then \
+			echo "运行测试文件: $(TEST)"; \
+			if [ "$(VERBOSE)" = "1" ]; then \
+				python smart_test_runner.py $(TEST) -v; \
+			else \
+				python smart_test_runner.py $(TEST); \
+			fi \
+		elif [ -f "tests/unit/$(TEST)" ]; then \
+			echo "运行测试文件: tests/unit/$(TEST)"; \
+			if [ "$(VERBOSE)" = "1" ]; then \
+				python smart_test_runner.py tests/unit/$(TEST) -v; \
+			else \
+				python smart_test_runner.py tests/unit/$(TEST); \
+			fi \
+		else \
+			echo "错误: 测试文件不存在: $(TEST)"; \
+			echo "请检查文件路径或使用 make help 查看用法"; \
+			exit 1; \
+		fi \
 	fi
 
 # 运行单个单元测试
