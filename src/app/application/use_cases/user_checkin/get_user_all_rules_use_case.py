@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.application.dtos.checkin_rule_dto import CheckinRuleDTO
 import logging
 
 app_logger = logging.getLogger('log')
@@ -166,7 +167,8 @@ class GetUserAllRulesUseCase(BaseUseCase):
         _get_logger().info(f"获取个人规则: 用户ID={user_id}, 规则数量={len(personal_rules)}")
 
         for rule in personal_rules:
-            rule_dict = rule.to_dict()
+            # 使用 DTO 转换实体为字典
+            rule_dict = CheckinRuleDTO.from_entity(rule)
             rule_dict['rule_source'] = 'personal'
             rule_dict['is_editable'] = True
             rule_dict['source_label'] = '个人规则'
