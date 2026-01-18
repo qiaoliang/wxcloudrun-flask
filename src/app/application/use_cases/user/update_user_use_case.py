@@ -10,6 +10,7 @@ from app.domain.aggregates.user_aggregate import UserAggregate
 from app.domain.events.event_bus import EventBus
 from app.domain.repositories.user_repository import UserRepository
 from database.flask_models import User
+from app.shared.utils.transaction import transactional
 
 
 class UpdateUserUseCase(BaseUseCase):
@@ -23,7 +24,6 @@ class UpdateUserUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, user: User) -> UseCaseResult:
         """
         执行更新用户信息用例
@@ -35,7 +35,6 @@ class UpdateUserUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user or not user.user_id:
                 return UseCaseResult(

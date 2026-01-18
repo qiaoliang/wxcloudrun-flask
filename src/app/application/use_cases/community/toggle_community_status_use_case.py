@@ -9,6 +9,7 @@
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transactional
 
 
 class ToggleCommunityStatusUseCase(BaseUseCase):
@@ -26,7 +27,6 @@ class ToggleCommunityStatusUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, community_id: int, status: int) -> UseCaseResult:
         """
         切换社区状态
@@ -39,7 +39,6 @@ class ToggleCommunityStatusUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             if not community_id or status is None:
                 return UseCaseResult.fail("参数不能为空")
 

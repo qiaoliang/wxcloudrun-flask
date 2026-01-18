@@ -9,6 +9,7 @@ from app.domain.entities.user_entity import UserEntity
 from app.domain.aggregates.user_aggregate import UserAggregate
 from app.domain.events.event_bus import EventBus
 from app.domain.repositories.user_repository import UserRepository
+from app.shared.utils.transaction import transactional
 
 
 class ChangePasswordUseCase(BaseUseCase):
@@ -23,7 +24,6 @@ class ChangePasswordUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, user_id: int, old_password: str, new_password: str) -> UseCaseResult:
         """
         执行修改密码用例
@@ -37,7 +37,6 @@ class ChangePasswordUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user_id:
                 return UseCaseResult(

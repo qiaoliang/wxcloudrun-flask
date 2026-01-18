@@ -10,6 +10,7 @@ from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from database.flask_models import ShareLink
 import secrets
 import qrcode
+from app.shared.utils.transaction import transactional
 
 
 class CreateShareLinkUseCase(BaseUseCase):
@@ -24,7 +25,6 @@ class CreateShareLinkUseCase(BaseUseCase):
         self.qrcode_dir = 'static/qrcodes'
 
     @transactional
-
 
     def execute(
         self,
@@ -136,7 +136,6 @@ class CreateShareLinkUseCase(BaseUseCase):
             str: 二维码图片URL
         """
         try:
-from app.shared.utils.transaction import transactional
             # 确保目录存在
             os.makedirs(self.qrcode_dir, exist_ok=True)
 

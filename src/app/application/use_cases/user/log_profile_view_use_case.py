@@ -9,7 +9,7 @@
 import logging
 from datetime import datetime
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 
 
 class LogProfileViewUseCase(BaseUseCase):
@@ -23,7 +23,6 @@ class LogProfileViewUseCase(BaseUseCase):
         self.audit_log_repository = RepositoryFactory.get_audit_log_repository()
 
     @transactional
-
 
     def execute(self, viewer_id: int, viewed_user_id: int, community_id: int) -> UseCaseResult:
         """

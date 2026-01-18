@@ -7,6 +7,7 @@ from typing import List, Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transactional
 from database.flask_models import SupervisionRuleRelation
 
 
@@ -21,7 +22,6 @@ class SendInternalInvitationUseCase(BaseUseCase):
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
     @transactional
-
 
     def execute(
         self,
@@ -253,7 +253,6 @@ class SendInternalInvitationUseCase(BaseUseCase):
             receiver_ids: 被邀请用户ID列表
         """
         # TODO: 实现站内消息通知
-from app.shared.utils.transaction import transactional
         # 这里需要调用站内消息服务发送通知
         # 消息内容："[站内] {邀请人昵称}邀请您监督{规则名称}"
         # 目前先记录日志，后续实现消息通知功能

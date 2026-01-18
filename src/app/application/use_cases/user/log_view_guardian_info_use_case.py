@@ -8,7 +8,7 @@
 """
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 from datetime import datetime
 
 

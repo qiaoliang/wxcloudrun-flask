@@ -4,7 +4,7 @@
 import logging
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 from database.flask_models import UserCommunityRule
 
 
@@ -19,7 +19,6 @@ class ActivateCommunityRulesUseCase(BaseUseCase):
 
     @transaction
     @transactional
-
     def execute(self, user_id: int, community_id: int) -> UseCaseResult:
         """
         执行激活社区规则用例

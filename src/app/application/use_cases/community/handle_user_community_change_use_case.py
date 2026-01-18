@@ -12,7 +12,7 @@ from typing import Dict
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES, STAFF_ROLE_MANAGER, STAFF_ROLE_STAFF
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional, transaction
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,6 @@ class HandleUserCommunityChangeUseCase(BaseUseCase):
         self.user_community_rule_repository = RepositoryFactory.get_user_community_rule_repository()
 
     @transactional
-
 
     def execute(
         self,

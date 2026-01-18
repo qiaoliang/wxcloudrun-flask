@@ -11,6 +11,7 @@ from typing import List, Optional
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.application.use_cases.supervision.get_checkin_rule_by_id_use_case import GetCheckinRuleByIdUseCase
+from app.shared.utils.transaction import transactional
 
 app_logger = logging.getLogger('log')
 
@@ -25,7 +26,6 @@ class CreateSupervisionInviteLinkUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, user_id: int, rule_ids: List[int], expire_hours: int = 24) -> UseCaseResult:
         """
         执行创建监督邀请链接
@@ -39,7 +39,6 @@ class CreateSupervisionInviteLinkUseCase(BaseUseCase):
             UseCaseResult: 包含邀请链接信息的结果
         """
         try:
-from app.shared.utils.transaction import transactional
             if not rule_ids:
                 return UseCaseResult.fail('缺少rule_ids参数', status=UseCaseStatus.VALIDATION_ERROR)
 

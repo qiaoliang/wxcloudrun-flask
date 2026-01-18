@@ -6,6 +6,7 @@
 import logging
 from functools import wraps
 from sqlalchemy.exc import SQLAlchemyError
+from flask import has_app_context
 from app.extensions import db
 from config import EnvironmentHelper
 
@@ -21,6 +22,7 @@ def transactional(f):
     - 失败时自动回滚事务
     - 记录详细的错误日志
     - 测试环境使用 begin_nested() + commit()，让外层事务回滚时自动回滚所有修改
+    - 在没有应用上下文时（如使用 Mock 的单元测试）跳过事务管理
 
     使用示例:
         @transactional
@@ -37,6 +39,14 @@ def transactional(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        # 如果没有应用上下文（如使用 Mock 的单元测试），直接执行函数
+        if not has_app_context():
+            try:
+                return f(*args, **kwargs)
+            except Exception as e:
+                logger.error(f"执行失败（无应用上下文）- 函数: {f.__name__}, 错误: {str(e)}")
+                raise
+
         try:
             # 执行被装饰的函数
             result = f(*args, **kwargs)

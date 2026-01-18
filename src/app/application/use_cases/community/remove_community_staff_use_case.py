@@ -13,7 +13,7 @@ from typing import Optional
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,6 @@ class RemoveCommunityStaffUseCase(BaseUseCase):
         self.audit_log_repository = RepositoryFactory.get_audit_log_repository()  # ✅ 新增
 
     @transactional
-
 
     def execute(
         self,

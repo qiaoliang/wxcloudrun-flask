@@ -10,6 +10,7 @@ from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.event_bus import EventBus
 from app.domain.events.community_events import EventClosedEvent
 from database.flask_models import CommunityEvent
+from app.shared.utils.transaction import transactional
 
 
 class CloseEventUseCase(BaseUseCase):
@@ -24,7 +25,6 @@ class CloseEventUseCase(BaseUseCase):
         self.event_bus = EventBus()
 
     @transactional
-
 
     def execute(
         self,
@@ -44,7 +44,6 @@ class CloseEventUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not event_id:
                 return UseCaseResult(

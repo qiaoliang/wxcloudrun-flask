@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 from typing import Dict
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional, transaction
 
 logger = logging.getLogger(__name__)
 

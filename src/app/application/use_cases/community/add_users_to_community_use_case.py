@@ -10,6 +10,7 @@
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from datetime import datetime
+from app.shared.utils.transaction import transactional
 
 
 class AddUsersToCommunityUseCase(BaseUseCase):
@@ -27,7 +28,6 @@ class AddUsersToCommunityUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, community_id: int, user_ids: list) -> UseCaseResult:
         """
         批量添加用户到社区
@@ -40,7 +40,6 @@ class AddUsersToCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             if not community_id or not user_ids:
                 return UseCaseResult.fail("参数不能为空")
 

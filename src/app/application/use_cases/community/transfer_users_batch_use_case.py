@@ -12,7 +12,7 @@ from typing import List, Dict
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES, STAFF_ROLE_MANAGER, STAFF_ROLE_STAFF
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional, transaction
 from database.flask_models import db, CommunityEvent, UserAuditLog, CommunityStaff
 
 logger = logging.getLogger(__name__)
@@ -43,7 +43,6 @@ class TransferUsersBatchUseCase(BaseUseCase):
         self.user_community_rule_repository = RepositoryFactory.get_user_community_rule_repository()
 
     @transactional
-
 
     def execute(
         self,
@@ -316,7 +315,7 @@ class TransferUsersBatchUseCase(BaseUseCase):
 
         # 如果没有成功转移任何用户，且有失败，抛出异常
         if success_count == 0 and failed:
-            error_details = ";
+            error_details = ", ".join([f"用户{f['user_id']}: {f['reason']}" for f in failed])
             raise ValueError(f'所有用户转移失败: {error_details}')
 
         return {
@@ -439,7 +438,6 @@ class TransferUsersBatchUseCase(BaseUseCase):
             int: 激活的规则数量
         """
         # ✅ 使用Repository获取新社区的所有启用规则
-from app.shared.utils.transaction import transactional ".join([f"用户{f['user_id']}: {f['reason']}" for f in failed])
         new_community_rules = self.community_checkin_rule_repository.find_by_community_id(new_community_id)
         new_community_rules = [r for r in new_community_rules if r.status == 1]
 

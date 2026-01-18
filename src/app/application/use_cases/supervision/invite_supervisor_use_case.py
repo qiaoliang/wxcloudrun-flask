@@ -7,6 +7,7 @@ from typing import List, Optional
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from database.flask_models import SupervisionRuleRelation
+from app.shared.utils.transaction import transactional
 
 
 class InviteSupervisorUseCase(BaseUseCase):
@@ -20,7 +21,6 @@ class InviteSupervisorUseCase(BaseUseCase):
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
     @transactional
-
 
     def execute(
         self,
@@ -40,7 +40,6 @@ class InviteSupervisorUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not inviter_id:
                 return UseCaseResult(

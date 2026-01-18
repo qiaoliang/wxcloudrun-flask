@@ -19,6 +19,7 @@ from app.domain.entities.checkin_record_entity import CheckinRecordEntity
 from app.domain.aggregates.checkin_rule_aggregate import CheckinRuleAggregate
 from app.domain.events.checkin_events import CheckinCompletedEvent
 from flask import current_app
+from app.shared.utils.transaction import transactional
 
 
 class PerformCheckinUseCase(BaseUseCase):
@@ -36,7 +37,6 @@ class PerformCheckinUseCase(BaseUseCase):
 
     @transaction
     @transactional
-
     def execute(
         self,
         rule_id: int,
@@ -57,7 +57,6 @@ class PerformCheckinUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not rule_id:
                 return UseCaseResult(

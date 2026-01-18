@@ -11,7 +11,7 @@ import logging
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import Role, STAFF_ROLE_MANAGER
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +33,6 @@ class SetSuperAdminUseCase(BaseUseCase):
         self.audit_log_repository = RepositoryFactory.get_audit_log_repository()  # ✅ 新增
 
     @transactional
-
 
     def execute(
         self,

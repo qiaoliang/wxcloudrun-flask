@@ -3,6 +3,7 @@
 """
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transactional
 
 
 class UpdateCommunityCheckinRuleUseCase(BaseUseCase):
@@ -55,7 +56,6 @@ class UpdateCommunityCheckinRuleUseCase(BaseUseCase):
 
     @transactional
 
-
     def _execute(self, rule_id: int, params: dict, user_id: int) -> UseCaseResult:
         """
         执行更新社区打卡规则操作
@@ -69,7 +69,6 @@ class UpdateCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 获取现有规则
             rule = self.checkin_rule_repository.find_by_id(rule_id)
 

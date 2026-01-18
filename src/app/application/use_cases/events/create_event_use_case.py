@@ -9,6 +9,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.event_bus import EventBus
 from app.domain.events.community_events import EventCreatedEvent
+from app.shared.utils.transaction import transactional
 from database.flask_models import CommunityEvent
 
 
@@ -24,7 +25,6 @@ class CreateEventUseCase(BaseUseCase):
         self.event_bus = EventBus()
 
     @transactional
-
 
     def execute(
         self,
@@ -52,7 +52,6 @@ class CreateEventUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not title or not title.strip():
                 return UseCaseResult(

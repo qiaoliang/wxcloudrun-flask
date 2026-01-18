@@ -12,6 +12,7 @@ from app.domain.entities.user_entity import UserEntity
 from app.domain.aggregates.user_aggregate import UserAggregate
 from app.domain.events.event_bus import EventBus
 from app.domain.repositories.user_repository import UserRepository
+from app.shared.utils.transaction import transactional
 
 
 class UploadAvatarUseCase(BaseUseCase):
@@ -25,7 +26,6 @@ class UploadAvatarUseCase(BaseUseCase):
         self.event_bus = EventBus()
 
     @transactional
-
 
     def execute(
         self,
@@ -47,7 +47,6 @@ class UploadAvatarUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user_id:
                 return UseCaseResult(

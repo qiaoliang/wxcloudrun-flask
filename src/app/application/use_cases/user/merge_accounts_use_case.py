@@ -9,6 +9,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.user_repository import UserRepository
 from database.flask_models import User
+from app.shared.utils.transaction import transactional
 
 
 class MergeAccountsUseCase(BaseUseCase):
@@ -23,7 +24,6 @@ class MergeAccountsUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, account1: User, account2: User) -> UseCaseResult:
         """
         执行合并账号用例
@@ -36,7 +36,6 @@ class MergeAccountsUseCase(BaseUseCase):
             UseCaseResult: 执行结果，包含合并后的用户数据
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not account1 or not account2:
                 return UseCaseResult(

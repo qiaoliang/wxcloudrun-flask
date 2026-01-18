@@ -10,6 +10,7 @@ from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityUpdatedEvent, CommunityManagerChangedEvent, CommunityStatusChangedEvent, CommunitySettingsUpdatedEvent
 from app.domain.events.event_bus import event_bus
 from app.domain.repositories.community_repository import CommunityRepository
+from app.shared.utils.transaction import transactional
 
 
 class UpdateCommunityUseCase(BaseUseCase):
@@ -22,7 +23,6 @@ class UpdateCommunityUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
 
     @transactional
-
 
     def execute(
         self,
@@ -62,7 +62,6 @@ class UpdateCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not community_id:
                 return UseCaseResult(

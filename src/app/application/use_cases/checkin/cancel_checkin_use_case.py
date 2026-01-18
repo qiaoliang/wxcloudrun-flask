@@ -6,6 +6,7 @@ import logging
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.infrastructure.transaction.transaction_manager import transaction
+from app.shared.utils.transaction import transactional
 
 
 class CancelCheckinUseCase(BaseUseCase):
@@ -19,7 +20,6 @@ class CancelCheckinUseCase(BaseUseCase):
 
     @transaction
     @transactional
-
     def execute(self, record_id: int, user_id: int, reason: str = None) -> UseCaseResult:
         """
         执行取消打卡用例
@@ -35,7 +35,6 @@ class CancelCheckinUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not record_id:
                 return UseCaseResult(

@@ -9,7 +9,7 @@
 import logging
 from flask import has_app_context
 
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional, transaction
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
 
@@ -75,8 +75,6 @@ class CounterUseCase(BaseUseCase):
         )
 
     @transactional
-
-
     def _execute(self, action: str, params: dict) -> UseCaseResult:
         """
         执行计数器操作
@@ -210,5 +208,3 @@ class CounterUseCase(BaseUseCase):
                 message='清除计数器失败',
                 data={}
             )
-
-from app.shared.utils.transaction import transactional

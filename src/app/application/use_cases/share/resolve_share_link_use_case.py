@@ -7,6 +7,7 @@ from datetime import datetime
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from database.flask_models import ShareLinkAccessLog, SupervisionRuleRelation
+from app.shared.utils.transaction import transactional
 
 
 class ResolveShareLinkUseCase(BaseUseCase):
@@ -22,7 +23,6 @@ class ResolveShareLinkUseCase(BaseUseCase):
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
     @transactional
-
 
     def execute(
         self,
@@ -46,7 +46,6 @@ class ResolveShareLinkUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not token:
                 return UseCaseResult(

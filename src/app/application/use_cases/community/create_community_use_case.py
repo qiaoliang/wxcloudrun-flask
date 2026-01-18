@@ -12,6 +12,7 @@ from app.domain.events.community_events import CommunityCreatedEvent
 from app.domain.events.event_bus import event_bus
 from app.domain.repositories.community_repository import CommunityRepository
 from database.flask_models import Community
+from app.shared.utils.transaction import transactional
 
 
 class CreateCommunityUseCase(BaseUseCase):
@@ -24,7 +25,6 @@ class CreateCommunityUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
 
     @transactional
-
 
     def execute(
         self,
@@ -62,7 +62,6 @@ class CreateCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not name or not name.strip():
                 return UseCaseResult(

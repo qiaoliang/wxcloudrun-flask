@@ -11,7 +11,7 @@ from typing import List, Dict
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 from const_default import DEFAULT_COMMUNITY_NAME, DEFAULT_COMMUNITY_ID
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES, STAFF_ROLE_STAFF, STAFF_ROLE_MANAGER
 
@@ -36,7 +36,6 @@ class AddCommunityStaffUseCase(BaseUseCase):
         self.audit_log_repository = RepositoryFactory.get_audit_log_repository()  # ✅ 新增
 
     @transactional
-
 
     def execute(
         self,

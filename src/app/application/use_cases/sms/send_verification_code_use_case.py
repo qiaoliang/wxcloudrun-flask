@@ -6,7 +6,7 @@ from flask import current_app
 from wxcloudrun.sms_service import create_sms_provider, generate_code
 from wxcloudrun.utils.validators import _code_expiry_minutes, normalize_phone_number, _hash_code
 from config import should_use_real_sms
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional, transaction
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.domain.repositories.verification_code_repository import VerificationCodeRepository
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
@@ -56,7 +56,6 @@ class SendVerificationCodeUseCase(BaseUseCase):
         )
 
     @transactional
-
 
     def _execute(self, phone: str, purpose: str = 'register') -> UseCaseResult:
         """
@@ -136,7 +135,6 @@ class SendVerificationCodeUseCase(BaseUseCase):
             else:
                 current_app.logger.error(f'验证码发送失败，手机号：{normalized_phone}')
                 return UseCaseResult(
-                    status=UseCaseStatus.FAILURE,
-                    message='验证码发送失败'
-                )
-from app.shared.utils.transaction import transactional
+                                status=UseCaseStatus.FAILURE,
+                                message='验证码发送失败'
+                            )

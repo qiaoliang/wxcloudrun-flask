@@ -8,6 +8,7 @@ from flask import current_app, request
 from werkzeug.utils import secure_filename
 
 from ..base import BaseUseCase, UseCaseResult, UseCaseStatus
+from app.shared.utils.transaction import transactional
 
 app_logger = logging.getLogger('log')
 
@@ -83,7 +84,6 @@ class UploadMediaUseCase(BaseUseCase):
 
     @transactional
 
-
     def _execute(self) -> UseCaseResult:
         """
         执行上传媒体文件操作
@@ -92,7 +92,6 @@ class UploadMediaUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             file = request.files['file']
             file_type = request.form.get('file_type', 'image')
 

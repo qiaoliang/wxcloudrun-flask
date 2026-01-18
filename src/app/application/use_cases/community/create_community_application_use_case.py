@@ -9,7 +9,7 @@
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional, transaction
 from datetime import datetime
 
 
@@ -64,7 +64,6 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
         )
 
     @transactional
-
 
     def _execute(self, user_id: int, community_id: int, message: str = "") -> UseCaseResult:
         """
@@ -146,5 +145,3 @@ class CreateCommunityApplicationUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f"申请提交失败: {str(e)}"
             )
-
-from app.shared.utils.transaction import transactional

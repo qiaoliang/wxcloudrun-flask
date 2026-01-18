@@ -12,6 +12,7 @@ from app.domain.events.community_events import EventSupportedEvent
 from app.domain.entities.community_event_entity import CommunityEventEntity
 from app.domain.aggregates.community_event_aggregate import CommunityEventAggregate
 from database.flask_models import EventMessage
+from app.shared.utils.transaction import transactional
 
 
 class SupportEventUseCase(BaseUseCase):
@@ -27,7 +28,6 @@ class SupportEventUseCase(BaseUseCase):
         self.event_bus = EventBus()
 
     @transactional
-
 
     def execute(
         self,
@@ -47,7 +47,6 @@ class SupportEventUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not event_id:
                 return UseCaseResult(

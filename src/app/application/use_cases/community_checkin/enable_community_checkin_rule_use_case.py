@@ -4,6 +4,7 @@
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from database.flask_models import CommunityCheckinRule
+from app.shared.utils.transaction import transactional
 
 
 class EnableCommunityCheckinRuleUseCase(BaseUseCase):
@@ -43,7 +44,6 @@ class EnableCommunityCheckinRuleUseCase(BaseUseCase):
 
     @transactional
 
-
     def _execute(self, rule_id: int, user_id: int) -> UseCaseResult:
         """
         执行启用社区打卡规则操作
@@ -56,7 +56,6 @@ class EnableCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 获取规则
             rule = self.checkin_rule_repository.find_by_id(rule_id)
 

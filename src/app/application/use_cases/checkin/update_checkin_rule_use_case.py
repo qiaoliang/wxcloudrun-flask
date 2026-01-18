@@ -9,6 +9,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.infrastructure.transaction.transaction_manager import transaction
 from app.domain.entities.checkin_rule_entity import CheckinRuleEntity
+from app.shared.utils.transaction import transactional
 
 
 class UpdateCheckinRuleUseCase(BaseUseCase):
@@ -22,7 +23,6 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
 
     @transaction
     @transactional
-
     def execute(
         self,
         rule_id: int,
@@ -43,7 +43,6 @@ class UpdateCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not rule_id:
                 return UseCaseResult(

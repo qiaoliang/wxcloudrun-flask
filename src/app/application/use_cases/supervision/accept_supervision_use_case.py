@@ -5,6 +5,7 @@ import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transactional
 
 app_logger = logging.getLogger('log')
 
@@ -18,7 +19,6 @@ class AcceptSupervisionUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, relation_id: int, user_id: int) -> UseCaseResult:
         """
         执行接受监督邀请
@@ -31,7 +31,6 @@ class AcceptSupervisionUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 查询监督关系
             relation = self.supervision_relation_repository.find_by_id(relation_id)
 

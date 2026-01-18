@@ -10,6 +10,7 @@ from app.domain.events.community_events import CommunityMemberAddedEvent
 from app.domain.events.event_bus import event_bus
 from database.flask_models import Community
 from app.domain.repositories.user_repository import UserRepository
+from app.shared.utils.transaction import transactional
 
 
 class JoinCommunityUseCase(BaseUseCase):
@@ -23,7 +24,6 @@ class JoinCommunityUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, user_id: int, community_name: str) -> UseCaseResult:
         """
         执行加入社区用例
@@ -36,7 +36,6 @@ class JoinCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not community_name or not community_name.strip():
                 return UseCaseResult(

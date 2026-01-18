@@ -8,6 +8,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.events.community_events import CommunityMemberRemovedEvent
 from app.domain.events.event_bus import event_bus
+from app.shared.utils.transaction import transactional
 
 
 class LeaveCommunityUseCase(BaseUseCase):
@@ -20,7 +21,6 @@ class LeaveCommunityUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, user_id: int) -> UseCaseResult:
         """
         执行离开社区用例
@@ -32,7 +32,6 @@ class LeaveCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             # 1. 参数验证
             if not user_id:
                 return UseCaseResult(

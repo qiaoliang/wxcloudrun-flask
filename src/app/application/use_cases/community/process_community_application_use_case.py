@@ -13,7 +13,7 @@ from datetime import datetime
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.shared.utils.transaction import transaction
+from app.shared.utils.transaction import transactional
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +35,6 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
         self.user_community_rule_repository = RepositoryFactory.get_user_community_rule_repository()
 
     @transactional
-
 
     def execute(
         self,

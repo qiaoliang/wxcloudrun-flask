@@ -9,6 +9,7 @@
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.shared.utils.transaction import transactional
 
 
 class RemoveUserFromCommunityUseCase(BaseUseCase):
@@ -26,7 +27,6 @@ class RemoveUserFromCommunityUseCase(BaseUseCase):
 
     @transactional
 
-
     def execute(self, community_id: int, target_user_id: int) -> UseCaseResult:
         """
         从社区移除用户
@@ -39,7 +39,6 @@ class RemoveUserFromCommunityUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-from app.shared.utils.transaction import transactional
             if not community_id or not target_user_id:
                 return UseCaseResult.fail("参数不能为空")
 
