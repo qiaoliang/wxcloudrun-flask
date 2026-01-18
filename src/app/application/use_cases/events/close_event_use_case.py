@@ -51,10 +51,10 @@ class CloseEventUseCase(BaseUseCase):
                     message='事件ID不能为空'
                 )
 
-            if not closure_reason or len(closure_reason) < 10 or len(closure_reason) > 500:
+            if not closure_reason or len(closure_reason) < 5 or len(closure_reason) > 200:
                 return UseCaseResult(
                     status=UseCaseStatus.VALIDATION_ERROR,
-                    message='关闭原因长度必须在10-500字符之间'
+                    message='关闭原因长度必须在5-200字符之间'
                 )
 
             # 2. 验证用户是否存在
