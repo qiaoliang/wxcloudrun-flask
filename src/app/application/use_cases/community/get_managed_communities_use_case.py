@@ -57,24 +57,6 @@ class GetManagedCommunitiesUseCase(BaseUseCase):
                         'created_at': community.created_at.isoformat() if community.created_at else None
                     })
             
-            # 3. 查询用户创建的社区（即使不在 community_staff 表中）
-            created_communities = self.community_repository.find_by_creator_id(user_id)
-            for community in created_communities:
-                # 只返回活跃的社区（status == 1）
-                if community.status == 1:
-                    # 检查是否已经在列表中
-                    exists = any(c['community_id'] == community.community_id for c in communities_data)
-                    if not exists:
-                        communities_data.append({
-                            'community_id': community.community_id,
-                            'name': community.name,
-                            'description': community.description,
-                            'location': community.location,
-                            'status': community.status,
-                            'role': 'creator',  # 标记为创建者
-                            'created_at': community.created_at.isoformat() if community.created_at else None
-                        })
-            
             # 按创建时间倒序排序
             communities_data.sort(key=lambda x: x['created_at'] or '', reverse=True)
             

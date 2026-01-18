@@ -86,8 +86,12 @@ def create_community():
 
         community_id = result.data.get('community_id')
 
+        # 如果没有指定主管，将创建者设置为主管并添加到 CommunityStaff 表
         # 如果指定了主管，将主管添加到 CommunityStaff 表
-        if manager_id:
+        target_manager_id = manager_id if manager_id else user_id
+        
+        # 将主管添加到 CommunityStaff 表
+        if target_manager_id:
             try:
                 add_staff_use_case = AddCommunityStaffUseCase()
                 add_staff_result = add_staff_use_case.execute(
