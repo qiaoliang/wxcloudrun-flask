@@ -28,8 +28,7 @@ def _format_community_info_from_dict(community_dict: dict) -> dict:
         'community_id': community_dict.get('community_id'),
         'name': community_dict.get('name'),
         'description': community_dict.get('description'),
-        'address': community_dict.get('address'),
-        'contact_phone': community_dict.get('contact_phone'),
+        'location': community_dict.get('location'),
         'status': community_dict.get('status'),
         'created_at': community_dict.get('created_at')
     }
