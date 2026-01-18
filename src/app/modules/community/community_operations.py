@@ -97,11 +97,11 @@ def create_community():
                 add_staff_result = add_staff_use_case.execute(
                     operator_user_id=user_id,
                     community_id=community_id,
-                    user_ids=[manager_id],
+                    user_ids=[target_manager_id],
                     role='manager'
                 )
                 if add_staff_result.is_success:
-                    current_app.logger.info(f'已将主管添加到 CommunityStaff 表: community_id={community_id}, manager_id={manager_id}')
+                    current_app.logger.info(f'已将主管添加到 CommunityStaff 表: community_id={community_id}, manager_id={target_manager_id}')
                 else:
                     current_app.logger.warning(f'添加主管到 CommunityStaff 表失败: {add_staff_result.message}')
             except Exception as e:
