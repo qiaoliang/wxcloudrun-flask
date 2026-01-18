@@ -15,6 +15,11 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config import init_config, get_database_config
 from .extensions import db  # 从扩展模块导入
 
+# 事件总线相关导入
+from app.infrastructure.events.enhanced_event_bus import EnhancedEventBus
+from app.infrastructure.events.outbox_processor import OutboxProcessor
+from app.infrastructure.persistence.repository_factory import RepositoryFactory
+
 # 配置日志
 def configure_logging(app):
     """配置应用日志"""
@@ -96,9 +101,38 @@ def create_app(config_name=None):
     if not app.config.get('SECRET_KEY'):
         app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev_secret_key')
     
-    # 4. 初始化扩展
-    db.init_app(app)
     
+# 4. 初始化扩展
+    db.init_app(app)
+
+    # 4.1 初始化事件总线
+    outbox_repository = RepositoryFactory.get_outbox_repository()
+    app.event_bus = EnhancedEventBus(outbox_repository)
+
+    # 4.2 初始化 Outbox 处理器
+    app.outbox_processor = OutboxProcessor(
+        outbox_repository=outbox_repository,
+        event_bus=app.event_bus,
+        interval_seconds=5
+    )
+
+    # 4.3 启动后台处理线程
+    @app.before_request
+    def start_outbox_processor():
+        if not hasattr(app, '_outbox_processor_started'):
+            if not app.outbox_processor._running:
+                app.outbox_processor.start()
+            app._outbox_processor_started = True
+
+    # 4.4 创建所有数据库表（包括 outbox_events）
+    with app.app_context():
+        db.create_all()
+        app.logger.info("数据库表创建完成：包括 outbox_events 表")
+
+    # 4.4 注册应用关闭时的清理
+    import atexit
+    atexit.register(app.outbox_processor.stop)
+
     # 4.5 初始化速率限制扩展
     from .extensions import limiter
     from config import EnvironmentHelper
@@ -128,10 +162,7 @@ def create_app(config_name=None):
     # 注意：模型导入必须在db.init_app之后，但在注册蓝图之前
     from database.flask_models import (
         User, Community, CheckinRule, CheckinRecord,
-        UserAuditLog, Counters
-    )
-    
-    # 6. 注册蓝图
+        UserAuditLog, Counters, OutboxEvent  # 添加 OutboxEvent
     register_blueprints(app)
     
     # 7. 注册错误处理器
