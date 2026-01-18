@@ -25,6 +25,7 @@ class GetUserActiveEventUseCase(BaseUseCase):
         self.logger = logging.getLogger(__name__)
         # ✅ 通过RepositoryFactory获取Repository接口
         self.community_event_repository = RepositoryFactory.get_community_event_repository()
+        self.user_repository = RepositoryFactory.get_user_repository()
 
     def execute(self, user_id: int) -> UseCaseResult:
         """
@@ -58,15 +59,22 @@ class GetUserActiveEventUseCase(BaseUseCase):
 
             event = events[0]  # 取第一个（最新的）
 
-            # 3. 构造事件数据
+            # 3. 获取创建者信息
+            creator_user = self.user_repository.find_by_id(event.created_by)
+            creator_nickname = creator_user.nickname if creator_user else "未知用户"
+
+            # 4. 构造事件数据
             event_data = {
                 'event_id': event.event_id,
                 'target_user_id': event.target_user_id,
                 'community_id': event.community_id,
                 'event_type': event.event_type,
+                'title': event.title,  # 添加 title
+                'description': event.description,
                 'status': event.status,
                 'location': event.location,
-                'description': event.description,
+                'created_by': event.created_by,  # 添加创建者ID
+                'creator_nickname': creator_nickname,  # 添加创建者昵称
                 'created_at': event.created_at.isoformat() if event.created_at else None,
                 'updated_at': event.updated_at.isoformat() if event.updated_at else None
             }
