@@ -21,6 +21,9 @@ class MergeAccountsUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
+    @transactional
+
+
     def execute(self, account1: User, account2: User) -> UseCaseResult:
         """
         执行合并账号用例

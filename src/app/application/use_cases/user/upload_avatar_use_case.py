@@ -24,6 +24,9 @@ class UploadAvatarUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.event_bus = EventBus()
 
+    @transactional
+
+
     def execute(
         self,
         user_id: int,

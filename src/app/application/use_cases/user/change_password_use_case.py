@@ -21,6 +21,9 @@ class ChangePasswordUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.event_bus = EventBus()
 
+    @transactional
+
+
     def execute(self, user_id: int, old_password: str, new_password: str) -> UseCaseResult:
         """
         执行修改密码用例

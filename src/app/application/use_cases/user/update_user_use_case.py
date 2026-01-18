@@ -21,6 +21,9 @@ class UpdateUserUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.event_bus = EventBus()
 
+    @transactional
+
+
     def execute(self, user: User) -> UseCaseResult:
         """
         执行更新用户信息用例
