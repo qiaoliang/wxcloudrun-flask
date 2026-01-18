@@ -132,6 +132,7 @@ class RegisterPhoneUseCase(BaseUseCase):
             self.logger.info(f"query_user_by_phone_hash errorMsg= {e}")
             return None
 
+    @transactional
     def _create_user(
         self,
         normalized_phone: str,
@@ -140,7 +141,7 @@ class RegisterPhoneUseCase(BaseUseCase):
         avatar_url: Optional[str],
         password: Optional[str]
     ):
-        """创建新用户"""
+        """创建新用户（在事务中执行）"""
         # 生成脱敏号码用于显示
         masked = normalized_phone[:3] + '****' + normalized_phone[-4:] if len(normalized_phone) >= 7 else normalized_phone
         self.logger.info(f"Creating user with masked phone: {masked} (phone_hash will be used for uniqueness)")
@@ -171,8 +172,16 @@ class RegisterPhoneUseCase(BaseUseCase):
         # 使用 save 方法保存用户
         saved_user = self.user_repository.save(user)
 
-        self.logger.info(f"User created successfully: user_id={saved_user.user_id}")
-        return saved_user
+        # 重新加载用户对象以获取关联的 community 数据
+        # 因为 save 只做 flush，返回的对象不包含关联关系
+        reloaded_user = self.user_repository.find_by_id(saved_user.user_id)
+
+        if not reloaded_user:
+            self.logger.error(f"无法重新加载用户: user_id={saved_user.user_id}")
+            return saved_user
+
+        self.logger.info(f"User created successfully: user_id={reloaded_user.user_id}, community_id={reloaded_user.community_id}")
+        return reloaded_user
 
     def _audit_user(self, user_id: int, action: str, details: dict):
         """记录用户审计日志"""

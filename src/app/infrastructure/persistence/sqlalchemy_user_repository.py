@@ -47,7 +47,11 @@ class SQLAlchemyUserRepository(UserRepository):
         Returns:
             Optional[User]: 用户对象，如果不存在则返回 None
         """
-        return db.session.get(User, entity_id)
+        # 预加载 community 关联，避免 N+1 查询问题
+        stmt = select(User).options(
+            db.joinedload(User.community)
+        ).where(User.user_id == entity_id)
+        return db.session.execute(stmt).scalar_one_or_none()
 
     def find_all(self) -> List[User]:
         """
