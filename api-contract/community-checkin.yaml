@@ -1,0 +1,491 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Community-checkin Domain
+  description: Community-checkin domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/community_checkin/rules:
+    get:
+      tags:
+      - 社区打卡模块
+      summary: 获取社区打卡规则列表
+      description: 获取指定社区的打卡规则列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - enabled
+          - disabled
+          - all
+          default: all
+        description: 状态筛选
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rules:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              community_rule_id:
+                                type: integer
+                              rule_name:
+                                type: string
+                              description:
+                                type: string
+                              checkin_time:
+                                type: string
+                              repeat_days:
+                                type: array
+                                items:
+                                  type: integer
+                              is_enabled:
+                                type: boolean
+                              created_by_name:
+                                type: string
+                        total:
+                          type: integer
+    post:
+      tags:
+      - 社区打卡模块
+      summary: 创建社区打卡规则
+      description: 为社区创建新的打卡规则
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              - title
+              - checkin_time
+              - repeat_days
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                title:
+                  type: string
+                  description: 规则标题
+                description:
+                  type: string
+                  description: 规则描述
+                checkin_time:
+                  type: string
+                  description: 打卡时间
+                repeat_days:
+                  type: array
+                  items:
+                    type: integer
+                  description: 重复天数
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_id:
+                          type: integer
+                        message:
+                          type: string
+  /api/community_checkin/rules/{rule_id}:
+    get:
+      tags:
+      - 社区打卡模块
+      summary: 获取社区打卡规则详情
+      description: 获取指定社区打卡规则的详细信息
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 规则ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        community_rule_id:
+                          type: integer
+                        rule_name:
+                          type: string
+                        description:
+                          type: string
+                        checkin_time:
+                          type: string
+                        repeat_days:
+                          type: array
+                          items:
+                            type: integer
+                        is_enabled:
+                          type: boolean
+                        created_by_name:
+                          type: string
+                        created_at:
+                          type: string
+                          format: date-time
+                        updated_at:
+                          type: string
+                          format: date-time
+    put:
+      tags:
+      - 社区打卡模块
+      summary: 更新社区打卡规则
+      description: 更新现有的社区打卡规则
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 规则ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                  description: 规则标题
+                description:
+                  type: string
+                  description: 规则描述
+                checkin_time:
+                  type: string
+                  description: 打卡时间
+                repeat_days:
+                  type: array
+                  items:
+                    type: integer
+                  description: 重复天数
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_id:
+                          type: integer
+                        message:
+                          type: string
+    delete:
+      tags:
+      - 社区打卡模块
+      summary: 删除社区打卡规则
+      description: 删除社区打卡规则
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 规则ID
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_id:
+                          type: integer
+                        message:
+                          type: string
+  /api/community_checkin/rules/{rule_id}/enable:
+    post:
+      tags:
+      - 社区打卡模块
+      summary: 启用社区打卡规则
+      description: 启用指定的社区打卡规则
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 规则ID
+      responses:
+        '200':
+          description: 启用成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_id:
+                          type: integer
+                        message:
+                          type: string
+  /api/community_checkin/rules/{rule_id}/disable:
+    post:
+      tags:
+      - 社区打卡模块
+      summary: 禁用社区打卡规则
+      description: 禁用指定的社区打卡规则
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: rule_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 规则ID
+      responses:
+        '200':
+          description: 禁用成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_id:
+                          type: integer
+                        message:
+                          type: string
+  /api/community_checkin/stats/{community_id}/daily-stats:
+    get:
+      tags:
+      - 社区打卡模块
+      summary: 获取社区每日打卡统计
+      description: 获取指定社区的每日打卡统计数据，包括用户总数、打卡率、未打卡人数等
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        user_count:
+                          type: integer
+                          description: 社区用户总数
+                        total_rules:
+                          type: integer
+                          description: 启用的规则总数
+                        total_checkins:
+                          type: integer
+                          description: 今日打卡总数
+                        completed_checkins:
+                          type: integer
+                          description: 今日已完成打卡数
+                        missed_checkins:
+                          type: integer
+                          description: 今日未打卡数
+                        checkin_rate:
+                          type: number
+                          format: float
+                          description: 今日打卡率（百分比）
+                        unchecked_user_count:
+                          type: integer
+                          description: 今日未打卡用户数（去重）
+  /api/community_checkin/stats/{community_id}/checkin-stats:
+    get:
+      tags:
+      - 社区打卡模块
+      summary: 获取社区打卡统计信息
+      description: 获取指定社区打卡规则的统计信息，包括近7天未打卡人次最多的规则
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: days
+        in: query
+        schema:
+          type: integer
+          default: 7
+          minimum: 1
+          maximum: 30
+        description: 统计天数（默认7天）
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        stats:
+                          type: array
+                          description: 规则统计列表
+                          items:
+                            type: object
+                            properties:
+                              rule_id:
+                                type: integer
+                                description: 规则ID
+                              rule_name:
+                                type: string
+                                description: 规则名称
+                              rule_icon:
+                                type: string
+                                description: 规则图标
+                              total_missed:
+                                type: integer
+                                description: 未打卡人次总和
+                              daily_missed:
+                                type: array
+                                description: 每日未打卡人数
+                                items:
+                                  type: integer
+                              dates:
+                                type: array
+                                description: 日期列表
+                                items:
+                                  type: string
+                                  format: date
+                        total_rules:
+                          type: integer
+                          description: 启用的规则总数
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

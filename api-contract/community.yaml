@@ -1,0 +1,1262 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Community Domain
+  description: Community domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/communities:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取社区列表（超级管理员）
+      description: 获取所有社区列表（超级管理员专用）
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        communities:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/CommunityInfo'
+                        total:
+                          type: integer
+  /api/community/list:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取用户可见的社区列表
+      description: 获取用户可见的社区列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - active
+          - inactive
+          default: all
+        description: 状态筛选
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: page_size
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        communities:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              community_id:
+                                type: integer
+                              name:
+                                type: string
+                              description:
+                                type: string
+                              creator_id:
+                                type: integer
+                              status:
+                                type: integer
+                              created_at:
+                                type: string
+                                format: date-time
+  /api/communities/available:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取可加入的社区列表
+      description: 获取用户可以加入的社区列表
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CommunityInfo'
+  /api/community/communities/manage/list:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取可管理的社区列表
+      description: 获取用户可以管理的社区列表
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CommunityInfo'
+  /api/communities/manage/search:
+    get:
+      tags:
+      - 社区模块
+      summary: 搜索可管理的社区
+      description: 搜索用户可以管理的社区
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: keyword
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 搜索关键词
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CommunityInfo'
+  /api/communities/{community_id}:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取社区详情
+      description: 获取指定社区的详细信息
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        community_id:
+                          type: integer
+                        name:
+                          type: string
+                        description:
+                          type: string
+                        creator:
+                          type: object
+                          properties:
+                            user_id:
+                              type: integer
+                            nickname:
+                              type: string
+                            avatar_url:
+                              type: string
+                        status:
+                          type: integer
+                        manager_count:
+                          type: integer
+                          description: 主管数量
+                        worker_count:
+                          type: integer
+                          description: 工作人员总数（主管+专员）
+                        stats:
+                          type: object
+                          properties:
+                            staff_count:
+                              type: integer
+                              description: 专员数量
+                            worker_count:
+                              type: integer
+                              description: 工作人员总数（主管+专员）
+                            manager_count:
+                              type: integer
+                              description: 主管数量
+                            support_count:
+                              type: integer
+                              description: 应援数量
+                            active_events:
+                              type: integer
+                              description: 活跃事件数
+                            checkin_rate:
+                              type: number
+                              description: 打卡率
+  /api/community/create:
+    post:
+      tags:
+      - 社区模块
+      summary: 创建社区
+      description: 创建新的社区
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - name
+              - description
+              properties:
+                name:
+                  type: string
+                  description: 社区名称
+                description:
+                  type: string
+                  description: 社区描述
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        community_id:
+                          type: integer
+  /api/community/update:
+    post:
+      tags:
+      - 社区模块
+      summary: 更新社区信息
+      description: 更新社区的基本信息
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                name:
+                  type: string
+                  description: 社区名称
+                description:
+                  type: string
+                  description: 社区描述
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/toggle-status:
+    post:
+      tags:
+      - 社区模块
+      summary: 切换社区状态
+      description: 启用或禁用社区
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/delete:
+    post:
+      tags:
+      - 社区模块
+      summary: 删除社区
+      description: 删除指定的社区
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/communities/{community_id}/users:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取社区用户列表
+      description: 获取指定社区的用户列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      - name: role
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - manager
+          - staff
+          default: all
+        description: 角色筛选
+      - name: keyword
+        in: query
+        schema:
+          type: string
+        description: 搜索关键词
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        users:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/UserInfo'
+                        total:
+                          type: integer
+                        page:
+                          type: integer
+                        per_page:
+                          type: integer
+                        has_next:
+                          type: boolean
+  /api/communities/{community_id}/users/{target_user_id}:
+    delete:
+      tags:
+      - 社区模块
+      summary: 从社区中移除用户
+      description: 从指定社区中移除用户
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: target_user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 目标用户ID
+      responses:
+        '200':
+          description: 移除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/users:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取社区用户列表（新版）
+      description: 获取指定社区的用户列表（新版接口）
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        users:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/UserInfo'
+                        total:
+                          type: integer
+  /api/community/add-users:
+    post:
+      tags:
+      - 社区模块
+      summary: 批量添加用户到社区
+      description: 批量将用户添加到指定社区
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              - user_ids
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                user_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 用户ID列表
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/remove-user:
+    post:
+      tags:
+      - 社区模块
+      summary: 从社区中移除用户
+      description: 从指定社区中移除用户
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              - user_id
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                user_id:
+                  type: integer
+                  description: 用户ID
+      responses:
+        '200':
+          description: 移除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/staff/list-enhanced:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取社区工作人员列表（增强版）
+      description: 获取指定社区的详细工作人员列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: role
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - manager
+          - staff
+          default: all
+        description: 角色筛选
+      - name: sort_by
+        in: query
+        schema:
+          type: string
+          enum:
+          - name
+          - role
+          - time
+          default: name
+        description: 排序方式
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        staff:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              staff_id:
+                                type: integer
+                              user_id:
+                                type: integer
+                              nickname:
+                                type: string
+                              avatar_url:
+                                type: string
+                              role:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+  /api/community/add-staff:
+    post:
+      tags:
+      - 社区模块
+      summary: 添加社区工作人员
+      description: 向社区添加工作人员（支持批量）
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              - user_ids
+              - role
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                user_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 用户ID列表
+                role:
+                  type: string
+                  enum:
+                  - manager
+                  - staff
+                  description: 角色
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/remove-staff:
+    post:
+      tags:
+      - 社区模块
+      summary: 移除社区工作人员
+      description: 从社区移除工作人员
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              - user_id
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                user_id:
+                  type: integer
+                  description: 用户ID
+      responses:
+        '200':
+          description: 移除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/set-super-admin:
+    post:
+      tags:
+      - 社区模块
+      summary: 设置或取消超级管理员
+      description: 设置或取消用户的超级管理员权限
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user_id
+              - is_super_admin
+              properties:
+                user_id:
+                  type: integer
+                  description: 用户ID
+                is_super_admin:
+                  type: boolean
+                  description: 是否为超级管理员
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/admin-list:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取管理员列表
+      description: 获取社区的管理员列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/UserInfo'
+  /api/community/applications:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取社区申请列表
+      description: 获取社区加入申请列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - pending
+          - approved
+          - rejected
+        description: 状态筛选
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        applications:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              application_id:
+                                type: integer
+                              user_id:
+                                type: integer
+                              user_nickname:
+                                type: string
+                              community_id:
+                                type: integer
+                              status:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+                        total:
+                          type: integer
+    post:
+      tags:
+      - 社区模块
+      summary: 创建社区申请
+      description: 创建加入社区的申请
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                message:
+                  type: string
+                  description: 申请消息
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        application_id:
+                          type: integer
+  /api/community/applications/{application_id}/approve:
+    put:
+      tags:
+      - 社区模块
+      summary: 批准社区申请
+      description: 批准用户加入社区的申请
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: application_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 申请ID
+      responses:
+        '200':
+          description: 批准成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/community/applications/{application_id}/reject:
+    put:
+      tags:
+      - 社区模块
+      summary: 拒绝社区申请
+      description: 拒绝用户加入社区的申请
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: application_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 申请ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: 拒绝原因
+      responses:
+        '200':
+          description: 拒绝成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/transfer-users:
+    post:
+      tags:
+      - 社区模块
+      summary: 批量转移用户到目标社区
+      description: '允许社区主管批量转移普通用户到其他社区。
+
+
+        业务规则：
+
+        - 操作者必须是源社区和目标社区的主管
+
+        - 只能转移普通用户（role=1）
+
+        - 一次最多转移10个用户
+
+        - 自动切换打卡规则和转移未完成事件
+
+        '
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - source_community_id
+              - target_community_id
+              - user_ids
+              properties:
+                source_community_id:
+                  type: integer
+                  description: 源社区ID
+                  example: 1
+                target_community_id:
+                  type: integer
+                  description: 目标社区ID
+                  example: 2
+                user_ids:
+                  type: array
+                  description: 用户ID列表（最多10个）
+                  items:
+                    type: integer
+                  maxItems: 10
+                  minItems: 1
+                  example:
+                  - 101
+                  - 102
+                  - 103
+      responses:
+        '200':
+          description: 转移成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        success_count:
+                          type: integer
+                          description: 成功转移数量
+                          example: 2
+                        skipped_count:
+                          type: integer
+                          description: 静默跳过数量
+                          example: 1
+                        failed:
+                          type: array
+                          description: 失败列表
+                          items:
+                            type: object
+                            properties:
+                              user_id:
+                                type: integer
+                                description: 失败的用户ID
+                                example: 104
+                              reason:
+                                type: string
+                                description: 失败原因
+                                example: 用户不是普通用户
+                        transferred_users:
+                          type: array
+                          description: 成功用户信息列表
+                          items:
+                            type: object
+                            properties:
+                              user_id:
+                                type: integer
+                                description: 用户ID
+                                example: 101
+                              nickname:
+                                type: string
+                                description: 用户昵称
+                                example: 张三
+                              phone_number:
+                                type: string
+                                description: 用户手机号
+                                example: 138****1234
+                        events_transferred:
+                          type: integer
+                          description: 转移的事件数
+                          example: 3
+                        rules_updated:
+                          type: integer
+                          description: 规则更新数
+                          example: 4
+        '400':
+          description: 参数错误
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 权限不足
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/communities/{community_id}/events:
+    get:
+      tags:
+      - 事件模块
+      summary: 获取社区事件列表
+      description: 获取指定社区的事件列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - active
+          - closed
+          default: all
+        description: 状态筛选
+      - name: event_type
+        in: query
+        schema:
+          type: string
+          enum:
+          - help
+          - support
+        description: 事件类型筛选
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        events:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/EventInfo'
+                        total:
+                          type: integer
+  /api/communities/{community_id}/stats:
+    get:
+      tags:
+      - 事件模块
+      summary: 获取社区事件统计
+      description: 获取指定社区的事件统计数据
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        total_events:
+                          type: integer
+                        active_events:
+                          type: integer
+                        closed_events:
+                          type: integer
+                        help_events:
+                          type: integer
+                        support_events:
+                          type: integer
+  /api/communities/{community_id}/pending-events:
+    get:
+      tags:
+      - 事件模块
+      summary: 获取社区未处理的求助事件
+      description: 获取社区中未处理的求助事件列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/EventInfo'
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+    CommunityInfo:
+      type: object
+      properties:
+        community_id:
+          type: integer
+          description: 社区ID
+        name:
+          type: string
+          description: 社区名称
+        description:
+          type: string
+          description: 社区描述
+        creator_id:
+          type: integer
+          description: 创建者ID
+        status:
+          type: integer
+          description: 社区状态
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

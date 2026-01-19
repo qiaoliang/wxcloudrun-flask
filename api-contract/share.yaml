@@ -1,0 +1,64 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Share Domain
+  description: Share domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/share/check-in:
+    get:
+      tags:
+      - 分享模块
+      summary: 分享打卡页面
+      description: 返回分享打卡页面的HTML
+      security: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            text/html:
+              schema:
+                type: string
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

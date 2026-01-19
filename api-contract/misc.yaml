@@ -1,0 +1,223 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Misc Domain
+  description: Misc domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /:
+    get:
+      tags:
+      - 杂项模块
+      summary: 返回index页面
+      description: 返回首页HTML页面
+      security: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            text/html:
+              schema:
+                type: string
+  /api/env:
+    get:
+      tags:
+      - 杂项模块
+      summary: 返回环境配置查看器页面
+      description: 返回环境配置查看器HTML页面
+      security: []
+      responses:
+        '200':
+          description: 成功
+          content:
+            text/html:
+              schema:
+                type: string
+  /api/get_envs:
+    get:
+      tags:
+      - 杂项模块
+      summary: 获取环境配置信息
+      description: 获取系统环境配置和外部系统状态
+      security: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        config_status:
+                          type: object
+                        external_status:
+                          type: object
+                        timestamp:
+                          type: string
+                          format: date-time
+  /api/count:
+    get:
+      tags:
+      - 杂项模块
+      summary: 获取计数器
+      description: 获取计数器信息
+      security: []
+      parameters:
+      - name: id
+        in: query
+        schema:
+          type: integer
+        description: 计数器ID（可选，不提供则返回所有）
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        count:
+                          type: integer
+    post:
+      tags:
+      - 杂项模块
+      summary: 计数器操作
+      description: 对计数器进行操作（增加、重置、获取、清除等）
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - action
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - increment
+                  - reset
+                  - get
+                  - list
+                  - clear
+                  description: 操作类型
+                counter_id:
+                  type: integer
+                  description: 计数器ID
+                id:
+                  type: integer
+                  description: 计数器ID（用于get操作）
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/upload/media:
+    post:
+      tags:
+      - 杂项模块
+      summary: 上传媒体文件
+      description: 上传图片、视频等媒体文件
+      security: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: 媒体文件
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        url:
+                          type: string
+                          description: 文件URL
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+    PaginationInfo:
+      type: object
+      properties:
+        page:
+          type: integer
+          description: 当前页码
+        per_page:
+          type: integer
+          description: 每页数量
+        total:
+          type: integer
+          description: 总记录数
+        has_next:
+          type: boolean
+          description: 是否有下一页
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

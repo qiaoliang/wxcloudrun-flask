@@ -1,0 +1,643 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Supervision Domain
+  description: Supervision domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/supervision/invite:
+    post:
+      tags:
+      - 监督模块
+      summary: 邀请监督者
+      description: 邀请特定用户监督特定规则
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_ids
+              - target_openid
+              properties:
+                invite_type:
+                  type: string
+                  enum:
+                  - wechat
+                  - phone
+                  default: wechat
+                  description: 邀请类型
+                rule_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 要监督的规则ID列表
+                target_openid:
+                  type: string
+                  description: 被邀请用户的openid
+      responses:
+        '200':
+          description: 邀请发送成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        message:
+                          type: string
+                        relations_count:
+                          type: integer
+  /api/supervision/invite_link:
+    post:
+      tags:
+      - 监督模块
+      summary: 创建监督邀请链接
+      description: 生成监督邀请链接（无需目标openid）
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_ids
+              properties:
+                rule_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 要监督的规则ID列表
+                expire_hours:
+                  type: integer
+                  default: 24
+                  description: 链接过期时间（小时）
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                        url:
+                          type: string
+                        mini_path:
+                          type: string
+                        expire_at:
+                          type: string
+                          format: date-time
+  /api/supervision/invite/resolve:
+    get:
+      tags:
+      - 监督模块
+      summary: 解析监督邀请链接
+      description: 解析邀请链接，返回监督邀请信息
+      security: []
+      parameters:
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 邀请token
+      responses:
+        '200':
+          description: 解析成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        supervisor_id:
+                          type: integer
+                        supervisor_nickname:
+                          type: string
+                        rule_ids:
+                          type: array
+                          items:
+                            type: integer
+                        expires_at:
+                          type: string
+                          format: date-time
+  /api/supervision/invitations:
+    get:
+      tags:
+      - 监督模块
+      summary: 获取监督邀请列表
+      description: 获取当前用户的监督邀请列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: status
+        in: query
+        schema:
+          type: string
+          enum:
+          - pending
+          - accepted
+          - rejected
+        description: 邀请状态筛选
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        invitations:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              invitation_id:
+                                type: integer
+                              supervisor_id:
+                                type: integer
+                              supervisor_nickname:
+                                type: string
+                              supervised_id:
+                                type: integer
+                              supervised_nickname:
+                                type: string
+                              rule_ids:
+                                type: array
+                                items:
+                                  type: integer
+                              status:
+                                type: string
+                              invited_at:
+                                type: string
+                                format: date-time
+                        total:
+                          type: integer
+  /api/supervision/accept:
+    post:
+      tags:
+      - 监督模块
+      summary: 接受监督邀请
+      description: 接受监督邀请，建立监督关系
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - invitation_id
+              properties:
+                invitation_id:
+                  type: integer
+                  description: 邀请ID
+      responses:
+        '200':
+          description: 接受成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/supervision/reject:
+    post:
+      tags:
+      - 监督模块
+      summary: 拒绝监督邀请
+      description: 拒绝监督邀请
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - invitation_id
+              properties:
+                invitation_id:
+                  type: integer
+                  description: 邀请ID
+                reason:
+                  type: string
+                  description: 拒绝原因
+      responses:
+        '200':
+          description: 拒绝成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/supervision/my_supervised:
+    get:
+      tags:
+      - 监督模块
+      summary: 获取我监督的用户列表
+      description: 获取当前用户监督的所有用户列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        supervised_users:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              user_id:
+                                type: integer
+                              nickname:
+                                type: string
+                              avatar_url:
+                                type: string
+                              supervision_count:
+                                type: integer
+                              last_checkin:
+                                type: string
+                                format: date-time
+                              status:
+                                type: string
+                        total:
+                          type: integer
+  /api/supervision/my_guardians:
+    get:
+      tags:
+      - 监督模块
+      summary: 获取我的监护人列表
+      description: 获取监督当前用户的所有监护人列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        guardians:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              user_id:
+                                type: integer
+                              nickname:
+                                type: string
+                              avatar_url:
+                                type: string
+                              supervision_count:
+                                type: integer
+                              last_checkin:
+                                type: string
+                                format: date-time
+                              status:
+                                type: string
+                        total:
+                          type: integer
+  /api/supervision/records:
+    get:
+      tags:
+      - 监督模块
+      summary: 获取监督记录
+      description: 获取被监督用户的打卡记录
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: supervised_user_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 被监督用户ID
+      - name: rule_id
+        in: query
+        schema:
+          type: integer
+        description: 规则ID（可选）
+      - name: start_date
+        in: query
+        schema:
+          type: string
+          format: date
+        description: 开始日期（YYYY-MM-DD）
+      - name: end_date
+        in: query
+        schema:
+          type: string
+          format: date
+        description: 结束日期（YYYY-MM-DD）
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        records:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              record_id:
+                                type: integer
+                              supervisor_id:
+                                type: integer
+                              supervisor_nickname:
+                                type: string
+                              supervised_id:
+                                type: integer
+                              supervised_nickname:
+                                type: string
+                              rule_id:
+                                type: integer
+                              rule_name:
+                                type: string
+                              checkin_time:
+                                type: string
+                                format: date-time
+                              status:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+                        total:
+                          type: integer
+  /api/supervision/today:
+    get:
+      tags:
+      - 监督模块
+      summary: 获取今日监护数据
+      description: 获取监督者今日需要关注的被监护人及其打卡状态
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: date
+        in: query
+        schema:
+          type: string
+          format: date
+          example: '2026-01-13'
+        description: 目标日期（YYYY-MM-DD，默认为今天）
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        supervised_users:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              user_id:
+                                type: integer
+                                description: 被监护人用户ID
+                              nickname:
+                                type: string
+                                description: 被监护人昵称
+                              avatar_url:
+                                type: string
+                                description: 被监护人头像URL
+                              rules:
+                                type: array
+                                description: 该被监护人的打卡规则列表
+                                items:
+                                  type: object
+                                  properties:
+                                    rule_id:
+                                      type: integer
+                                    rule_name:
+                                      type: string
+                                    checkin_time:
+                                      type: string
+                                      example: 08:00
+                                    frequency:
+                                      type: string
+                                      example: daily
+                                    today_status:
+                                      type: string
+                                      enum:
+                                      - pending
+                                      - completed
+                                      - missed
+                                      description: 今日打卡状态
+                                    checkin_record_time:
+                                      type: string
+                                      example: 08:05
+                                      description: 打卡时间（如果已完成）
+                                    relation_id:
+                                      type: integer
+                                    reminder_template:
+                                      type: string
+                                      description: 提醒模板内容
+                        date:
+                          type: string
+                          format: date
+                          example: '2026-01-13'
+  /api/supervision/send_reminder:
+    post:
+      tags:
+      - 监督模块
+      summary: 发送提醒
+      description: 向被监护人发送打卡提醒
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - supervised_user_id
+              - rule_id
+              properties:
+                supervised_user_id:
+                  type: integer
+                  description: 被监护人用户ID
+                rule_id:
+                  type: integer
+                  description: 打卡规则ID
+                template_type:
+                  type: string
+                  enum:
+                  - default
+                  - remember
+                  - wake_up
+                  - sleep
+                  - custom
+                  default: default
+                  description: 提醒模板类型
+                template_content:
+                  type: string
+                  maxLength: 50
+                  description: 自定义提醒内容（仅当template_type为custom时使用）
+      responses:
+        '200':
+          description: 发送成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        message_id:
+                          type: string
+                          example: msg_20260113120000
+                        sent_at:
+                          type: string
+                          format: date-time
+                          example: '2026-01-13T12:00:00Z'
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

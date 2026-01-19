@@ -1,0 +1,838 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - User Domain
+  description: User domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/user/profile:
+    get:
+      tags:
+      - 用户模块
+      summary: 获取用户信息
+      description: 获取当前登录用户的详细信息
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/UserInfo'
+    post:
+      tags:
+      - 用户模块
+      summary: 更新用户信息
+      description: 更新当前登录用户的信息
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nickname:
+                  type: string
+                  description: 昵称
+                name:
+                  type: string
+                  description: 真实姓名
+                avatar_url:
+                  type: string
+                  description: 头像URL
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/upload-avatar:
+    post:
+      tags:
+      - 用户模块
+      summary: 上传用户头像
+      description: 上传用户头像图片
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+              - avatar
+              properties:
+                avatar:
+                  type: string
+                  format: binary
+                  description: 头像图片文件
+      responses:
+        '200':
+          description: 上传成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        avatar_url:
+                          type: string
+                          description: 头像URL
+  /api/user/change-password:
+    post:
+      tags:
+      - 用户模块
+      summary: 修改用户密码
+      description: 修改当前用户的登录密码
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - old_password
+              - new_password
+              properties:
+                old_password:
+                  type: string
+                  description: 旧密码
+                new_password:
+                  type: string
+                  description: 新密码
+      responses:
+        '200':
+          description: 修改成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/search:
+    get:
+      tags:
+      - 用户模块
+      summary: 搜索用户
+      description: 根据关键词搜索用户
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: keyword
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 搜索关键词
+      - name: type
+        in: query
+        schema:
+          type: string
+          enum:
+          - all
+          - phone
+          - nickname
+          default: all
+        description: 搜索类型
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 搜索成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        users:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/UserInfo'
+                        total:
+                          type: integer
+                        page:
+                          type: integer
+                        per_page:
+                          type: integer
+                        has_next:
+                          type: boolean
+  /api/user/bind_phone:
+    post:
+      tags:
+      - 用户模块
+      summary: 绑定手机号
+      description: 为当前用户绑定手机号
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - phone
+              - code
+              properties:
+                phone:
+                  type: string
+                  description: 手机号
+                code:
+                  type: string
+                  description: 验证码
+      responses:
+        '200':
+          description: 绑定成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/bind_wechat:
+    post:
+      tags:
+      - 用户模块
+      summary: 绑定微信账号
+      description: 为当前用户绑定微信账号
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - code
+              properties:
+                code:
+                  type: string
+                  description: 微信登录code
+      responses:
+        '200':
+          description: 绑定成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/community/verify:
+    post:
+      tags:
+      - 用户模块
+      summary: 验证用户社区成员身份
+      description: 验证用户是否为指定社区的成员
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              - user_id
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                user_id:
+                  type: integer
+                  description: 用户ID
+      responses:
+        '200':
+          description: 验证成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        is_member:
+                          type: boolean
+                          description: 是否为成员
+                        role:
+                          type: string
+                          description: 用户角色
+  /api/user/my-active-event:
+    get:
+      tags:
+      - 用户模块
+      summary: 获取用户当前进行中的事件
+      description: 获取当前用户正在进行的事件列表
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/EventInfo'
+  /api/user/events/{event_id}/messages:
+    post:
+      tags:
+      - 用户模块
+      summary: 添加事件消息
+      description: 为指定事件添加消息
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 事件ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - message
+              properties:
+                message:
+                  type: string
+                  description: 消息内容
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/events/{event_id}/history:
+    get:
+      tags:
+      - 用户模块
+      summary: 获取事件历史记录
+      description: 获取指定事件的历史记录
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 事件ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                          message:
+                            type: string
+                          created_at:
+                            type: string
+                            format: date-time
+  /api/user/{user_id}/medical-history:
+    get:
+      tags:
+      - 用户模块
+      summary: 获取用户病史列表
+      description: 获取指定用户的病史记录，根据权限过滤可见性
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 用户ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/MedicalHistory'
+  /api/user/medical-history:
+    post:
+      tags:
+      - 用户模块
+      summary: 添加病史记录
+      description: 为指定用户添加病史记录
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user_id
+              - condition_name
+              properties:
+                user_id:
+                  type: integer
+                  description: 用户ID
+                condition_name:
+                  type: string
+                  description: 疾病名称
+                treatment_plan:
+                  type: object
+                  description: 治疗方案（JSON格式）
+                visibility:
+                  type: integer
+                  description: 可见性（1=仅工作人员，2=工作人员和监护人）
+                  default: 1
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/medical-history/{history_id}:
+    put:
+      tags:
+      - 用户模块
+      summary: 更新病史记录
+      description: 更新指定的病史记录
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: history_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 病史记录ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                condition_name:
+                  type: string
+                  description: 疾病名称
+                treatment_plan:
+                  type: object
+                  description: 治疗方案（JSON格式）
+                visibility:
+                  type: integer
+                  description: 可见性（1=仅工作人员，2=工作人员和监护人）
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    delete:
+      tags:
+      - 用户模块
+      summary: 删除病史记录
+      description: 删除指定的病史记录
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: history_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 病史记录ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - user_id
+              properties:
+                user_id:
+                  type: integer
+                  description: 用户ID（用于权限验证）
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/medical-history/common-conditions:
+    get:
+      tags:
+      - 用户模块
+      summary: 获取常见疾病列表
+      description: 获取预设的常见老年疾病列表
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: string
+                      description: 常见疾病名称列表
+                      example:
+                      - 高血压
+                      - 糖尿病
+                      - 心脏病
+  /api/user/log-profile-view:
+    post:
+      tags:
+      - 用户模块
+      summary: 记录查看成员信息
+      description: 记录工作人员查看成员信息的行为
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - viewed_user_id
+              - community_id
+              properties:
+                viewed_user_id:
+                  type: integer
+                  description: 被查看的用户ID
+                community_id:
+                  type: integer
+                  description: 社区ID
+      responses:
+        '200':
+          description: 记录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/log-view-guardian:
+    post:
+      tags:
+      - 用户模块
+      summary: 记录查看监护人信息
+      description: 记录工作人员查看监护人信息的行为
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - guardian_id
+              - ward_user_id
+              - community_id
+              properties:
+                guardian_id:
+                  type: integer
+                  description: 监护人用户ID
+                ward_user_id:
+                  type: integer
+                  description: 被监护人用户ID
+                community_id:
+                  type: integer
+                  description: 社区ID
+      responses:
+        '200':
+          description: 记录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/user/profile-view-logs:
+    get:
+      tags:
+      - 用户模块
+      summary: 获取浏览记录列表
+      description: 获取社区内的用户信息浏览记录，支持按查看者筛选
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: viewer_id
+        in: query
+        required: false
+        schema:
+          type: integer
+        description: 查看者用户ID（可选，用于筛选）
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          default: 100
+        description: 返回记录数量限制
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        logs:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/ProfileViewLog'
+                        total:
+                          type: integer
+  /api/user/managed-communities:
+    get:
+      tags:
+      - 社区模块
+      summary: 获取用户管理的社区列表
+      description: 获取当前用户有管理权限的社区列表（默认7个）
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: limit
+        in: query
+        schema:
+          type: integer
+          default: 7
+        description: 返回数量限制
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/CommunityInfo'
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+    UserInfo:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: 用户ID
+        nickname:
+          type: string
+          description: 昵称
+        avatar_url:
+          type: string
+          description: 头像URL
+        phone_number:
+          type: string
+          description: 手机号
+        wechat_openid:
+          type: string
+          description: 微信openid
+        community_id:
+          type: integer
+          description: 社区ID
+        role:
+          type: integer
+          description: 用户角色
+        status:
+          type: integer
+          description: 用户状态
+    MedicalHistory:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 病史记录ID
+        user_id:
+          type: integer
+          description: 用户ID
+        condition_name:
+          type: string
+          description: 疾病名称
+        treatment_plan:
+          type: object
+          description: 治疗方案（JSON格式）
+          properties:
+            type:
+              type: string
+              enum:
+              - medication
+              - injection
+              - other
+              description: 治疗类型
+            medications:
+              type: array
+              items:
+                type: string
+              description: 药物列表（吃药时使用）
+            medication:
+              type: string
+              description: 药物名称（打针时使用）
+            frequency:
+              type: string
+              description: 频率
+            note:
+              type: string
+              description: 备注
+        visibility:
+          type: integer
+          description: 可见性（1=仅工作人员，2=工作人员和监护人）
+          enum:
+          - 1
+          - 2
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+    ProfileViewLog:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: 记录ID
+        viewer_id:
+          type: integer
+          description: 查看者用户ID
+        viewed_user_id:
+          type: integer
+          description: 被查看用户ID
+        ward_user_id:
+          type: integer
+          description: 被监护人用户ID（查看监护人信息时）
+          nullable: true
+        community_id:
+          type: integer
+          description: 社区ID
+        view_type:
+          type: string
+          enum:
+          - profile
+          - guardian
+          description: 浏览类型（profile=成员信息，guardian=监护人信息）
+        created_at:
+          type: string
+          format: date-time
+          description: 浏览时间
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

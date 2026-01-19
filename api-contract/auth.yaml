@@ -1,0 +1,339 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Auth Domain
+  description: Auth domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/auth/login_wechat:
+    post:
+      tags:
+      - 认证模块
+      summary: 微信登录
+      description: 通过微信code进行用户登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - code
+              properties:
+                code:
+                  type: string
+                  description: 微信登录code
+                nickname:
+                  type: string
+                  description: 用户昵称（可选）
+                avatar_url:
+                  type: string
+                  description: 用户头像URL（可选）
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                          description: JWT访问令牌
+                        refresh_token:
+                          type: string
+                          description: 刷新令牌
+                        user_id:
+                          type: integer
+                          description: 用户ID
+                        wechat_openid:
+                          type: string
+                          description: 微信openid
+                        phone_number:
+                          type: string
+                          description: 手机号
+                        login_type:
+                          type: string
+                          description: 登录类型
+  /api/auth/register_phone:
+    post:
+      tags:
+      - 认证模块
+      summary: 手机号注册
+      description: 使用手机号和验证码注册新用户
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - phone
+              - code
+              properties:
+                phone:
+                  type: string
+                  description: 手机号
+                code:
+                  type: string
+                  description: 验证码
+                nickname:
+                  type: string
+                  description: 昵称（可选）
+                avatar_url:
+                  type: string
+                  description: 头像URL（可选）
+                password:
+                  type: string
+                  description: 密码（可选）
+      responses:
+        '200':
+          description: 注册成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                        refresh_token:
+                          type: string
+                        user_id:
+                          type: integer
+  /api/auth/refresh_token:
+    post:
+      tags:
+      - 认证模块
+      summary: 刷新访问令牌
+      description: 使用刷新令牌获取新的访问令牌
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - refresh_token
+              properties:
+                refresh_token:
+                  type: string
+                  description: 刷新令牌
+      responses:
+        '200':
+          description: 刷新成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                        refresh_token:
+                          type: string
+                        expires_in:
+                          type: integer
+                          description: 令牌过期时间（秒）
+  /api/auth/login_phone_code:
+    post:
+      tags:
+      - 认证模块
+      summary: 手机号验证码登录
+      description: 使用手机号和验证码登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - phone
+              - code
+              properties:
+                phone:
+                  type: string
+                  description: 手机号
+                code:
+                  type: string
+                  description: 验证码
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                        refresh_token:
+                          type: string
+                        user_id:
+                          type: integer
+  /api/auth/login_phone_password:
+    post:
+      tags:
+      - 认证模块
+      summary: 手机号密码登录
+      description: 使用手机号和密码登录
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - phone
+              - password
+              properties:
+                phone:
+                  type: string
+                  description: 手机号
+                password:
+                  type: string
+                  description: 密码
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                        refresh_token:
+                          type: string
+                        user_id:
+                          type: integer
+  /api/auth/login_phone:
+    post:
+      tags:
+      - 认证模块
+      summary: 手机号登录（验证码+密码）
+      description: 使用手机号登录，支持验证码或密码两种方式
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - phone
+              properties:
+                phone:
+                  type: string
+                  description: 手机号
+                code:
+                  type: string
+                  description: 验证码（与password二选一）
+                password:
+                  type: string
+                  description: 密码（与code二选一）
+      responses:
+        '200':
+          description: 登录成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                        refresh_token:
+                          type: string
+                        user_id:
+                          type: integer
+  /api/logout:
+    post:
+      tags:
+      - 认证模块
+      summary: 用户登出
+      description: 用户退出登录
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 登出成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

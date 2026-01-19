@@ -1,0 +1,523 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Checkin Domain
+  description: Checkin domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/checkin/today:
+    get:
+      tags:
+      - 打卡模块
+      summary: 获取用户今日打卡事项列表
+      description: 获取用户今天的打卡事项列表
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          rule_id:
+                            type: integer
+                          rule_name:
+                            type: string
+                          checkin_time:
+                            type: string
+                          is_completed:
+                            type: boolean
+  /api/checkin:
+    post:
+      tags:
+      - 打卡模块
+      summary: 执行打卡
+      description: 用户执行打卡操作
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_id
+              - checkin_time
+              properties:
+                rule_id:
+                  type: integer
+                  description: 规则ID
+                checkin_time:
+                  type: string
+                  description: 打卡时间（HH:MM格式）
+                note:
+                  type: string
+                  description: 打卡备注
+      responses:
+        '200':
+          description: 打卡成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        record_id:
+                          type: integer
+                        checkin_time:
+                          type: string
+                        status:
+                          type: string
+  /api/checkin/miss:
+    post:
+      tags:
+      - 打卡模块
+      summary: 上报漏打卡
+      description: 上报漏打卡情况
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_id
+              properties:
+                rule_id:
+                  type: integer
+                  description: 规则ID
+                reason:
+                  type: string
+                  description: 漏打卡原因
+      responses:
+        '200':
+          description: 上报成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/checkin/cancel:
+    post:
+      tags:
+      - 打卡模块
+      summary: 取消打卡
+      description: 取消已执行的打卡操作
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - record_id
+              properties:
+                record_id:
+                  type: integer
+                  description: 打卡记录ID
+                reason:
+                  type: string
+                  description: 取消原因
+      responses:
+        '200':
+          description: 取消成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/checkin/history:
+    get:
+      tags:
+      - 打卡模块
+      summary: 获取打卡历史记录
+      description: 获取用户的打卡历史记录
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: start_date
+        in: query
+        schema:
+          type: string
+          format: date
+        description: 开始日期
+      - name: end_date
+        in: query
+        schema:
+          type: string
+          format: date
+        description: 结束日期
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        history:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              record_id:
+                                type: integer
+                              rule_id:
+                                type: integer
+                              rule_name:
+                                type: string
+                              checkin_time:
+                                type: string
+                                format: date-time
+                              status:
+                                type: string
+                              created_at:
+                                type: string
+                                format: date-time
+                        total:
+                          type: integer
+                        page:
+                          type: integer
+                        per_page:
+                          type: integer
+                        has_next:
+                          type: boolean
+  /api/checkin/rules:
+    get:
+      tags:
+      - 打卡模块
+      summary: 获取打卡规则列表
+      description: 获取用户的个人打卡规则列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: rule_id
+        in: query
+        schema:
+          type: integer
+        description: 规则ID（可选，获取单个规则）
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rules:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              rule_id:
+                                type: integer
+                              title:
+                                type: string
+                              description:
+                                type: string
+                              checkin_time:
+                                type: string
+                              repeat_days:
+                                type: array
+                                items:
+                                  type: integer
+                              is_enabled:
+                                type: boolean
+    post:
+      tags:
+      - 打卡模块
+      summary: 创建打卡规则
+      description: 创建新的个人打卡规则
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - title
+              - checkin_time
+              - repeat_days
+              properties:
+                title:
+                  type: string
+                  description: 规则标题
+                description:
+                  type: string
+                  description: 规则描述
+                checkin_time:
+                  type: string
+                  description: 打卡时间
+                repeat_days:
+                  type: array
+                  items:
+                    type: integer
+                  description: 重复天数
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_id:
+                          type: integer
+                        message:
+                          type: string
+    put:
+      tags:
+      - 打卡模块
+      summary: 更新打卡规则
+      description: 更新现有的个人打卡规则
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_id
+              properties:
+                rule_id:
+                  type: integer
+                  description: 规则ID
+                title:
+                  type: string
+                  description: 规则标题
+                description:
+                  type: string
+                  description: 规则描述
+                checkin_time:
+                  type: string
+                  description: 打卡时间
+                repeat_days:
+                  type: array
+                  items:
+                    type: integer
+                  description: 重复天数
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+    delete:
+      tags:
+      - 打卡模块
+      summary: 删除打卡规则
+      description: 删除个人打卡规则
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: rule_id
+        in: query
+        required: true
+        schema:
+          type: integer
+        description: 规则ID
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/checkin/create:
+    post:
+      tags:
+      - 分享模块
+      summary: 创建可分享的打卡邀请链接
+      description: 为打卡记录创建可分享的链接
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_id
+              properties:
+                rule_id:
+                  type: integer
+                  description: 打卡规则ID
+                expire_hours:
+                  type: integer
+                  default: 168
+                  description: 链接过期时间（小时）
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                        url:
+                          type: string
+                        mini_path:
+                          type: string
+                        expire_at:
+                          type: string
+                          format: date-time
+  /api/checkin/resolve:
+    get:
+      tags:
+      - 分享模块
+      summary: 解析分享链接
+      description: 解析分享链接，返回打卡规则信息
+      security: []
+      parameters:
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 分享token
+      responses:
+        '200':
+          description: 解析成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_info:
+                          type: object
+                          properties:
+                            rule_id:
+                              type: integer
+                            title:
+                              type: string
+                            description:
+                              type: string
+                            checkin_time:
+                              type: string
+                            repeat_days:
+                              type: array
+                              items:
+                                type: integer
+                            is_enabled:
+                              type: boolean
+                        share_info:
+                          type: object
+                          properties:
+                            share_user_id:
+                              type: integer
+                            share_user_nickname:
+                              type: string
+                            share_user_avatar:
+                              type: string
+                            created_at:
+                              type: string
+                              format: date-time
+                            expires_at:
+                              type: string
+                              format: date-time
+                            access_count:
+                              type: integer
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

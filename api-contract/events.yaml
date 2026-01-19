@@ -1,0 +1,326 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Events Domain
+  description: Events domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/events:
+    post:
+      tags:
+      - 事件模块
+      summary: 创建社区事件
+      description: 创建新的社区求助或应援事件
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - community_id
+              - event_type
+              - title
+              properties:
+                community_id:
+                  type: integer
+                  description: 社区ID
+                event_type:
+                  type: string
+                  enum:
+                  - help
+                  - support
+                  description: 事件类型
+                title:
+                  type: string
+                  description: 事件标题
+                description:
+                  type: string
+                  description: 事件描述
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        event_id:
+                          type: integer
+  /api/events/{event_id}:
+    get:
+      tags:
+      - 事件模块
+      summary: 获取事件详情
+      description: 获取指定事件的详细信息
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 事件ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      $ref: '#/components/schemas/EventInfo'
+  /api/events/{event_id}/support:
+    post:
+      tags:
+      - 事件模块
+      summary: 创建事件应援
+      description: 为求助事件创建应援
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 事件ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - message
+              properties:
+                message:
+                  type: string
+                  description: 应援消息
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/events/{event_id}/respond:
+    post:
+      tags:
+      - 事件模块
+      summary: 工作人员添加回应
+      description: 社区工作人员为事件添加回应
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 事件ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - response
+              properties:
+                response:
+                  type: string
+                  description: 回应内容
+      responses:
+        '200':
+          description: 添加成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/events/{event_id}/location:
+    put:
+      tags:
+      - 事件模块
+      summary: 更新事件位置信息
+      description: 更新事件的位置信息
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 事件ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - latitude
+              - longitude
+              properties:
+                latitude:
+                  type: number
+                  format: float
+                  description: 纬度
+                longitude:
+                  type: number
+                  format: float
+                  description: 经度
+                address:
+                  type: string
+                  description: 地址描述
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StandardResponse'
+  /api/events/{event_id}/close:
+    put:
+      tags:
+      - 事件模块
+      summary: 关闭事件
+      description: 关闭进行中的事件，支持用户和社区工作人员关闭
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: event_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 事件ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - closure_reason
+              properties:
+                closure_reason:
+                  type: string
+                  minLength: 10
+                  maxLength: 500
+                  description: 关闭原因（10-500字符）
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        event_id:
+                          type: integer
+                          description: 事件ID
+                        closed_by:
+                          type: integer
+                          description: 关闭人ID
+                        closed_at:
+                          type: string
+                          format: date-time
+                          description: 关闭时间
+                        closure_type:
+                          type: integer
+                          description: 关闭类型（1-用户关闭，2-工作人员关闭）
+                        closure_type_label:
+                          type: string
+                          description: 关闭类型标签
+                        closure_reason:
+                          type: string
+                          description: 关闭原因
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+    EventInfo:
+      type: object
+      properties:
+        event_id:
+          type: integer
+          description: 事件ID
+        community_id:
+          type: integer
+          description: 社区ID
+        user_id:
+          type: integer
+          description: 用户ID
+        event_type:
+          type: string
+          description: 事件类型
+        title:
+          type: string
+          description: 事件标题
+        description:
+          type: string
+          description: 事件描述
+        status:
+          type: string
+          description: 事件状态
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []

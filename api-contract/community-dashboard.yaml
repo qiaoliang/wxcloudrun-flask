@@ -1,0 +1,247 @@
+openapi: 3.0.3
+info:
+  title: SafeGuard API - Community-dashboard Domain
+  description: Community-dashboard domain API endpoints
+  version: 1.0.0
+  contact:
+    name: SafeGuard Development Team
+    email: dev@safeguard.com
+servers:
+- url: http://localhost:9999/api
+  description: 开发环境
+- url: https://prod.safeguard.com/api
+  description: 生产环境
+paths:
+  /api/community-dashboard/{community_id}/stats:
+    get:
+      tags:
+      - 社区看板模块
+      summary: 获取社区统计数据
+      description: 获取社区的统计数据
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        user_count:
+                          type: integer
+                        staff_count:
+                          type: integer
+                        active_events:
+                          type: integer
+                        checkin_rate:
+                          type: number
+  /api/community-dashboard/{community_id}/abnormal-users:
+    get:
+      tags:
+      - 社区看板模块
+      summary: 获取异常用户列表
+      description: 获取社区中异常用户列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: page
+        in: query
+        schema:
+          type: integer
+          default: 1
+        description: 页码
+      - name: per_page
+        in: query
+        schema:
+          type: integer
+          default: 20
+        description: 每页数量
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        users:
+                          type: array
+                          items:
+                            $ref: '#/components/schemas/UserInfo'
+                        total:
+                          type: integer
+  /api/community-dashboard/{community_id}/trends:
+    get:
+      tags:
+      - 社区看板模块
+      summary: 获取历史趋势数据
+      description: 获取社区的历史趋势数据
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: days
+        in: query
+        schema:
+          type: integer
+          default: 7
+        description: 统计天数
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          date:
+                            type: string
+                            format: date
+                          checkin_rate:
+                            type: number
+                          active_events:
+                            type: integer
+  /api/community-dashboard/{community_id}/pending-events:
+    get:
+      tags:
+      - 社区看板模块
+      summary: 获取未处理事件列表
+      description: 获取社区中未处理的事件列表
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/EventInfo'
+  /api/community-dashboard/{community_id}/user-abnormality/{user_id}:
+    get:
+      tags:
+      - 社区看板模块
+      summary: 获取用户异常值详情
+      description: 获取指定用户的异常值详情
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      - name: user_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 用户ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        user_id:
+                          type: integer
+                        abnormality_score:
+                          type: number
+                        missed_checkins:
+                          type: integer
+                        last_checkin:
+                          type: string
+                          format: date-time
+components:
+  schemas:
+    StandardResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: 1-成功，0-失败
+          example: 1
+        msg:
+          type: string
+          description: 状态消息
+          example: success
+        data:
+          type: object
+          description: 响应数据
+          nullable: true
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          example: 0
+        msg:
+          type: string
+          example: error message
+        data:
+          type: object
+          nullable: true
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+security:
+- BearerAuth: []
