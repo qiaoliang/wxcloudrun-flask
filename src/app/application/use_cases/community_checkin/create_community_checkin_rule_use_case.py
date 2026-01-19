@@ -38,7 +38,11 @@ class CreateCommunityCheckinRuleUseCase(BaseUseCase):
                 message='请求参数格式错误'
             )
 
-        required_fields = ['rule_name']
+        # 支持title和rule_name两种参数名(向后兼容)
+        if 'title' in params:
+            params['rule_name'] = params['title']
+
+        required_fields = ['rule_name', 'checkin_time', 'repeat_days']
         for field in required_fields:
             if field not in params:
                 return UseCaseResult(
@@ -78,12 +82,28 @@ class CreateCommunityCheckinRuleUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
+            # 处理checkin_time参数(转换为time对象)
+            from datetime import time as time_class
+            custom_time = None
+            if params.get('checkin_time'):
+                hour, minute = map(int, params['checkin_time'].split(':'))
+                custom_time = time_class(hour=hour, minute=minute)
+
+            # 处理repeat_days参数(转换为week_days位掩码)
+            week_days = 0
+            if params.get('repeat_days'):
+                for day in params['repeat_days']:
+                    week_days |= (1 << (day - 1))
+
             # 创建CommunityCheckinRule实体
             rule = CommunityCheckinRule(
                 community_id=community_id,
                 rule_name=params['rule_name'],
-                custom_time=params.get('custom_time', None),
+                custom_time=custom_time,
                 icon_url=params.get('icon_url', '📋'),
+                frequency_type=0,  # 每天
+                time_slot_type=4,  # 自定义时间
+                week_days=week_days,
                 status=1,  # 默认启用
                 created_by=user_id
             )

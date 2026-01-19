@@ -82,10 +82,17 @@ class GetCommunityCheckinRulesUseCase(BaseUseCase):
                 # 返回按状态分组的规则
                 grouped_data = self.checkin_rule_repository.get_all_grouped_by_status(community_id)
 
+                # 序列化数据
+                serialized_data = {
+                    'enabled': [rule.to_dict() for rule in grouped_data.get('enabled', [])],
+                    'disabled': [rule.to_dict() for rule in grouped_data.get('disabled', [])],
+                    'deleted': [rule.to_dict() for rule in grouped_data.get('deleted', [])]
+                }
+
                 return UseCaseResult(
                     status=UseCaseStatus.SUCCESS,
                     message='获取规则列表成功',
-                    data=grouped_data
+                    data=serialized_data
                 )
             else:
                 # 获取规则列表（分页）
@@ -104,11 +111,37 @@ class GetCommunityCheckinRulesUseCase(BaseUseCase):
 
                 paginated_rules = rules[start_idx:end_idx]
 
+                # 序列化数据并转换字段名以匹配API文档
+                serialized_rules = []
+                for rule in paginated_rules:
+                    rule_dict = rule.to_dict()
+                    # 转换week_days为数组
+                    repeat_days = []
+                    if rule_dict.get('week_days'):
+                        for i in range(7):
+                            if rule_dict['week_days'] & (1 << i):
+                                repeat_days.append(i + 1)
+
+                    # 获取创建者信息
+                    created_by_name = rule.creator.nickname if rule.creator else '未知'
+
+                    # 转换为API期望的字段名
+                    api_rule = {
+                        'community_rule_id': rule_dict['community_rule_id'],
+                        'rule_name': rule_dict['rule_name'],
+                        'description': '',  # 模型没有description字段
+                        'checkin_time': rule_dict.get('custom_time', ''),  # custom_time -> checkin_time
+                        'repeat_days': repeat_days,
+                        'is_enabled': rule_dict['status'] == 1,
+                        'created_by_name': created_by_name
+                    }
+                    serialized_rules.append(api_rule)
+
                 return UseCaseResult(
                     status=UseCaseStatus.SUCCESS,
                     message='获取规则列表成功',
                     data={
-                        'rules': paginated_rules,
+                        'rules': serialized_rules,
                         'total': total,
                         'page': page,
                         'per_page': per_page,

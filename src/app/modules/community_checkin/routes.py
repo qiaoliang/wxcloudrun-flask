@@ -51,10 +51,10 @@ def get_community_checkin_rules(decoded):
         use_case = GetCommunityCheckinRulesUseCase()
         result = use_case.execute(community_id, page, per_page, status_filter, grouped)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response({}, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取社区打卡规则列表失败: {str(e)}', exc_info=True)
@@ -85,10 +85,10 @@ def create_community_checkin_rule(decoded):
         use_case = CreateCommunityCheckinRuleUseCase()
         result = use_case.execute(params, community_id, user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'创建社区打卡规则失败: {str(e)}', exc_info=True)
@@ -114,10 +114,10 @@ def update_community_checkin_rule(decoded, rule_id):
         use_case = UpdateCommunityCheckinRuleUseCase()
         result = use_case.execute(rule_id, params, user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'更新社区打卡规则失败: {str(e)}', exc_info=True)
@@ -138,10 +138,10 @@ def enable_community_checkin_rule(decoded, rule_id):
         use_case = EnableCommunityCheckinRuleUseCase()
         result = use_case.execute(rule_id, user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'启用社区打卡规则失败: {str(e)}', exc_info=True)
@@ -162,10 +162,10 @@ def disable_community_checkin_rule(decoded, rule_id):
         use_case = DisableCommunityCheckinRuleUseCase()
         result = use_case.execute(rule_id, user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'禁用社区打卡规则失败: {str(e)}', exc_info=True)
@@ -186,10 +186,10 @@ def delete_community_checkin_rule(decoded, rule_id):
         use_case = DeleteCommunityCheckinRuleUseCase()
         result = use_case.execute(rule_id, user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'删除社区打卡规则失败: {str(e)}', exc_info=True)
@@ -210,10 +210,10 @@ def get_community_checkin_rule(decoded, rule_id):
         use_case = GetCommunityCheckinRuleUseCase()
         result = use_case.execute(rule_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取社区打卡规则详情失败: {str(e)}', exc_info=True)
@@ -233,10 +233,10 @@ def get_community_daily_stats(decoded, community_id):
         use_case = GetCommunityDailyStatsUseCase()
         result = use_case.execute(community_id, user_id)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取社区每日统计失败: {str(e)}', exc_info=True)
@@ -259,10 +259,10 @@ def get_community_checkin_stats(decoded, community_id):
         use_case = GetCommunityCheckinStatsUseCase()
         result = use_case.execute(community_id, user_id, days)
 
-        if result['success']:
-            return make_succ_response(result['data'])
+        if result.is_success:
+            return make_succ_response(result.data)
         else:
-            return make_err_response(result['data'], result['message'])
+            return make_err_response(result.data, result.message)
 
     except Exception as e:
         current_app.logger.error(f'获取社区打卡统计信息失败: {str(e)}', exc_info=True)

@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from database.flask_models import (
     db, User, Community, CommunityCheckinRule, CheckinRecord,
-    UserDailyAbnormality, CommunityEvent, UserCommunityRule
+    UserDailyAbnormality, CommunityEvent, UserCommunityRule, CommunityStaff
 )
 from app.shared.constants.roles import Role
 from app.domain.repositories.community_dashboard_repository import CommunityDashboardRepository
@@ -538,7 +538,7 @@ class SQLAlchemyCommunityDashboardRepository(CommunityDashboardRepository):
             stats.append({
                 'rule_id': rule_id,
                 'rule_name': rule.rule_name,
-                'rule_type': rule.rule_type,
+                'rule_icon': rule.icon_url,  # 使用icon_url替代rule_type
                 'total_missed': total_missed,
                 'daily_missed': daily_missed
             })

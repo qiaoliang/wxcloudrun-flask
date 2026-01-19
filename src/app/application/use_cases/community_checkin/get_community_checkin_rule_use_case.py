@@ -53,21 +53,40 @@ class GetCommunityCheckinRuleUseCase(BaseUseCase):
                     message=f'规则 {rule_id} 不存在'
                 )
 
+            # 检查规则是否已删除(status=2)
+            if rule.status == 2:
+                return UseCaseResult(
+                    status=UseCaseStatus.NOT_FOUND,
+                    message=f'规则 {rule_id} 已删除'
+                )
+
             import logging
             logger = logging.getLogger(__name__)
             logger.info(f'成功获取社区打卡规则详情，规则ID: {rule.community_rule_id}')
+
+            # 获取创建者信息
+            created_by_name = rule.creator.nickname if rule.creator else '未知'
+
+            # 转换week_days为数组
+            repeat_days = []
+            if rule.week_days:
+                for i in range(7):
+                    if rule.week_days & (1 << i):
+                        repeat_days.append(i + 1)
 
             return UseCaseResult(
                 status=UseCaseStatus.SUCCESS,
                 message='获取规则详情成功',
                 data={
-                    'rule_id': rule.community_rule_id,
+                    'community_rule_id': rule.community_rule_id,
                     'rule_name': rule.rule_name,
-                    'custom_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
-                    'frequency_type': rule.frequency_type,
-                    'time_slot_type': rule.time_slot_type,
-                    'icon_url': rule.icon_url,
-                    'status': rule.status
+                    'description': '',  # 模型没有description字段,返回空字符串
+                    'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
+                    'repeat_days': repeat_days,
+                    'is_enabled': rule.status == 1,
+                    'created_by_name': created_by_name,
+                    'created_at': rule.created_at.strftime('%Y-%m-%d %H:%M:%S') if rule.created_at else None,
+                    'updated_at': rule.updated_at.strftime('%Y-%m-%d %H:%M:%S') if rule.updated_at else None
                 }
             )
 
