@@ -31,7 +31,11 @@ class TestCreateCommunityCheckinRuleUseCase:
         Then: 返回 SUCCESS 状态
         """
         # Arrange
-        params = {'rule_name': '测试规则'}
+        params = {
+            'rule_name': '测试规则',
+            'checkin_time': '08:00',
+            'repeat_days': [1, 2, 3, 4, 5]
+        }
         community_id = 1
         user_id = 123
 
@@ -107,7 +111,7 @@ class TestCreateCommunityCheckinRuleUseCase:
         Then: 返回 VALIDATION_ERROR 状态
         """
         # Arrange
-        params = {'rule_name': '测试规则'}
+        params = {'rule_name': '测试规则', 'checkin_time': '08:00', 'repeat_days': [1, 2, 3, 4, 5]}
         community_id = -1
         user_id = 123
 
@@ -126,7 +130,7 @@ class TestCreateCommunityCheckinRuleUseCase:
         Then: 返回 VALIDATION_ERROR 状态
         """
         # Arrange
-        params = {'rule_name': '测试规则'}
+        params = {'rule_name': '测试规则', 'checkin_time': '08:00', 'repeat_days': [1, 2, 3, 4, 5]}
         community_id = 1
         user_id = 0
 
@@ -137,7 +141,7 @@ class TestCreateCommunityCheckinRuleUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '用户ID必须为正整数' in result.message
 
-    def test_execute_success(self, use_case):
+    def test_execute_success(self, use_case, test_session, test_community, test_user):
         """
         测试执行成功
         Given: 有效的参数、社区ID和用户ID
@@ -145,42 +149,52 @@ class TestCreateCommunityCheckinRuleUseCase:
         Then: 返回 SUCCESS 状态，包含规则ID
         """
         # Arrange
-        params = {'rule_name': '测试规则'}
-        community_id = 1
-        user_id = 123
-        mock_rule = Mock()
-        mock_rule.community_rule_id = 1
+        from database.flask_models import CommunityCheckinRule
+        
+        params = {
+            'rule_name': '测试规则',
+            'checkin_time': '08:00',
+            'repeat_days': [1, 2, 3, 4, 5]
+        }
+        community_id = test_community.community_id
+        user_id = test_user.user_id
 
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.save.return_value = mock_rule
-            # Act
-            result = use_case.execute(params, community_id, user_id)
+        # Act
+        result = use_case.execute(params, community_id, user_id)
 
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '创建成功' in result.message
-            assert result.data['rule_id'] == 1
+        # Assert
+        assert result.status == UseCaseStatus.SUCCESS
+        assert '创建成功' in result.message
+        assert result.data['rule_id'] > 0
+        
+        # 验证规则确实被创建
+        rule = test_session.query(CommunityCheckinRule).filter_by(
+            community_rule_id=result.data['rule_id']
+        ).first()
+        assert rule is not None
+        assert rule.rule_name == '测试规则'
 
-    def test_execute_failure(self, use_case):
+    def test_execute_failure(self, use_case, test_session, test_community, test_user):
         """
-        测试执行失败
-        Given: 服务层抛出异常
+        测试执行失败 - 缺少必要参数
+        Given: 参数缺少必要字段
         When: 调用 execute 方法
-        Then: 返回 FAILURE 状态
+        Then: 返回 VALIDATION_ERROR 状态
         """
         # Arrange
-        params = {'rule_name': '测试规则'}
-        community_id = 1
-        user_id = 123
+        params = {
+            'rule_name': '测试规则'
+            # 缺少 checkin_time 和 repeat_days
+        }
+        community_id = test_community.community_id
+        user_id = test_user.user_id
 
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.save.side_effect = Exception('数据库错误')
-            # Act
-            result = use_case.execute(params, community_id, user_id)
+        # Act
+        result = use_case.execute(params, community_id, user_id)
 
-            # Assert
-            assert result.status == UseCaseStatus.FAILURE
-            assert '创建规则失败' in result.message
+        # Assert
+        assert result.status == UseCaseStatus.VALIDATION_ERROR
+        assert '缺少必要参数' in result.message
 
 
 class TestDeleteCommunityCheckinRuleUseCase:
