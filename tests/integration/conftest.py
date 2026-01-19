@@ -162,8 +162,10 @@ class TestBase:
         password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
         phone_secret = TEST_CONSTANTS.PHONE_ENC_SECRET
         phone_hash = sha256(f"{phone_secret}:13141516171".encode('utf-8')).hexdigest()
+        # 生成脱敏号码(与普通用户一致)
+        masked_phone = '131****1671'
         superadmin = User(
-            phone_number='13141516171',
+            phone_number=masked_phone,  # 存储脱敏号码
             phone_hash=phone_hash,
             password_hash=password_hash,
             password_salt=salt,
