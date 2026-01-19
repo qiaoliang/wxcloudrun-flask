@@ -80,8 +80,11 @@ def _verify_sms_code(phone, purpose, code):
             current_app.logger.info(f"[Mock SMS] 验证码 '{code}' 是未知验证码，在测试环境下视为有效")
             return True
 
-    vc = db.session.execute(select(VerificationCode).filter_by(
-        phone_number=phone, purpose=purpose)).scalar_one_or_none()
+    # ✅ 使用Repository代替 db.session
+    from app.infrastructure.persistence.repository_factory import RepositoryFactory
+    verification_code_repository = RepositoryFactory.get_verification_code_repository()
+    
+    vc = verification_code_repository.find_by_phone_and_purpose(phone, purpose)
     if not vc:
         return False
     if vc.expires_at < datetime.now():
@@ -92,9 +95,7 @@ def _verify_sms_code(phone, purpose, code):
     # 验证码匹配
     if vc.code_hash == _hash_code(phone, code, vc.salt):
         # 验证成功后立即标记为已使用
-        with transaction():
-            vc.is_used = True
-            db.session.add(vc)
+        verification_code_repository.mark_as_used(vc)
         return True
     return False
 
@@ -105,11 +106,12 @@ def _audit(user_id, action, detail=None):
     """
     try:
         import json
-        from database.flask_models import UserAuditLog
-        with transaction():
-            log = UserAuditLog(user_id=user_id, action=action, detail=json.dumps(
-                detail) if isinstance(detail, dict) else detail)
-            db.session.add(log)
+        # ✅ 使用Repository代替 db.session.add(log)
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
+        audit_log_repository = RepositoryFactory.get_audit_log_repository()
+        
+        detail_str = json.dumps(detail) if isinstance(detail, dict) else detail
+        audit_log_repository.create(user_id=user_id, action=action, detail=detail_str)
     except Exception:
         pass
 
