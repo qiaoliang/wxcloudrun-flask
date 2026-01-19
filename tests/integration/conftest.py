@@ -175,6 +175,27 @@ class TestBase:
         cls.db.session.add(superadmin)
         cls.db.session.flush()
 
+        # 创建'黑屋'社区
+        blackhouse_community = Community(
+            name='黑屋',
+            description='特殊管理社区，用户在此社区时功能受限',
+            creator_id=superadmin.user_id,
+            status=1,
+            is_blackhouse=True
+        )
+        cls.db.session.add(blackhouse_community)
+        cls.db.session.flush()  # 获取社区ID
+
+        # 设置超级管理员为黑屋社区主管
+        from database.flask_models import CommunityStaff
+        blackhouse_staff = CommunityStaff(
+            community_id=blackhouse_community.community_id,
+            user_id=superadmin.user_id,
+            role='manager'
+        )
+        cls.db.session.add(blackhouse_staff)
+        cls.db.session.flush()
+
         # 创建测试用户
         test_user = User(
             wechat_openid=open_id,
@@ -192,6 +213,7 @@ class TestBase:
         cls.test_user = test_user
         cls.test_community = default_community
         cls.superadmin = superadmin
+        cls.blackhouse_community = blackhouse_community
 
     def get_test_client(self):
         """获取测试客户端"""
