@@ -13,12 +13,16 @@ src_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__
 sys.path.insert(0, src_path)
 
 from tests.integration.conftest import IntegrationTestBase
-from database.flask_models import User
 from app.shared.constants.roles import Role
 
 
 class TestCommunityDashboardRoutes(IntegrationTestBase):
     """社区数字看板 API 集成测试"""
+
+    def _get_user_by_admin_info(self, admin_info):
+        """根据admin信息获取用户对象"""
+        from database.flask_models import User
+        return self.db.session.query(User).filter_by(user_id=admin_info['user_id']).first()
 
     def test_get_community_stats_success(self):
         """测试成功获取社区统计数据"""
@@ -27,8 +31,10 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
             admin = self.get_super_admin('get_stats')
             test_client = self.get_test_client()
 
-            # 创建社区
-            comm = self.create_test_community(creator=self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first())
+            # 创建社区（使用user_id而不是phone_number查询）
+            from database.flask_models import User
+            admin_user = self.db.session.query(User).filter_by(user_id=admin['user_id']).first()
+            comm = self.create_test_community(creator=admin_user)
             self.db.session.commit()
 
             # 创建用户
@@ -89,7 +95,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('abnormal_users')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建社区
@@ -121,7 +127,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('pagination')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建社区
@@ -147,7 +153,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('trend_data')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建社区
@@ -175,7 +181,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('invalid_days')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建社区
@@ -200,7 +206,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('pending_events')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建社区
@@ -226,7 +232,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('events_limit')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建社区
@@ -252,7 +258,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('user_detail')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建社区
@@ -284,7 +290,7 @@ class TestCommunityDashboardRoutes(IntegrationTestBase):
         with self.app.app_context():
             # 创建超级管理员
             admin = self.get_super_admin('isolation')
-            admin_user = self.db.session.query(User).filter_by(phone_number=admin['phone_number']).first()
+            admin_user = self._get_user_by_admin_info(admin)
             test_client = self.get_test_client()
 
             # 创建两个社区

@@ -451,47 +451,51 @@ class IntegrationTestBase(TestBase):
 
         超级管理员特征：
         - role=4 (超级系统管理员)
-        - 手机号: 13141516171 (固定)
-        - 昵称: 系统超级管理员
+        - 手机号: 13141516171 (固定，但存储时使用脱敏号码)
+        - 昵称: 超级管理员
 
         Returns:
             dict: 超级管理员信息字典，包含user_id, phone_number等关键字段
+                  注意: phone_number字段返回的是原始号码(用于登录)，不是存储的脱敏号码
         """
         from database.flask_models import User
         from hashlib import sha256
         import secrets
 
         with cls.app.app_context():
-            # 检查超级管理员是否已存在
+            # 使用phone_hash查询超级管理员（因为phone_number存储的是脱敏号码）
+            phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
+            phone_hash = sha256(f"{phone_secret}:{TEST_CONSTANTS.SUPER_ADMIN_PHONE}".encode('utf-8')).hexdigest()
+
             existing_admin = cls.db.session.query(User).filter_by(
-                phone_number=TEST_CONSTANTS.SUPER_ADMIN_PHONE
+                phone_hash=phone_hash,
+                role=TEST_CONSTANTS.SUPER_ADMIN_ROLE
             ).first()
 
             if existing_admin:
                 cls.db.session.refresh(existing_admin)  # 确保获取最新数据
                 return {
                     'user_id': existing_admin.user_id,
-                    'phone_number': existing_admin.phone_number,
+                    'phone_number': TEST_CONSTANTS.SUPER_ADMIN_PHONE,  # 返回原始号码用于登录
                     'nickname': existing_admin.nickname,
                     'name': existing_admin.name,
                     'role': existing_admin.role,
                     'wechat_openid': existing_admin.wechat_openid
                 }
 
-            # 创建新的超级管理员
+            # 创建新的超级管理员（如果_create_initial_data没有创建）
             salt = TEST_CONSTANTS.generate_password_salt()
             password_hash = sha256(f"{TEST_CONSTANTS.DEFAULT_PASSWORD}:{salt}".encode('utf-8')).hexdigest()
 
-            # 使用与auth.py完全相同的手机号哈希方法
-            phone_secret = os.getenv('PHONE_ENC_SECRET', 'default_secret')
-            phone_hash = sha256(f"{phone_secret}:{TEST_CONSTANTS.SUPER_ADMIN_PHONE}".encode('utf-8')).hexdigest()
+            # 生成脱敏号码
+            masked_phone = '131****1671'
 
             super_admin = User(
                 wechat_openid=f"super_admin_{secrets.token_hex(16)}",
-                phone_number=TEST_CONSTANTS.SUPER_ADMIN_PHONE,
+                phone_number=masked_phone,  # 存储脱敏号码
                 phone_hash=phone_hash,
-                nickname=TEST_CONSTANTS.SUPER_ADMIN_NICKNAME,
-                name=TEST_CONSTANTS.SUPER_ADMIN_NAME,
+                nickname='超级管理员',
+                name='超级管理员',
                 password_hash=password_hash,
                 password_salt=salt,
                 role=TEST_CONSTANTS.SUPER_ADMIN_ROLE,  # 超级管理员角色
@@ -505,7 +509,7 @@ class IntegrationTestBase(TestBase):
 
             return {
                 'user_id': super_admin.user_id,
-                'phone_number': super_admin.phone_number,
+                'phone_number': TEST_CONSTANTS.SUPER_ADMIN_PHONE,  # 返回原始号码用于登录
                 'nickname': super_admin.nickname,
                 'name': super_admin.name,
                 'role': super_admin.role,
