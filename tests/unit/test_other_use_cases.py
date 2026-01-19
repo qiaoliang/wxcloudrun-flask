@@ -184,8 +184,7 @@ class TestGetUserAllRulesUseCase:
 class TestGetUserTodayPlanUseCase:
     """测试GetUserTodayPlanUseCase"""
 
-    @patch('app.application.use_cases.user_checkin.get_user_today_plan_use_case.db')
-    def test_should_successfully_get_user_today_plan(self, mock_db, monkeypatch):
+    def test_should_successfully_get_user_today_plan(self, test_session, test_user, test_community):
         """应该成功获取用户今日计划"""
         # Arrange
         mock_user_repo = Mock()
@@ -286,8 +285,6 @@ class TestGetUserRuleDetailUseCase:
 class TestGetUserCheckinStatisticsUseCase:
     """测试GetUserCheckinStatisticsUseCase"""
 
-    @patch('app.application.use_cases.user_checkin.get_user_checkin_statistics_use_case.db')
-    @patch('app.application.use_cases.user_checkin.get_user_checkin_statistics_use_case.RepositoryFactory')
     def test_should_successfully_get_user_checkin_statistics(self, mock_db, mock_repo_factory):
         """应该成功获取用户打卡统计"""
         # Arrange
