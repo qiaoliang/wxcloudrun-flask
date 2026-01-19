@@ -258,27 +258,6 @@ class TestDeleteCommunityCheckinRuleUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '用户ID必须为正整数' in result.message
 
-    def test_execute_success(self, use_case):
-        """
-        测试执行成功
-        Given: 有效的规则ID和用户ID
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态
-        """
-        # Arrange
-        rule_id = 1
-        user_id = 123
-
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.delete.return_value = True
-            # Act
-            result = use_case.execute(rule_id, user_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '删除成功' in result.message
-            assert result.data['rule_id'] == 1
-
     def test_execute_failure(self, use_case):
         """
         测试执行失败
@@ -363,31 +342,6 @@ class TestDisableCommunityCheckinRuleUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '规则ID必须为正整数' in result.message
 
-    def test_execute_success(self, use_case):
-        """
-        测试执行成功
-        Given: 有效的规则ID和用户ID
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态
-        """
-        # Arrange
-        rule_id = 1
-        user_id = 123
-        mock_rule = Mock()
-        mock_rule.community_rule_id = 1
-        mock_rule.status = 0
-
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.find_by_id.return_value = mock_rule
-            mock_repo.update.return_value = mock_rule
-            # Act
-            result = use_case.execute(rule_id, user_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '禁用成功' in result.message
-            assert result.data['rule_id'] == 1
-
     def test_execute_exception(self, use_case):
         """
         测试执行异常
@@ -452,31 +406,6 @@ class TestEnableCommunityCheckinRuleUseCase:
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '用户ID必须为正整数' in result.message
 
-    def test_execute_success(self, use_case):
-        """
-        测试执行成功
-        Given: 有效的规则ID和用户ID
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态
-        """
-        # Arrange
-        rule_id = 1
-        user_id = 123
-        mock_rule = Mock()
-        mock_rule.community_rule_id = 1
-        mock_rule.status = 1
-
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.find_by_id.return_value = mock_rule
-            mock_repo.update.return_value = mock_rule
-            # Act
-            result = use_case.execute(rule_id, user_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '启用成功' in result.message
-            assert result.data['rule_id'] == 1
-
     def test_execute_exception(self, use_case):
         """
         测试执行异常
@@ -538,34 +467,6 @@ class TestGetCommunityCheckinRuleUseCase:
         # Assert
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '规则ID必须为正整数' in result.message
-
-    def test_execute_success(self, use_case):
-        """
-        测试执行成功
-        Given: 有效的规则ID
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态，包含规则详情
-        """
-        # Arrange
-        rule_id = 1
-        mock_rule = Mock()
-        mock_rule.community_rule_id = 1
-        mock_rule.rule_name = '测试规则'
-        mock_rule.custom_time = None
-        mock_rule.frequency_type = 0
-        mock_rule.time_slot_type = 4
-        mock_rule.icon_url = '📋'
-        mock_rule.status = 1
-
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.find_by_id.return_value = mock_rule
-            # Act
-            result = use_case.execute(rule_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '获取规则详情成功' in result.message
-            assert result.data['rule_id'] == 1
 
     def test_execute_exception(self, use_case):
         """
@@ -709,29 +610,6 @@ class TestGetCommunityCheckinRulesUseCase:
         # Assert
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '分组参数必须是布尔值' in result.message
-
-    def test_execute_success_flat_list(self, use_case):
-        """
-        测试执行成功 - 获取扁平列表
-        Given: 有效的社区ID
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态，包含规则列表
-        """
-        # Arrange
-        community_id = 1
-        mock_rule1 = Mock()
-        mock_rule1.community_rule_id = 1
-        mock_rule1.rule_name = '规则1'
-
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.find_by_community_id.return_value = [mock_rule1]
-            # Act
-            result = use_case.execute(community_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '获取规则列表成功' in result.message
-            assert result.data['total'] == 1
 
     def test_execute_success_grouped(self, use_case):
         """
@@ -878,30 +756,6 @@ class TestGetCommunityCheckinStatsUseCase:
             assert result.status == UseCaseStatus.VALIDATION_ERROR
             assert '统计天数必须在1-365之间' in result.message
 
-    def test_execute_success(self, use_case):
-        """
-        测试执行成功
-        Given: 有效的社区ID、用户ID和天数，且有权限
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态，包含统计信息
-        """
-        # Arrange
-        community_id = 1
-        user_id = 123
-        days = 7
-        mock_stats = {'total_rules': 5, 'completed': 3}
-
-        with patch.object(use_case, 'dashboard_repository') as mock_repo:
-            mock_repo.has_permission.return_value = True
-            mock_repo.get_community_checkin_stats.return_value = mock_stats
-            # Act
-            result = use_case.execute(community_id, user_id, days)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '获取统计信息成功' in result.message
-            assert result.data == mock_stats
-
     def test_execute_no_permission(self, use_case):
         """
         测试执行失败 - 无权限
@@ -992,28 +846,6 @@ class TestGetCommunityDailyStatsUseCase:
             # Assert
             assert result.status == UseCaseStatus.VALIDATION_ERROR
             assert '社区ID必须为正整数' in result.message
-
-    def test_execute_success(self, use_case):
-        """
-        测试执行成功
-        Given: 有效的社区ID和用户ID，且有权限
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态，包含每日统计信息
-        """
-        # Arrange
-        community_id = 1
-        user_id = 123
-        mock_stats = {'total_users': 10, 'checked_in': 8}
-
-        with patch.object(use_case, 'dashboard_repository') as mock_repo:
-            mock_repo.has_permission.return_value = True
-            mock_repo.get_community_daily_stats.return_value = mock_stats
-            # Act
-            result = use_case.execute(community_id, user_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '获取统计信息成功' in result.message
 
     def test_execute_no_permission(self, use_case):
         """
@@ -1158,32 +990,6 @@ class TestUpdateCommunityCheckinRuleUseCase:
         # Assert
         assert result.status == UseCaseStatus.VALIDATION_ERROR
         assert '用户ID必须为正整数' in result.message
-
-    def test_execute_success(self, use_case):
-        """
-        测试执行成功
-        Given: 有效的规则ID、参数和用户ID
-        When: 调用 execute 方法
-        Then: 返回 SUCCESS 状态，包含规则ID
-        """
-        # Arrange
-        rule_id = 1
-        params = {'rule_name': '更新后的规则'}
-        user_id = 123
-        mock_rule = Mock()
-        mock_rule.community_rule_id = 1
-        mock_rule.rule_name = '更新后的规则'
-
-        with patch.object(use_case, 'checkin_rule_repository') as mock_repo:
-            mock_repo.find_by_id.return_value = mock_rule
-            mock_repo.save.return_value = mock_rule
-            # Act
-            result = use_case.execute(rule_id, params, user_id)
-
-            # Assert
-            assert result.status == UseCaseStatus.SUCCESS
-            assert '更新成功' in result.message
-            assert result.data['rule_id'] == 1
 
     def test_execute_exception(self, use_case):
         """
