@@ -11,6 +11,7 @@
 - EnhancedEventBus: 支持 Outbox 降级的事务性事件总线
 """
 from typing import Dict, List, Callable, Any
+from datetime import datetime
 from app.domain.events.domain_event import DomainEvent
 from app.domain.entities.outbox_event_entity import OutboxEventEntity
 from app.domain.repositories.outbox_repository import OutboxRepository
@@ -144,10 +145,24 @@ class EnhancedEventBus:
         Args:
             event: 领域事件
         """
+        # 将 datetime 对象转换为字符串
+        def serialize_datetime(obj):
+            if isinstance(obj, datetime):
+                return obj.isoformat()
+            raise TypeError(f"Object of type {type(obj)} is not JSON serializable")
+
+        # 手动序列化 data 字典中的 datetime 对象
+        serialized_data = {}
+        for key, value in event.data.items():
+            if isinstance(value, datetime):
+                serialized_data[key] = value.isoformat()
+            else:
+                serialized_data[key] = value
+
         payload = {
             'event_id': event.event_id,
             'aggregate_id': event.aggregate_id,
-            'data': event.data,
+            'data': serialized_data,
             'occurred_on': event.occurred_on.isoformat()
         }
 
