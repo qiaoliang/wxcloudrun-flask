@@ -257,9 +257,10 @@ class AddCommunityStaffUseCase(BaseUseCase):
                         self._recalculate_user_role(uid)
                         success_count += 1
 
-                        # 更新用户的 role 字段
-                        target_user.role = Role.MANAGER
-                        self.user_repository.save(target_user)
+                        # 更新用户的 role 字段（但不修改超级管理员的role）
+                        if target_user.role != Role.SUPER_ADMIN:
+                            target_user.role = Role.MANAGER
+                            self.user_repository.save(target_user)
 
                         continue
                     elif existing_in_current_community.role == STAFF_ROLE_MANAGER and role == STAFF_ROLE_STAFF:
@@ -292,13 +293,13 @@ class AddCommunityStaffUseCase(BaseUseCase):
                 # ✅ 使用Repository代替 db.session.add(staff)
                 self.staff_repository.save(staff)
 
-                # 更新用户的 role 字段
-                if role == STAFF_ROLE_MANAGER:
-                    target_user.role = Role.MANAGER
-                elif role == STAFF_ROLE_STAFF:
-                    target_user.role = Role.STAFF
-
-                self.user_repository.save(target_user)
+                # 更新用户的 role 字段（但不修改超级管理员的role）
+                if target_user.role != Role.SUPER_ADMIN:
+                    if role == STAFF_ROLE_MANAGER:
+                        target_user.role = Role.MANAGER
+                    elif role == STAFF_ROLE_STAFF:
+                        target_user.role = Role.STAFF
+                    self.user_repository.save(target_user)
 
                 # ✅ 使用Repository保存审计日志
                 self.audit_log_repository.create(
@@ -373,13 +374,15 @@ class AddCommunityStaffUseCase(BaseUseCase):
 
         if has_manager:
             # 有主管角色，设为主管（role=3）
-            if user:
+            # 但是,如果是超级管理员,不应该修改其role
+            if user and user.role != Role.SUPER_ADMIN:
                 user.role = Role.MANAGER
                 self.user_repository.save(user)
             return Role.MANAGER
         else:
             # 只有专员角色，设为专员（role=2）
-            if user:
+            # 但是,如果是超级管理员,不应该修改其role
+            if user and user.role != Role.SUPER_ADMIN:
                 user.role = Role.STAFF
                 self.user_repository.save(user)
             return Role.STAFF

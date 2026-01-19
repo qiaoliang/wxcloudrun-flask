@@ -90,16 +90,20 @@ def create_community():
         # 如果指定了主管，将主管添加到 CommunityStaff 表
         target_manager_id = manager_id if manager_id else user_id
         
+        current_app.logger.info(f'[DEBUG] 准备添加主管: community_id={community_id}, user_id={user_id}, manager_id={manager_id}, target_manager_id={target_manager_id}')
+        
         # 将主管添加到 CommunityStaff 表
         if target_manager_id:
             try:
                 add_staff_use_case = AddCommunityStaffUseCase()
+                current_app.logger.info(f'[DEBUG] 即将调用 AddCommunityStaffUseCase.execute()')
                 add_staff_result = add_staff_use_case.execute(
                     operator_user_id=user_id,
                     community_id=community_id,
                     user_ids=[target_manager_id],
                     role='manager'
                 )
+                current_app.logger.info(f'[DEBUG] AddCommunityStaffUseCase.execute() 返回: is_success={add_staff_result.is_success}, message={add_staff_result.message}')
                 if add_staff_result.is_success:
                     current_app.logger.info(f'已将主管添加到 CommunityStaff 表: community_id={community_id}, manager_id={target_manager_id}')
                 else:
