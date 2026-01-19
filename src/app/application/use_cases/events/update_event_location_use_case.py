@@ -57,10 +57,14 @@ class UpdateEventLocationUseCase(BaseUseCase):
                     message='用户ID不能为空'
                 )
 
-            if not location or not location.strip():
+            # 至少需要位置描述或坐标信息
+            has_location = location and location.strip()
+            has_coordinates = location_lat is not None and location_lon is not None
+
+            if not has_location and not has_coordinates:
                 return UseCaseResult(
                     status=UseCaseStatus.VALIDATION_ERROR,
-                    message='位置描述不能为空'
+                    message='请至少提供位置描述或坐标信息'
                 )
 
             # 2. 查询事件

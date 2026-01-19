@@ -207,8 +207,8 @@ def add_staff_response(decoded, event_id):
         use_case = AddEventMessageUseCase()
         result = use_case.execute(
             event_id=event_id,
-            sender_id=staff_id,
-            content=content,
+            user_id=staff_id,
+            message=content,
             media_url=media_url,
             message_tags=message_tags
         )
@@ -224,7 +224,7 @@ def add_staff_response(decoded, event_id):
 
 
 @events_bp.route('/events/<int:event_id>/location', methods=['PUT'])
-@require_community_membership()
+@require_token()
 def update_event_location(decoded, event_id):
     """更新事件位置信息"""
     try:
@@ -246,6 +246,7 @@ def update_event_location(decoded, event_id):
         use_case = UpdateEventLocationUseCase()
         result = use_case.execute(
             event_id=event_id,
+            user_id=decoded['user_id'],
             location=location,
             location_lat=location_lat,
             location_lon=location_lon
