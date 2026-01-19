@@ -115,9 +115,10 @@ class TestUserRegistrationCommunityId(IntegrationTestBase):
             # 在app_context中导入避免循环导入
             from database.flask_models import User
 
-            # 从数据库查询刚创建的用户
+            # 从数据库查询刚创建的用户（使用user_id查询）
+            # 注意:数据库中存储的是脱敏后的手机号(如"139****8002"),不是原始手机号
             created_user = self.db.session.query(User).filter(
-                User.phone_hash.like(f"%{test_phone.replace('+', '')}%")
+                User.user_id == response_data['user_id']
             ).first()
 
             assert created_user is not None, "❌ 数据库中未找到创建的用户"

@@ -7,6 +7,8 @@ import pytest
 import os
 import sys
 import json
+import secrets
+import time
 from hashlib import sha256
 from unittest.mock import patch
 
@@ -97,6 +99,7 @@ class TestBase:
         os.environ['ENV_TYPE'] = 'unit'
         os.environ['SECRET_KEY'] = 'test_secret_key_for_session'
         os.environ['TOKEN_SECRET'] = 'test_token_secret_for_testing'
+        os.environ['PHONE_ENC_SECRET'] = 'test_secret_key_for_testing'
 
         # 导入并创建Flask应用
         from app import create_app
@@ -143,6 +146,35 @@ class TestBase:
         open_id = generate_unique_openid(phone_number, '_create_initial_data')
         nickname = generate_unique_nickname('_create_initial_data')
 
+        # 创建默认社区'安卡大家庭'
+        default_community = Community(
+            name='安卡大家庭',
+            description='系统默认社区，新注册用户自动加入',
+            creator_id=None,
+            status=1,
+            is_default=True
+        )
+        cls.db.session.add(default_community)
+        cls.db.session.flush()  # 获取社区ID
+
+        # 创建超级管理员
+        salt = secrets.token_hex(8)
+        password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
+        phone_secret = TEST_CONSTANTS.PHONE_ENC_SECRET
+        phone_hash = sha256(f"{phone_secret}:13141516171".encode('utf-8')).hexdigest()
+        superadmin = User(
+            phone_number='13141516171',
+            phone_hash=phone_hash,
+            password_hash=password_hash,
+            password_salt=salt,
+            nickname='超级管理员',
+            role=4,  # SUPER_ADMIN
+            status=1,
+            community_id=default_community.community_id
+        )
+        cls.db.session.add(superadmin)
+        cls.db.session.flush()
+
         # 创建测试用户
         test_user = User(
             wechat_openid=open_id,
@@ -150,24 +182,16 @@ class TestBase:
             phone_hash='test_phone_hash',
             nickname=nickname,
             avatar_url='https://example.com/avatar.jpg',
-            role=1  # 普通用户角色
+            role=1,  # 普通用户角色
         )
         cls.db.session.add(test_user)
-
-        # 创建测试社区（使用时间戳确保唯一性）
-        community_name = f'测试社区_{int(time.time() * 1000)}'
-        test_community = Community(
-            name=community_name,
-            description='用于测试的社区',
-            creator_id=test_user.user_id
-        )
-        cls.db.session.add(test_community)
 
         cls.db.session.commit()
 
         # 保存测试数据供子类使用
         cls.test_user = test_user
-        cls.test_community = test_community
+        cls.test_community = default_community
+        cls.superadmin = superadmin
 
     def get_test_client(self):
         """获取测试客户端"""
