@@ -9,7 +9,7 @@ from typing import List, Optional, Dict, Any
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import SupervisionRuleRelation
+from database.flask_models import db, SupervisionRuleRelation
 from app.domain.repositories.supervision_relation_repository import SupervisionRelationRepository
 
 
@@ -105,7 +105,7 @@ class InvitationManagementUseCase(BaseUseCase):
                     'rule_info': {
                         'rule_id': rule.rule_id,
                         'rule_name': rule.rule_name,
-                        'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time else None,
+                        'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time and hasattr(rule.custom_time, 'strftime') else rule.custom_time,
                         'frequency': 'daily'  # 简化处理
                     },
                     'inviter_info': {

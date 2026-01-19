@@ -66,8 +66,7 @@ class ResolveSupervisionInviteLinkUseCase(BaseUseCase):
                 rule_info = {
                     'rule_id': rule.rule_id,
                     'rule_name': rule.rule_name,
-                    'rule_type': rule.rule_type,
-                    'checkin_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time else '灵活时间',
+                    'checkin_time': rule.custom_time.strftime('%H:%M:%S') if rule.custom_time and hasattr(rule.custom_time, 'strftime') else rule.custom_time or '灵活时间',
                     'frequency': 'daily' if rule.frequency_type == 0 else 'weekly'
                 }
 
