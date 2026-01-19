@@ -14,16 +14,16 @@ def _get_logger():
         return current_app.logger
     return app_logger
 from datetime import datetime, date, time
-from sqlalchemy import select, func
-from sqlalchemy.orm import noload
-# TODO: 需要创建 CheckinRuleRepository, CommunityCheckinRuleRepository, UserCommunityRuleRepository, CheckinRecordRepository 来移除直接数据库访问
-from database.flask_models import db, CheckinRule, CommunityCheckinRule, UserCommunityRule, CheckinRecord
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetUserTodayPlanUseCase(BaseUseCase):
     """获取用户今日打卡计划用例"""
+
+    def __init__(self):
+        super().__init__()
+        self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
 
     def _validate(self, user_id: int) -> UseCaseResult:
         """
@@ -175,18 +175,23 @@ class GetUserTodayPlanUseCase(BaseUseCase):
 
     def _query_today_records(self, rule_id: int, today: date, rule_source: str = 'personal'):
         """查询今天该规则的打卡记录"""
-        stmt = select(CheckinRecord).options(
-            noload(CheckinRecord.user),
-            noload(CheckinRecord.solo_user),
-            noload(CheckinRecord.rule)
-        ).where(func.date(CheckinRecord.planned_time) == today)
+        # 使用Repository查询打卡记录
+        # 注意:这里需要查询所有用户今天的记录,然后过滤
+        # 由于Repository接口限制,我们需要先获取所有记录再过滤
+        all_records = self.checkin_record_repository.find_by_rule_id(rule_id)
 
-        if rule_source == 'community':
-            stmt = stmt.where(CheckinRecord.community_rule_id == rule_id)
-        else:
-            stmt = stmt.where(CheckinRecord.rule_id == rule_id)
+        # 过滤今天的记录
+        today_records = []
+        for record in all_records:
+            record_date = record.planned_checkin_time.date() if record.planned_checkin_time else None
+            if record_date == today:
+                # 根据规则来源过滤
+                if rule_source == 'community' and record.community_rule_id == rule_id:
+                    today_records.append(record)
+                elif rule_source == 'personal' and record.rule_id == rule_id and not record.community_rule_id:
+                    today_records.append(record)
 
-        return list(db.session.execute(stmt).scalars().all())
+        return today_records
 
     def _calculate_planned_time(self, rule, today: date) -> datetime:
         """计算计划打卡时间"""

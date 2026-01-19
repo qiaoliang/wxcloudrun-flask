@@ -4,18 +4,15 @@
 
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from sqlalchemy import select
 from app.domain.repositories.user_repository import UserRepository
-from database.flask_models import db, User
 
 
 class VerifyUserCommunityAccessUseCase(BaseUseCase):
+    """验证用户社区访问权限用例"""
+
     def __init__(self):
         super().__init__()
         self.user_repository = RepositoryFactory.get_user_repository()
-
-
-    """验证用户社区访问权限用例"""
 
     def execute(self, user_id: int, community_id: int) -> UseCaseResult:
         """
@@ -35,11 +32,8 @@ class VerifyUserCommunityAccessUseCase(BaseUseCase):
                     message="参数不能为空"
                 )
 
-            # 查询用户
-            stmt = db.session.execute(
-                db.select(User).where(User.user_id == user_id)
-            )
-            user = stmt.scalar_one_or_none()
+            # 使用Repository查询用户
+            user = self.user_repository.find_by_id(user_id)
 
             if not user:
                 return UseCaseResult(

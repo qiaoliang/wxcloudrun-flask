@@ -2,12 +2,10 @@
 检查社区权限用例
 """
 import logging
-from sqlalchemy import select
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.community_repository import CommunityRepository
 from app.domain.repositories.user_repository import UserRepository
-from database.flask_models import db, User
 
 
 class CheckCommunityPermissionUseCase(BaseUseCase):
@@ -38,9 +36,8 @@ class CheckCommunityPermissionUseCase(BaseUseCase):
                     message='参数不能为空'
                 )
 
-            # 2. 查询用户
-            stmt = select(User).where(User.user_id == user_id)
-            user = db.session.execute(stmt).scalar_one_or_none()
+            # 2. 使用Repository查询用户
+            user = self.user_repository.find_by_id(user_id)
 
             if not user:
                 return UseCaseResult(

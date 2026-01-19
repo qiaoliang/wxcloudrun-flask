@@ -13,7 +13,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.constants.roles import Role, COMMUNITY_STAFF_ROLES, ADMIN_ROLES, STAFF_ROLE_MANAGER, STAFF_ROLE_STAFF
 from app.shared.utils.transaction import transactional, transaction
-from database.flask_models import db, CommunityEvent, UserAuditLog, CommunityStaff
+from database.flask_models import CommunityStaff
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class TransferUsersBatchUseCase(BaseUseCase):
         self.event_repository = RepositoryFactory.get_community_event_repository()
         self.community_checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
         self.user_community_rule_repository = RepositoryFactory.get_user_community_rule_repository()
+        self.audit_log_repository = RepositoryFactory.get_audit_log_repository()
 
     @transactional
 
@@ -163,14 +164,12 @@ class TransferUsersBatchUseCase(BaseUseCase):
                     logger.info(f'转移了{events_transferred}个未完成事件')
 
                 # 2.6 记录审计日志
-                # TODO: 需要创建AuditLogRepository后再重构
                 transferred_user_ids_str = ",".join(map(str, transfer_result['transferred_user_ids']))
-                audit_log = UserAuditLog(
+                self.audit_log_repository.create(
                     user_id=operator_user_id,
                     action="batch_transfer_users",
                     detail=f"批量转移{transfer_result['success_count']}个用户：从社区{source_community_id}到{target_community_id}，用户ID[{transferred_user_ids_str}]，跳过{transfer_result['skipped_count']}个，失败{len(transfer_result['failed'])}个"
                 )
-                db.session.add(audit_log)
 
                 # 3. 返回结果
                 return UseCaseResult(

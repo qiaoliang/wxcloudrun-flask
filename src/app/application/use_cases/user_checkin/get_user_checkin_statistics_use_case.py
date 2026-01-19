@@ -14,15 +14,16 @@ def _get_logger():
         return current_app.logger
     return app_logger
 from datetime import datetime, date, timedelta
-from sqlalchemy import select, func
-# TODO: 需要创建 CheckinRuleRepository 和 CheckinRecordRepository 来移除直接数据库访问
-from database.flask_models import db, CheckinRule, CheckinRecord
 from app.application.use_cases.base import BaseUseCase, UseCaseResult, UseCaseStatus
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
 class GetUserCheckinStatisticsUseCase(BaseUseCase):
     """获取用户打卡统计信息用例"""
+
+    def __init__(self):
+        super().__init__()
+        self.checkin_record_repository = RepositoryFactory.get_checkin_record_repository()
 
     def _validate(self, user_id: int, period: str = 'week',
                   start_date: str = None, end_date: str = None) -> UseCaseResult:
@@ -113,12 +114,15 @@ class GetUserCheckinStatisticsUseCase(BaseUseCase):
                 total_rules += len(community_rules)
 
         # 统计打卡记录
-        stmt = select(CheckinRecord).where(
-            CheckinRecord.user_id == user_id,
-            func.date(CheckinRecord.planned_time) >= start_date,
-            func.date(CheckinRecord.planned_time) <= end_date
-        )
-        records = list(db.session.execute(stmt).scalars().all())
+        # 使用Repository查询用户的所有打卡记录
+        all_records = self.checkin_record_repository.find_by_user_id(user_id, limit=1000)
+
+        # 过滤日期范围内的记录
+        records = []
+        for record in all_records:
+            record_date = record.planned_checkin_time.date() if record.planned_checkin_time else None
+            if record_date and start_date <= record_date <= end_date:
+                records.append(record)
 
         completed_checkins = len([r for r in records if r.status == 1])
         missed_checkins = len([r for r in records if r.status == 0])

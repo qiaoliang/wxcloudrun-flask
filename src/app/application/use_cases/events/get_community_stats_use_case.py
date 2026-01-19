@@ -2,12 +2,9 @@
 获取社区事件统计用例
 """
 import logging
-from sqlalchemy import select, func
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-# TODO: 需要创建 CommunityEventRepository 来移除直接数据库访问
-from database.flask_models import db, CommunityEvent
 
 
 class GetCommunityStatsUseCase(BaseUseCase):
@@ -46,19 +43,13 @@ class GetCommunityStatsUseCase(BaseUseCase):
                 )
 
             # 3. 查询未结束事件数量（状态为1-进行中）
-            stmt_active = select(func.count()).select_from(CommunityEvent).where(
-                CommunityEvent.community_id == community_id,
-                CommunityEvent.status == 1
-            )
-            active_events_count = db.session.execute(stmt_active).scalar()
+            active_events_count = self.community_event_repository.count_by_community_id(community_id, status=1)
 
             # 4. 查询应援数量（未结束事件中的supporting类型事件数量）
-            stmt_support = select(func.count()).select_from(CommunityEvent).where(
-                CommunityEvent.community_id == community_id,
-                CommunityEvent.status == 1,
-                CommunityEvent.event_type == 'supporting'
+            support_events = self.community_event_repository.find_by_community_id(
+                community_id, status=1, event_type='supporting'
             )
-            support_events_count = db.session.execute(stmt_support).scalar()
+            support_events_count = len(support_events)
 
             self.logger.info(f'获取社区统计成功: community_id={community_id}')
 

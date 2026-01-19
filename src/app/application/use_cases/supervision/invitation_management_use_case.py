@@ -9,8 +9,8 @@ from typing import List, Optional, Dict, Any
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from database.flask_models import db, SupervisionRuleRelation
 from app.domain.repositories.supervision_relation_repository import SupervisionRelationRepository
+from database.flask_models import SupervisionRuleRelation
 
 
 class InvitationManagementUseCase(BaseUseCase):
@@ -62,29 +62,27 @@ class InvitationManagementUseCase(BaseUseCase):
                 limit = 10
 
             # 2. 查询邀请列表
-            # 注意：邀请是发送给监督者（supervisor_user_id）的
-            query = db.session.query(SupervisionRuleRelation).filter(
-                SupervisionRuleRelation.supervisor_user_id == user_id
-            )
+            # 使用Repository查询监督者的邀请
+            invitations = self.supervision_relation_repository.find_by_supervisor_id(user_id)
 
             # 3. 状态筛选
             if status is not None:
-                query = query.filter(SupervisionRuleRelation.status == status)
+                invitations = [inv for inv in invitations if inv.status == status]
             else:
                 # 默认不显示已拒绝的邀请
-                query = query.filter(SupervisionRuleRelation.status != self.STATUS_REJECTED)
+                invitations = [inv for inv in invitations if inv.status != self.STATUS_REJECTED]
 
             # 4. 排序：按创建时间倒序（最新的在前）
-            query = query.order_by(db.desc(SupervisionRuleRelation.created_at))
+            invitations.sort(key=lambda x: x.created_at, reverse=True)
 
             # 5. 分页
-            total = query.count()
+            total = len(invitations)
             offset = (page - 1) * limit
-            invitations = query.offset(offset).limit(limit).all()
+            paginated_invitations = invitations[offset:offset + limit]
 
             # 6. 转换为响应格式
             invitation_list = []
-            for invitation in invitations:
+            for invitation in paginated_invitations:
                 # 获取被监护人信息（邀请人）
                 solo_user = self.user_repository.find_by_id(invitation.solo_user_id)
                 if not solo_user:

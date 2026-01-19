@@ -14,6 +14,7 @@ from datetime import datetime
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.shared.utils.transaction import transactional
+from database.flask_models import CommunityApplication
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +34,8 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
         self.user_repository = RepositoryFactory.get_user_repository()
         self.community_checkin_rule_repository = RepositoryFactory.get_community_checkin_rule_repository()
         self.user_community_rule_repository = RepositoryFactory.get_user_community_rule_repository()
+        self.community_application_repository = RepositoryFactory.get_community_application_repository()
+        self.audit_log_repository = RepositoryFactory.get_audit_log_repository()
 
     @transactional
 
@@ -69,7 +72,8 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     message='处理者ID不能为空'
                 )
 
-            # 2. 查询申请（CommunityApplication暂无Repository，保留直接访问）            application = CommunityApplication.query.get(application_id)
+            # 2. 查询申请
+            application = self.community_application_repository.find_by_id(application_id)
             if not application:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
@@ -142,13 +146,12 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
 
                     logger.info(f"用户{application.user_id}已激活{activated_count}个新社区规则")
 
-                    # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                    audit_log = UserAuditLog(
+                    # 记录审计日志
+                    self.audit_log_repository.create(
                         user_id=processor_id,
                         action="approve_community_application",
                         detail=f"批准社区申请: 申请ID={application_id}, 用户ID={application.user_id}"
                     )
-                    db.session.add(audit_log)
 
                     logger.info(f"社区申请批准: 申请ID={application_id}")
 
@@ -173,13 +176,12 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                     application.processed_by = processor_id
                     application.updated_at = datetime.now()
 
-                    # 记录审计日志（暂时保留直接访问，等创建AuditLogRepository后再重构）
-                    audit_log = UserAuditLog(
+                    # 记录审计日志
+                    self.audit_log_repository.create(
                         user_id=processor_id,
                         action="reject_community_application",
                         detail=f"拒绝社区申请: 申请ID={application_id}, 理由={rejection_reason}"
                     )
-                    db.session.add(audit_log)
 
                     logger.info(f"社区申请拒绝: 申请ID={application_id}, 理由={rejection_reason}")
 
@@ -205,5 +207,3 @@ class ProcessCommunityApplicationUseCase(BaseUseCase):
                 status=UseCaseStatus.FAILURE,
                 message=f'处理失败: {str(e)}'
             )
-
-from app.shared.utils.transaction import transactional

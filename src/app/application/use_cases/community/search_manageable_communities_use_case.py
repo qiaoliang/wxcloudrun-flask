@@ -8,7 +8,7 @@ from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseRe
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 from app.domain.repositories.community_repository import CommunityRepository
 from app.domain.repositories.community_staff_repository import CommunityStaffRepository
-from database.flask_models import db, Community, CommunityStaff
+from database.flask_models import Community, CommunityStaff
 
 
 class SearchManageableCommunitiesUseCase(BaseUseCase):
@@ -73,22 +73,40 @@ class SearchManageableCommunitiesUseCase(BaseUseCase):
             # - 用户是工作人员的社区
             # - 社区名称或地址包含关键词
 
-            # 构建查询
-            query = db.session.query(Community).join(CommunityStaff).filter(
-                CommunityStaff.user_id == user_id,
-                Community.status == 1,
-                or_(
-                    Community.name.like(f'%{keyword}%'),
-                    Community.location.like(f'%{keyword}%'),
-                    Community.description.like(f'%{keyword}%')
+            # 使用Repository查询用户作为工作人员的社区
+            staff_records = self.community_staff_repository.find_by_user_id(user_id)
+            community_ids = [staff.community_id for staff in staff_records if staff.is_active]
+
+            if not community_ids:
+                # 用户不是任何社区的工作人员
+                return UseCaseResult(
+                    status=UseCaseStatus.SUCCESS,
+                    message='搜索成功',
+                    data={
+                        'communities': [],
+                        'total': 0,
+                        'page': page,
+                        'per_page': per_page,
+                        'has_next': False
+                    }
                 )
-            )
+
+            # 查询这些社区中状态为1且包含关键词的社区
+            all_communities = []
+            for community_id in community_ids:
+                community = self.community_repository.find_by_id(community_id)
+                if community and community.status == 1:
+                    # 检查关键词匹配
+                    if (keyword in community.name or
+                        keyword in community.location or
+                        (community.description and keyword in community.description)):
+                        all_communities.append(community)
 
             # 获取总数
-            total = query.count()
+            total = len(all_communities)
 
-            # 分页查询
-            communities = query.order_by(Community.created_at.desc()).offset(offset).limit(per_page).all()
+            # 分页
+            communities = all_communities[offset:offset + per_page]
 
             # 构造返回数据
             communities_data = []
