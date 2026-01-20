@@ -177,6 +177,19 @@ class TestBase:
         cls.db.session.add(superadmin)
         cls.db.session.flush()
 
+        # 更新安卡大家庭的创建者为超级管理员
+        default_community.creator_id = superadmin.user_id
+
+        # 设置超级管理员为安卡大家庭社区主管
+        from database.flask_models import CommunityStaff
+        default_community_staff = CommunityStaff(
+            community_id=default_community.community_id,
+            user_id=superadmin.user_id,
+            role='manager'
+        )
+        cls.db.session.add(default_community_staff)
+        cls.db.session.flush()
+
         # 创建'黑屋'社区
         blackhouse_community = Community(
             name='黑屋',
@@ -189,7 +202,6 @@ class TestBase:
         cls.db.session.flush()  # 获取社区ID
 
         # 设置超级管理员为黑屋社区主管
-        from database.flask_models import CommunityStaff
         blackhouse_staff = CommunityStaff(
             community_id=blackhouse_community.community_id,
             user_id=superadmin.user_id,
