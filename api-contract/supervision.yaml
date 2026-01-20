@@ -12,56 +12,6 @@ servers:
 - url: https://prod.safeguard.com/api
   description: 生产环境
 paths:
-  /api/supervision/invite:
-    post:
-      tags:
-      - 监督模块
-      summary: 邀请监督者
-      description: 邀请特定用户监督特定规则
-      security:
-      - BearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-              - rule_ids
-              - target_openid
-              properties:
-                invite_type:
-                  type: string
-                  enum:
-                  - wechat
-                  - phone
-                  default: wechat
-                  description: 邀请类型
-                rule_ids:
-                  type: array
-                  items:
-                    type: integer
-                  description: 要监督的规则ID列表
-                target_openid:
-                  type: string
-                  description: 被邀请用户的openid
-      responses:
-        '200':
-          description: 邀请发送成功
-          content:
-            application/json:
-              schema:
-                allOf:
-                - $ref: '#/components/schemas/StandardResponse'
-                - type: object
-                  properties:
-                    data:
-                      type: object
-                      properties:
-                        message:
-                          type: string
-                        relations_count:
-                          type: integer
   /api/supervision/invite_link:
     post:
       tags:
