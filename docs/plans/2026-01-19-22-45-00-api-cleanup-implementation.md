@@ -801,6 +801,36 @@ git commit -m "refactor: 标记旧监督邀请 API 为 deprecated
 - 新 API 功能正常
 - 所有集成测试通过
 
+### 实际执行摘要（2026-01-20）
+
+**已完成步骤**:
+1. ✅ 标记旧 API 为 deprecated（弃用日期: 2026-01-20）
+   - POST /api/supervision/accept → 添加 deprecation headers
+   - POST /api/supervision/reject → 添加 deprecation headers
+   - Headers: Deprecation, Warning, X-Deprecated-Since
+
+2. ✅ 添加集成测试
+   - test_old_accept_supervision_deprecated_warning
+   - test_old_reject_supervision_deprecated_warning
+   - 验证 deprecation headers 正确返回
+
+3. ✅ 运行测试验证
+   - 所有 200 个集成测试通过
+   - 新增 2 个 deprecation 测试通过
+
+4. ✅ 提交更改
+   - Commit: 03af8af
+   - Message: "refactor: deprecate supervision accept/reject APIs (Task 5)"
+
+**技术细节**:
+- 使用站内邀请 API (POST /api/supervision/invite/internal) 创建测试数据
+- 参数格式: rule_id, receiver_ids, message
+- 返回格式: relation_ids 数组
+- 修复了 DetachedInstanceError 和缩进错误
+
+**状态**: 任务5第一部分完成（旧API标记为deprecated）
+**下一步**: 任务6 - 合并社区统计和事件 API
+
 ---
 
 ## 任务 6: 合并社区统计和事件 API（优先级3）

@@ -1324,3 +1324,115 @@ class TestEventsComprehensive(IntegrationTestBase):
 
             # 验证错误响应（事件已关闭）
             self.assert_api_error(response, expected_code=0)
+
+    # ==================== 7. Deprecated API Tests ====================
+
+    def test_old_community_stats_deprecated_warning(self):
+        """测试旧 API: GET /api/communities/<id>/stats - 验证 deprecation 警告和弃用日期"""
+        with self.app.app_context():
+            # 创建超级管理员
+            admin = self.get_super_admin('old_stats_deprecated')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_old_stats',
+                description='用于测试的社区',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 保存社区ID
+            community_id = community.community_id
+
+            # 添加社区专员
+            self.add_community_staff(
+                community_id,
+                admin['user_id'],
+                role='staff',
+                operator_id=admin['user_id']
+            )
+
+            # 创建普通用户并添加到社区
+            user = self.create_standard_test_user(role=1, test_context='old_stats_user')
+            from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
+            add_users_use_case = AddUsersToCommunityUseCase()
+            add_users_use_case.execute(community_id, [user.user_id])
+
+            # 保存用户电话
+            user_phone = user.phone_number
+
+        client = self.get_test_client()
+        token = self.get_jwt_token(user_phone)
+
+        # 使用旧 API 获取社区统计
+        response = client.get(
+            f'/api/communities/{community_id}/stats',
+            headers={'Authorization': f'Bearer {token}'}
+        )
+
+        # 验证响应成功
+        self.assert_api_success(response)
+
+        # 验证 deprecation 警告头
+        assert 'Deprecation' in response.headers
+        assert 'Warning' in response.headers
+        assert 'X-Deprecated-Since' in response.headers
+        assert response.headers['X-Deprecated-Since'] == '2026-01-20'
+
+    def test_old_pending_events_deprecated_warning(self):
+        """测试旧 API: GET /api/communities/<id>/pending-events - 验证 deprecation 警告和弃用日期"""
+        with self.app.app_context():
+            # 创建超级管理员
+            admin = self.get_super_admin('old_pending_deprecated')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_old_pending',
+                description='用于测试的社区',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 保存社区ID
+            community_id = community.community_id
+
+            # 添加社区专员
+            self.add_community_staff(
+                community_id,
+                admin['user_id'],
+                role='staff',
+                operator_id=admin['user_id']
+            )
+
+            # 创建普通用户并添加到社区
+            user = self.create_standard_test_user(role=1, test_context='old_pending_user')
+            from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
+            add_users_use_case = AddUsersToCommunityUseCase()
+            add_users_use_case.execute(community_id, [user.user_id])
+
+            # 保存管理员电话
+            admin_phone = admin['phone_number']
+
+        client = self.get_test_client()
+        token = self.get_jwt_token(admin_phone)
+
+        # 使用旧 API 获取未处理事件
+        response = client.get(
+            f'/api/communities/{community_id}/pending-events',
+            headers={'Authorization': f'Bearer {token}'}
+        )
+
+        # 验证响应成功
+        self.assert_api_success(response)
+
+        # 验证 deprecation 警告头
+        assert 'Deprecation' in response.headers
+        assert 'Warning' in response.headers
+        assert 'X-Deprecated-Since' in response.headers
+        assert response.headers['X-Deprecated-Since'] == '2026-01-20'

@@ -148,7 +148,10 @@ def create_event_support(decoded, event_id):
 @events_bp.route('/communities/<int:community_id>/stats', methods=['GET'])
 @require_community_membership()
 def get_community_stats(decoded, community_id):
-    """获取社区事件统计"""
+    """
+    获取社区事件统计（已废弃，弃用日期: 2026-01-20）
+    请使用: GET /api/community-dashboard/<id>/stats
+    """
     try:
         # 使用应用服务用例获取社区统计
         from app.application.use_cases.events import GetCommunityStatsUseCase
@@ -157,7 +160,11 @@ def get_community_stats(decoded, community_id):
         result = use_case.execute(community_id=community_id)
 
         if result.is_success:
-            return make_succ_response(result.data)
+            response = make_succ_response(result.data)
+            response.headers['Deprecation'] = 'Use GET /api/community-dashboard/<id>/stats instead'
+            response.headers['Warning'] = '299 - "Deprecated API (since 2026-01-20): Use GET /api/community-dashboard/<id>/stats instead"'
+            response.headers['X-Deprecated-Since'] = '2026-01-20'
+            return response
         else:
             return make_err_response({}, result.message)
 
@@ -169,7 +176,10 @@ def get_community_stats(decoded, community_id):
 @events_bp.route('/communities/<int:community_id>/pending-events', methods=['GET'])
 @require_community_staff_member()
 def get_pending_events(decoded, community_id):
-    """获取社区未处理的求助事件"""
+    """
+    获取社区未处理的求助事件（已废弃，弃用日期: 2026-01-20）
+    请使用: GET /api/community-dashboard/<id>/pending-events
+    """
     try:
         # 使用应用服务用例获取未处理事件
         from app.application.use_cases.events import GetPendingEventsUseCase
@@ -178,7 +188,11 @@ def get_pending_events(decoded, community_id):
         result = use_case.execute(community_id=community_id)
 
         if result.is_success:
-            return make_succ_response(result.data)
+            response = make_succ_response(result.data)
+            response.headers['Deprecation'] = 'Use GET /api/community-dashboard/<id>/pending-events instead'
+            response.headers['Warning'] = '299 - "Deprecated API (since 2026-01-20): Use GET /api/community-dashboard/<id>/pending-events instead"'
+            response.headers['X-Deprecated-Since'] = '2026-01-20'
+            return response
         else:
             return make_err_response({}, result.message)
 
