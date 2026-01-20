@@ -84,7 +84,7 @@ def get_communities():
 
 @community_bp.route('/community/list', methods=['GET'])
 def get_community_list():
-    """获取社区列表（用户可见的社区列表）"""
+    """获取社区列表（用户可见的社区列表）- 已废弃"""
     current_app.logger.info('=== 开始获取社区列表（用户可见） ===')
 
     # 验证token
@@ -112,7 +112,13 @@ def get_community_list():
                 communities_data.append(format_result.data)
 
         current_app.logger.info(f'获取用户社区列表成功，共 {len(communities_data)} 个社区')
-        return make_succ_response({'communities': communities_data})
+
+        # 添加 deprecation 警告
+        response = make_succ_response({'communities': communities_data})
+        response.headers['Deprecation'] = 'Use GET /api/communities?type=available instead'
+        response.headers['Warning'] = '299 - "Deprecated API: Use GET /api/communities?type=available instead"'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'获取用户社区列表失败: {str(e)}', exc_info=True)
@@ -121,7 +127,7 @@ def get_community_list():
 
 @community_bp.route('/communities/available', methods=['GET'])
 def get_available_communities():
-    """获取可加入的社区列表"""
+    """获取可加入的社区列表 - 已废弃"""
     current_app.logger.info('=== 开始获取可加入社区列表 ===')
 
     # 验证token
@@ -149,7 +155,13 @@ def get_available_communities():
                 communities_data.append(format_result.data)
 
         current_app.logger.info(f'获取可加入社区列表成功，共 {len(communities_data)} 个社区')
-        return make_succ_response({'communities': communities_data})
+
+        # 添加 deprecation 警告
+        response = make_succ_response({'communities': communities_data})
+        response.headers['Deprecation'] = 'Use GET /api/communities?type=available instead'
+        response.headers['Warning'] = '299 - "Deprecated API: Use GET /api/communities?type=available instead"'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'获取可加入社区列表失败: {str(e)}', exc_info=True)
@@ -207,7 +219,7 @@ def get_managed_communities():
 
 @community_bp.route('/community/communities/manage/list', methods=['GET'])
 def get_manageable_communities():
-    """获取可管理的社区列表"""
+    """获取可管理的社区列表 - 已废弃"""
     current_app.logger.info('=== 开始获取可管理的社区列表 ===')
 
     # 验证token
@@ -233,51 +245,17 @@ def get_manageable_communities():
             communities_data.append(community_data)
 
         current_app.logger.info(f'获取可管理社区列表成功，共 {len(communities_data)} 个社区')
-        return make_succ_response({'communities': communities_data})
+
+        # 添加 deprecation 警告
+        response = make_succ_response({'communities': communities_data})
+        response.headers['Deprecation'] = 'Use GET /api/user/managed-communities with limit parameter instead'
+        response.headers['Warning'] = '299 - "Deprecated API: Use GET /api/user/managed-communities with limit parameter instead"'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'获取可管理社区列表失败: {str(e)}', exc_info=True)
         return make_err_response({}, '获取可管理社区列表失败')
-
-
-@community_bp.route('/communities/manage/search', methods=['GET'])
-def search_manageable_communities():
-    """搜索可管理的社区"""
-    current_app.logger.info('=== 开始搜索可管理的社区 ===')
-
-    # 验证token
-    decoded, error_response = verify_token()
-    if error_response:
-        return error_response
-
-    user_id = decoded.get('user_id')
-    current_app.logger.info(f'用户ID: {user_id}')
-
-    try:
-        # 获取搜索参数
-        keyword = request.args.get('keyword', '').strip()
-        page = int(request.args.get('page', 1))
-        per_page = min(int(request.args.get('per_page', 20)), 100)
-
-        # 使用UseCase执行搜索
-        search_use_case = SearchManageableCommunitiesUseCase()
-        result = search_use_case.execute(
-            user_id=user_id,
-            keyword=keyword,
-            page=page,
-            per_page=per_page
-        )
-
-        if not result.is_success:
-            return make_err_response({}, result.message)
-
-        current_app.logger.info(f'搜索结果: 找到 {result.data["total"]} 条记录')
-
-        return make_succ_response(result.data)
-
-    except Exception as e:
-        current_app.logger.error(f'搜索可管理社区失败: {str(e)}', exc_info=True)
-        return make_err_response({}, '搜索失败')
 
 
 @community_bp.route('/communities/<int:community_id>', methods=['GET'])
