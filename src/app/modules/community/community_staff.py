@@ -23,8 +23,10 @@ app_logger = logging.getLogger('log')
 
 @community_bp.route('/community/staff/list-enhanced', methods=['GET'])
 def get_community_staff_list_enhanced():
-    """获取社区工作人员列表（增强版，包含更多字段和分页）"""
-    current_app.logger.info('=== 开始获取社区工作人员列表（增强版） ===')
+    """获取社区工作人员列表（已废弃，弃用日期: 2026-01-20）- 请使用 GET /api/communities/<id>/users?role=staff"""
+    from datetime import datetime
+
+    current_app.logger.info('=== 开始获取社区工作人员列表（已废弃） ===')
 
     # 验证token
     decoded, error_response = verify_token()
@@ -69,7 +71,14 @@ def get_community_staff_list_enhanced():
             return make_err_response({}, result.message)
 
         current_app.logger.info(f'获取社区工作人员列表成功: community_id={community_id}, page={page}')
-        return make_succ_response(result.data)
+
+        # 添加 deprecation 警告
+        response = make_succ_response(result.data)
+        response.headers['Deprecation'] = 'Use GET /api/communities/<id>/users with role=staff parameter instead'
+        response.headers['Warning'] = f'299 - "Deprecated API (since 2026-01-20): Use GET /api/communities/{community_id}/users?role=staff instead"'
+        response.headers['X-Deprecated-Since'] = '2026-01-20'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'获取社区工作人员列表失败: {str(e)}', exc_info=True)

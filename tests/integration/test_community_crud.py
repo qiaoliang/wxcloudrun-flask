@@ -1272,3 +1272,188 @@ class TestCommunityCRUD(IntegrationTestBase):
             assert 'Deprecation' in response.headers
             assert 'Use DELETE /api/communities/<id>/users/<user_id> instead' in response.headers['Deprecation']
             assert 'Warning' in response.headers
+
+    # ==================== 7. 社区用户列表 API 测试 ====================
+
+    def test_get_community_users_with_role_filter(self):
+        """测试统一接口: GET /api/communities/<id>/users?role=staff - 角色过滤"""
+        with self.app.app_context():
+            admin = self.get_super_admin('get_users_role_filter')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_角色过滤',
+                description='用于测试角色过滤',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 添加主管
+            from database.flask_models import CommunityStaff
+            staff_manager = CommunityStaff(
+                community_id=community.community_id,
+                user_id=admin['user_id'],
+                role='manager'
+            )
+            self.db.session.add(staff_manager)
+
+            # 创建普通用户
+            user = self.create_standard_test_user(role=0, test_context='role_filter_user')
+            self.db.session.commit()
+
+            # 添加用户到社区
+            from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
+            add_users_use_case = AddUsersToCommunityUseCase()
+            result = add_users_use_case.execute(community.community_id, [user.user_id])
+            assert result.is_success
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用角色过滤获取用户
+            response = client.get(
+                f'/api/communities/{community.community_id}/users?role=staff',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应
+            data = self.assert_api_success(response)
+            assert 'users' in data['data'] or 'members' in data['data']
+
+    def test_get_community_users_with_keyword_search(self):
+        """测试统一接口: GET /api/communities/<id>/users?keyword=张 - 关键字搜索"""
+        with self.app.app_context():
+            admin = self.get_super_admin('get_users_keyword_search')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_关键字搜索',
+                description='用于测试关键字搜索',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 添加主管
+            from database.flask_models import CommunityStaff
+            staff_manager = CommunityStaff(
+                community_id=community.community_id,
+                user_id=admin['user_id'],
+                role='manager'
+            )
+            self.db.session.add(staff_manager)
+
+            # 创建用户（昵称包含"张"）
+            user = self.create_standard_test_user(role=0, test_context='keyword_search_user')
+            user.nickname = '张三'
+            self.db.session.commit()
+
+            # 添加用户到社区
+            from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
+            add_users_use_case = AddUsersToCommunityUseCase()
+            result = add_users_use_case.execute(community.community_id, [user.user_id])
+            assert result.is_success
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用关键字搜索
+            response = client.get(
+                f'/api/communities/{community.community_id}/users?keyword=张',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应
+            data = self.assert_api_success(response)
+            assert 'users' in data['data'] or 'members' in data['data']
+
+    def test_old_community_users_deprecated_warning(self):
+        """测试旧 API: GET /api/community/users - 验证 deprecation 警告和弃用日期"""
+        with self.app.app_context():
+            admin = self.get_super_admin('old_users_deprecated')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_旧用户API警告',
+                description='用于测试旧用户API警告',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 添加主管
+            from database.flask_models import CommunityStaff
+            staff_manager = CommunityStaff(
+                community_id=community.community_id,
+                user_id=admin['user_id'],
+                role='manager'
+            )
+            self.db.session.add(staff_manager)
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用旧 API
+            response = client.get(
+                f'/api/community/users?community_id={community.community_id}',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应成功
+            self.assert_api_success(response)
+
+            # 验证 deprecation 警告头
+            assert 'Deprecation' in response.headers
+            assert 'Warning' in response.headers
+            assert 'X-Deprecated-Since' in response.headers
+            assert response.headers['X-Deprecated-Since'] == '2026-01-20'
+
+    def test_old_staff_list_enhanced_deprecated_warning(self):
+        """测试旧 API: GET /api/community/staff/list-enhanced - 验证 deprecation 警告和弃用日期"""
+        with self.app.app_context():
+            admin = self.get_super_admin('old_staff_deprecated')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_旧工作人员API警告',
+                description='用于测试旧工作人员API警告',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 添加主管
+            from database.flask_models import CommunityStaff
+            staff_manager = CommunityStaff(
+                community_id=community.community_id,
+                user_id=admin['user_id'],
+                role='manager'
+            )
+            self.db.session.add(staff_manager)
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用旧 API
+            response = client.get(
+                f'/api/community/staff/list-enhanced?community_id={community.community_id}',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应成功
+            self.assert_api_success(response)
+
+            # 验证 deprecation 警告头
+            assert 'Deprecation' in response.headers
+            assert 'Warning' in response.headers
+            assert 'X-Deprecated-Since' in response.headers
+            assert response.headers['X-Deprecated-Since'] == '2026-01-20'

@@ -22,7 +22,7 @@ app_logger = logging.getLogger('log')
 
 @community_bp.route('/communities/<int:community_id>/users', methods=['GET'])
 def get_community_users(community_id):
-    """获取社区用户列表"""
+    """获取社区用户列表（统一接口）- 支持角色过滤和关键字搜索"""
     current_app.logger.info(f'=== 开始获取社区用户列表: {community_id} ===')
 
     # 验证token
@@ -41,12 +41,31 @@ def get_community_users(community_id):
         if not has_permission:
             return make_err_response({}, '无权限访问该社区')
 
-        # 获取查询参数
+        # 获取查询参数（扩展支持）
         page = int(request.args.get('page', 1))
         per_page = min(int(request.args.get('per_page', 20)), 100)
-        role_filter = request.args.get('role')  # 可选的角色过滤
+        role_filter = request.args.get('role', '')  # 可选的角色过滤
+        keyword = request.args.get('keyword', '')  # 可选的关键字搜索
 
-        # 使用应用服务用例获取社区用户
+        # 如果提供了角色过滤或关键字搜索，使用 ListCommunityUsersUseCase
+        if role_filter or keyword:
+            from app.application.use_cases.community.list_community_users_use_case import ListCommunityUsersUseCase
+            use_case = ListCommunityUsersUseCase()
+            result = use_case.execute(
+                community_id=community_id,
+                role=role_filter if role_filter else None,
+                keyword=keyword if keyword else None,
+                page=page,
+                page_size=per_page
+            )
+
+            if not result.is_success:
+                return make_err_response({}, result.message)
+
+            current_app.logger.info(f'获取社区用户列表成功（过滤模式）: {community_id}, 共 {result.data["total"]} 个用户')
+            return make_succ_response(result.data)
+
+        # 否则使用原有的 GetCommunityMembersUseCase（保持向后兼容）
         get_members_use_case = GetCommunityMembersUseCase()
         members_result = get_members_use_case.execute(community_id, page, per_page)
 
@@ -130,9 +149,10 @@ def remove_community_user(community_id, target_user_id):
 
 @community_bp.route('/community/users', methods=['GET'])
 def get_community_users_v2():
-    """获取社区用户列表（新版）"""
+    """获取社区用户列表（已废弃，弃用日期: 2026-01-20）- 请使用 GET /api/communities/<id>/users"""
+    from datetime import datetime
 
-    current_app.logger.info('=== 开始获取社区用户列表（新版） ===')
+    current_app.logger.info('=== 开始获取社区用户列表（已废弃） ===')
 
     # 验证token
     decoded, error_response = verify_token()
@@ -172,7 +192,14 @@ def get_community_users_v2():
             return make_err_response({}, result.message)
 
         current_app.logger.info(f'获取社区用户列表成功: community_id={community_id}, 共 {result.data["total"]} 个用户')
-        return make_succ_response(result.data)
+
+        # 添加 deprecation 警告
+        response = make_succ_response(result.data)
+        response.headers['Deprecation'] = 'Use GET /api/communities/<id>/users with optional role and keyword parameters instead'
+        response.headers['Warning'] = f'299 - "Deprecated API (since 2026-01-20): Use GET /api/communities/{community_id}/users instead"'
+        response.headers['X-Deprecated-Since'] = '2026-01-20'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'获取社区用户列表失败: {str(e)}', exc_info=True)
