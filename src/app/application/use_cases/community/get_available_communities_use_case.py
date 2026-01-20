@@ -1,19 +1,19 @@
 """
 获取可加入社区列表用例
+已废弃：请使用 GetCommunitiesUseCase 并传入 type='available'
 """
 import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from app.infrastructure.persistence.repository_factory import RepositoryFactory
-from app.domain.repositories.community_repository import CommunityRepository
+from app.application.use_cases.community.get_communities_use_case import GetCommunitiesUseCase
 
 
 class GetAvailableCommunitiesUseCase(BaseUseCase):
-    """获取可加入社区列表用例"""
+    """获取可加入社区列表用例 - 已废弃"""
 
     def __init__(self):
         super().__init__()
-        self.community_repository = RepositoryFactory.get_community_repository()
+        self.get_communities_use_case = GetCommunitiesUseCase()
         self.logger = logging.getLogger(__name__)
 
     def execute(self, user_id: int = None) -> UseCaseResult:
@@ -27,36 +27,16 @@ class GetAvailableCommunitiesUseCase(BaseUseCase):
             UseCaseResult: 执行结果
         """
         try:
-            # 1. 使用 Repository 查询所有活跃社区
-            communities = self.community_repository.find_active_communities()
+            # 调用新的统一 UseCase
+            params = {
+                'type': 'available',
+                'user_id': user_id,
+                'limit': 1000
+            }
 
-            # 2. 构造社区列表
-            communities_data = []
-            for community in communities:
-                # 如果提供了 user_id，检查用户是否已加入该社区
-                is_member = False
-                if user_id:
-                    # 这里可以添加逻辑检查用户是否已加入该社区
-                    pass
+            result = self.get_communities_use_case.execute(params)
 
-                communities_data.append({
-                    'community_id': community.community_id,
-                    'name': community.name,
-                    'description': community.description,
-                    'location': community.location,
-                    'status': community.status,
-                    'is_member': is_member,
-                    'created_at': community.created_at.isoformat() if community.created_at else None
-                })
-
-            self.logger.info(f'获取可加入社区列表成功: count={len(communities_data)}')
-
-            # 3. 返回结果
-            return UseCaseResult(
-                status=UseCaseStatus.SUCCESS,
-                message='获取社区列表成功',
-                data={'communities': communities_data, 'count': len(communities_data)}
-            )
+            return result
 
         except Exception as e:
             self.logger.error(f'获取可加入社区列表失败: {str(e)}', exc_info=True)

@@ -1,19 +1,19 @@
 """
 获取可管理社区列表用例
+已废弃：请使用 GetCommunitiesUseCase 并传入 type='managed'
 """
 import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
-from app.infrastructure.persistence.repository_factory import RepositoryFactory
+from app.application.use_cases.community.get_communities_use_case import GetCommunitiesUseCase
 
 
 class GetManagedCommunitiesUseCase(BaseUseCase):
-    """获取可管理社区列表用例"""
+    """获取可管理社区列表用例 - 已废弃"""
 
     def __init__(self):
         super().__init__()
-        self.community_staff_repo = RepositoryFactory.get_community_staff_repository()
-        self.community_repository = RepositoryFactory.get_community_repository()
+        self.get_communities_use_case = GetCommunitiesUseCase()
         self.logger = logging.getLogger(__name__)
 
     def execute(self, user_id: int, limit: int = 7) -> UseCaseResult:
@@ -35,43 +35,16 @@ class GetManagedCommunitiesUseCase(BaseUseCase):
                     message='用户ID不能为空'
                 )
 
-            # 2. 查询用户作为工作人员的社区
-            # 用户可以管理的社区包括：用户是工作人员的社区
-            staff_relations = self.community_staff_repo.find_by_user_id(user_id, include_removed=False)
-            
-            # 构造社区列表
-            communities_data = []
-            for staff_relation in staff_relations:
-                # 获取社区对象
-                community = self.community_repository.find_by_id(staff_relation.community_id)
-                
-                # 只返回活跃的社区（status == 1）
-                if community and community.status == 1:
-                    communities_data.append({
-                        'community_id': community.community_id,
-                        'name': community.name,
-                        'description': community.description,
-                        'location': community.location,
-                        'status': community.status,
-                        'role': staff_relation.role,
-                        'created_at': community.created_at.isoformat() if community.created_at else None
-                    })
-            
-            # 按创建时间倒序排序
-            communities_data.sort(key=lambda x: x['created_at'] or '', reverse=True)
-            
-            # 应用 limit 限制
-            if limit > 0:
-                communities_data = communities_data[:limit]
+            # 2. 调用新的统一 UseCase
+            params = {
+                'type': 'managed',
+                'user_id': user_id,
+                'limit': limit
+            }
 
-            self.logger.info(f'获取可管理社区列表成功: user_id={user_id}, count={len(communities_data)}')
+            result = self.get_communities_use_case.execute(params)
 
-            # 3. 返回结果
-            return UseCaseResult(
-                status=UseCaseStatus.SUCCESS,
-                message='获取可管理社区列表成功',
-                data={'communities': communities_data, 'count': len(communities_data)}
-            )
+            return result
 
         except Exception as e:
             self.logger.error(f'获取可管理社区列表失败: {str(e)}', exc_info=True)

@@ -27,6 +27,7 @@ from .create_community_application_use_case import CreateCommunityApplicationUse
 from .get_community_applications_use_case import GetCommunityApplicationsUseCase
 from .format_community_info_use_case import FormatCommunityInfoUseCase
 from .get_all_communities_use_case import GetAllCommunitiesUseCase
+from .get_communities_use_case import GetCommunitiesUseCase
 from .add_community_staff_use_case import AddCommunityStaffUseCase
 from .get_user_with_community_use_case import GetUserWithCommunityUseCase, UpdateUserCommunityUseCase, CreateUserInCommunityUseCase
 from .get_community_staff_list_use_case import GetCommunityStaffListUseCase
@@ -58,6 +59,7 @@ __all__ = [
     'GetCommunityApplicationsUseCase',
     'FormatCommunityInfoUseCase',
     'GetAllCommunitiesUseCase',
+    'GetCommunitiesUseCase',
     'AddCommunityStaffUseCase',
     'GetUserWithCommunityUseCase',
     'UpdateUserCommunityUseCase',
