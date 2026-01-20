@@ -10,6 +10,45 @@
 
 ---
 
+## 总体进度概览（更新至 2026-01-20）
+
+### 已完成任务 ✅
+
+| 任务 | 描述 | 状态 | 提交 |
+|------|------|------|------|
+| 任务1 | 删除 POST /api/supervision/invite API | ✅ 完成 | 已提交 |
+| 任务2 | 合并社区列表 API（6→2） | ✅ 完成 | 已提交 |
+| 任务3 | 统一 HTTP 方法（RESTful 重构） | ✅ 完成 | 已提交 |
+| 任务4 | 合并社区用户列表 API（3→1） | ✅ 完成 | c3caafa |
+| 任务5 | 合并监督邀请 API（4→2） | ✅ 完成 | 03af8af |
+| 任务6 | 合并社区统计和事件 API | ✅ 完成 | ef850b4 |
+
+### 待完成任务 ⏳
+
+| 任务 | 描述 | 优先级 |
+|------|------|--------|
+| 任务7 | 合并用户搜索 API（2→1） | 中等 |
+| 任务8 | 删除用户社区验证 API | 中等 |
+| 任务9 | 删除未使用的社区用户列表 API | 低 |
+| 任务10 | 删除未使用的工作人员列表 API | 低 |
+| 任务11 | 运行完整测试套件 | 高 |
+| 任务12 | 更新 API 文档 | 中等 |
+| 任务13 | 最终验证和提交 | 高 |
+
+### 关键成果
+
+- **已完成 6/13 任务**（46%）
+- **API 减少数量**: 约 15+ 个 API 已被合并或标记为弃用
+- **测试覆盖**: 202 个集成测试全部通过
+- **向后兼容**: 所有旧 API 标记为 deprecated，包含弃用日期（2026-01-20）
+- **代码质量**: 遵循 RESTful 设计原则，统一 HTTP 方法
+
+### 下一步行动
+
+继续执行任务7：合并用户搜索 API（2→1）
+
+---
+
 ## 前置条件
 
 ### 环境准备
@@ -897,17 +936,94 @@ git commit -m "refactor: 标记 events 模块的统计和事件 API 为 deprecat
 - community_dashboard 模块的 API 功能正常
 - 所有集成测试通过
 
+### 实际执行摘要（2026-01-20）
+
+**已完成步骤**:
+1. ✅ 标记 events 模块的 API 为 deprecated（弃用日期: 2026-01-20）
+   - GET /api/communities/<id>/stats → 添加 deprecation headers
+   - GET /api/communities/<id>/pending-events → 添加 deprecation headers
+   - Headers: Deprecation, Warning, X-Deprecated-Since
+   - 指向 community-dashboard 模块的对应 API
+
+2. ✅ 添加集成测试
+   - test_old_community_stats_deprecated_warning
+   - test_old_pending_events_deprecated_warning
+   - 验证 deprecation headers 正确返回
+
+3. ✅ 运行测试验证
+   - 所有 202 个集成测试通过
+   - 新增 2 个 deprecation 测试通过
+
+4. ✅ 提交更改
+   - Commit: ef850b4
+   - Message: "refactor: deprecate events stats and pending-events APIs (Task 6)"
+
+**技术细节**:
+- 修复了 DetachedInstanceError（保存 ID 到变量）
+- community-dashboard 模块已有对应 API
+- 保持向后兼容性
+
+**状态**: 任务6完成
+**下一步**: 任务7 - 合并用户搜索 API
+
 ---
 
 ## 任务 7: 合并用户搜索 API（优先级3）
 
-**目标**: 将 2 个用户搜索 API 合并为 1 个。
+**目标**: 将 2 个用户搜索 API 合并为 1 个，使用统一接口。
+
+**状态**: ⏳ 待开始（当前任务）
+
+### 当前状态分析
+
+目前有2个用户搜索 API：
+
+1. **GET /api/user/search**（user 模块）
+   - 功能：搜索用户
+   - 参数：keyword, page, per_page, community_id, role
+   - 使用：`app.application.use_cases.user.SearchUsersUseCase`
+   - 特点：支持社区过滤和角色筛选
+
+2. **GET /api/user/search-all-excluding-blackroom**（community 模块）
+   - 功能：搜索用户（排除黑名单房间）
+   - 参数：keyword, page, per_page, search_type
+   - 使用：`app.application.use_cases.community.SearchUsersUseCase`
+   - 特点：支持排除黑名单房间，支持按类型搜索（all, phone, nickname）
+
+### 存在的问题
+
+1. **功能重复**：两个 API 都执行用户搜索功能
+2. **分散在不同模块**：一个在 user 模块，一个在 community 模块
+3. **参数不一致**：参数名称和功能不完全相同
+4. **UseCase 不统一**：使用了不同的 UseCase 实现
+
+### 解决方案
+
+**目标**：将2个 API 合并为1个，统一使用 `GET /api/user/search`
+
+#### 方案设计：
+
+1. **扩展 user 模块的 SearchUsersUseCase**
+   - 添加 `exclude_blackroom` 参数支持
+   - 添加 `search_type` 参数支持
+   - 保持向后兼容（新参数为可选）
+
+2. **标记旧 API 为 deprecated**
+   - `GET /api/user/search-all-excluding-blackroom` 标记为弃用
+   - 添加 deprecation headers（弃用日期：2026-01-20）
+   - 指向新的统一 API
+
+3. **保持向后兼容**
+   - 旧 API 继续工作
+   - 返回 deprecation 警告
+   - 新功能通过参数扩展实现
 
 ### 涉及的文件
 
-- `src/app/modules/community/user_search.py`
 - `src/app/modules/user/routes.py`
-- `tests/integration/test_search_by_phone.py`
+- `src/app/modules/community/user_search.py`
+- `src/app/application/use_cases/user/search_users_use_case.py`
+- `tests/integration/` (需要添加测试)
 
 ### 步骤
 
