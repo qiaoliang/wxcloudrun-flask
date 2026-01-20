@@ -208,11 +208,13 @@ def get_supervision_invitations(decoded):
 @login_required
 def accept_supervision(decoded):
     """
-    接受监督邀请接口
+    接受监督邀请接口（已废弃，弃用日期: 2026-01-20）- 请使用 POST /api/supervision/invitations/<id>/accept
     请求体：{ relation_id }
     返回：{ relation_id, status }
     """
-    current_app.logger.info('=== 开始接受监督邀请 ===')
+    from datetime import datetime
+
+    current_app.logger.info('=== 开始接受监督邀请（已废弃） ===')
 
     user_id = decoded.get('user_id')
     get_user_use_case = GetUserByIdUseCase()
@@ -239,7 +241,14 @@ def accept_supervision(decoded):
             return make_err_response({}, result.message)
 
         current_app.logger.info(f'用户 {user.user_id} 接受监督邀请成功，关系ID: {relation_id}')
-        return make_succ_response(result.data)
+
+        # 添加 deprecation 警告
+        response = make_succ_response(result.data)
+        response.headers['Deprecation'] = 'Use POST /api/supervision/invitations/<id>/accept instead'
+        response.headers['Warning'] = f'299 - "Deprecated API (since 2026-01-20): Use POST /api/supervision/invitations/{relation_id}/accept instead"'
+        response.headers['X-Deprecated-Since'] = '2026-01-20'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'接受监督邀请失败: {str(e)}', exc_info=True)
@@ -250,11 +259,13 @@ def accept_supervision(decoded):
 @login_required
 def reject_supervision(decoded):
     """
-    拒绝监督邀请接口
+    拒绝监督邀请接口（已废弃，弃用日期: 2026-01-20）- 请使用 POST /api/supervision/invitations/<id>/reject
     请求体：{ relation_id, reason }
     返回：{ message }
     """
-    current_app.logger.info('=== 开始拒绝监督邀请 ===')
+    from datetime import datetime
+
+    current_app.logger.info('=== 开始拒绝监督邀请（已废弃） ===')
 
     user_id = decoded.get('user_id')
     get_user_use_case = GetUserByIdUseCase()
@@ -284,7 +295,14 @@ def reject_supervision(decoded):
             return make_err_response({}, result.message)
 
         current_app.logger.info(f'用户 {user.user_id} 拒绝监督邀请，关系ID: {relation_id}，原因: {reason}')
-        return make_succ_response(result.data)
+
+        # 添加 deprecation 警告
+        response = make_succ_response(result.data)
+        response.headers['Deprecation'] = 'Use POST /api/supervision/invitations/<id>/reject instead'
+        response.headers['Warning'] = f'299 - "Deprecated API (since 2026-01-20): Use POST /api/supervision/invitations/{relation_id}/reject instead"'
+        response.headers['X-Deprecated-Since'] = '2026-01-20'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'拒绝监督邀请失败: {str(e)}', exc_info=True)

@@ -753,3 +753,114 @@ class TestSupervisionComprehensive(IntegrationTestBase):
         assert 'expires_at' in data['data']
         # 规则信息可能在rule_info字段中
         assert 'rule_info' in data['data'] or 'rule_ids' in data['data']
+
+    # ==================== 8. 监督邀请 API 合并测试 ====================
+
+    def test_old_accept_supervision_deprecated_warning(self):
+            """测试旧 API: POST /api/supervision/accept - 验证 deprecation 警告和弃用日期"""
+            with self.app.app_context():
+                # 创建监督者和被监督者
+                supervisor = self.create_standard_test_user(role=1, test_context='old_accept_deprecated')
+                solo_user = self.create_standard_test_user(role=0, test_context='old_accept_deprecated_solo')
+                self.db.session.commit()
+    
+                # 创建打卡规则
+                rule_id = self.create_checkin_rule_for_user(supervisor.user_id)
+    
+                supervisor_phone = supervisor.phone_number
+                solo_user_id = solo_user.user_id
+    
+            client = self.get_test_client()
+    
+            # 创建邀请（使用站内邀请API）
+            supervisor_token = self.get_jwt_token(supervisor_phone)
+            invite_response = client.post(
+                '/api/supervision/invite/internal',
+                data=json.dumps({
+                    'rule_id': rule_id,
+                    'receiver_ids': [solo_user_id],
+                    'message': '请监督我的打卡'
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {supervisor_token}'}
+            )
+    
+            invite_data = json.loads(invite_response.data)
+            relation_id = invite_data['data']['relation_ids'][0]
+    
+            solo_phone = solo_user.phone_number
+    
+            # 使用旧 API 接受邀请
+            solo_token = self.get_jwt_token(solo_phone)
+            response = client.post(
+                '/api/supervision/accept',
+                data=json.dumps({
+                    'relation_id': relation_id
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {solo_token}'}
+            )
+    
+            # 验证响应成功
+            self.assert_api_success(response)
+    
+            # 验证 deprecation 警告头
+            assert 'Deprecation' in response.headers
+            assert 'Warning' in response.headers
+            assert 'X-Deprecated-Since' in response.headers
+            assert response.headers['X-Deprecated-Since'] == '2026-01-20'
+
+    def test_old_reject_supervision_deprecated_warning(self):
+        """测试旧 API: POST /api/supervision/reject - 验证 deprecation 警告和弃用日期"""
+        with self.app.app_context():
+            # 创建监督者和被监督者
+            supervisor = self.create_standard_test_user(role=1, test_context='old_reject_deprecated')
+            solo_user = self.create_standard_test_user(role=0, test_context='old_reject_deprecated_solo')
+            self.db.session.commit()
+
+            # 创建打卡规则
+            rule_id = self.create_checkin_rule_for_user(supervisor.user_id)
+
+            supervisor_phone = supervisor.phone_number
+            solo_user_id = solo_user.user_id
+    
+            client = self.get_test_client()
+    
+            # 创建邀请（使用站内邀请API）
+            supervisor_token = self.get_jwt_token(supervisor_phone)
+            invite_response = client.post(
+                '/api/supervision/invite/internal',
+                data=json.dumps({
+                    'rule_id': rule_id,
+                    'receiver_ids': [solo_user_id],
+                    'message': '请监督我的打卡'
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {supervisor_token}'}
+            )
+    
+            invite_data = json.loads(invite_response.data)
+            relation_id = invite_data['data']['relation_ids'][0]
+    
+            solo_phone = solo_user.phone_number
+    
+            # 使用旧 API 拒绝邀请
+            solo_token = self.get_jwt_token(solo_phone)
+            response = client.post(
+                '/api/supervision/reject',
+                data=json.dumps({
+                    'relation_id': relation_id,
+                    'reason': '测试拒绝'
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {solo_token}'}
+            )
+    
+            # 验证响应成功
+            self.assert_api_success(response)
+    
+            # 验证 deprecation 警告头
+            assert 'Deprecation' in response.headers
+            assert 'Warning' in response.headers
+            assert 'X-Deprecated-Since' in response.headers
+            assert response.headers['X-Deprecated-Since'] == '2026-01-20'
