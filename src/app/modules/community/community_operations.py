@@ -148,10 +148,72 @@ def create_community():
         return make_err_response({}, '创建失败')
 
 
+@community_bp.route('/communities/<int:community_id>', methods=['PUT'])
+def update_community_restful(community_id):
+    """更新社区信息（RESTful API）- 重写自 POST /api/community/update"""
+    current_app.logger.info('=== 开始更新社区信息（RESTful） ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    user_id = decoded.get('user_id')
+    current_app.logger.info(f'操作用户ID: {user_id}, 社区ID: {community_id}')
+
+    try:
+        params = request.get_json()
+        if not params:
+            return make_err_response({}, '缺少请求参数')
+
+        # 检查权限
+        from app.application.use_cases.community import CheckCommunityPermissionUseCase
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(user_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
+            return make_err_response({}, '无权限访问该社区')
+
+        # 使用应用服务用例更新社区信息
+        from app.application.use_cases.community import UpdateCommunityUseCase
+
+        use_case = UpdateCommunityUseCase()
+        result = use_case.execute(
+            community_id=community_id,
+            name=params.get('name'),
+            description=params.get('description'),
+            location=params.get('location'),
+            manager_id=params.get('manager_id'),
+            location_lat=params.get('location_lat'),
+            location_lon=params.get('location_lon'),
+            province=params.get('province'),
+            city=params.get('city'),
+            district=params.get('district'),
+            street=params.get('street'),
+            status=params.get('status')
+        )
+
+        if not result.is_success:
+            return make_err_response({}, result.message)
+
+        # 记录审计日志
+        _audit(user_id, 'update_community', {
+            'community_id': community_id,
+            'updated_fields': list(params.keys())
+        })
+
+        current_app.logger.info(f'更新社区信息成功: community_id={community_id}')
+        return make_succ_response({'message': '更新成功'})
+
+    except Exception as e:
+        current_app.logger.error(f'更新社区信息失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '更新失败')
+
+
 @community_bp.route('/community/update', methods=['POST'])
 def update_community():
-    """更新社区信息"""
-    current_app.logger.info('=== 开始更新社区信息 ===')
+    """更新社区信息（已废弃）- 请使用 PUT /api/communities/<id>"""
+    current_app.logger.info('=== 开始更新社区信息（已废弃） ===')
 
     # 验证token
     decoded, error_response = verify_token()
@@ -207,7 +269,13 @@ def update_community():
         })
 
         current_app.logger.info(f'更新社区信息成功: community_id={community_id}')
-        return make_succ_response({'message': '更新成功'})
+
+        # 添加 deprecation 警告
+        response = make_succ_response({'message': '更新成功'})
+        response.headers['Deprecation'] = 'Use PUT /api/communities/<id> instead'
+        response.headers['Warning'] = '299 - "Deprecated API: Use PUT /api/communities/<id> instead"'
+
+        return response
 
     except Exception as e:
         current_app.logger.error(f'更新社区信息失败: {str(e)}', exc_info=True)

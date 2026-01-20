@@ -233,10 +233,52 @@ def add_users_to_community():
         return make_err_response({}, '批量添加失败')
 
 
+@community_bp.route('/communities/<int:community_id>/users/<int:target_user_id>', methods=['DELETE'])
+def remove_user_from_community_restful(community_id, target_user_id):
+    """从社区中移除用户（RESTful API）- 重写自 POST /api/community/remove-user"""
+    current_app.logger.info('=== 开始从社区中移除用户（RESTful） ===')
+
+    # 验证token
+    decoded, error_response = verify_token()
+    if error_response:
+        return error_response
+
+    operator_id = decoded.get('user_id')
+    current_app.logger.info(f'操作用户ID: {operator_id}, 社区ID: {community_id}, 目标用户ID: {target_user_id}')
+
+    try:
+        # 检查权限
+        check_permission_use_case = CheckCommunityPermissionUseCase()
+        permission_result = check_permission_use_case.execute(operator_id, community_id)
+        has_permission = permission_result.data.get('has_permission', False) if permission_result.is_success else False
+        if not has_permission:
+            return make_err_response({}, '无权限访问该社区')
+
+        # 使用应用服务用例移除用户
+        remove_user_use_case = RemoveUserFromCommunityUseCase()
+        result = remove_user_use_case.execute(community_id, target_user_id)
+
+        if result.is_success:
+            # 记录审计日志
+            _audit(operator_id, 'remove_user_from_community', {
+                'community_id': community_id,
+                'target_user_id': target_user_id
+            })
+
+            current_app.logger.info(f'从社区中移除用户成功: community_id={community_id}, user_id={target_user_id}')
+            return make_succ_response({'message': '移除成功'})
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'从社区中移除用户失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '移除失败')
+
+
 @community_bp.route('/community/remove-user', methods=['POST'])
 def remove_user_from_community():
-    """从社区中移除用户"""
-    current_app.logger.info('=== 开始从社区中移除用户 ===')
+    """从社区中移除用户（已废弃）- 请使用 DELETE /api/communities/<id>/users/<user_id>"""
+    current_app.logger.info('=== 开始从社区中移除用户（已废弃） ===')
 
     # 验证token
     decoded, error_response = verify_token()
@@ -276,7 +318,13 @@ def remove_user_from_community():
             })
 
             current_app.logger.info(f'从社区中移除用户成功: community_id={community_id}, user_id={target_user_id}')
-            return make_succ_response({'message': '移除成功'})
+
+            # 添加 deprecation 警告
+            response = make_succ_response({'message': '移除成功'})
+            response.headers['Deprecation'] = 'Use DELETE /api/communities/<id>/users/<user_id> instead'
+            response.headers['Warning'] = '299 - "Deprecated API: Use DELETE /api/communities/<id>/users/<user_id> instead"'
+
+            return response
         else:
             return make_err_response({}, result.message)
 
