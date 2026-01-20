@@ -1048,5 +1048,227 @@ class TestCommunityCRUD(IntegrationTestBase):
                 headers={'Authorization': f'Bearer {token}'}
             )
 
+    # ==================== 6. RESTful API 测试 ====================
+
+    def test_put_update_community_restful_success(self):
+        """测试 RESTful API: PUT /api/communities/<id> - 成功场景"""
+        with self.app.app_context():
+            admin = self.get_super_admin('put_update_community_success_001')
+
+            # 先创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='原始社区名称_001',
+                description='原始描述',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用 PUT 方法更新社区信息
+            response = client.put(
+                f'/api/communities/{community.community_id}',
+                data=json.dumps({
+                    'name': '更新后的社区名称_001',
+                    'description': '更新后的描述',
+                    'location': '更新后的地址'
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应
+            data = self.assert_api_success(response)
+            assert 'message' in data['data']
+            assert data['data']['message'] == '更新成功'
+
+    def test_put_update_community_restful_with_coordinates(self):
+        """测试 RESTful API: PUT /api/communities/<id> - 包含经纬度"""
+        with self.app.app_context():
+            admin = self.get_super_admin('put_update_with_coordinates_001')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_更新经纬度_001',
+                description='用于测试更新经纬度',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用 PUT 方法更新经纬度
+            response = client.put(
+                f'/api/communities/{community.community_id}',
+                data=json.dumps({
+                    'location_lat': 39.9042,
+                    'location_lon': 116.4074
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应
+            self.assert_api_success(response)
+
+    def test_delete_remove_user_restful_success(self):
+        """测试 RESTful API: DELETE /api/communities/<id>/users/<user_id> - 成功场景"""
+        with self.app.app_context():
+            admin = self.get_super_admin('delete_remove_user_success')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_删除用户',
+                description='用于测试删除用户',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 创建普通用户
+            user = self.create_standard_test_user(role=0, test_context='delete_user_target')
+            self.db.session.commit()
+
+            # 将用户添加到社区（使用 UseCase）
+            from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
+            add_users_use_case = AddUsersToCommunityUseCase()
+            result = add_users_use_case.execute(community.community_id, [user.user_id])
+            assert result.is_success
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用 DELETE 方法移除用户
+            response = client.delete(
+                f'/api/communities/{community.community_id}/users/{user.user_id}',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应
+            data = self.assert_api_success(response)
+            assert 'message' in data['data']
+            assert data['data']['message'] == '移除成功'
+
+    def test_delete_remove_user_restful_not_found(self):
+        """测试 RESTful API: DELETE /api/communities/<id>/users/<user_id> - 用户不存在"""
+        with self.app.app_context():
+            admin = self.get_super_admin('delete_user_not_found')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_用户不存在',
+                description='用于测试用户不存在',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 尝试删除不存在的用户
+            response = client.delete(
+                f'/api/communities/{community.community_id}/users/999999',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
             # 验证错误响应
             self.assert_api_error(response, expected_code=0)
+
+    def test_old_post_update_community_deprecated_warning(self):
+        """测试旧 API: POST /api/community/update - 验证 deprecation 警告"""
+        with self.app.app_context():
+            admin = self.get_super_admin('old_post_update_deprecated')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_旧API警告',
+                description='用于测试旧API警告',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用旧的 POST 方法更新社区
+            response = client.post(
+                '/api/community/update',
+                data=json.dumps({
+                    'community_id': community.community_id,
+                    'name': '更新后的名称'
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应成功
+            self.assert_api_success(response)
+
+            # 验证 deprecation 警告头
+            assert 'Deprecation' in response.headers
+            assert 'Use PUT /api/communities/<id> instead' in response.headers['Deprecation']
+            assert 'Warning' in response.headers
+
+    def test_old_post_remove_user_deprecated_warning(self):
+        """测试旧 API: POST /api/community/remove-user - 验证 deprecation 警告"""
+        with self.app.app_context():
+            admin = self.get_super_admin('old_post_remove_deprecated')
+
+            # 创建社区
+            from database.flask_models import Community
+            community = Community(
+                name='测试社区_旧API删除警告',
+                description='用于测试旧API删除警告',
+                creator_id=admin['user_id']
+            )
+            self.db.session.add(community)
+            self.db.session.commit()
+            self.db.session.refresh(community)
+
+            # 创建用户
+            user = self.create_standard_test_user(role=0, test_context='old_post_remove_user')
+            self.db.session.commit()
+
+            # 将用户添加到社区（使用 UseCase）
+            from app.application.use_cases.community.add_users_to_community_use_case import AddUsersToCommunityUseCase
+            add_users_use_case = AddUsersToCommunityUseCase()
+            result = add_users_use_case.execute(community.community_id, [user.user_id])
+            assert result.is_success
+
+            client = self.get_test_client()
+            token = self.get_jwt_token(admin['phone_number'])
+
+            # 使用旧的 POST 方法移除用户
+            response = client.post(
+                '/api/community/remove-user',
+                data=json.dumps({
+                    'community_id': community.community_id,
+                    'user_id': user.user_id
+                }),
+                content_type='application/json',
+                headers={'Authorization': f'Bearer {token}'}
+            )
+
+            # 验证响应成功
+            self.assert_api_success(response)
+
+            # 验证 deprecation 警告头
+            assert 'Deprecation' in response.headers
+            assert 'Use DELETE /api/communities/<id>/users/<user_id> instead' in response.headers['Deprecation']
+            assert 'Warning' in response.headers
