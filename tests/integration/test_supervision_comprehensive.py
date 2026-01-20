@@ -34,41 +34,6 @@ class TestSupervisionComprehensive(IntegrationTestBase):
         # 返回规则的ID
         return result.data['rule'].rule_id
 
-    def test_invite_supervisor_with_wechat(self):
-        """测试通过微信邀请监督者(已弃用API)"""
-        with self.app.app_context():
-            # 创建监督者(邀请者) - 拥有打卡规则
-            supervisor = self.create_standard_test_user(role=1, test_context='invite_wechat_supervisor')
-            # 创建被监督者(被邀请者)
-            supervised = self.create_standard_test_user(role=1, test_context='invite_wechat_supervised')
-            self.db.session.commit()
-
-            # 为监督者创建打卡规则
-            rule_id = self.create_checkin_rule_for_user(supervisor.user_id)
-
-            supervisor_phone = supervisor.phone_number
-            supervised_openid = supervised.wechat_openid
-
-        client = self.get_test_client()
-
-        # 监督者邀请被监督者监督监督者的规则(使用已弃用的微信邀请API)
-        supervisor_token = self.get_jwt_token(supervisor_phone)
-        response = client.post(
-            '/api/supervision/invite',
-            data=json.dumps({
-                'invite_type': 'wechat',
-                'rule_ids': [rule_id],
-                'target_openid': supervised_openid
-            }),
-            content_type='application/json',
-            headers={'Authorization': f'Bearer {supervisor_token}'}
-        )
-
-        # 验证响应 - 已弃用API返回 message, relations_count, relations
-        data = self.assert_api_success(response)
-        assert 'message' in data['data']
-        assert 'relations_count' in data['data']
-
     def test_invite_supervisor_with_internal(self):
         """测试通过站内邀请监督者(推荐使用)"""
         with self.app.app_context():
@@ -100,65 +65,6 @@ class TestSupervisionComprehensive(IntegrationTestBase):
         data = self.assert_api_success(response)
         assert 'relation_ids' in data['data']
         assert len(data['data']['relation_ids']) > 0
-
-    def test_invite_supervisor_empty_rule_ids(self):
-        """测试邀请监督者时rule_ids为空(监督所有规则)"""
-        with self.app.app_context():
-            supervisor = self.create_standard_test_user(role=1, test_context='invite_empty_rules')
-            supervised = self.create_standard_test_user(role=1, test_context='invite_empty_rules')
-            self.db.session.commit()
-
-            # 创建多个规则
-            rule_id_1 = self.create_checkin_rule_for_user(supervisor.user_id)
-            rule_id_2 = self.create_checkin_rule_for_user(supervisor.user_id)
-
-            supervisor_phone = supervisor.phone_number
-            supervised_openid = supervised.wechat_openid
-
-        client = self.get_test_client()
-
-        # 使用已弃用的API,空rule_ids表示监督所有规则
-        supervisor_token = self.get_jwt_token(supervisor_phone)
-        response = client.post(
-            '/api/supervision/invite',
-            data=json.dumps({
-                'invite_type': 'wechat',
-                'rule_ids': [],  # 空表示监督所有规则
-                'target_openid': supervised_openid
-            }),
-            content_type='application/json',
-            headers={'Authorization': f'Bearer {supervisor_token}'}
-        )
-
-        # 验证响应
-        data = self.assert_api_success(response)
-        assert 'relations_count' in data['data']
-
-    def test_invite_supervisor_invalid_target(self):
-        """测试邀请不存在的用户"""
-        with self.app.app_context():
-            supervisor = self.create_standard_test_user(role=1, test_context='invite_invalid')
-            self.db.session.commit()
-
-            rule_id = self.create_checkin_rule_for_user(supervisor.user_id)
-            supervisor_phone = supervisor.phone_number
-
-        client = self.get_test_client()
-
-        supervisor_token = self.get_jwt_token(supervisor_phone)
-        response = client.post(
-            '/api/supervision/invite',
-            data=json.dumps({
-                'invite_type': 'wechat',
-                'rule_ids': [rule_id],
-                'target_openid': 'nonexistent_openid'
-            }),
-            content_type='application/json',
-            headers={'Authorization': f'Bearer {supervisor_token}'}
-        )
-
-        # 验证错误响应
-        self.assert_api_error(response, expected_code=0, expected_msg_pattern='用户不存在')
 
     def test_get_supervision_invitations_success(self):
         """测试获取监督邀请列表"""

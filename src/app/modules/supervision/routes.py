@@ -17,7 +17,6 @@ from app.application.use_cases.supervision import (
     GetUserByOpenIdUseCase,
     GetCheckinRuleByIdUseCase,
     SendInternalInvitationUseCase,
-    InviteSupervisorUseCase,
     InvitationManagementUseCase,
     GetSupervisedUsersUseCase,
     GetGuardiansUseCase,
@@ -79,64 +78,6 @@ def invite_supervisor_internal(decoded):
     except Exception as e:
         current_app.logger.error(f'站内邀请监督者失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'站内邀请失败: {str(e)}')
-
-
-@supervision_bp.route('/supervision/invite', methods=['POST'])
-@login_required
-def invite_supervisor(decoded):
-    """
-    邀请监督者接口 - 邀请特定用户监督特定规则（已弃用，请使用invite_supervisor_internal）
-    """
-    current_app.logger.info('=== 开始执行邀请监督者接口 ===')
-
-    user_id = decoded.get('user_id')
-    get_user_use_case = GetUserByIdUseCase()
-    user_result = get_user_use_case.execute(user_id=user_id)
-    if not user_result.is_success:
-        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
-        return make_err_response({}, '用户不存在')
-    user = user_result.data
-
-    try:
-        # 获取请求参数
-        params = request.get_json()
-        rule_ids = params.get('rule_ids', [])  # 要监督的规则ID列表，空表示监督所有规则
-        target_openid = params.get('target_openid')  # 被邀请用户的openid（可选）
-        target_user_id = params.get('target_user_id')  # 被邀请用户的user_id（可选）
-
-        # 支持使用 target_user_id 或 target_openid 查询被邀请用户
-        if target_user_id:
-            get_target_user_use_case = GetUserByIdUseCase()
-            target_user_result = get_target_user_use_case.execute(user_id=target_user_id)
-        elif target_openid:
-            get_target_user_use_case = GetUserByOpenIdUseCase()
-            target_user_result = get_target_user_use_case.execute(openid=target_openid)
-        else:
-            return make_err_response({}, '缺少target_user_id或target_openid参数')
-
-        if not target_user_result.is_success:
-            return make_err_response({}, '被邀请用户不存在')
-        target_user = target_user_result.data
-
-        # 使用应用服务用例邀请监督者
-        from app.application.use_cases.supervision import InviteSupervisorUseCase
-
-        use_case = InviteSupervisorUseCase()
-        result = use_case.execute(
-            inviter_id=user.user_id,
-            target_user_id=target_user.user_id,
-            rule_ids=rule_ids
-        )
-
-        if result.is_success:
-            current_app.logger.info(f'用户 {user.user_id} 成功邀请用户 {target_user.user_id} 监督')
-            return make_succ_response(result.data)
-        else:
-            return make_err_response({}, result.message)
-
-    except Exception as e:
-        current_app.logger.error(f'邀请监督者失败: {str(e)}', exc_info=True)
-        return make_err_response({}, f'邀请失败: {str(e)}')
 
 
 @supervision_bp.route('/supervision/invite_link', methods=['POST'])
