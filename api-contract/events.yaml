@@ -260,6 +260,85 @@ paths:
                         closure_reason:
                           type: string
                           description: 关闭原因
+  /api/events/communities/{community_id}/stats:
+    get:
+      deprecated: true
+      tags:
+      - 事件模块
+      summary: 获取社区事件统计（已弃用）
+      description: |
+        获取指定社区的事件统计数据
+
+        **已弃用 - 弃用日期: 2026-01-20**
+
+        请使用: `GET /api/community-dashboard/<id>/stats`
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        total_events:
+                          type: integer
+                        active_events:
+                          type: integer
+                        closed_events:
+                          type: integer
+                        help_events:
+                          type: integer
+                        support_events:
+                          type: integer
+  /api/events/communities/{community_id}/pending-events:
+    get:
+      deprecated: true
+      tags:
+      - 事件模块
+      summary: 获取社区未处理的求助事件（已弃用）
+      description: |
+        获取社区中未处理的求助事件列表
+
+        **已弃用 - 弃用日期: 2026-01-20**
+
+        请使用: `GET /api/community-dashboard/<id>/pending-events`
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: community_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 社区ID
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/EventInfo'
 components:
   schemas:
     StandardResponse:

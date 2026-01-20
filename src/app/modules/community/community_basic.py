@@ -174,14 +174,18 @@ def get_managed_communities():
     from app.shared.utils.auth import verify_token
     from app.application.use_cases.auth import GetCurrentUserUseCase
 
-    current_app.logger.info('=== 开始获取可管理社区列表 ===')
-
     # 验证token并获取用户ID
     decoded, error_response = verify_token()
     if error_response:
         return error_response
 
     user_id = decoded.get('user_id')
+
+    # 验证limit参数
+    from flask import request
+    limit = request.args.get('limit', 7, type=int)
+    if limit < 1 or limit > 1000:
+        limit = 7
 
     # 使用GetCurrentUserUseCase获取用户对象
     get_current_user_use_case = GetCurrentUserUseCase()
@@ -198,7 +202,7 @@ def get_managed_communities():
     try:
         # 使用UseCase获取用户可管理的社区
         get_managed_use_case = GetManagedCommunitiesUseCase()
-        result = get_managed_use_case.execute(user_id=user.user_id, limit=7)
+        result = get_managed_use_case.execute(user_id=user.user_id, limit=limit)
 
         if not result.is_success:
             return make_err_response({}, result.message)
@@ -209,12 +213,12 @@ def get_managed_communities():
             community_data = _format_community_info_from_dict(community)
             communities_data.append(community_data)
 
-        current_app.logger.info(f'获取可管理社区列表成功，共 {len(communities_data)} 个社区')
         return make_succ_response({'communities': communities_data})
 
     except Exception as e:
-        current_app.logger.error(f'获取可管理社区列表失败: {str(e)}', exc_info=True)
-        return make_err_response({}, '获取可管理社区列表失败')
+        error_msg = f'获取可管理社区列表失败: {str(e)}'
+        current_app.logger.error(error_msg, exc_info=True)
+        return make_err_response({}, error_msg)
 
 
 @community_bp.route('/community/communities/manage/list', methods=['GET'])

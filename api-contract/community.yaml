@@ -54,10 +54,16 @@ paths:
                           type: integer
   /api/community/list:
     get:
+      deprecated: true
       tags:
       - 社区模块
-      summary: 获取用户可见的社区列表
-      description: 获取用户可见的社区列表
+      summary: 获取用户可见的社区列表（已弃用）
+      description: |
+        获取用户可见的社区列表
+
+        **已弃用**
+
+        请使用: `GET /api/communities?type=available`
       security:
       - BearerAuth: []
       parameters:
@@ -116,10 +122,16 @@ paths:
                                 format: date-time
   /api/communities/available:
     get:
+      deprecated: true
       tags:
       - 社区模块
-      summary: 获取可加入的社区列表
-      description: 获取用户可以加入的社区列表
+      summary: 获取可加入的社区列表（已弃用）
+      description: |
+        获取用户可以加入的社区列表
+
+        **已弃用**
+
+        请使用: `GET /api/communities?type=available`
       security:
       - BearerAuth: []
       responses:
@@ -138,10 +150,16 @@ paths:
                         $ref: '#/components/schemas/CommunityInfo'
   /api/community/communities/manage/list:
     get:
+      deprecated: true
       tags:
       - 社区模块
-      summary: 获取可管理的社区列表
-      description: 获取用户可以管理的社区列表
+      summary: 获取可管理的社区列表（已弃用）
+      description: |
+        获取用户可以管理的社区列表
+
+        **已弃用**
+
+        请使用: `GET /api/user/managed-communities`
       security:
       - BearerAuth: []
       responses:
@@ -325,10 +343,16 @@ paths:
                           type: integer
   /api/community/update:
     post:
+      deprecated: true
       tags:
       - 社区模块
-      summary: 更新社区信息
-      description: 更新社区的基本信息
+      summary: 更新社区信息（已弃用）
+      description: |
+        更新社区的基本信息
+
+        **已弃用**
+
+        请使用: `PUT /api/communities/<id>`
       security:
       - BearerAuth: []
       requestBody:
@@ -540,10 +564,16 @@ paths:
                 $ref: '#/components/schemas/StandardResponse'
   /api/community/users:
     get:
+      deprecated: true
       tags:
       - 社区模块
-      summary: 获取社区用户列表（新版）
-      description: 获取指定社区的用户列表（新版接口）
+      summary: 获取社区用户列表（已弃用）
+      description: |
+        获取指定社区的用户列表
+
+        **已弃用 - 弃用日期: 2026-01-20**
+
+        请使用: `GET /api/communities/<id>/users`
       security:
       - BearerAuth: []
       parameters:
@@ -619,10 +649,16 @@ paths:
                 $ref: '#/components/schemas/StandardResponse'
   /api/community/remove-user:
     post:
+      deprecated: true
       tags:
       - 社区模块
-      summary: 从社区中移除用户
-      description: 从指定社区中移除用户
+      summary: 从社区中移除用户（已弃用）
+      description: |
+        从指定社区中移除用户
+
+        **已弃用**
+
+        请使用: `DELETE /api/communities/<id>/users/<user_id>`
       security:
       - BearerAuth: []
       requestBody:

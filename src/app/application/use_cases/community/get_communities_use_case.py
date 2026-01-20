@@ -5,6 +5,7 @@
 import logging
 
 from app.application.use_cases.base import BaseUseCase, UseCaseStatus, UseCaseResult
+from app.application.use_cases.auth import GetCurrentUserUseCase
 from app.infrastructure.persistence.repository_factory import RepositoryFactory
 
 
@@ -140,7 +141,11 @@ class GetCommunitiesUseCase(BaseUseCase):
                 if limit > 0:
                     communities_data = communities_data[:limit]
 
-            self.logger.info(f'获取社区列表成功: type={community_type}, count={len(communities_data)}')
+                print(f'Layer 2: 最终返回 {len(communities_data)} 个社区')
+
+            self.logger.info(f'Layer 2: 业务逻辑验证 - 获取社区列表成功: type={community_type}, count={len(communities_data)}')
+            if len(communities_data) == 0:
+                self.logger.warning(f'Layer 2: 警告 - 没有返回任何社区！')
 
             # 3. 返回结果
             return UseCaseResult(

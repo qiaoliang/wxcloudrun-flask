@@ -12,6 +12,120 @@ servers:
 - url: https://prod.safeguard.com/api
   description: 生产环境
 paths:
+  /api/checkin/create:
+    post:
+      tags:
+      - 分享模块
+      summary: 创建可分享的打卡邀请链接
+      description: 为打卡规则创建可分享的链接
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_id
+              properties:
+                rule_id:
+                  type: integer
+                  description: 打卡规则ID
+                expire_hours:
+                  type: integer
+                  default: 168
+                  description: 链接过期时间（小时，默认7天）
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        token:
+                          type: string
+                          description: 分享token
+                        url:
+                          type: string
+                          description: 完整分享链接
+                        mini_path:
+                          type: string
+                          description: 小程序路径
+                        qrcode_url:
+                          type: string
+                          description: 二维码URL
+                        expire_at:
+                          type: string
+                          format: date-time
+                          description: 过期时间
+  /api/checkin/resolve:
+    get:
+      tags:
+      - 分享模块
+      summary: 解析分享链接
+      description: 解析分享链接，返回打卡规则信息
+      security: []
+      parameters:
+      - name: token
+        in: query
+        required: true
+        schema:
+          type: string
+        description: 分享token
+      responses:
+        '200':
+          description: 解析成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule_info:
+                          type: object
+                          description: 打卡规则信息
+                          properties:
+                            rule_id:
+                              type: integer
+                            rule_name:
+                              type: string
+                            description:
+                              type: string
+                            custom_time:
+                              type: string
+                            frequency_type:
+                              type: integer
+                            time_slot_type:
+                              type: integer
+                            is_enabled:
+                              type: boolean
+                        inviter_info:
+                          type: object
+                          description: 邀请者信息
+                          properties:
+                            user_id:
+                              type: integer
+                            nickname:
+                              type: string
+                            avatar_url:
+                              type: string
+                        is_expired:
+                          type: boolean
+                          description: 是否已过期
+                        is_already_supervisor:
+                          type: boolean
+                          description: 是否已是监督关系
   /api/share/check-in:
     get:
       tags:

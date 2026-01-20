@@ -43,7 +43,9 @@ class SQLAlchemyCommunityStaffRepository(CommunityStaffRepository):
             stmt = stmt.where(CommunityStaff.removed_at.is_(None))
         
         stmt = stmt.order_by(CommunityStaff.added_at.desc())
-        return list(self.session.execute(stmt).scalars().all())
+        result = list(self.session.execute(stmt).scalars().all())
+        
+        return result
 
     def find_by_community_and_user(self, community_id: int, user_id: int) -> Optional[CommunityStaff]:
         """根据社区ID和用户ID查找工作人员"""

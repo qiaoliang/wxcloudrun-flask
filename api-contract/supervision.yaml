@@ -12,6 +12,67 @@ servers:
 - url: https://prod.safeguard.com/api
   description: 生产环境
 paths:
+  /api/supervision/invite/internal:
+    post:
+      tags:
+      - 监督模块
+      summary: 站内邀请监督者
+      description: 通过搜索用户并直接发送邀请
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - rule_id
+              - receiver_ids
+              properties:
+                rule_id:
+                  type: integer
+                  description: 打卡规则ID
+                receiver_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 接收者用户ID列表
+                message:
+                  type: string
+                  description: 邀请消息
+      responses:
+        '200':
+          description: 发送成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        sender_id:
+                          type: integer
+                        receiver_ids:
+                          type: array
+                          items:
+                            type: integer
+                        rule_id:
+                          type: integer
+                        relation_ids:
+                          type: array
+                          items:
+                            type: integer
+                        invitation_type:
+                          type: string
+                        status:
+                          type: string
+                        expires_at:
+                          type: string
+                          format: date-time
   /api/supervision/invite_link:
     post:
       tags:
@@ -167,12 +228,163 @@ paths:
                                 format: date-time
                         total:
                           type: integer
-  /api/supervision/accept:
+  /api/supervision/invitations/{invitation_id}/accept:
     post:
       tags:
       - 监督模块
       summary: 接受监督邀请
-      description: 接受监督邀请，建立监督关系
+      description: 接受用户加入社区的监督邀请
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 邀请ID
+      responses:
+        '200':
+          description: 接受成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        relation_id:
+                          type: integer
+                          description: 监督关系ID
+                        status:
+                          type: string
+                          description: 状态
+  /api/supervision/invitations/{invitation_id}/reject:
+    post:
+      tags:
+      - 监督模块
+      summary: 拒绝监督邀请
+      description: 拒绝用户加入社区的监督邀请
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 邀请ID
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  description: 拒绝原因
+      responses:
+        '200':
+          description: 拒绝成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        message:
+                          type: string
+  /api/supervision/invitations/{invitation_id}:
+    delete:
+      tags:
+      - 监督模块
+      summary: 忽略监督邀请
+      description: 忽略用户加入社区的监督邀请
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 邀请ID
+      responses:
+        '200':
+          description: 忽略成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        message:
+                          type: string
+  /api/supervision/invitations/batch-accept:
+    post:
+      tags:
+      - 监督模块
+      summary: 批量接受监督邀请
+      description: 批量接受多个监督邀请
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - invitation_ids
+              properties:
+                invitation_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 邀请ID列表
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        accepted_count:
+                          type: integer
+                          description: 成功接受数量
+                        failed_count:
+                          type: integer
+                          description: 失败数量
+  /api/supervision/accept:
+    post:
+      deprecated: true
+      tags:
+      - 监督模块
+      summary: 接受监督邀请（已弃用）
+      description: |
+        接受监督邀请，建立监督关系
+
+        **已弃用 - 弃用日期: 2026-01-20**
+
+        请使用: `POST /api/supervision/invitations/<id>/accept`
       security:
       - BearerAuth: []
       requestBody:
@@ -196,10 +408,16 @@ paths:
                 $ref: '#/components/schemas/StandardResponse'
   /api/supervision/reject:
     post:
+      deprecated: true
       tags:
       - 监督模块
-      summary: 拒绝监督邀请
-      description: 拒绝监督邀请
+      summary: 拒绝监督邀请（已弃用）
+      description: |
+        拒绝监督邀请
+
+        **已弃用 - 弃用日期: 2026-01-20**
+
+        请使用: `POST /api/supervision/invitations/<id>/reject`
       security:
       - BearerAuth: []
       requestBody:
