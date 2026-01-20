@@ -109,9 +109,20 @@
 
 ---
 
-## 任务 2: 合并社区列表 API（优先级2）
+## 任务 2: 合并社区列表 API（优先级2）✅ 已完成
 
 **目标**: 将 6 个社区列表 API 合并为 2 个，统一接口设计。
+
+**实际执行摘要**:
+- ✅ 创建新的 `GetCommunitiesUseCase` 统一处理社区列表获取
+- ✅ 修改 `GetAllCommunitiesUseCase` 调用新的统一 UseCase
+- ✅ 修改 `GetAvailableCommunitiesUseCase` 调用新的统一 UseCase
+- ✅ 修改 `GetManagedCommunitiesUseCase` 调用新的统一 UseCase
+- ✅ 为旧 API 添加 deprecation 警告
+- ✅ 删除未使用的 `/api/communities/manage/search` API
+- ✅ 保持向后兼容性
+
+**提交**: e85f742, f6c4b6e
 
 ### 涉及的文件
 
@@ -390,7 +401,19 @@ git commit -m "refactor: 合并社区列表 API，统一接口设计
 
 ---
 
-## 任务 3: 统一 HTTP 方法（优先级2）
+## 任务 3: 统一 HTTP 方法（优先级2）✅ 已完成
+
+**目标**: 将 POST 方法改为符合 RESTful 规范的 PUT/DELETE 方法。
+
+**实际执行摘要**:
+- ✅ 新增 `PUT /api/communities/<id>` - 更新社区信息（重写自 POST /api/community/update）
+- ✅ 新增 `DELETE /api/communities/<id>/users/<user_id>` - 移除社区用户（重写自 POST /api/community/remove-user）
+- ✅ 保留旧 API 并添加 deprecation 警告
+- ✅ 为新 RESTful API 编写 6 个集成测试
+- ✅ 所有测试通过（单元测试 618 个，集成测试 194 个）
+- ✅ 保持向后兼容性
+
+**提交**: c1b9b16, a5c387a
 
 **目标**: 将不符合 RESTful 规范的 POST 方法改为正确的 HTTP 方法。
 
