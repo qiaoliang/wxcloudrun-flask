@@ -25,10 +25,36 @@ fi
 # 导出端口环境变量供 run.py 使用
 export EXPOSE_PORT=$PORT
 
-# 启动应用
+# 确保日志目录存在
+mkdir -p logs
+
+# 获取当前时间戳用于日志文件名
+TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
+LOG_FILE="logs/server_${TIMESTAMP}.log"
+
+# 启动应用（后台运行并输出到日志文件）
 echo "🌟 正在启动 SafeGuard 应用..."
 echo "📍 访问地址: http://localhost:${PORT}"
 echo "📍 环境配置: http://localhost:${PORT}/api/env"
+echo "📝 日志文件: $(pwd)/${LOG_FILE}"
 echo "⏳ 等待服务启动..."
 echo ""
-ENV_TYPE=function python3.12 run.py
+
+# 使用 nohup 在后台运行，将标准输出和标准错误都重定向到日志文件
+nohup ENV_TYPE=function python3.12 run.py > "${LOG_FILE}" 2>&1 &
+
+# 保存进程ID
+echo $! > logs/server.pid
+
+# 等待几秒让服务启动
+sleep 3
+
+# 检查服务是否启动成功
+if ps -p $(cat logs/server.pid) > /dev/null; then
+    echo "✅ 服务启动成功！"
+    echo "📊 查看实时日志: tail -f ${LOG_FILE}"
+    echo "🛑 停止服务: kill \$(cat logs/server.pid)"
+else
+    echo "❌ 服务启动失败，请查看日志文件：${LOG_FILE}"
+    tail -n 20 "${LOG_FILE}"
+fi

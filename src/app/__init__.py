@@ -27,12 +27,15 @@ def configure_logging(app):
     if not os.path.exists(logs_dir):
         os.makedirs(logs_dir, exist_ok=True)
 
+    # 生成带时间戳的日志文件名
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+
     # 创建根日志配置
     logging.basicConfig(
         level=logging.INFO,
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
-            logging.FileHandler(os.path.join(logs_dir, 'app.log')),
+            logging.FileHandler(os.path.join(logs_dir, f'app_{timestamp}.log')),
             logging.StreamHandler()
         ]
     )
@@ -41,7 +44,7 @@ def configure_logging(app):
     # 1. App 服务 logger
     app_logger = logging.getLogger('app')
     app_logger.setLevel(logging.INFO)
-    app_handler = logging.FileHandler(os.path.join(logs_dir, 'app_service.log'))
+    app_handler = logging.FileHandler(os.path.join(logs_dir, f'app_service_{timestamp}.log'))
     app_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     app_logger.addHandler(app_handler)
     app_logger.propagate = False  # 防止重复日志
@@ -49,7 +52,7 @@ def configure_logging(app):
     # 2. 定时任务 logger
     scheduler_logger = logging.getLogger('scheduler')
     scheduler_logger.setLevel(logging.INFO)
-    scheduler_handler = logging.FileHandler(os.path.join(logs_dir, 'scheduler.log'))
+    scheduler_handler = logging.FileHandler(os.path.join(logs_dir, f'scheduler_{timestamp}.log'))
     scheduler_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
     scheduler_logger.addHandler(scheduler_handler)
     scheduler_logger.propagate = False  # 防止重复日志
