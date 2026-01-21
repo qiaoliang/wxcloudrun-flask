@@ -68,6 +68,35 @@ class TestAuthContract:
         assert isinstance(response_data["refresh_token"], str)
         assert isinstance(response_data["user_id"], int)
 
+    def test_login_phone_password_field_types_100_percent(self, schema, base_client):
+        """100% 完整度验证：手机号密码登录 - 验证所有字段及类型"""
+        creds = get_test_user_credentials()
+        response = base_client.post('/api/auth/login_phone_password', json={
+            'phone': creds['phone_number'],
+            'password': creds['password']
+        })
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段及类型
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "token" in response_data
+        assert "refresh_token" in response_data
+        assert "user_id" in response_data
+
+        # 验证字段类型符合 OpenAPI 定义
+        assert isinstance(response_data["token"], str), f"token 应为 string 类型"
+        assert isinstance(response_data["refresh_token"], str), f"refresh_token 应为 string 类型"
+        assert isinstance(response_data["user_id"], int), f"user_id 应为 integer 类型"
+
+        # 验证字段值有效性
+        assert len(response_data["token"]) > 0
+        assert len(response_data["refresh_token"]) > 0
+        assert response_data["user_id"] > 0
+
     def test_login_phone_password_wrong_password_contract(self, schema, base_client):
         """测试密码错误的登录契约"""
         response = base_client.post('/api/auth/login_phone_password', json={
@@ -95,7 +124,7 @@ class TestAuthContract:
 
     def test_login_phone_code_contract(self, schema, base_client):
         """测试手机号验证码登录契约"""
-        # 使用 mock 验证码（SMS_PROVIDER=mock 时任何6位码都有效）
+        # 使用 mock 验证码（SMS_PROVIDER=mock 时 123456 有效）
         response = base_client.post('/api/auth/login_phone_code', json={
             'phone': '13141516171',
             'code': '123456'
@@ -109,6 +138,34 @@ class TestAuthContract:
         required_fields = ["token", "refresh_token", "user_id"]
         for field in required_fields:
             assert field in response_data, f"验证码登录响应缺少字段: {field}"
+
+    def test_login_phone_code_field_types_100_percent(self, schema, base_client):
+        """100% 完整度验证：手机号验证码登录 - 验证所有字段及类型"""
+        response = base_client.post('/api/auth/login_phone_code', json={
+            'phone': '13141516171',
+            'code': '123456'
+        })
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段及类型
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "token" in response_data, "缺少 token 字段"
+        assert "refresh_token" in response_data, "缺少 refresh_token 字段"
+        assert "user_id" in response_data, "缺少 user_id 字段"
+
+        # 验证字段类型符合 OpenAPI 定义
+        assert isinstance(response_data["token"], str), f"token 应为 string 类型，实际为 {type(response_data['token'])}"
+        assert isinstance(response_data["refresh_token"], str), f"refresh_token 应为 string 类型，实际为 {type(response_data['refresh_token'])}"
+        assert isinstance(response_data["user_id"], int), f"user_id 应为 integer 类型，实际为 {type(response_data['user_id'])}"
+
+        # 验证字段值非空
+        assert len(response_data["token"]) > 0, "token 不应为空"
+        assert len(response_data["refresh_token"]) > 0, "refresh_token 不应为空"
+        assert response_data["user_id"] > 0, "user_id 应大于 0"
 
     def test_login_phone_code_wrong_code_contract(self, schema, base_client):
         """测试验证码错误的契约"""
@@ -154,6 +211,36 @@ class TestAuthContract:
         assert "token" in response_data
         assert "user_id" in response_data
 
+    def test_login_phone_field_types_100_percent(self, schema, base_client):
+        """100% 完整度验证：通用登录 - 验证所有字段及类型"""
+        # 注意：实际实现需要同时提供 code 和 password
+        response = base_client.post('/api/auth/login_phone', json={
+            'phone': '13141516171',
+            'code': '123456',
+            'password': 'F1234567'
+        })
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段及类型
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "token" in response_data
+        assert "refresh_token" in response_data
+        assert "user_id" in response_data
+
+        # 验证字段类型符合 OpenAPI 定义
+        assert isinstance(response_data["token"], str)
+        assert isinstance(response_data["refresh_token"], str)
+        assert isinstance(response_data["user_id"], int)
+
+        # 验证字段值有效性
+        assert len(response_data["token"]) > 0
+        assert len(response_data["refresh_token"]) > 0
+        assert response_data["user_id"] > 0
+
     def test_login_phone_with_password_only_contract(self, schema, base_client):
         """测试通用登录（仅密码）- 契约不一致场景"""
         # 契约定义支持仅密码，但实际实现不支持
@@ -197,6 +284,43 @@ class TestAuthContract:
         # 这是已知的契约不一致问题
         assert response_data["login_type"] in ["new_user", "existing_user", "wechat"]
 
+    def test_login_wechat_field_types_100_percent(self, schema, base_client):
+        """100% 完整度验证：微信登录 - 验证所有 6 个字段及类型"""
+        response = base_client.post('/api/auth/login_wechat', json={
+            'code': 'mock_wechat_code_for_test'
+        })
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段（6个字段）
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "token" in response_data, "缺少 token 字段"
+        assert "refresh_token" in response_data, "缺少 refresh_token 字段"
+        assert "user_id" in response_data, "缺少 user_id 字段"
+        assert "wechat_openid" in response_data, "缺少 wechat_openid 字段"
+        assert "phone_number" in response_data, "缺少 phone_number 字段"
+        assert "login_type" in response_data, "缺少 login_type 字段"
+
+        # 验证字段类型符合 OpenAPI 定义（全部为 string 类型，除了 user_id 为 integer）
+        assert isinstance(response_data["token"], str), f"token 应为 string 类型"
+        assert isinstance(response_data["refresh_token"], str), f"refresh_token 应为 string 类型"
+        assert isinstance(response_data["user_id"], int), f"user_id 应为 integer 类型"
+        assert isinstance(response_data["wechat_openid"], str), f"wechat_openid 应为 string 类型"
+        # phone_number 可能为 None（未绑定手机号）或 string
+        assert response_data["phone_number"] is None or isinstance(response_data["phone_number"], str), \
+            f"phone_number 应为 string 类型或 None"
+        assert isinstance(response_data["login_type"], str), f"login_type 应为 string 类型"
+
+        # 验证字段值有效性
+        assert len(response_data["token"]) > 0
+        assert len(response_data["refresh_token"]) > 0
+        assert response_data["user_id"] > 0
+        assert len(response_data["wechat_openid"]) > 0
+        assert response_data["login_type"] in ["new_user", "existing_user", "wechat"]
+
     def test_login_wechat_with_optional_fields_contract(self, schema, base_client):
         """测试微信登录（包含可选字段）契约"""
         response = base_client.post('/api/auth/login_wechat', json={
@@ -236,9 +360,41 @@ class TestAuthContract:
         assert data["code"] == 1
         assert "user_id" in data["data"]
 
+    def test_register_phone_field_types_100_percent(self, schema, base_client):
+        """100% 完整度验证：手机号注册 - 验证所有字段及类型"""
+        random_phone = f"139{random.randint(10000000, 99999999)}"
+
+        response = base_client.post('/api/auth/register_phone', json={
+            'phone': random_phone,
+            'code': '123456',
+            'password': 'Test123456',
+            'nickname': '测试用户'
+        })
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段及类型
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "token" in response_data, "缺少 token 字段"
+        assert "refresh_token" in response_data, "缺少 refresh_token 字段"
+        assert "user_id" in response_data, "缺少 user_id 字段"
+
+        # 验证字段类型符合 OpenAPI 定义
+        assert isinstance(response_data["token"], str), f"token 应为 string 类型"
+        assert isinstance(response_data["refresh_token"], str), f"refresh_token 应为 string 类型"
+        assert isinstance(response_data["user_id"], int), f"user_id 应为 integer 类型"
+
+        # 验证字段值有效性
+        assert len(response_data["token"]) > 0
+        assert len(response_data["refresh_token"]) > 0
+        assert response_data["user_id"] > 0
+
     def test_register_phone_with_optional_fields_contract(self, schema, base_client):
         """测试手机号注册（包含可选字段）契约"""
-        random_phone = f"139{random.randint(10000000, 99999999)}"
+        random_phone = f"137{random.randint(10000000, 99999999)}"
 
         response = base_client.post('/api/auth/register_phone', json={
             'phone': random_phone,
@@ -281,6 +437,36 @@ class TestAuthContract:
         assert "refresh_token" in response_data
         assert "expires_in" in response_data
         assert isinstance(response_data["expires_in"], int)
+
+    def test_refresh_token_field_types_100_percent(self, schema, base_client, refresh_token):
+        """100% 完整度验证：刷新令牌 - 验证所有字段及类型"""
+        if refresh_token is None:
+            pytest.skip("无法获取 refresh_token")
+
+        response = base_client.post('/api/auth/refresh_token', json={
+            'refresh_token': refresh_token
+        })
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段及类型
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "token" in response_data, "缺少 token 字段"
+        assert "refresh_token" in response_data, "缺少 refresh_token 字段"
+        assert "expires_in" in response_data, "缺少 expires_in 字段"
+
+        # 验证字段类型符合 OpenAPI 定义
+        assert isinstance(response_data["token"], str), f"token 应为 string 类型"
+        assert isinstance(response_data["refresh_token"], str), f"refresh_token 应为 string 类型"
+        assert isinstance(response_data["expires_in"], int), f"expires_in 应为 integer 类型"
+
+        # 验证字段值有效性
+        assert len(response_data["token"]) > 0
+        assert len(response_data["refresh_token"]) > 0
+        assert response_data["expires_in"] > 0, "expires_in 应大于 0"
 
     def test_refresh_token_invalid_contract(self, schema, base_client):
         """测试刷新令牌无效契约"""
