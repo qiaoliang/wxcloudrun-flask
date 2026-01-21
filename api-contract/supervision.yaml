@@ -176,18 +176,18 @@ paths:
           - pending
           - accepted
           - rejected
-        description: 邀请状态筛选
+        description: 邀请状态筛选（整数，可选）
       - name: page
         in: query
         schema:
           type: integer
           default: 1
         description: 页码
-      - name: per_page
+      - name: limit
         in: query
         schema:
           type: integer
-          default: 20
+          default: 10
         description: 每页数量
       responses:
         '200':
@@ -715,6 +715,10 @@ paths:
                           type: string
                           format: date
                           example: '2026-01-13'
+                          description: 目标日期
+                        pending_invitations_count:
+                          type: integer
+                          description: 待处理邀请数量
   /api/supervision/send_reminder:
     post:
       tags:

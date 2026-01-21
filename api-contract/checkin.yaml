@@ -59,17 +59,10 @@ paths:
               type: object
               required:
               - rule_id
-              - checkin_time
               properties:
                 rule_id:
                   type: integer
                   description: 规则ID
-                checkin_time:
-                  type: string
-                  description: 打卡时间（HH:MM格式）
-                note:
-                  type: string
-                  description: 打卡备注
       responses:
         '200':
           description: 打卡成功

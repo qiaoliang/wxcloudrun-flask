@@ -135,7 +135,7 @@ paths:
       tags:
       - 用户模块
       summary: 搜索用户
-      description: 根据关键词搜索用户
+      description: 根据关键词搜索用户，支持社区过滤和角色筛选
       security:
       - BearerAuth: []
       parameters:
@@ -145,16 +145,16 @@ paths:
         schema:
           type: string
         description: 搜索关键词
-      - name: type
+      - name: community_id
         in: query
         schema:
-          type: string
-          enum:
-          - all
-          - phone
-          - nickname
-          default: all
-        description: 搜索类型
+          type: integer
+        description: 社区ID过滤参数（可选）
+      - name: role
+        in: query
+        schema:
+          type: integer
+        description: 角色筛选参数（可选）
       - name: page
         in: query
         schema:
@@ -166,7 +166,7 @@ paths:
         schema:
           type: integer
           default: 20
-        description: 每页数量
+        description: 每页数量（最多100条）
       responses:
         '200':
           description: 搜索成功
@@ -243,6 +243,12 @@ paths:
                 code:
                   type: string
                   description: 微信登录code
+                nickname:
+                  type: string
+                  description: 用户昵称（可选）
+                avatar_url:
+                  type: string
+                  description: 用户头像URL（可选）
       responses:
         '200':
           description: 绑定成功
@@ -255,7 +261,7 @@ paths:
       tags:
       - 用户模块
       summary: 验证用户社区成员身份
-      description: 验证用户是否为指定社区的成员
+      description: 验证当前用户是否为指定社区的成员
       security:
       - BearerAuth: []
       requestBody:
@@ -266,14 +272,10 @@ paths:
               type: object
               required:
               - community_id
-              - user_id
               properties:
                 community_id:
                   type: integer
                   description: 社区ID
-                user_id:
-                  type: integer
-                  description: 用户ID
       responses:
         '200':
           description: 验证成功
@@ -290,9 +292,12 @@ paths:
                         is_member:
                           type: boolean
                           description: 是否为成员
-                        role:
+                        community_id:
+                          type: integer
+                          description: 社区ID
+                        user_role:
                           type: string
-                          description: 用户角色
+                          description: 用户角色名称
   /api/user/my-active-event:
     get:
       tags:
@@ -320,7 +325,7 @@ paths:
       tags:
       - 用户模块
       summary: 添加事件消息
-      description: 为指定事件添加消息
+      description: 为指定事件添加消息（支持文字/语音/图片）
       security:
       - BearerAuth: []
       parameters:
@@ -337,11 +342,24 @@ paths:
             schema:
               type: object
               required:
-              - message
+              - message_type
               properties:
-                message:
+                message_type:
                   type: string
-                  description: 消息内容
+                  enum:
+                  - text
+                  - voice
+                  - image
+                  description: 消息类型
+                content:
+                  type: string
+                  description: 消息内容（文字消息必填）
+                media_url:
+                  type: string
+                  description: 媒体文件URL（语音和图片消息必填）
+                media_duration:
+                  type: integer
+                  description: 语音时长（秒，语音消息可选）
       responses:
         '200':
           description: 添加成功
@@ -474,7 +492,12 @@ paths:
           application/json:
             schema:
               type: object
+              required:
+              - user_id
               properties:
+                user_id:
+                  type: integer
+                  description: 用户ID（用于权限验证）
                 condition_name:
                   type: string
                   description: 疾病名称
@@ -738,27 +761,59 @@ components:
         user_id:
           type: integer
           description: 用户ID
-        nickname:
-          type: string
-          description: 昵称
-        avatar_url:
-          type: string
-          description: 头像URL
-        phone_number:
-          type: string
-          description: 手机号
         wechat_openid:
           type: string
           description: 微信openid
+        phone_number:
+          type: string
+          description: 手机号
+        nickname:
+          type: string
+          description: 昵称
+        name:
+          type: string
+          description: 真实姓名
+        avatar_url:
+          type: string
+          description: 头像URL
+        address:
+          type: string
+          description: 用户地址
+        motto:
+          type: string
+          description: 个人座右铭
+        emergency_contact_name:
+          type: string
+          description: 紧急联系人姓名
+        emergency_contact_phone:
+          type: string
+          description: 紧急联系人电话
+        emergency_contact_address:
+          type: string
+          description: 紧急联系人地址
+        role:
+          type: integer
+          description: 用户角色（0=普通用户，1=社区成员，2=工作人员，3=主管）
+        role_name:
+          type: string
+          description: 用户角色名称
         community_id:
           type: integer
           description: 社区ID
-        role:
-          type: integer
-          description: 用户角色
+        community_name:
+          type: string
+          description: 社区名称
         status:
           type: integer
           description: 用户状态
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
     MedicalHistory:
       type: object
       properties:
@@ -839,6 +894,40 @@ components:
           type: string
           format: date-time
           description: 浏览时间
+    EventInfo:
+      type: object
+      properties:
+        event_id:
+          type: integer
+          description: 事件ID
+        community_id:
+          type: integer
+          description: 社区ID
+        user_id:
+          type: integer
+          description: 用户ID
+        event_type:
+          type: string
+          description: 事件类型
+          enum:
+          - help
+          - support
+        title:
+          type: string
+          description: 事件标题
+        description:
+          type: string
+          description: 事件描述
+        status:
+          type: string
+          description: 事件状态
+          enum:
+          - active
+          - closed
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
   securitySchemes:
     BearerAuth:
       type: http

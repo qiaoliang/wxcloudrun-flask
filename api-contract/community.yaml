@@ -1340,18 +1340,114 @@ components:
         location:
           type: string
           description: 社区地址
+        location_lat:
+          type: number
+          format: float
+          description: 纬度
+        location_lon:
+          type: number
+          format: float
+          description: 经度
+        province:
+          type: string
+          description: 省份
+        city:
+          type: string
+          description: 城市
+        district:
+          type: string
+          description: 区县
+        street:
+          type: string
+          description: 街道
         creator_id:
           type: integer
           description: 创建者ID
+        creator:
+          type: object
+          description: 创建者信息
+          properties:
+            user_id:
+              type: integer
+            nickname:
+              type: string
+            avatar_url:
+              type: string
         manager_id:
           type: integer
           description: 主管用户ID
+        manager:
+          type: object
+          description: 主管信息
+          properties:
+            user_id:
+              type: integer
+            nickname:
+              type: string
+            avatar_url:
+              type: string
         manager_name:
           type: string
           description: 主管昵称（用于前端显示）
         status:
           type: integer
           description: 社区状态
+        is_default:
+          type: boolean
+          description: 是否为默认社区
+        is_blackhouse:
+          type: boolean
+          description: 是否为黑房子
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
+        manager_count:
+          type: integer
+          description: 主管数量
+        worker_count:
+          type: integer
+          description: 工作人员总数（主管+专员）
+        staff_count:
+          type: integer
+          description: 专员数量（不包括主管）
+        user_count:
+          type: integer
+          description: 普通成员数量（不包括工作人员）
+    EventInfo:
+      type: object
+      properties:
+        event_id:
+          type: integer
+          description: 事件ID
+        community_id:
+          type: integer
+          description: 社区ID
+        user_id:
+          type: integer
+          description: 用户ID
+        event_type:
+          type: string
+          description: 事件类型
+          enum:
+          - help
+          - support
+        title:
+          type: string
+          description: 事件标题
+        description:
+          type: string
+          description: 事件描述
+        status:
+          type: string
+          description: 事件状态
+          enum:
+          - active
+          - closed
         created_at:
           type: string
           format: date-time

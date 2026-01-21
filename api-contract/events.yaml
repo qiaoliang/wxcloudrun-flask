@@ -28,24 +28,30 @@ paths:
               type: object
               required:
               - community_id
-              - event_type
               - title
               properties:
                 community_id:
                   type: integer
                   description: 社区ID
-                event_type:
-                  type: string
-                  enum:
-                  - help
-                  - support
-                  description: 事件类型
                 title:
                   type: string
                   description: 事件标题
                 description:
                   type: string
                   description: 事件描述
+                event_type:
+                  type: string
+                  enum:
+                  - call_for_help
+                  - supporting
+                  default: call_for_help
+                  description: 事件类型
+                location:
+                  type: string
+                  description: 事件位置
+                target_user_id:
+                  type: integer
+                  description: 目标用户ID（可选）
       responses:
         '200':
           description: 创建成功
@@ -110,11 +116,11 @@ paths:
             schema:
               type: object
               required:
-              - message
+              - message_content
               properties:
-                message:
+                message_content:
                   type: string
-                  description: 应援消息
+                  description: 应援消息内容
       responses:
         '200':
           description: 创建成功
@@ -144,11 +150,19 @@ paths:
             schema:
               type: object
               required:
-              - response
+              - content
               properties:
-                response:
+                content:
                   type: string
                   description: 回应内容
+                media_url:
+                  type: string
+                  description: 媒体文件URL（可选）
+                message_tags:
+                  type: array
+                  items:
+                    type: string
+                  description: 消息标签（可选）
       responses:
         '200':
           description: 添加成功
@@ -177,21 +191,18 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-              - latitude
-              - longitude
               properties:
-                latitude:
+                location:
+                  type: string
+                  description: 位置描述
+                location_lat:
                   type: number
                   format: float
                   description: 纬度
-                longitude:
+                location_lon:
                   type: number
                   format: float
                   description: 经度
-                address:
-                  type: string
-                  description: 地址描述
       responses:
         '200':
           description: 更新成功
@@ -225,9 +236,7 @@ paths:
               properties:
                 closure_reason:
                   type: string
-                  minLength: 10
-                  maxLength: 500
-                  description: 关闭原因（10-500字符）
+                  description: 关闭原因（不能为空）
       responses:
         '200':
           description: 操作成功

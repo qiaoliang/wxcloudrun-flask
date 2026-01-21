@@ -211,6 +211,65 @@ paths:
                           format: date-time
 components:
   schemas:
+    UserInfo:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          description: 用户ID
+        wechat_openid:
+          type: string
+          description: 微信openid
+        phone_number:
+          type: string
+          description: 手机号
+        nickname:
+          type: string
+          description: 昵称
+        name:
+          type: string
+          description: 真实姓名
+        avatar_url:
+          type: string
+          description: 头像URL
+        address:
+          type: string
+          description: 用户地址
+        motto:
+          type: string
+          description: 个人座右铭
+        emergency_contact_name:
+          type: string
+          description: 紧急联系人姓名
+        emergency_contact_phone:
+          type: string
+          description: 紧急联系人电话
+        emergency_contact_address:
+          type: string
+          description: 紧急联系人地址
+        role:
+          type: integer
+          description: 用户角色（0=普通用户，1=社区成员，2=工作人员，3=主管）
+        role_name:
+          type: string
+          description: 用户角色名称
+        community_id:
+          type: integer
+          description: 社区ID
+        community_name:
+          type: string
+          description: 社区名称
+        status:
+          type: integer
+          description: 用户状态
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
+        updated_at:
+          type: string
+          format: date-time
+          description: 更新时间
     StandardResponse:
       type: object
       properties:
@@ -238,6 +297,40 @@ components:
         data:
           type: object
           nullable: true
+    EventInfo:
+      type: object
+      properties:
+        event_id:
+          type: integer
+          description: 事件ID
+        community_id:
+          type: integer
+          description: 社区ID
+        user_id:
+          type: integer
+          description: 用户ID
+        event_type:
+          type: string
+          description: 事件类型
+          enum:
+          - help
+          - support
+        title:
+          type: string
+          description: 事件标题
+        description:
+          type: string
+          description: 事件描述
+        status:
+          type: string
+          description: 事件状态
+          enum:
+          - active
+          - closed
+        created_at:
+          type: string
+          format: date-time
+          description: 创建时间
   securitySchemes:
     BearerAuth:
       type: http
