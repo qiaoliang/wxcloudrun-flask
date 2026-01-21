@@ -23,17 +23,8 @@ logger.addHandler(console_handler)
 # 关闭传播以避免与根日志器重复处理
 logger.propagate = False
 
-# 文件处理器（在需要时创建）
-def setup_file_handler():
-    """设置文件处理器"""
-    os.makedirs('logs', exist_ok=True)
-    file_handler = logging.FileHandler('logs/migration.log')
-    file_handler.setLevel(logging.INFO)
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler)
-    
-    # 确保传播关闭（可能在之前被重置）
-    logger.propagate = False
+# 文件处理器（已移除，不再创建无时间戳的 migration.log）
+# 迁移日志现在由 run.py 中的 migration_logger 统一管理
 
 def validate_migration_prerequisites():
     """Layer 1: 验证迁移前置条件"""
@@ -246,9 +237,6 @@ def migrate_database():
         bool: 迁移成功返回 True，失败返回 False
     """
     try:
-        # 设置文件处理器
-        setup_file_handler()
-
         logger.info("开始数据库迁移...")
 
         # Layer 1: 验证迁移前置条件
