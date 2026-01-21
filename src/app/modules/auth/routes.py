@@ -19,7 +19,6 @@ from app.shared.utils.auth_helpers import (
     verify_sms_code_dual_purpose,
     normalize_and_hash_phone
 )
-# 移除未使用的 db 和 User 导入，已通过 UseCase 和 Repository 访问数据
 from wxcloudrun.utils.validators import _verify_sms_code, _audit, _gen_phone_nickname
 from const_default import DEFAULT_COMMUNITY_NAME
 from error_code import INVALID_CAPTCHA
@@ -319,26 +318,27 @@ def login_phone_password():
 @limiter.limit("5 per minute;20 per hour", error_message="登录请求过于频繁，请稍后再试")
 def login_phone():
     """
-    手机号登录：需要同时验证验证码和密码
+    手机号通用登录接口，支持三种场景：
+    1. 老用户验证码登录：phone + code（二选一）
+    2. 老用户密码登录：phone + password（二选一）
+    3. 新用户首次登录/设置密码：phone + code + password（三者都需要）
     """
-    current_app.logger.info('=== 开始执行手机号登录接口（验证验证码+密码） ===')
+    current_app.logger.info('=== 开始执行手机号通用登录接口 ===')
     try:
         params = request.get_json() or {}
         phone = params.get('phone')
         code = params.get('code')
         password = params.get('password')
-        current_app.logger.info(f'登录请求参数 - phone: {phone}, code: {code}, password: {"*" * len(password) if password else "None"}')
+        current_app.logger.info(f'登录请求参数 - phone: {phone}, code: {bool(code)}, password: {bool(password)}')
 
-        # 参数验证
-        if not phone or not code or not password:
-            current_app.logger.warning('登录请求缺少phone、code或password参数')
-            return make_err_response({}, '缺少phone、code或password参数')
+        # 参数验证：phone 必填，code 和 password 至少一个必填
+        if not phone:
+            current_app.logger.warning('登录请求缺少phone参数')
+            return make_err_response({}, '缺少phone参数')
 
-        # 使用辅助函数验证验证码（支持 login 或 register 类型）
-        if not verify_sms_code_dual_purpose(phone, code, current_app.logger):
-            current_app.logger.warning(f'验证码验证失败')
-            return make_err_response({}, 'INVALID_CAPTCHA')
-        current_app.logger.info('验证码验证通过')
+        if not code and not password:
+            current_app.logger.warning('登录请求缺少code或password参数')
+            return make_err_response({}, '请提供验证码或密码进行登录')
 
         # 使用辅助函数标准化电话号码并生成 hash
         normalized_phone, phone_hash = normalize_and_hash_phone(phone, current_app.logger)
@@ -348,45 +348,138 @@ def login_phone():
         user_repository = RepositoryFactory.get_user_repository()
         user = user_repository.find_by_phone_hash(phone_hash)
 
-        if not user:
-            current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
-            return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
+        # 场景判断
+        has_code = bool(code)
+        has_password = bool(password)
 
-        if not user.password_hash or not user.password_salt:
-            current_app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
-            return make_err_response({}, '账号未设置密码')
+        # 场景 1: 只用验证码登录（老用户）
+        if has_code and not has_password:
+            current_app.logger.info('场景1: 验证码登录')
+            return _handle_login_with_code_only(user, normalized_phone, phone, code)
 
-        # 使用辅助函数验证密码
-        if not verify_password(user, password, current_app.logger):
-            return make_err_response({}, '密码不正确')
+        # 场景 2: 只用密码登录（老用户）
+        if has_password and not has_code:
+            current_app.logger.info('场景2: 密码登录')
+            return _handle_login_with_password_only(user, normalized_phone, phone, password)
 
-        current_app.logger.info(f'密码验证成功，开始处理用户信息 - user_id: {user.user_id}')
-        # 使用 UseCase 确保用户有昵称
-        from app.application.use_cases.auth import EnsureUserNicknameUseCase
-        ensure_nickname_use_case = EnsureUserNicknameUseCase()
-        ensure_nickname_use_case.execute(user)
+        # 场景 3: 同时提供验证码和密码（新用户首次登录或设置密码）
+        current_app.logger.info('场景3: 验证码+密码登录')
+        return _handle_login_with_code_and_password(user, normalized_phone, phone, code, password)
 
-        # 使用 UseCase 生成 token
-        from app.application.use_cases.auth import GenerateAuthTokensUseCase
-        generate_tokens_use_case = GenerateAuthTokensUseCase()
-        tokens_result = generate_tokens_use_case.execute(user)
-
-        if not tokens_result.is_success:
-            current_app.logger.error(f'生成token失败: {tokens_result.message}')
-            return make_err_response({}, tokens_result.message)
-
-        token = tokens_result.data['token']
-        refresh_token = tokens_result.data['refresh_token']
-
-        _audit(user.user_id, 'login_phone', {'phone': phone})
-
-        current_app.logger.info('=== 手机号登录接口执行完成 ===')
-
-        # 使用统一的响应格式，包含完整的用户信息
-        response_data = _format_user_login_response(
-            user, token, refresh_token, is_new_user=False
-        )
-        return make_succ_response(response_data)
     except Exception as e:
         current_app.logger.error(f'手机号登录失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'登录失败: {str(e)}')
+
+
+def _handle_login_with_code_only(user, normalized_phone, phone, code):
+    """处理验证码登录（老用户场景）"""
+    # 验证码验证
+    current_app.logger.info('开始验证SMS验证码...')
+    login_valid = _verify_sms_code(normalized_phone, 'login', code)
+    register_valid = _verify_sms_code(normalized_phone, 'register', code)
+
+    if not login_valid and not register_valid:
+        current_app.logger.warning(f'SMS验证码验证失败 - phone: {normalized_phone}')
+        return make_err_response({}, '验证码错误')
+
+    current_app.logger.info('验证码验证通过，开始查询用户...')
+
+    # 查找用户
+    if not user:
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
+        user_repository = RepositoryFactory.get_user_repository()
+        user = user_repository.find_by_phone_hash(normalize_and_hash_phone(phone, current_app.logger)[1])
+
+    if not user:
+        current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
+        return make_err_response({}, '用户不存在')
+
+    return _complete_login(user, phone, 'login_phone_code')
+
+
+def _handle_login_with_password_only(user, normalized_phone, phone, password):
+    """处理密码登录（老用户场景）"""
+    # 查找用户
+    if not user:
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
+        user_repository = RepositoryFactory.get_user_repository()
+        _, phone_hash = normalize_and_hash_phone(phone, current_app.logger)
+        user = user_repository.find_by_phone_hash(phone_hash)
+
+    if not user:
+        current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
+        return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
+
+    # 检查用户是否设置了密码
+    if not user.password_hash or not user.password_salt:
+        current_app.logger.warning(f'用户未设置密码 - user_id: {getattr(user, "user_id", "unknown")}')
+        return make_err_response({}, '账号未设置密码，请使用验证码登录')
+
+    # 验证密码
+    if not verify_password(user, password, current_app.logger):
+        return make_err_response({}, '密码不正确')
+
+    current_app.logger.info('密码验证成功')
+    return _complete_login(user, phone, 'login_phone_password')
+
+
+def _handle_login_with_code_and_password(user, normalized_phone, phone, code, password):
+    """处理验证码+密码登录（同时验证场景）"""
+    # 验证码验证
+    if not verify_sms_code_dual_purpose(phone, code, current_app.logger):
+        current_app.logger.warning(f'验证码验证失败')
+        return make_err_response({}, '验证码错误')
+
+    current_app.logger.info('验证码验证通过')
+
+    # 查找用户
+    if not user:
+        from app.infrastructure.persistence.repository_factory import RepositoryFactory
+        user_repository = RepositoryFactory.get_user_repository()
+        _, phone_hash = normalize_and_hash_phone(phone, current_app.logger)
+        user = user_repository.find_by_phone_hash(phone_hash)
+
+    if not user:
+        current_app.logger.warning(f'用户不存在 - phone: {normalized_phone}')
+        return make_err_response({'code': 'USER_NOT_FOUND'}, '账号不存在，请先注册')
+
+    # 检查用户是否已设置密码
+    if not user.password_hash or not user.password_salt:
+        current_app.logger.warning(f'用户未设置密码 - user_id: {user.user_id}')
+        return make_err_response({}, '账号未设置密码')
+
+    # 验证密码
+    if not verify_password(user, password, current_app.logger):
+        return make_err_response({}, '密码不正确')
+
+    current_app.logger.info('验证码和密码验证通过')
+    return _complete_login(user, phone, 'login_phone')
+
+
+def _complete_login(user, phone, login_type):
+    """完成登录流程的公共逻辑"""
+    # 使用 UseCase 确保用户有昵称
+    from app.application.use_cases.auth import EnsureUserNicknameUseCase
+    ensure_nickname_use_case = EnsureUserNicknameUseCase()
+    ensure_nickname_use_case.execute(user)
+
+    # 使用 UseCase 生成 token
+    from app.application.use_cases.auth import GenerateAuthTokensUseCase
+    generate_tokens_use_case = GenerateAuthTokensUseCase()
+    tokens_result = generate_tokens_use_case.execute(user)
+
+    if not tokens_result.is_success:
+        current_app.logger.error(f'生成token失败: {tokens_result.message}')
+        return make_err_response({}, tokens_result.message)
+
+    token = tokens_result.data['token']
+    refresh_token = tokens_result.data['refresh_token']
+
+    _audit(user.user_id, login_type, {'phone': phone})
+    current_app.logger.info(f'=== {login_type} 接口执行完成 ===')
+
+    # 使用统一的响应格式，包含完整的用户信息
+    response_data = _format_user_login_response(
+        user, token, refresh_token, is_new_user=False
+    )
+    return make_succ_response(response_data)

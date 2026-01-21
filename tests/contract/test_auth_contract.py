@@ -241,15 +241,18 @@ class TestAuthContract:
     def test_login_phone_with_password_only_contract(self, schema, base_client):
         """测试通用登录（仅密码）- 老用户密码登录场景"""
         # OpenAPI 定义：老用户可以用密码登录（不需要验证码）
-        # 注意：当前后端实现尚未支持此场景，待修复
+        creds = get_test_user_credentials()
         response = base_client.post('/api/auth/login_phone', json={
-            'phone': '13141516171',
-            'password': 'F1234567'
+            'phone': creds['phone_number'],
+            'password': creds['password']
         })
 
         data = validate_response_structure(response)
-        # 当前后端实现会返回错误（需要 code），待修复后应返回成功
-        assert data["code"] == 0
+        # 应该成功登录（老用户密码登录）
+        assert data["code"] == 1
+        response_data = data["data"]
+        assert "token" in response_data
+        assert "user_id" in response_data
 
     def test_login_phone_without_auth_method_contract(self, schema, base_client):
         """测试通用登录缺少认证方式契约"""

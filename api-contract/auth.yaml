@@ -254,7 +254,7 @@ paths:
         使用手机号登录，支持三种场景：
         1. 老用户验证码登录：phone + code（二选一）
         2. 老用户密码登录：phone + password（二选一）
-        3. 新用户首次登录/设置密码：phone + code + password（三者都需要）
+        3. 双重验证登录：phone + code + password（同时验证验证码和密码，用于高安全性场景）
       security: []
       requestBody:
         required: true
@@ -272,16 +272,16 @@ paths:
                   type: string
                   description: |
                     验证码
-                    - 老用户验证码登录时：必填
-                    - 老用户密码登录时：可选
-                    - 新用户首次登录时：必填
+                    - 验证码登录时：必填
+                    - 密码登录时：可选
+                    - 双重验证时：必填
                 password:
                   type: string
                   description: |
                     密码
-                    - 老用户验证码登录时：可选
-                    - 老用户密码登录时：必填
-                    - 新用户首次登录时：必填（用于设置密码）
+                    - 验证码登录时：可选
+                    - 密码登录时：必填
+                    - 双重验证时：必填
       responses:
         '200':
           description: 登录成功

@@ -120,12 +120,13 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
         """测试登录API错误情况的数据一致性"""
         client = self.get_test_client()
 
-        # 测试用例：错误的验证码
+        # 测试用例：各种错误情况
+        # 注意：login_phone 已更新为通用登录接口，支持多种场景
         error_cases = [
             {
                 'name': '错误验证码',
                 'data': {'phone': self.test_user.phone_number, 'code': TEST_CONSTANTS.INVALID_VERIFICATION_CODE, 'password': TEST_CONSTANTS.DEFAULT_PASSWORD},
-                'expected_msg_key': 'INVALID_CAPTCHA'
+                'expected_msg_key': '验证码错误'
             },
             {
                 'name': '错误密码',
@@ -133,9 +134,9 @@ class TestAuthLoginPhoneSnapshotFinal(IntegrationTestBase):
                 'expected_msg_key': '密码不正确'
             },
             {
-                'name': '缺少参数',
-                'data': {'phone': self.test_user.phone_number, 'code': TEST_CONSTANTS.TEST_VERIFICATION_CODE},  # 缺少password
-                'expected_msg_key': '缺少phone、code或password参数'
+                'name': '缺少认证方式',
+                'data': {'phone': self.test_user.phone_number},  # 缺少 code 和 password
+                'expected_msg_key': '请提供验证码或密码进行登录'
             },
             {
                 'name': '用户不存在',
