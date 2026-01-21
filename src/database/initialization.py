@@ -33,12 +33,12 @@ def create_superadmin_and_default_community():
         # 如果超级系统管理员不存在，则创建
         if not superadmin:
             logger.info("开始创建超级系统管理员...")
-            
+
             # 创建超级系统管理员
             salt = secrets.token_hex(8)
             password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
             phone_hash = generate_phone_hash("13141516171")
-            
+
             superadmin = User(
                 wechat_openid=f"superadmin_{secrets.token_hex(16)}",
                 phone_number='13141516171',
@@ -51,11 +51,17 @@ def create_superadmin_and_default_community():
                 status=1,
                 verification_status=2,
                 _is_community_worker=True,
-                community_id=None  # 暂时设为None，后续再分配
+                community_id=None,  # 暂时设为None，后续再分配
+                address='北京市朝阳区柳芳南里29号'
             )
             db.session.add(superadmin)
             db.session.flush()  # 获取用户ID
             logger.info(f"超级系统管理员创建成功，ID: {superadmin.user_id}")
+        else:
+            # 为已存在的超级管理员设置 address（如果为空）
+            if not superadmin.address:
+                superadmin.address = '北京市朝阳区柳芳南里29号'
+                logger.info("已为超级系统管理员设置地址")
 
         # 检查并创建默认社区'安卡大家庭'
         stmt = select(Community).where(Community.name == '安卡大家庭')
@@ -69,13 +75,18 @@ def create_superadmin_and_default_community():
                 creator_id=superadmin.user_id,
                 manager_id=superadmin.user_id,
                 status=1,
-                is_default=True
+                is_default=True,
+                location='北京市朝阳区柳芳南里29号'
             )
             db.session.add(default_community)
             db.session.flush()  # 获取社区ID
             logger.info(f"默认社区'安卡大家庭'创建成功，ID: {default_community.community_id}")
         else:
             logger.info("默认社区'安卡大家庭'已存在")
+            # 为已存在的社区设置 location（如果为空）
+            if not default_community.location:
+                default_community.location = '北京市朝阳区柳芳南里29号'
+                logger.info("已为默认社区'安卡大家庭'设置地址")
 
         # 检查并创建黑屋社区
         stmt = select(Community).where(Community.name == BLACKHOUSE_COMMUNITY_NAME)
@@ -89,13 +100,18 @@ def create_superadmin_and_default_community():
                 creator_id=superadmin.user_id,
                 manager_id=superadmin.user_id,
                 status=1,
-                is_blackhouse=True
+                is_blackhouse=True,
+                location='北京市朝阳区柳芳南里29号'
             )
             db.session.add(blackhouse_community)
             db.session.flush()  # 获取社区ID
             logger.info(f"黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'创建成功，ID: {blackhouse_community.community_id}")
         else:
             logger.info(f"黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'已存在")
+            # 为已存在的社区设置 location（如果为空）
+            if not blackhouse_community.location:
+                blackhouse_community.location = '北京市朝阳区柳芳南里29号'
+                logger.info(f"已为黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'设置地址")
 
         # 确保超级系统管理员的community_id设置为默认社区ID
         superadmin.community_id = default_community.community_id
