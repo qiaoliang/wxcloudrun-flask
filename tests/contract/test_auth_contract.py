@@ -192,11 +192,8 @@ class TestAuthContract:
     # ==================== 通用登录（验证码或密码） ====================
 
     def test_login_phone_with_code_contract(self, schema, base_client):
-        """测试通用登录（验证码+密码方式）契约"""
-        # 注意：实际实现与 OpenAPI 契约不一致
-        # 契约定义：code 和 password 二选一
-        # 实际实现：需要同时提供 code 和 password
-        # 这是已知的契约不一致问题
+        """测试通用登录（验证码+密码方式）契约 - 新用户首次登录场景"""
+        # OpenAPI 定义：新用户首次登录需要同时提供 code + password
         response = base_client.post('/api/auth/login_phone', json={
             'phone': '13141516171',
             'code': '123456',
@@ -213,7 +210,7 @@ class TestAuthContract:
 
     def test_login_phone_field_types_100_percent(self, schema, base_client):
         """100% 完整度验证：通用登录 - 验证所有字段及类型"""
-        # 注意：实际实现需要同时提供 code 和 password
+        # 测试新用户首次登录场景（需要 code + password）
         response = base_client.post('/api/auth/login_phone', json={
             'phone': '13141516171',
             'code': '123456',
@@ -242,16 +239,16 @@ class TestAuthContract:
         assert response_data["user_id"] > 0
 
     def test_login_phone_with_password_only_contract(self, schema, base_client):
-        """测试通用登录（仅密码）- 契约不一致场景"""
-        # 契约定义支持仅密码，但实际实现不支持
-        # 这是已知的契约不一致问题
+        """测试通用登录（仅密码）- 老用户密码登录场景"""
+        # OpenAPI 定义：老用户可以用密码登录（不需要验证码）
+        # 注意：当前后端实现尚未支持此场景，待修复
         response = base_client.post('/api/auth/login_phone', json={
             'phone': '13141516171',
             'password': 'F1234567'
         })
 
         data = validate_response_structure(response)
-        # 实际实现会返回错误，因为缺少 code
+        # 当前后端实现会返回错误（需要 code），待修复后应返回成功
         assert data["code"] == 0
 
     def test_login_phone_without_auth_method_contract(self, schema, base_client):
@@ -280,9 +277,8 @@ class TestAuthContract:
         response_data = data["data"]
         assert "wechat_openid" in response_data
         assert "login_type" in response_data
-        # 注意：实际实现返回 "new_user" 而不是 "wechat"
-        # 这是已知的契约不一致问题
-        assert response_data["login_type"] in ["new_user", "existing_user", "wechat"]
+        # OpenAPI 定义：login_type 为 "new_user" 或 "existing_user"
+        assert response_data["login_type"] in ["new_user", "existing_user"]
 
     def test_login_wechat_field_types_100_percent(self, schema, base_client):
         """100% 完整度验证：微信登录 - 验证所有 6 个字段及类型"""
@@ -309,7 +305,7 @@ class TestAuthContract:
         assert isinstance(response_data["refresh_token"], str), f"refresh_token 应为 string 类型"
         assert isinstance(response_data["user_id"], int), f"user_id 应为 integer 类型"
         assert isinstance(response_data["wechat_openid"], str), f"wechat_openid 应为 string 类型"
-        # phone_number 可能为 None（未绑定手机号）或 string
+        # OpenAPI 定义：phone_number 可为 null（未绑定手机号时）
         assert response_data["phone_number"] is None or isinstance(response_data["phone_number"], str), \
             f"phone_number 应为 string 类型或 None"
         assert isinstance(response_data["login_type"], str), f"login_type 应为 string 类型"
@@ -319,7 +315,8 @@ class TestAuthContract:
         assert len(response_data["refresh_token"]) > 0
         assert response_data["user_id"] > 0
         assert len(response_data["wechat_openid"]) > 0
-        assert response_data["login_type"] in ["new_user", "existing_user", "wechat"]
+        # OpenAPI 定义：login_type 只能是 "new_user" 或 "existing_user"
+        assert response_data["login_type"] in ["new_user", "existing_user"]
 
     def test_login_wechat_with_optional_fields_contract(self, schema, base_client):
         """测试微信登录（包含可选字段）契约"""

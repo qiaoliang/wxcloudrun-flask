@@ -64,10 +64,13 @@ paths:
                           description: 微信openid
                         phone_number:
                           type: string
-                          description: 手机号
+                          description: 手机号（未绑定时为 null）
+                          nullable: true
                         login_type:
                           type: string
                           description: 登录类型
+                          enum: ["new_user", "existing_user"]
+                          example: "existing_user"
   /api/auth/register_phone:
     post:
       tags:
@@ -246,8 +249,12 @@ paths:
     post:
       tags:
       - 认证模块
-      summary: 手机号登录（验证码+密码）
-      description: 使用手机号登录，支持验证码或密码两种方式
+      summary: 手机号登录（通用）
+      description: |
+        使用手机号登录，支持三种场景：
+        1. 老用户验证码登录：phone + code（二选一）
+        2. 老用户密码登录：phone + password（二选一）
+        3. 新用户首次登录/设置密码：phone + code + password（三者都需要）
       security: []
       requestBody:
         required: true
@@ -260,13 +267,21 @@ paths:
               properties:
                 phone:
                   type: string
-                  description: 手机号
+                  description: 手机号（必填）
                 code:
                   type: string
-                  description: 验证码（与password二选一）
+                  description: |
+                    验证码
+                    - 老用户验证码登录时：必填
+                    - 老用户密码登录时：可选
+                    - 新用户首次登录时：必填
                 password:
                   type: string
-                  description: 密码（与code二选一）
+                  description: |
+                    密码
+                    - 老用户验证码登录时：可选
+                    - 老用户密码登录时：必填
+                    - 新用户首次登录时：必填（用于设置密码）
       responses:
         '200':
           description: 登录成功
