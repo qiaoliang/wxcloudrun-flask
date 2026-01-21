@@ -1,6 +1,6 @@
 # Makefile for backend testing
 
-.PHONY: help test-integration ut test-all clean setup e2e it its
+.PHONY: help test-integration ut test-all clean setup e2e it its contract-test
 
 # 默认目标
 help:
@@ -18,6 +18,8 @@ help:
 	@echo "  make test-coverage - 生成测试覆盖率报告"
 	@echo "  make clean        - 清理测试文件"
 	@echo "  make test-failed  - 运行之前失败的测试"
+	@echo "  make contract-test              - 运行API契约测试"
+	@echo "  make contract-test MODULE=user  - 运行指定模块契约测试"
 	@echo ""
 	@echo "迁移测试专用命令:"
 	@echo "  make test-migration-method METHOD=<method> - 运行特定测试方法"
@@ -184,4 +186,16 @@ test-integration-new:
 test-quick:
 	@echo "=== 快速测试 ==="
 	@source venv_py312/bin/activate && python smart_test_runner.py tests/unit/test_user_search_phone_hash.py
+
+# API契约测试
+contract-test: setup
+	@echo "=== 运行API契约测试 ==="
+	@export PYTHONPATH="$(pwd)/src:$$PYTHONPATH"; \
+	source venv_py312/bin/activate && \
+	export ENV_TYPE=unit; \
+	if [ -z "$(MODULE)" ]; then \
+		pytest tests/contract/ -v; \
+	else \
+		pytest tests/contract/test_$(MODULE)_contract.py -v; \
+	fi
 
