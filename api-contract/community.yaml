@@ -1337,9 +1337,18 @@ components:
         description:
           type: string
           description: 社区描述
+        location:
+          type: string
+          description: 社区地址
         creator_id:
           type: integer
           description: 创建者ID
+        manager_id:
+          type: integer
+          description: 主管用户ID
+        manager_name:
+          type: string
+          description: 主管昵称（用于前端显示）
         status:
           type: integer
           description: 社区状态

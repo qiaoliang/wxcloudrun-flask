@@ -122,17 +122,8 @@ class GetCommunitiesUseCase(BaseUseCase):
                     if community and community.status == 1:  # 只返回活跃社区
                         communities.append(community)
 
-                # 格式化社区信息
-                communities_data = []
-                for community in communities:
-                    communities_data.append({
-                        'community_id': community.community_id,
-                        'name': community.name,
-                        'description': community.description,
-                        'location': community.location,
-                        'status': community.status,
-                        'created_at': community.created_at.isoformat() if community.created_at else None
-                    })
+                # 使用 FormatCommunityInfoUseCase 格式化社区信息（包含 manager_name）
+                communities_data = self._format_communities(communities, include_worker_stats=True)
 
                 # 按创建时间倒序排序
                 communities_data.sort(key=lambda x: x['created_at'] or '', reverse=True)
@@ -141,7 +132,7 @@ class GetCommunitiesUseCase(BaseUseCase):
                 if limit > 0:
                     communities_data = communities_data[:limit]
 
-                print(f'Layer 2: 最终返回 {len(communities_data)} 个社区')
+                self.logger.info(f'Layer 2: 最终返回 {len(communities_data)} 个社区')
 
             self.logger.info(f'Layer 2: 业务逻辑验证 - 获取社区列表成功: type={community_type}, count={len(communities_data)}')
             if len(communities_data) == 0:

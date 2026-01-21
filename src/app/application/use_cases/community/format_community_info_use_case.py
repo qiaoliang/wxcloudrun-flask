@@ -49,12 +49,40 @@ class FormatCommunityInfoUseCase(BaseUseCase):
             if community.manager_id:
                 manager_user = self.user_repository.find_by_id(community.manager_id)
                 if manager_user:
+                    # 诊断日志：记录用户的 nickname 和 name 字段
+                    self.logger.info(
+                        f'_format_community_info - 找到主管用户: user_id={manager_user.user_id}, '
+                        f'nickname="{manager_user.nickname}", name="{manager_user.name}"'
+                    )
                     manager = {
                         'user_id': manager_user.user_id,
                         'nickname': manager_user.nickname,
                         'avatar_url': manager_user.avatar_url
                     }
                     self.logger.info(f'_format_community_info - 成功获取主管信息: {manager}')
+
+                    # Layer 3: 数据一致性验证
+                    # 检查 CommunityStaff 表中是否存在该主管关系
+                    try:
+                        from sqlalchemy import select
+                        from database.flask_models import CommunityStaff, db
+                        stmt = select(CommunityStaff).where(
+                            CommunityStaff.community_id == community.community_id,
+                            CommunityStaff.user_id == community.manager_id,
+                            CommunityStaff.role == 'manager',
+                            CommunityStaff.removed_at.is_(None)
+                        )
+                        staff_relation = db.session.execute(stmt).scalar_one_or_none()
+
+                        if not staff_relation:
+                            # 数据不一致：manager_id 存在但 CommunityStaff 关系不存在
+                            self.logger.warning(
+                                f'Layer 3 数据不一致检测: 社区{community.community_id}的manager_id={community.manager_id} '
+                                f'但在CommunityStaff表中未找到对应的主管关系'
+                            )
+                    except Exception as e:
+                        # 验证失败不影响主流程，只记录日志
+                        self.logger.error(f'Layer 3 数据一致性验证失败: {str(e)}')
                 else:
                     self.logger.warning(f'_format_community_info - manager_id={community.manager_id}对应的用户不存在')
             else:
