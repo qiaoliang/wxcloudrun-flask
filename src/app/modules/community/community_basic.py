@@ -207,11 +207,8 @@ def get_managed_communities():
         if not result.is_success:
             return make_err_response({}, result.message)
 
-        # 格式化社区信息
-        communities_data = []
-        for community in result.data.get('communities', []):
-            community_data = _format_community_info_from_dict(community)
-            communities_data.append(community_data)
+        # 直接返回 UseCase 的完整数据（已包含 manager_name 等字段）
+        communities_data = result.data.get('communities', [])
 
         return make_succ_response({'communities': communities_data})
 
