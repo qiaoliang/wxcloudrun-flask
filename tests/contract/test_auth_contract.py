@@ -112,10 +112,15 @@ class TestAuthContract:
 
     def test_login_phone_code_wrong_code_contract(self, schema, base_client):
         """测试验证码错误的契约"""
-        # 注意：mock 环境下 SMS_PROVIDER=mock 时，任何6位验证码都有效
-        # 所以这个测试在 mock 环境下会失败，这是预期行为
-        # 在真实环境中，错误的验证码会返回 code=0
-        pytest.skip("mock 环境下验证码始终有效，无法测试错误场景")
+        # 使用无效验证码（mock 服务只有 123456 是有效验证码）
+        response = base_client.post('/api/auth/login_phone_code', json={
+            'phone': '13141516171',
+            'code': '1234567'  # 无效验证码
+        })
+
+        data = validate_response_structure(response)
+        # 验证码错误应该返回 code=0
+        assert data["code"] == 0
 
     def test_login_phone_code_missing_field_contract(self, schema, base_client):
         """测试缺少必填字段的验证码登录契约"""
