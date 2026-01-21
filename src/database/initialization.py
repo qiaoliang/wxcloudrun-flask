@@ -47,10 +47,10 @@ def create_superadmin_and_default_community():
                     name='安卡大家庭',
                     description='系统默认社区，新注册用户自动加入',
                     creator_id=None,  # 暂时设置为None，稍后更新
+                    manager_id=None,  # 暂时设置为None，稍后更新
                     status=1,  # 启用状态
                     is_default=True
                 )
-
                 db.session.add(default_community)
                 db.session.flush()  # 获取新创建的社区ID
                 logger.info(f"默认社区'安卡大家庭'创建成功，ID: {default_community.community_id}")
@@ -80,8 +80,9 @@ def create_superadmin_and_default_community():
             db.session.add(superadmin)
             db.session.flush()  # 获取新创建的用户ID
 
-            # 更新默认社区的创建者为超级系统管理员
+            # 更新默认社区的创建者和主管为超级系统管理员
             default_community.creator_id = superadmin.user_id
+            default_community.manager_id = superadmin.user_id
 
             # 设置超级系统管理员为'安卡大家庭'社区主管
             staff_relation = CommunityStaff(
@@ -182,6 +183,7 @@ def create_superadmin_and_default_community():
                 name=BLACKHOUSE_COMMUNITY_NAME,
                 description='特殊管理社区，用户在此社区时功能受限',
                 creator_id=superadmin_user.user_id,
+                manager_id=superadmin_user.user_id,
                 status=1,  # 启用状态
                 is_blackhouse=True
             )
