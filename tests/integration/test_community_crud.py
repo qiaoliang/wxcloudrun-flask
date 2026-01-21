@@ -464,7 +464,13 @@ class TestCommunityCRUD(IntegrationTestBase):
     # ==================== 5. 批量添加用户到社区 ====================
 
     def test_add_users_to_community_success(self):
-        """测试批量添加用户到社区 - 成功场景（使用DDD架构的Repository模式）"""
+        """测试批量添加用户到社区 - 成功场景（使用DDD架构的Repository模式）
+
+        测试策略：
+        - 直接使用 Repository 层验证业务逻辑
+        - 避开 @transactional 装饰器在测试环境的问题
+        - API/UseCase 层通过契约测试覆盖
+        """
         with self.app.app_context():
             from app.infrastructure.persistence.repository_factory import RepositoryFactory
             from datetime import datetime
@@ -477,7 +483,7 @@ class TestCommunityCRUD(IntegrationTestBase):
             )
             self.db.session.commit()
 
-            # 步骤2: 创建3个测试用户（分配到默认社区）
+            # 步骤2: 创建3个测试用户
             test_users = []
             for i in range(3):
                 user = self.create_standard_test_user(
@@ -487,11 +493,10 @@ class TestCommunityCRUD(IntegrationTestBase):
                 test_users.append(user)
             self.db.session.commit()
 
-            # 记录初始状态
             initial_community_ids = [u.community_id for u in test_users]
             print(f"初始社区ID: {initial_community_ids}")
 
-            # 步骤3: 使用 Repository 批量更新用户的社区ID
+            # 步骤3: 使用 Repository 批量更新用户的社区ID（模拟 UseCase 逻辑）
             user_repository = RepositoryFactory.get_user_repository()
             updated_count = 0
 
@@ -502,12 +507,11 @@ class TestCommunityCRUD(IntegrationTestBase):
                     user_repository.save(user)
                     updated_count += 1
 
-            self.db.session.commit()  # 显式提交事务
+            self.db.session.commit()
 
             # 步骤4: 验证更新结果
             assert updated_count == 3, f"应该更新3个用户，实际更新{updated_count}个"
 
-            # 重新从数据库查询用户，验证社区ID已更新
             for user in test_users:
                 updated_user = user_repository.find_by_id(user.user_id)
                 assert updated_user.community_id == new_community.community_id, \
@@ -516,7 +520,13 @@ class TestCommunityCRUD(IntegrationTestBase):
             print(f"✅ 成功批量添加 {len(test_users)} 个用户到社区 {new_community.community_id}")
 
     def test_add_users_single_user(self):
-        """测试批量添加用户到社区 - 单个用户（使用DDD架构的Repository模式）"""
+        """测试批量添加用户到社区 - 单个用户（使用DDD架构的Repository模式）
+
+        测试策略：
+        - 直接使用 Repository 层验证业务逻辑
+        - 避开 @transactional 装饰器在测试环境的问题
+        - API/UseCase 层通过契约测试覆盖
+        """
         with self.app.app_context():
             from app.infrastructure.persistence.repository_factory import RepositoryFactory
             from datetime import datetime
@@ -529,17 +539,14 @@ class TestCommunityCRUD(IntegrationTestBase):
             )
             self.db.session.commit()
 
-            # 步骤2: 创建测试用户（分配到默认社区）
-            test_user = self.create_standard_test_user(
-                role=1,
-                test_context='add_single_user'
-            )
+            # 步骤2: 创建测试用户
+            test_user = self.create_standard_test_user(role=1, test_context='add_single_user')
             self.db.session.commit()
 
             initial_community_id = test_user.community_id
             print(f"初始社区ID: {initial_community_id}, 目标社区ID: {new_community.community_id}")
 
-            # 步骤3: 使用 Repository 更新用户的社区ID
+            # 步骤3: 使用 Repository 更新用户的社区ID（模拟 UseCase 逻辑）
             user_repository = RepositoryFactory.get_user_repository()
 
             if test_user.community_id != new_community.community_id:
@@ -547,7 +554,7 @@ class TestCommunityCRUD(IntegrationTestBase):
                 test_user.community_joined_at = datetime.now()
                 user_repository.save(test_user)
 
-            self.db.session.commit()  # 显式提交事务
+            self.db.session.commit()
 
             # 步骤4: 验证更新结果
             updated_user = user_repository.find_by_id(test_user.user_id)
