@@ -66,6 +66,36 @@ paths:
                           type: string
                           description: 手机号（未绑定时为 null）
                           nullable: true
+                        nickname:
+                          type: string
+                          description: 用户昵称
+                        name:
+                          type: string
+                          description: 用户姓名
+                          nullable: true
+                        address:
+                          type: string
+                          description: 用户地址
+                          nullable: true
+                        avatar_url:
+                          type: string
+                          description: 用户头像URL
+                          nullable: true
+                        role:
+                          type: integer
+                          description: 角色ID：1-普通用户，2-社区专员，3-社区主管，4-超级系统管理员
+                        role_name:
+                          type: string
+                          description: 角色名称
+                          nullable: true
+                        community_id:
+                          type: integer
+                          description: 社区ID
+                          nullable: true
+                        community_name:
+                          type: string
+                          description: 社区名称
+                          nullable: true
                         login_type:
                           type: string
                           description: 登录类型
@@ -122,6 +152,21 @@ paths:
                           type: string
                         user_id:
                           type: integer
+                        nickname:
+                          type: string
+                          description: 用户昵称
+                        name:
+                          type: string
+                          description: 用户姓名
+                          nullable: true
+                        address:
+                          type: string
+                          description: 用户地址
+                          nullable: true
+                        avatar_url:
+                          type: string
+                          description: 用户头像URL
+                          nullable: true
   /api/auth/refresh_token:
     post:
       tags:
@@ -203,6 +248,36 @@ paths:
                           type: string
                         user_id:
                           type: integer
+                        nickname:
+                          type: string
+                          description: 用户昵称
+                        name:
+                          type: string
+                          description: 用户姓名
+                          nullable: true
+                        address:
+                          type: string
+                          description: 用户地址
+                          nullable: true
+                        avatar_url:
+                          type: string
+                          description: 用户头像URL
+                          nullable: true
+                        role:
+                          type: integer
+                          description: 角色ID：1-普通用户，2-社区专员，3-社区主管，4-超级系统管理员
+                        role_name:
+                          type: string
+                          description: 角色名称
+                          nullable: true
+                        community_id:
+                          type: integer
+                          description: 社区ID
+                          nullable: true
+                        community_name:
+                          type: string
+                          description: 社区名称
+                          nullable: true
   /api/auth/login_phone_password:
     post:
       tags:
@@ -245,6 +320,36 @@ paths:
                           type: string
                         user_id:
                           type: integer
+                        nickname:
+                          type: string
+                          description: 用户昵称
+                        name:
+                          type: string
+                          description: 用户姓名
+                          nullable: true
+                        address:
+                          type: string
+                          description: 用户地址
+                          nullable: true
+                        avatar_url:
+                          type: string
+                          description: 用户头像URL
+                          nullable: true
+                        role:
+                          type: integer
+                          description: 角色ID：1-普通用户，2-社区专员，3-社区主管，4-超级系统管理员
+                        role_name:
+                          type: string
+                          description: 角色名称
+                          nullable: true
+                        community_id:
+                          type: integer
+                          description: 社区ID
+                          nullable: true
+                        community_name:
+                          type: string
+                          description: 社区名称
+                          nullable: true
   /api/auth/login_phone:
     post:
       tags:
@@ -301,6 +406,36 @@ paths:
                           type: string
                         user_id:
                           type: integer
+                        nickname:
+                          type: string
+                          description: 用户昵称
+                        name:
+                          type: string
+                          description: 用户姓名
+                          nullable: true
+                        address:
+                          type: string
+                          description: 用户地址
+                          nullable: true
+                        avatar_url:
+                          type: string
+                          description: 用户头像URL
+                          nullable: true
+                        role:
+                          type: integer
+                          description: 角色ID：1-普通用户，2-社区专员，3-社区主管，4-超级系统管理员
+                        role_name:
+                          type: string
+                          description: 角色名称
+                          nullable: true
+                        community_id:
+                          type: integer
+                          description: 社区ID
+                          nullable: true
+                        community_name:
+                          type: string
+                          description: 社区名称
+                          nullable: true
   /api/logout:
     post:
       tags:

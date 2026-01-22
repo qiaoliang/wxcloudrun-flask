@@ -6,6 +6,7 @@
 import logging
 import secrets
 import os
+from datetime import datetime, timezone
 from hashlib import sha256
 from sqlalchemy import select
 from database.flask_models import User, Community, CommunityStaff, db
@@ -45,6 +46,13 @@ def create_superadmin_and_default_community():
                 phone_hash=phone_hash,
                 nickname='系统超级系统管理员',
                 name='系统超级系统管理员',
+                avatar_url='https://example.com/avatar/superadmin.png',
+                work_id='SA0000001',
+                address='北京市朝阳区柳芳南里29号',
+                motto='守护每一位用户的安全与健康',
+                emergency_contact_name='系统管理员',
+                emergency_contact_phone='13800000000',
+                emergency_contact_address='北京市朝阳区柳芳南里29号',
                 password_hash=password_hash,
                 password_salt=salt,
                 role=Role.SUPER_ADMIN,
@@ -52,7 +60,10 @@ def create_superadmin_and_default_community():
                 verification_status=2,
                 _is_community_worker=True,
                 community_id=None,  # 暂时设为None，后续再分配
-                address='北京市朝阳区柳芳南里29号'
+                refresh_token=None,
+                refresh_token_expire=None,
+                created_at=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
             )
             db.session.add(superadmin)
             db.session.flush()  # 获取用户ID

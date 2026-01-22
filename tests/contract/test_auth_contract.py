@@ -167,6 +167,58 @@ class TestAuthContract:
         assert len(response_data["refresh_token"]) > 0, "refresh_token 不应为空"
         assert response_data["user_id"] > 0, "user_id 应大于 0"
 
+    def test_login_phone_code_full_response_fields(self, schema, base_client):
+        """100% 完整度验证：手机号验证码登录 - 验证所有字段及默认值（超级系统管理员）"""
+        response = base_client.post('/api/auth/login_phone_code', json={
+            'phone': '13141516171',
+            'code': '123456'
+        })
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        response_data = data["data"]
+
+        # 验证必填字段存在
+        assert "token" in response_data, "缺少 token 字段"
+        assert "refresh_token" in response_data, "缺少 refresh_token 字段"
+        assert "user_id" in response_data, "缺少 user_id 字段"
+        assert "nickname" in response_data, "缺少 nickname 字段"
+        assert "name" in response_data, "缺少 name 字段"
+        assert "address" in response_data, "缺少 address 字段"
+        assert "avatar_url" in response_data, "缺少 avatar_url 字段"
+        assert "role" in response_data, "缺少 role 字段"
+        assert "role_name" in response_data, "缺少 role_name 字段"
+        assert "community_id" in response_data, "缺少 community_id 字段"
+        assert "community_name" in response_data, "缺少 community_name 字段"
+
+        # 验证字段类型
+        assert isinstance(response_data["token"], str), f"token 应为 string 类型"
+        assert isinstance(response_data["refresh_token"], str), f"refresh_token 应为 string 类型"
+        assert isinstance(response_data["user_id"], int), f"user_id 应为 integer 类型"
+        assert isinstance(response_data["nickname"], str), f"nickname 应为 string 类型"
+        assert isinstance(response_data["name"], str), f"name 应为 string 类型"
+        assert isinstance(response_data["address"], str), f"address 应为 string 类型"
+        assert isinstance(response_data["avatar_url"], str), f"avatar_url 应为 string 类型"
+        assert isinstance(response_data["role"], int), f"role 应为 integer 类型"
+        assert isinstance(response_data["role_name"], str), f"role_name 应为 string 类型"
+        assert isinstance(response_data["community_id"], int), f"community_id 应为 integer 类型"
+        assert isinstance(response_data["community_name"], str), f"community_name 应为 string 类型"
+
+        # 验证字段值有效性（使用超级系统管理员的默认值）
+        assert len(response_data["token"]) > 0, "token 不应为空"
+        assert len(response_data["refresh_token"]) > 0, "refresh_token 不应为空"
+        assert response_data["user_id"] > 0, "user_id 应大于 0"
+
+        # 验证超级系统管理员的默认值
+        assert response_data["nickname"] == "系统超级系统管理员", f"nickname 应为 '系统超级系统管理员'"
+        assert response_data["name"] == "系统超级系统管理员", f"name 应为 '系统超级系统管理员'"
+        assert response_data["address"] == "北京市朝阳区柳芳南里29号", f"address 应为 '北京市朝阳区柳芳南里29号'"
+        assert response_data["role"] == 4, f"role 应为 4（超级系统管理员）"
+        assert response_data["role_name"] == "超级系统管理员", f"role_name 应为 '超级系统管理员'"
+        assert response_data["community_id"] == 1, f"community_id 应为 1（默认社区）"
+        assert response_data["community_name"] == "安卡大家庭", f"community_name 应为 '安卡大家庭'"
+
     def test_login_phone_code_wrong_code_contract(self, schema, base_client):
         """测试验证码错误的契约"""
         # 使用无效验证码（mock 服务只有 123456 是有效验证码）

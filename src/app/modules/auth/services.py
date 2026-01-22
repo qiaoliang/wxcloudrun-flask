@@ -36,6 +36,7 @@ def _format_user_login_response(user, token, refresh_token, is_new_user=False):
         'phone_number': user.phone_number,
         'nickname': user.nickname,
         'name': user.name,
+        'address': user.address,
         'avatar_url': user.avatar_url,
         'role': user.role,  # 角色数字ID：1-普通用户，2-社区专员，3-社区主管，4-超级系统管理员
         'role_name': user.role_name,  # 角色中文名称
