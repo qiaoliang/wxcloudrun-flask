@@ -9,7 +9,8 @@ import os
 from datetime import datetime, timezone
 from hashlib import sha256
 from sqlalchemy import select
-from database.flask_models import User, Community, CommunityStaff, db
+from database.flask_models import User, Community, CommunityStaff, CheckinRule, db
+from datetime import time
 from wxcloudrun.utils.validators import generate_phone_hash
 from app.shared.constants.roles import Role
 
@@ -169,6 +170,58 @@ def create_superadmin_and_default_community():
             if not blackhouse_community.settings:
                 blackhouse_community.settings = '{"checkin_enabled": false, "event_notifications": false, "restricted_mode": true}'
             logger.info(f"已为黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'补充缺失字段")
+
+        # 检查并创建普通测试用户
+        stmt = select(User).where(User.phone_number == '18122222222')
+        normal_user = db.session.execute(stmt).scalar_one_or_none()
+
+        if not normal_user:
+            logger.info("开始创建普通测试用户...")
+            salt = secrets.token_hex(8)
+            password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
+            phone_hash = generate_phone_hash("18122222222")
+
+            normal_user = User(
+                phone_number='18122222222',
+                phone_hash=phone_hash,
+                nickname='普通用户',
+                name='张三',
+                avatar_url='https://example.com/avatar/normal_user.png',
+                work_id='EMP0001',
+                address='北京市朝阳区柳芳南里30号',
+                password_hash=password_hash,
+                password_salt=salt,
+                role=Role.SOLO,  # 普通用户角色
+                status=1,
+                community_id=default_community.community_id,  # 属于安卡大家庭
+                created_at=datetime(2024, 1, 10, 8, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 10, 8, 0, 0, tzinfo=timezone.utc)
+            )
+            db.session.add(normal_user)
+            db.session.flush()  # 获取用户ID
+            logger.info(f"普通测试用户创建成功，ID: {normal_user.user_id}")
+
+            # 创建个人打卡规则：早上吃药
+            personal_rule = CheckinRule(
+                user_id=normal_user.user_id,
+                community_id=None,
+                rule_type='personal',
+                rule_name='早上吃药',
+                icon_url='https://example.com/icon/medicine.png',
+                frequency_type=0,  # 每天
+                time_slot_type=4,  # 早上
+                custom_time=time(8, 0, 0),  # 早上 8:00
+                custom_start_date=datetime(2024, 1, 10).date(),
+                custom_end_date=None,
+                week_days=127,  # 每天
+                status=1,  # 启用
+                created_at=datetime(2024, 1, 10, 8, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 10, 8, 0, 0, tzinfo=timezone.utc)
+            )
+            db.session.add(personal_rule)
+            logger.info(f"个人打卡规则'早上吃药'创建成功，规则ID: {personal_rule.rule_id}")
+        else:
+            logger.info(f"普通测试用户已存在，ID: {normal_user.user_id}")
 
         # 确保超级系统管理员的community_id设置为默认社区ID
         superadmin.community_id = default_community.community_id
