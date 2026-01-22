@@ -497,7 +497,7 @@ def verify_community():
         get_user_result = get_user_use_case.execute(user_id)
         if not get_user_result.is_success:
             return make_err_response({}, '用户不存在')
-        user = get_user_result.data
+        user_data = get_user_result.data
 
         # 验证社区成员关系
         from app.application.use_cases.community import CheckCommunityPermissionUseCase
@@ -509,7 +509,7 @@ def verify_community():
             response_data = {
                 'is_member': True,
                 'community_id': community_id,
-                'user_role': user.role_name
+                'user_role': user_data.get('role_name')
             }
         else:
             response_data = {
@@ -522,6 +522,7 @@ def verify_community():
 
     except Exception as e:
         current_app.logger.error(f'社区验证失败: {str(e)}', exc_info=True)
+        return make_err_response({}, '社区验证失败')
 
 
 # ==================== 用户事件相关 API ====================
@@ -664,7 +665,7 @@ def get_user_medical_history(decoded, user_id):
             if can_view:
                 result.append(history_dict)
 
-        return make_succ_response(result)
+        return make_succ_response({'medical_history': result})
     except Exception as e:
         current_app.logger.error(f"获取用户病史列表失败: {str(e)}", exc_info=True)
         return make_err_response({}, f'获取病史列表失败: {str(e)}')

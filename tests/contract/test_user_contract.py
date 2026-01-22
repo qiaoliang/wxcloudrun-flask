@@ -110,14 +110,36 @@ class TestUserContract:
 
     def test_user_change_password_contract(self, schema, base_client, auth_headers):
         """测试修改密码契约"""
+        # 先使用当前密码登录获取 token
+        response = base_client.post('/api/auth/login_phone_password', json={
+            'phone': '13141516171',
+            'password': 'F1234567'
+        })
+        data = response.get_json()
+        if data.get('code') == 1:
+            current_token = data['data']['token']
+            current_headers = {'Authorization': f'Bearer {current_token}'}
+
+        # 修改密码
         response = base_client.post('/api/user/change-password',
             json={
                 'old_password': 'F1234567',
                 'new_password': 'NewPassword123'
             },
-            headers=auth_headers
+            headers=current_headers
         )
 
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # 立即将密码改回来，避免影响后续测试
+        response = base_client.post('/api/user/change-password',
+            json={
+                'old_password': 'NewPassword123',
+                'new_password': 'F1234567'
+            },
+            headers=current_headers
+        )
         data = validate_response_structure(response)
         assert data["code"] == 1
 
@@ -387,7 +409,8 @@ class TestUserContract:
         """测试记录查看成员信息契约"""
         response = base_client.post('/api/user/log-profile-view',
             json={
-                'target_user_id': 1
+                'viewed_user_id': 1,
+                'community_id': 1
             },
             headers=auth_headers
         )
@@ -399,7 +422,9 @@ class TestUserContract:
         """测试记录查看监护人信息契约"""
         response = base_client.post('/api/user/log-view-guardian',
             json={
-                'target_user_id': 1
+                'guardian_id': 1,
+                'ward_user_id': 2,
+                'community_id': 1
             },
             headers=auth_headers
         )
@@ -410,7 +435,7 @@ class TestUserContract:
     def test_user_profile_view_logs_contract(self, schema, base_client, auth_headers):
         """测试获取查看记录契约"""
         response = base_client.get('/api/user/profile-view-logs',
-            query_string={'page': 1, 'per_page': 10},
+            query_string={'community_id': 1, 'page': 1, 'per_page': 10},
             headers=auth_headers
         )
 
@@ -459,7 +484,7 @@ class TestUserContract:
         # 查找两个默认社区
         community_names = [c.get('name') for c in communities]
         assert '安卡大家庭' in community_names, "期望包含安卡大家庭"
-        assert '黑屋社区' in community_names, "期望包含黑屋社区"
+        assert '黑屋' in community_names, "期望包含黑屋社区"
 
         # 验证安卡大家庭的完整信息
         ankaji = next((c for c in communities if c.get('name') == '安卡大家庭'), None)
@@ -483,10 +508,10 @@ class TestUserContract:
         assert ankaji["updated_at"] is not None
 
         # 验证黑屋社区的完整信息
-        blackhouse = next((c for c in communities if c.get('name') == '黑屋社区'), None)
+        blackhouse = next((c for c in communities if c.get('name') == '黑屋'), None)
         assert blackhouse is not None
         assert blackhouse["community_id"] > 0
-        assert blackhouse["name"] == "黑屋社区"
+        assert blackhouse["name"] == "黑屋"
         assert "特殊管理社区" in blackhouse["description"]
         assert blackhouse["location"] == "北京市海淀区中关村大街1号"
         assert blackhouse["location_lat"] == 39.956073
