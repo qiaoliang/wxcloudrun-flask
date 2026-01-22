@@ -22,8 +22,8 @@ class GetCheckinHistoryUseCase(BaseUseCase):
         self,
         user_id: int,
         rule_id: Optional[int] = None,
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
+        start_date: Optional['date'] = None,
+        end_date: Optional['date'] = None,
         page: int = 1,
         page_size: int = 20
     ) -> UseCaseResult:
@@ -33,8 +33,8 @@ class GetCheckinHistoryUseCase(BaseUseCase):
         Args:
             user_id: 用户ID
             rule_id: 规则ID（可选）
-            start_date: 开始日期（YYYY-MM-DD）
-            end_date: 结束日期（YYYY-MM-DD）
+            start_date: 开始日期（date对象，由routes.py解析）
+            end_date: 结束日期（date对象，由routes.py解析）
             page: 页码
             page_size: 每页数量
 
@@ -69,27 +69,17 @@ class GetCheckinHistoryUseCase(BaseUseCase):
                     message='用户不存在'
                 )
 
-            # 3. 处理日期参数
+            # 3. 处理日期参数（已由routes.py解析为date对象）
             start_datetime = None
             end_datetime = None
 
             if start_date:
-                try:
-                    start_datetime = datetime.strptime(start_date, '%Y-%m-%d')
-                except ValueError:
-                    return UseCaseResult(
-                        status=UseCaseStatus.VALIDATION_ERROR,
-                        message='开始日期格式无效，应为 YYYY-MM-DD'
-                    )
+                # 将date对象转换为datetime（当天开始）
+                start_datetime = datetime.combine(start_date, datetime.min.time())
 
             if end_date:
-                try:
-                    end_datetime = datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1)
-                except ValueError:
-                    return UseCaseResult(
-                        status=UseCaseStatus.VALIDATION_ERROR,
-                        message='结束日期格式无效，应为 YYYY-MM-DD'
-                    )
+                # 将date对象转换为datetime（第二天开始，即结束日期的当天结束）
+                end_datetime = datetime.combine(end_date, datetime.min.time()) + timedelta(days=1)
 
             # 4. 查询打卡记录
             if rule_id:
