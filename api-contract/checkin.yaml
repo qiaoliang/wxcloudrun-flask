@@ -31,18 +31,63 @@ paths:
                 - type: object
                   properties:
                     data:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          rule_name:
-                            type: string
-                          checkin_time:
-                            type: string
-                          is_completed:
-                            type: boolean
+                      type: object
+                      properties:
+                        user_id:
+                          type: integer
+                          description: 用户ID
+                        date:
+                          type: string
+                          format: date
+                          description: 日期（YYYY-MM-DD）
+                        checkin_items:
+                          type: array
+                          description: 打卡事项列表
+                          items:
+                            type: object
+                            properties:
+                              rule_id:
+                                type: integer
+                                description: 规则ID
+                              rule_name:
+                                type: string
+                                description: 规则名称
+                              icon_url:
+                                type: string
+                                description: 图标URL
+                                nullable: true
+                              frequency_type:
+                                type: integer
+                                description: 频率类型（0-每天，1-每周，2-工作日，3-自定义日期范围）
+                              time_slot_type:
+                                type: integer
+                                description: 时间段类型（0-全天，1-指定时间）
+                              custom_time:
+                                type: string
+                                description: 自定义时间（HH:MM格式）
+                                nullable: true
+                              status:
+                                type: string
+                                description: 打卡状态（pending-待打卡，checked-已打卡，unchecked-已错过）
+                                enum: [pending, checked, unchecked]
+                              checkin_time:
+                                type: string
+                                description: 实际打卡时间
+                                format: date-time
+                                nullable: true
+                              record_id:
+                                type: integer
+                                description: 打卡记录ID
+                                nullable: true
+                        total:
+                          type: integer
+                          description: 总打卡事项数
+                        checked:
+                          type: integer
+                          description: 已打卡数量
+                        unchecked:
+                          type: integer
+                          description: 已错过数量
   /api/checkin:
     post:
       tags:
@@ -169,7 +214,7 @@ paths:
           type: integer
           default: 1
         description: 页码
-      - name: per_page
+      - name: page_size
         in: query
         schema:
           type: integer
@@ -195,26 +240,39 @@ paths:
                             properties:
                               record_id:
                                 type: integer
+                                description: 记录ID
+                              user_id:
+                                type: integer
+                                description: 用户ID
                               rule_id:
                                 type: integer
-                              rule_name:
-                                type: string
+                                description: 规则ID
                               checkin_time:
                                 type: string
                                 format: date-time
+                                description: 打卡时间
                               status:
+                                type: integer
+                                description: 打卡状态（0-未打卡，1-已打卡，2-已错过，3-已取消）
+                              status_name:
                                 type: string
-                              created_at:
+                                description: 状态名称
+                              planned_time:
                                 type: string
                                 format: date-time
+                                description: 计划打卡时间
                         total:
                           type: integer
+                          description: 总记录数
                         page:
                           type: integer
-                        per_page:
+                          description: 当前页码
+                        page_size:
                           type: integer
-                        has_next:
-                          type: boolean
+                          description: 每页数量
+                        total_pages:
+                          type: integer
+                          description: 总页数
   /api/checkin/rules:
     get:
       tags:
@@ -249,18 +307,58 @@ paths:
                             properties:
                               rule_id:
                                 type: integer
-                              title:
+                                description: 规则ID
+                              user_id:
+                                type: integer
+                                description: 用户ID
+                              rule_name:
                                 type: string
-                              description:
+                                description: 规则名称
+                              frequency_type:
+                                type: integer
+                                description: 频率类型（0-每天，1-每周，2-工作日，3-自定义日期范围）
+                              time_slot_type:
+                                type: integer
+                                description: 时间段类型（0-全天，1-指定时间，2-上午，3-下午，4-晚上）
+                              status:
+                                type: integer
+                                description: 规则状态（0-禁用，1-启用）
+                              community_id:
+                                type: integer
+                                description: 社区ID
+                                nullable: true
+                              icon_url:
                                 type: string
-                              checkin_time:
+                                description: 图标URL
+                                nullable: true
+                              custom_time:
                                 type: string
-                              repeat_days:
-                                type: array
-                                items:
-                                  type: integer
-                              is_enabled:
-                                type: boolean
+                                description: 自定义时间（HH:MM:SS格式）
+                                nullable: true
+                              week_days:
+                                type: integer
+                                description: 星期位掩码
+                                nullable: true
+                              custom_start_date:
+                                type: string
+                                format: date-time
+                                description: 自定义开始日期
+                                nullable: true
+                              custom_end_date:
+                                type: string
+                                format: date-time
+                                description: 自定义结束日期
+                                nullable: true
+                              created_at:
+                                type: string
+                                format: date-time
+                                description: 创建时间
+                                nullable: true
+                              updated_at:
+                                type: string
+                                format: date-time
+                                description: 更新时间
+                                nullable: true
     post:
       tags:
       - 打卡模块
@@ -275,24 +373,47 @@ paths:
             schema:
               type: object
               required:
-              - title
-              - checkin_time
-              - repeat_days
+              - rule_name
+              - frequency_type
+              - time_slot_type
               properties:
-                title:
+                rule_name:
                   type: string
-                  description: 规则标题
+                  description: 规则名称
                 description:
                   type: string
                   description: 规则描述
-                checkin_time:
+                frequency_type:
+                  type: integer
+                  description: 频率类型（0-每天，1-每周，2-工作日，3-自定义日期范围）
+                  enum: [0, 1, 2, 3]
+                time_slot_type:
+                  type: integer
+                  description: 时间段类型（0-全天，1-指定时间，2-上午，3-下午，4-晚上）
+                  enum: [0, 1, 2, 3, 4]
+                custom_time:
                   type: string
-                  description: 打卡时间
-                repeat_days:
+                  description: 自定义时间（HH:MM格式，当time_slot_type=1时必填）
+                  pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+                week_days:
                   type: array
+                  description: 星期几（当frequency_type=1时必填，0=周一，6=周日）
                   items:
                     type: integer
-                  description: 重复天数
+                    minimum: 0
+                    maximum: 6
+                custom_start_date:
+                  type: string
+                  description: 自定义开始日期（当frequency_type=3时必填，YYYY-MM-DD格式）
+                  format: date
+                custom_end_date:
+                  type: string
+                  description: 自定义结束日期（当frequency_type=3时必填，YYYY-MM-DD格式）
+                  format: date
+                icon_url:
+                  type: string
+                  description: 图标URL
+                  nullable: true
       responses:
         '200':
           description: 创建成功
@@ -306,10 +427,63 @@ paths:
                     data:
                       type: object
                       properties:
-                        rule_id:
-                          type: integer
-                        message:
-                          type: string
+                        rule:
+                          type: object
+                          properties:
+                            rule_id:
+                              type: integer
+                              description: 规则ID
+                            user_id:
+                              type: integer
+                              description: 用户ID
+                            rule_name:
+                              type: string
+                              description: 规则名称
+                            frequency_type:
+                              type: integer
+                              description: 频率类型（0-每天，1-每周，2-工作日，3-自定义日期范围）
+                            time_slot_type:
+                              type: integer
+                              description: 时间段类型（0-全天，1-指定时间，2-上午，3-下午，4-晚上）
+                            status:
+                              type: integer
+                              description: 规则状态（0-禁用，1-启用）
+                            community_id:
+                              type: integer
+                              description: 社区ID
+                              nullable: true
+                            icon_url:
+                              type: string
+                              description: 图标URL
+                              nullable: true
+                            custom_time:
+                              type: string
+                              description: 自定义时间（HH:MM:SS格式）
+                              nullable: true
+                            week_days:
+                              type: integer
+                              description: 星期位掩码（1=周一，2=周二，...，64=周日）
+                              nullable: true
+                            custom_start_date:
+                              type: string
+                              format: date-time
+                              description: 自定义开始日期
+                              nullable: true
+                            custom_end_date:
+                              type: string
+                              format: date-time
+                              description: 自定义结束日期
+                              nullable: true
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: 创建时间
+                              nullable: true
+                            updated_at:
+                              type: string
+                              format: date-time
+                              description: 更新时间
+                              nullable: true
     put:
       tags:
       - 打卡模块
@@ -329,27 +503,117 @@ paths:
                 rule_id:
                   type: integer
                   description: 规则ID
-                title:
+                rule_name:
                   type: string
-                  description: 规则标题
+                  description: 规则名称
                 description:
                   type: string
                   description: 规则描述
-                checkin_time:
+                frequency_type:
+                  type: integer
+                  description: 频率类型（0-每天，1-每周，2-工作日，3-自定义日期范围）
+                  enum: [0, 1, 2, 3]
+                time_slot_type:
+                  type: integer
+                  description: 时间段类型（0-全天，1-指定时间，2-上午，3-下午，4-晚上）
+                  enum: [0, 1, 2, 3, 4]
+                custom_time:
                   type: string
-                  description: 打卡时间
-                repeat_days:
+                  description: 自定义时间（HH:MM格式）
+                  pattern: '^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$'
+                week_days:
                   type: array
+                  description: 星期几（0=周一，6=周日）
                   items:
                     type: integer
-                  description: 重复天数
+                    minimum: 0
+                    maximum: 6
+                custom_start_date:
+                  type: string
+                  description: 自定义开始日期（YYYY-MM-DD格式）
+                  format: date
+                custom_end_date:
+                  type: string
+                  description: 自定义结束日期（YYYY-MM-DD格式）
+                  format: date
+                icon_url:
+                  type: string
+                  description: 图标URL
+                  nullable: true
+                status:
+                  type: integer
+                  description: 规则状态（0-禁用，1-启用）
+                  enum: [0, 1]
       responses:
         '200':
           description: 更新成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/StandardResponse'
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rule:
+                          type: object
+                          properties:
+                            rule_id:
+                              type: integer
+                              description: 规则ID
+                            user_id:
+                              type: integer
+                              description: 用户ID
+                            rule_name:
+                              type: string
+                              description: 规则名称
+                            frequency_type:
+                              type: integer
+                              description: 频率类型
+                            time_slot_type:
+                              type: integer
+                              description: 时间段类型
+                            status:
+                              type: integer
+                              description: 规则状态
+                            community_id:
+                              type: integer
+                              description: 社区ID
+                              nullable: true
+                            icon_url:
+                              type: string
+                              description: 图标URL
+                              nullable: true
+                            custom_time:
+                              type: string
+                              description: 自定义时间
+                              nullable: true
+                            week_days:
+                              type: integer
+                              description: 星期位掩码
+                              nullable: true
+                            custom_start_date:
+                              type: string
+                              format: date-time
+                              description: 自定义开始日期
+                              nullable: true
+                            custom_end_date:
+                              type: string
+                              format: date-time
+                              description: 自定义结束日期
+                              nullable: true
+                            created_at:
+                              type: string
+                              format: date-time
+                              description: 创建时间
+                              nullable: true
+                            updated_at:
+                              type: string
+                              format: date-time
+                              description: 更新时间
+                              nullable: true
     delete:
       tags:
       - 打卡模块

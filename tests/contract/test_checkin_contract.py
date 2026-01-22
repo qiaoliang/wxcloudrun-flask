@@ -56,17 +56,25 @@ class TestCheckinContract:
 
         # 验证响应字段
         response_data = data["data"]
-        assert isinstance(response_data, list)
+        assert "checkin_items" in response_data
+        assert "user_id" in response_data
+        assert "date" in response_data
+        assert "total" in response_data
+        assert "checked" in response_data
+        assert "unchecked" in response_data
+
+        checkin_items = response_data["checkin_items"]
+        assert isinstance(checkin_items, list)
 
         # 如果有数据，验证每个打卡项的字段
-        for item in response_data:
+        for item in checkin_items:
             assert "rule_id" in item
             assert "rule_name" in item
-            assert "checkin_time" in item
-            assert "is_completed" in item
+            assert "status" in item
             assert isinstance(item["rule_id"], int)
             assert isinstance(item["rule_name"], str)
-            assert isinstance(item["is_completed"], bool)
+            assert isinstance(item["status"], str)
+            assert item["status"] in ["pending", "checked", "unchecked"]
 
     # ==================== 执行打卡 ====================
 
@@ -202,7 +210,7 @@ class TestCheckinContract:
     def test_checkin_history_contract(self, schema, base_client, auth_headers):
         """测试获取打卡历史契约"""
         response = base_client.get('/api/checkin/history',
-            query_string={'page': 1, 'per_page': 10},
+            query_string={'page': 1, 'page_size': 10},
             headers=auth_headers
         )
 
@@ -214,14 +222,14 @@ class TestCheckinContract:
         assert "history" in response_data
         assert "total" in response_data
         assert "page" in response_data
-        assert "per_page" in response_data
-        assert "has_next" in response_data
+        assert "page_size" in response_data
+        assert "total_pages" in response_data
 
         assert isinstance(response_data["history"], list)
         assert isinstance(response_data["total"], int)
         assert isinstance(response_data["page"], int)
-        assert isinstance(response_data["per_page"], int)
-        assert isinstance(response_data["has_next"], bool)
+        assert isinstance(response_data["page_size"], int)
+        assert isinstance(response_data["total_pages"], int)
 
     def test_checkin_history_with_date_range_contract(self, schema, base_client, auth_headers):
         """测试获取打卡历史（带日期范围）契约"""
@@ -230,7 +238,7 @@ class TestCheckinContract:
                 'start_date': '2024-01-01',
                 'end_date': '2024-12-31',
                 'page': 1,
-                'per_page': 20
+                'page_size': 20
             },
             headers=auth_headers
         )
@@ -245,10 +253,10 @@ class TestCheckinContract:
         for record in response_data["history"]:
             assert "record_id" in record
             assert "rule_id" in record
-            assert "rule_name" in record
             assert "checkin_time" in record
             assert "status" in record
-            assert "created_at" in record
+            assert "status_name" in record
+            assert "planned_time" in record
 
     # ==================== 获取打卡规则列表 ====================
 
@@ -332,10 +340,12 @@ class TestCheckinContract:
         """100% 完整度验证：创建打卡规则 - 验证所有返回字段及类型"""
         response = base_client.post('/api/checkin/rules',
             json={
-                'title': f'测试创建规则完整度_{random.randint(1000, 9999)}',
+                'rule_name': f'测试创建规则完整度_{random.randint(1000, 9999)}',
                 'description': '这是一个测试规则',
-                'checkin_time': '08:00',
-                'repeat_days': [1, 2, 3, 4, 5]
+                'frequency_type': 1,
+                'time_slot_type': 1,
+                'custom_time': '08:00',
+                'week_days': [1, 2, 3, 4, 5]
             },
             headers=auth_headers
         )
@@ -343,19 +353,28 @@ class TestCheckinContract:
         data = validate_response_structure(response)
         assert data["code"] == 1
 
-        # OpenAPI 定义的完整响应字段
+        # 实际返回格式是 data.rule.{...}
         response_data = data["data"]
+        assert "rule" in response_data
+
+        rule_data = response_data["rule"]
 
         # 验证所有字段存在
-        assert "rule_id" in response_data
-        assert "message" in response_data
+        assert "rule_id" in rule_data
+        assert "rule_name" in rule_data
+        assert "frequency_type" in rule_data
+        assert "time_slot_type" in rule_data
+        assert "status" in rule_data
 
         # 验证字段类型
-        assert isinstance(response_data["rule_id"], int)
-        assert isinstance(response_data["message"], str)
+        assert isinstance(rule_data["rule_id"], int)
+        assert isinstance(rule_data["rule_name"], str)
+        assert isinstance(rule_data["frequency_type"], int)
+        assert isinstance(rule_data["time_slot_type"], int)
+        assert isinstance(rule_data["status"], int)
 
         # 验证字段值有效性
-        assert response_data["rule_id"] > 0
+        assert rule_data["rule_id"] > 0
 
     def test_checkin_rules_create_missing_required_field_contract(self, schema, base_client, auth_headers):
         """测试创建打卡规则缺少必填字段契约"""
