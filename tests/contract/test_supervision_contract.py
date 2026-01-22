@@ -326,7 +326,164 @@ class TestSupervisionContract:
         data = validate_response_structure(response)
         assert data["code"] == 0
 
-    # ==================== 获取我监督的用户列表 ====================
+    # ==================== 批量拒绝监督邀请（新增） ====================
+
+    def test_supervision_invitation_batch_reject_contract(self, schema, base_client, auth_headers):
+        """测试批量拒绝监督邀请契约"""
+        response = base_client.post('/api/supervision/invitations/batch-reject',
+            json={'invitation_ids': [1, 2, 3]},
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        # 邀请可能不存在
+
+        if data["code"] == 1:
+            response_data = data["data"]
+            assert "rejected_count" in response_data
+            assert "failed_count" in response_data
+            assert isinstance(response_data["rejected_count"], int)
+            assert isinstance(response_data["failed_count"], int)
+
+    def test_supervision_invitation_batch_reject_with_reason_contract(self, schema, base_client, auth_headers):
+        """测试批量拒绝监督邀请（带原因）契约"""
+        response = base_client.post('/api/supervision/invitations/batch-reject',
+            json={
+                'invitation_ids': [1, 2],
+                'reason': '暂时不需要监督'
+            },
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+
+    def test_supervision_invitation_batch_reject_empty_contract(self, schema, base_client, auth_headers):
+        """测试批量拒绝空列表契约"""
+        response = base_client.post('/api/supervision/invitations/batch-reject',
+            json={'invitation_ids': []},
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        assert data["code"] == 0
+
+    def test_supervision_invitation_batch_reject_field_types_100_percent(self, schema, base_client, auth_headers):
+        """100% 完整度验证：批量拒绝监督邀请 - 验证所有返回字段及类型"""
+        response = base_client.post('/api/supervision/invitations/batch-reject',
+            json={'invitation_ids': [1, 2, 3]},
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        if data["code"] == 1:
+            # OpenAPI 定义的完整响应字段
+            response_data = data["data"]
+
+            # 验证所有字段存在
+            assert "rejected_count" in response_data
+            assert "failed_count" in response_data
+            assert "failed_ids" in response_data
+
+            # 验证字段类型
+            assert isinstance(response_data["rejected_count"], int)
+            assert isinstance(response_data["failed_count"], int)
+            assert isinstance(response_data["failed_ids"], list)
+
+    # ==================== 撤回监督邀请（新增） ====================
+
+    def test_supervision_invitation_withdraw_contract(self, schema, base_client, auth_headers):
+        """测试撤回监督邀请契约"""
+        # 使用测试邀请ID
+        response = base_client.post('/api/supervision/invitations/1/withdraw',
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        # 邀请可能不存在或无权限
+
+        if data["code"] == 1:
+            response_data = data["data"]
+            assert "invitation_id" in response_data
+            assert "status" in response_data
+            assert "withdrawn_at" in response_data
+            assert isinstance(response_data["invitation_id"], int)
+            assert isinstance(response_data["status"], str)
+            assert isinstance(response_data["withdrawn_at"], str)
+
+    def test_supervision_invitation_withdraw_forbidden_contract(self, schema, base_client, auth_headers):
+        """测试撤回监督邀请（无权限）契约"""
+        # 使用不存在的邀请ID或非邀请者操作
+        response = base_client.post('/api/supervision/invitations/99999/withdraw',
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        # 应该返回失败（邀请不存在或无权限）
+
+    def test_supervision_invitation_withdraw_field_types_100_percent(self, schema, base_client, auth_headers):
+        """100% 完整度验证：撤回监督邀请 - 验证所有返回字段及类型"""
+        response = base_client.post('/api/supervision/invitations/1/withdraw',
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        if data["code"] == 1:
+            # OpenAPI 定义的完整响应字段
+            response_data = data["data"]
+
+            # 验证所有字段存在
+            assert "invitation_id" in response_data
+            assert "status" in response_data
+            assert "withdrawn_at" in response_data
+
+            # 验证字段类型
+            assert isinstance(response_data["invitation_id"], int)
+            assert isinstance(response_data["status"], str)
+            assert isinstance(response_data["withdrawn_at"], str)
+
+            # 验证字段值有效性
+            assert response_data["status"] == "已撤回"
+            assert len(response_data["withdrawn_at"]) > 0
+
+    # ==================== 获取待处理邀请数量（新增） ====================
+
+    def test_supervision_invitations_pending_count_contract(self, schema, base_client, auth_headers):
+        """测试获取待处理邀请数量契约"""
+        response = base_client.get('/api/supervision/invitations/pending-count',
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # 验证响应字段
+        response_data = data["data"]
+        assert "pending_count" in response_data
+        assert isinstance(response_data["pending_count"], int)
+        assert response_data["pending_count"] >= 0
+
+    def test_supervision_invitations_pending_count_field_types_100_percent(self, schema, base_client, auth_headers):
+        """100% 完整度验证：获取待处理邀请数量 - 验证所有返回字段及类型"""
+        response = base_client.get('/api/supervision/invitations/pending-count',
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "pending_count" in response_data
+
+        # 验证字段类型
+        assert isinstance(response_data["pending_count"], int)
+
+        # 验证字段值有效性
+        assert response_data["pending_count"] >= 0
+
+    # ==================== 获取我监督的用户列表（修改） ====================
 
     def test_supervision_my_supervised_contract(self, schema, base_client, auth_headers):
         """测试获取我监督的用户列表契约"""
@@ -345,13 +502,23 @@ class TestSupervisionContract:
         assert isinstance(response_data["supervised_users"], list)
         assert isinstance(response_data["total"], int)
 
-        # 验证用户字段
+        # 验证用户字段（增强版）
         for user in response_data["supervised_users"]:
             assert "user_id" in user
             assert "nickname" in user
             assert "avatar_url" in user
-            assert "supervision_count" in user
-            assert "status" in user
+            assert "rules" in user
+            assert isinstance(user["rules"], list)
+
+            # 验证规则字段（新增）
+            for rule in user["rules"]:
+                assert "rule_id" in rule
+                assert "rule_name" in rule
+                assert "rule_icon" in rule
+                assert "created_at" in rule
+                assert "relation_id" in rule
+                assert isinstance(rule["rule_id"], int)
+                assert isinstance(rule["rule_name"], str)
 
     def test_supervision_my_supervised_with_pagination_contract(self, schema, base_client, auth_headers):
         """测试获取我监督的用户列表（带分页）契约"""
@@ -362,6 +529,55 @@ class TestSupervisionContract:
 
         data = validate_response_structure(response)
         assert data["code"] == 1
+
+    def test_supervision_my_supervised_field_types_100_percent(self, schema, base_client, auth_headers):
+        """100% 完整度验证：获取我监督的用户列表 - 验证所有返回字段及类型"""
+        response = base_client.get('/api/supervision/my_supervised',
+            query_string={'page': 1, 'per_page': 20},
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # OpenAPI 定义的完整响应字段
+        response_data = data["data"]
+
+        # 验证所有字段存在
+        assert "supervised_users" in response_data
+        assert "total" in response_data
+
+        # 验证字段类型
+        assert isinstance(response_data["supervised_users"], list)
+        assert isinstance(response_data["total"], int)
+
+        # 验证用户字段
+        for user in response_data["supervised_users"]:
+            assert "user_id" in user
+            assert "nickname" in user
+            assert "avatar_url" in user
+            assert "rules" in user
+
+            # 验证字段类型
+            assert isinstance(user["user_id"], int)
+            assert isinstance(user["nickname"], str)
+            assert isinstance(user["avatar_url"], str)
+            assert isinstance(user["rules"], list)
+
+            # 验证规则字段
+            for rule in user["rules"]:
+                assert "rule_id" in rule
+                assert "rule_name" in rule
+                assert "rule_icon" in rule
+                assert "created_at" in rule
+                assert "relation_id" in rule
+
+                # 验证字段类型
+                assert isinstance(rule["rule_id"], int)
+                assert isinstance(rule["rule_name"], str)
+                assert isinstance(rule["rule_icon"], str)
+                assert isinstance(rule["created_at"], str)
+                assert isinstance(rule["relation_id"], int)
 
     # ==================== 获取我的监护人列表 ====================
 
