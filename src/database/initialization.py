@@ -228,6 +228,151 @@ def create_superadmin_and_default_community():
         else:
             logger.info(f"普通测试用户已存在，ID: {normal_user.user_id}")
 
+        # 检查并创建调试用户-2
+        stmt = select(User).where(User.phone_number == '19144444444')
+        debug_user_2 = db.session.execute(stmt).scalar_one_or_none()
+
+        if not debug_user_2:
+            logger.info("开始创建调试用户-2...")
+            salt = secrets.token_hex(8)
+            password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
+            phone_hash = generate_phone_hash("19144444444")
+
+            debug_user_2 = User(
+                phone_number='19144444444',
+                phone_hash=phone_hash,
+                nickname='调试用户-2',
+                name='调试用户-2',
+                avatar_url='https://example.com/avatar/debug_user_2.png',
+                work_id='EMP0002',
+                address='北京市朝阳区柳芳南里31号',
+                password_hash=password_hash,
+                password_salt=salt,
+                role=Role.SOLO,  # 普通用户角色
+                status=1,
+                community_id=default_community.community_id,  # 属于安卡大家庭
+                created_at=datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
+            )
+            db.session.add(debug_user_2)
+            db.session.flush()  # 获取用户ID
+            logger.info(f"调试用户-2创建成功，ID: {debug_user_2.user_id}")
+
+            # 创建个人打卡规则：晚上吃药
+            personal_rule_2 = CheckinRule(
+                user_id=debug_user_2.user_id,
+                community_id=None,
+                rule_type='personal',
+                rule_name='晚上吃药',
+                icon_url='https://example.com/icon/medicine_night.png',
+                frequency_type=0,  # 每天
+                time_slot_type=6,  # 晚上
+                custom_time=time(20, 0, 0),  # 晚上 8:00
+                custom_start_date=datetime(2024, 1, 15).date(),
+                custom_end_date=None,
+                week_days=127,  # 每天
+                status=1,  # 启用
+                created_at=datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 15, 9, 0, 0, tzinfo=timezone.utc)
+            )
+            db.session.add(personal_rule_2)
+            logger.info(f"个人打卡规则'晚上吃药'创建成功，规则ID: {personal_rule_2.rule_id}")
+        else:
+            logger.info(f"调试用户-2已存在，ID: {debug_user_2.user_id}")
+
+        # 检查并创建主管用户-1
+        stmt = select(User).where(User.phone_number == '13588888888')
+        manager_user_1 = db.session.execute(stmt).scalar_one_or_none()
+
+        if not manager_user_1:
+            logger.info("开始创建主管用户-1...")
+            salt = secrets.token_hex(8)
+            password_hash = sha256(f"F1234567:{salt}".encode('utf-8')).hexdigest()
+            phone_hash = generate_phone_hash("13588888888")
+
+            manager_user_1 = User(
+                phone_number='13588888888',
+                phone_hash=phone_hash,
+                nickname='主管用户-1',
+                name='主管用户-1',
+                avatar_url='https://example.com/avatar/manager_user_1.png',
+                work_id='MGR0001',
+                address='北京市朝阳区柳芳南里32号',
+                password_hash=password_hash,
+                password_salt=salt,
+                role=Role.MANAGER,  # 主管角色
+                status=1,
+                verification_status=2,
+                _is_community_worker=True,
+                community_id=default_community.community_id,  # 属于安卡大家庭
+                created_at=datetime(2024, 1, 20, 10, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 20, 10, 0, 0, tzinfo=timezone.utc)
+            )
+            db.session.add(manager_user_1)
+            db.session.flush()  # 获取用户ID
+            logger.info(f"主管用户-1创建成功，ID: {manager_user_1.user_id}")
+
+            # 在CommunityStaff表中设置主管关系
+            staff_relation = CommunityStaff(
+                community_id=default_community.community_id,
+                user_id=manager_user_1.user_id,
+                role='manager'
+            )
+            db.session.add(staff_relation)
+            logger.info(f"为主管用户-1设置'安卡大家庭'社区主管关系")
+        else:
+            logger.info(f"主管用户-1已存在，ID: {manager_user_1.user_id}")
+
+        # 检查并创建调试社区-1
+        stmt = select(Community).where(Community.name == '调试社区-1')
+        debug_community_1 = db.session.execute(stmt).scalar_one_or_none()
+
+        if not debug_community_1:
+            logger.info("开始创建调试社区-1...")
+            debug_community_1 = Community(
+                name='调试社区-1',
+                description='用于调试和测试的社区',
+                creator_id=manager_user_1.user_id,
+                manager_id=manager_user_1.user_id,
+                status=1,
+                location='北京市朝阳区柳芳南里33号',
+                location_lat=39.902000,
+                location_lon=116.528000,
+                province='北京市',
+                city='北京市',
+                district='朝阳区',
+                street='柳芳南里',
+                settings='{"checkin_enabled": true, "event_notifications": true}',
+                created_at=datetime(2024, 1, 25, 0, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 25, 12, 0, 0, tzinfo=timezone.utc)
+            )
+            db.session.add(debug_community_1)
+            db.session.flush()  # 获取社区ID
+            logger.info(f"调试社区-1创建成功，ID: {debug_community_1.community_id}")
+        else:
+            logger.info(f"调试社区-1已存在，ID: {debug_community_1.community_id}")
+
+        # 为主管用户-1设置调试社区-1的主管关系
+        stmt = select(CommunityStaff).where(
+            CommunityStaff.community_id == debug_community_1.community_id,
+            CommunityStaff.user_id == manager_user_1.user_id,
+            CommunityStaff.role == 'manager'
+        )
+        existing_staff = db.session.execute(stmt).scalar_one_or_none()
+        
+        if not existing_staff:
+            staff_relation = CommunityStaff(
+                community_id=debug_community_1.community_id,
+                user_id=manager_user_1.user_id,
+                role='manager'
+            )
+            db.session.add(staff_relation)
+            logger.info(f"为主管用户-1设置'调试社区-1'社区主管关系")
+
+        # 将调试用户-2移动到调试社区-1
+        debug_user_2.community_id = debug_community_1.community_id
+        logger.info(f"将调试用户-2移动到'调试社区-1'")
+
         # 确保超级系统管理员的community_id设置为默认社区ID
         superadmin.community_id = default_community.community_id
 
