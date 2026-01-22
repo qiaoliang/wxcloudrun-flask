@@ -723,3 +723,104 @@ def batch_accept_invitations(decoded):
     except Exception as e:
         current_app.logger.error(f'批量接受邀请失败: {str(e)}', exc_info=True)
         return make_err_response({}, f'批量接受邀请失败: {str(e)}')
+
+@supervision_bp.route('/supervision/invitations/<int:invitation_id>/withdraw', methods=['POST'])
+@login_required
+def withdraw_invitation(decoded, invitation_id):
+    """
+    撤回邀请接口
+    路径参数：invitation_id - 邀请ID
+    返回：{ invitation_id, status, withdrawn_at }
+    """
+    current_app.logger.info('=== 开始撤回邀请 ===')
+
+    user_id = decoded.get('user_id')
+
+    try:
+        # 使用邀请管理用例撤回邀请
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
+
+        use_case = InvitationManagementUseCase()
+        result = use_case.withdraw_invitation(
+            invitation_id=invitation_id,
+            operator_id=user_id
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user_id} 撤回邀请成功: invitation_id={invitation_id}')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'撤回邀请失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'撤回邀请失败: {str(e)}')
+
+
+@supervision_bp.route('/supervision/invitations/batch-reject', methods=['POST'])
+@login_required
+def batch_reject_invitations(decoded):
+    """
+    批量拒绝邀请接口
+    请求体：{ invitation_ids }
+    返回：{ rejected_count, failed_count, failed_ids }
+    """
+    current_app.logger.info('=== 开始批量拒绝邀请 ===')
+
+    user_id = decoded.get('user_id')
+
+    try:
+        # 获取请求参数
+        params = request.get_json()
+        invitation_ids = params.get('invitation_ids', [])
+
+        if not invitation_ids or len(invitation_ids) == 0:
+            return make_err_response({}, '缺少invitation_ids参数')
+
+        # 使用邀请管理用例批量拒绝邀请
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
+
+        use_case = InvitationManagementUseCase()
+        result = use_case.batch_reject_invitations(
+            invitation_ids=invitation_ids,
+            user_id=user_id
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user_id} 批量拒绝邀请成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'批量拒绝邀请失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'批量拒绝邀请失败: {str(e)}')
+
+
+@supervision_bp.route('/supervision/invitations/pending-count', methods=['GET'])
+@login_required
+def get_pending_invitations_count(decoded):
+    """
+    获取待处理邀请数量接口
+    返回：{ pending_count }
+    """
+    current_app.logger.info('=== 开始获取待处理邀请数量 ===')
+
+    user_id = decoded.get('user_id')
+
+    try:
+        # 使用获取待处理邀请数量用例
+        from app.application.use_cases.supervision.get_pending_invitations_count_use_case import GetPendingInvitationsCountUseCase
+
+        use_case = GetPendingInvitationsCountUseCase()
+        result = use_case.execute(user_id=user_id)
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user_id} 获取待处理邀请数量成功: count={result.data.get("pending_count", 0)}')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'获取待处理邀请数量失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取待处理邀请数量失败: {str(e)}')
