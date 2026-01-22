@@ -534,11 +534,16 @@ def get_my_active_event(decoded):
         user_id = decoded.get('user_id')
 
         from app.application.use_cases.events import GetUserActiveEventUseCase
+        from app.application.use_cases.base import UseCaseStatus
+
         get_event_use_case = GetUserActiveEventUseCase()
         result = get_event_use_case.execute(user_id)
 
         if result.is_success:
             return make_succ_response(result.data)
+        elif result.status == UseCaseStatus.NOT_FOUND:
+            # 没有活跃事件时返回成功响应，附带友好提示
+            return make_succ_response(None, '该用户当前没有活跃事件')
         else:
             return make_err_response(result.message)
 

@@ -53,7 +53,7 @@ class GetUserActiveEventUseCase(BaseUseCase):
             if not events:
                 return UseCaseResult(
                     status=UseCaseStatus.NOT_FOUND,
-                    message='无活跃事件',
+                    message='该用户当前没有活跃事件',
                     data=None
                 )
 
