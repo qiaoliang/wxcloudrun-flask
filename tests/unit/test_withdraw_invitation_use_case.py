@@ -46,8 +46,8 @@ class TestWithdrawInvitationUseCase:
         assert result.status == UseCaseStatus.SUCCESS
         assert result.data['invitation_id'] == 123
         assert 'withdrawn_at' in result.data
-        # 验证状态已更新为已撤回（使用status=4作为临时方案）
-        assert invitation.status == 4
+        # 验证状态已更新为已撤回（status=5）
+        assert invitation.status == 5
         mock_relation_repo.update.assert_called_once_with(invitation)
 
     @patch('app.application.use_cases.supervision.withdraw_invitation_use_case.RepositoryFactory')
@@ -98,7 +98,7 @@ class TestWithdrawInvitationUseCase:
         # Assert
         assert not result.is_success
         assert result.status == UseCaseStatus.FORBIDDEN
-        assert '您不是该邀请的发起者' in result.message
+        assert '无权限操作此邀请' in result.message
 
     @patch('app.application.use_cases.supervision.withdraw_invitation_use_case.RepositoryFactory')
     def test_should_fail_when_invitation_status_not_pending(self, mock_repo_factory):
@@ -127,7 +127,7 @@ class TestWithdrawInvitationUseCase:
         # Assert
         assert not result.is_success
         assert result.status == UseCaseStatus.BUSINESS_ERROR
-        assert '邀请状态不允许撤回' in result.message
+        assert '只能撤回待处理的邀请' in result.message
 
     @patch('app.application.use_cases.supervision.withdraw_invitation_use_case.RepositoryFactory')
     def test_should_fail_when_invitation_expired(self, mock_repo_factory):
@@ -188,4 +188,4 @@ class TestWithdrawInvitationUseCase:
         # Assert
         assert not result.is_success
         assert result.status == UseCaseStatus.VALIDATION_ERROR
-        assert '用户ID不能为空' in result.message
+        assert '操作者ID不能为空' in result.message

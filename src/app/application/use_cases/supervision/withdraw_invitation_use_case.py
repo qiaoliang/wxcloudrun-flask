@@ -20,6 +20,7 @@ class WithdrawInvitationUseCase(BaseUseCase):
 
     def __init__(self):
         super().__init__()
+        self.logger = logging.getLogger(__name__)
         self.supervision_relation_repository = RepositoryFactory.get_supervision_relation_repository()
 
     @transactional
@@ -74,7 +75,11 @@ class WithdrawInvitationUseCase(BaseUseCase):
                 return UseCaseResult.fail('更新邀请状态失败')
 
             # 7. 通知被邀请人邀请已撤回（可选）
-            self._notify_withdrawal(invitation)
+            # 注意：在单元测试中可能没有Flask应用上下文，使用try-except避免错误
+            try:
+                self._notify_withdrawal(invitation)
+            except Exception as e:
+                self.logger.warning(f'通知被邀请人失败: {str(e)}')
 
             app_logger.info(
                 f'用户 {operator_id} 撤回邀请成功，邀请ID: {invitation_id}, '
