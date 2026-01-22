@@ -96,7 +96,7 @@ def create_superadmin_and_default_community():
                 street='柳芳南里',
                 settings='{"checkin_enabled": true, "event_notifications": true}',
                 created_at=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
-                updated_at=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
+                updated_at=datetime(2024, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
             )
             db.session.add(default_community)
             db.session.flush()  # 获取社区ID
@@ -144,7 +144,7 @@ def create_superadmin_and_default_community():
                 street='中关村大街',
                 settings='{"checkin_enabled": false, "event_notifications": false, "restricted_mode": true}',
                 created_at=datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc),
-                updated_at=datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc)
+                updated_at=datetime(2024, 1, 2, 18, 30, 0, tzinfo=timezone.utc)
             )
             db.session.add(blackhouse_community)
             db.session.flush()  # 获取社区ID
