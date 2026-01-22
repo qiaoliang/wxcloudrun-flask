@@ -159,7 +159,22 @@ def create_app(config_name=None):
     
     # 4.6 初始化CORS（支持跨域请求）
     from flask_cors import CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+    # 配置CORS以支持所有来源和预检请求
+    CORS(app,
+         resources={r"/api/*": {"origins": "*"}},
+         supports_credentials=True,
+         allow_headers=[
+             'Content-Type',
+             'Authorization',
+             'X-Requested-With',
+             'Accept',
+             'Origin',
+             'Access-Control-Request-Method',
+             'Access-Control-Request-Headers'
+         ],
+         methods=['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+         max_age=3600)
     
     # 5. 导入Flask-SQLAlchemy模型（确保在db.init_app之后）
     # 注意：模型导入必须在db.init_app之后，但在注册蓝图之前
@@ -245,23 +260,48 @@ def register_blueprints(app):
 def register_error_handlers(app):
     """注册全局错误处理器"""
     from app.shared.response import make_err_response
-    
+    from flask import jsonify
+
+    # 添加CORS头的辅助函数
+    def add_cors_headers(response):
+        """为响应添加CORS头"""
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS, PATCH'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With, Accept, Origin'
+        return response
+
     @app.errorhandler(404)
     def page_not_found(e):
-        return make_err_response({}, '接口不存在'), 404
-    
+        response = make_err_response({}, '接口不存在')
+        response.status_code = 404
+        return add_cors_headers(response)
+
     @app.errorhandler(500)
     def internal_server_error(e):
         app.logger.error(f'服务器内部错误: {str(e)}')
-        return make_err_response({}, '服务器内部错误'), 500
-    
+        response = make_err_response({}, '服务器内部错误')
+        response.status_code = 500
+        return add_cors_headers(response)
+
     @app.errorhandler(401)
     def unauthorized(e):
-        return make_err_response({}, '未授权访问'), 401
-    
+        response = make_err_response({}, '未授权访问')
+        response.status_code = 401
+        return add_cors_headers(response)
+
     @app.errorhandler(403)
     def forbidden(e):
-        return make_err_response({}, '禁止访问'), 403
+        response = make_err_response({}, '禁止访问')
+        response.status_code = 403
+        return add_cors_headers(response)
+
+    # 添加OPTIONS方法处理器
+    @app.route('/api/<path:path>', methods=['OPTIONS'])
+    @app.route('/api', methods=['OPTIONS'])
+    def handle_options(path=None):
+        """处理OPTIONS预检请求"""
+        response = jsonify({'status': 'ok'})
+        return add_cors_headers(response)
 
 
 def register_session_cleanup(app):

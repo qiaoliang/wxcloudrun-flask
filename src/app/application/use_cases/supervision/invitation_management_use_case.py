@@ -70,8 +70,8 @@ class InvitationManagementUseCase(BaseUseCase):
             if status is not None:
                 invitations = [inv for inv in invitations if inv.status == status]
             else:
-                # 默认不显示已拒绝的邀请
-                invitations = [inv for inv in invitations if inv.status != self.STATUS_REJECTED]
+                # 默认只显示待处理的邀请（不显示已拒绝、已接受、已撤回的邀请）
+                invitations = [inv for inv in invitations if inv.status == self.STATUS_PENDING]
 
             # 4. 排序：按创建时间倒序（最新的在前）
             invitations.sort(key=lambda x: x.created_at, reverse=True)
