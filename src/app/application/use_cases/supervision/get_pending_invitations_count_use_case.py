@@ -59,8 +59,8 @@ class GetPendingInvitationsCountUseCase(BaseUseCase):
                 if not rule or rule.status != self.RULE_STATUS_ACTIVE:
                     continue
 
-                # 检查规则是否被删除
-                if not rule or rule.deleted_at is not None:
+                # 检查规则是否被删除（如果实体有deleted_at属性）
+                if hasattr(rule, 'deleted_at') and rule.deleted_at is not None:
                     continue
 
                 pending_count += 1

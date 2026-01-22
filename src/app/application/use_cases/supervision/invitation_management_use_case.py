@@ -4,6 +4,7 @@
 处理邀请列表查询、接受、拒绝、忽略和批量接受逻辑
 """
 import logging
+from app.shared.utils.transaction import transactional
 from datetime import datetime
 from typing import List, Optional, Dict, Any
 
@@ -144,6 +145,7 @@ class InvitationManagementUseCase(BaseUseCase):
                 message=f'获取邀请列表失败: {str(e)}'
             )
 
+    @transactional
     def accept_invitation(self, invitation_id: int, user_id: int) -> UseCaseResult:
         """
         接受邀请

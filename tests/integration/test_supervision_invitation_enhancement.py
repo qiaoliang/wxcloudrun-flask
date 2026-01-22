@@ -325,6 +325,13 @@ class TestSupervisionInvitationEnhancement(IntegrationTestBase):
 
         self.assert_api_success(accept_response)
 
+        # 调试：检查接受后的邀请状态
+        with self.app.app_context():
+            from app.infrastructure.persistence.repository_factory import RepositoryFactory
+            repo = RepositoryFactory.get_supervision_relation_repository()
+            invitation_after_accept = repo.find_by_id(relation_id)
+            print(f"DEBUG: 接受后邀请状态 = {invitation_after_accept.status}")
+
         # 尝试撤回已接受的邀请（应该失败）
         withdraw_response = client.post(
             f'/api/supervision/invitations/{relation_id}/withdraw',
