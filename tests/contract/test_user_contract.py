@@ -437,3 +437,71 @@ class TestUserContract:
         response_data = data["data"]
         assert "communities" in response_data
         assert isinstance(response_data["communities"], list)
+
+    def test_user_managed_communities_full_response_fields(self, schema, base_client, auth_headers):
+        """100% 完整度验证：获取用户管理的社区列表 - 验证超级管理员获取两个默认社区完整信息"""
+        response = base_client.get('/api/user/managed-communities',
+            headers=auth_headers
+        )
+
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        response_data = data["data"]
+        assert "communities" in response_data
+        assert "count" in response_data
+        assert isinstance(response_data["communities"], list)
+
+        # 验证有两个社区
+        communities = response_data["communities"]
+        assert len(communities) >= 2, f"期望至少2个社区，实际获取{len(communities)}个"
+
+        # 查找两个默认社区
+        community_names = [c.get('name') for c in communities]
+        assert '安卡大家庭' in community_names, "期望包含安卡大家庭"
+        assert '黑屋社区' in community_names, "期望包含黑屋社区"
+
+        # 验证安卡大家庭的完整信息
+        ankaji = next((c for c in communities if c.get('name') == '安卡大家庭'), None)
+        assert ankaji is not None
+        assert ankaji["community_id"] > 0
+        assert ankaji["name"] == "安卡大家庭"
+        assert "系统默认社区" in ankaji["description"]
+        assert ankaji["location"] == "北京市朝阳区柳芳南里29号"
+        assert ankaji["location_lat"] == 39.901213
+        assert ankaji["location_lon"] == 116.527067
+        assert ankaji["province"] == "北京市"
+        assert ankaji["city"] == "北京市"
+        assert ankaji["district"] == "朝阳区"
+        assert ankaji["street"] == "柳芳南里"
+        assert ankaji["status"] == 1
+        assert ankaji["is_default"] == True
+        assert ankaji["is_blackhouse"] == False
+        assert ankaji["creator_id"] is not None
+        assert ankaji["manager_id"] is not None
+        assert ankaji["created_at"] is not None
+        assert ankaji["updated_at"] is not None
+
+        # 验证黑屋社区的完整信息
+        blackhouse = next((c for c in communities if c.get('name') == '黑屋社区'), None)
+        assert blackhouse is not None
+        assert blackhouse["community_id"] > 0
+        assert blackhouse["name"] == "黑屋社区"
+        assert "特殊管理社区" in blackhouse["description"]
+        assert blackhouse["location"] == "北京市海淀区中关村大街1号"
+        assert blackhouse["location_lat"] == 39.956073
+        assert blackhouse["location_lon"] == 116.307079
+        assert blackhouse["province"] == "北京市"
+        assert blackhouse["city"] == "北京市"
+        assert blackhouse["district"] == "海淀区"
+        assert blackhouse["street"] == "中关村大街"
+        assert blackhouse["status"] == 1
+        assert blackhouse["is_default"] == False
+        assert blackhouse["is_blackhouse"] == True
+        assert blackhouse["creator_id"] is not None
+        assert blackhouse["manager_id"] is not None
+        assert blackhouse["created_at"] is not None
+        assert blackhouse["updated_at"] is not None
+
+        # 验证 count 字段
+        assert response_data["count"] >= 2

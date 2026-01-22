@@ -209,8 +209,9 @@ def get_managed_communities():
 
         # 直接返回 UseCase 的完整数据（已包含 manager_name 等字段）
         communities_data = result.data.get('communities', [])
+        count = result.data.get('count', len(communities_data))
 
-        return make_succ_response({'communities': communities_data})
+        return make_succ_response({'communities': communities_data, 'count': count})
 
     except Exception as e:
         error_msg = f'获取可管理社区列表失败: {str(e)}'
