@@ -87,17 +87,40 @@ def create_superadmin_and_default_community():
                 manager_id=superadmin.user_id,
                 status=1,
                 is_default=True,
-                location='北京市朝阳区柳芳南里29号'
+                location='北京市朝阳区柳芳南里29号',
+                location_lat=39.901213,
+                location_lon=116.527067,
+                province='北京市',
+                city='北京市',
+                district='朝阳区',
+                street='柳芳南里',
+                settings='{"checkin_enabled": true, "event_notifications": true}',
+                created_at=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 1, 0, 0, 0, tzinfo=timezone.utc)
             )
             db.session.add(default_community)
             db.session.flush()  # 获取社区ID
             logger.info(f"默认社区'安卡大家庭'创建成功，ID: {default_community.community_id}")
         else:
             logger.info("默认社区'安卡大家庭'已存在")
-            # 为已存在的社区设置 location（如果为空）
+            # 为已存在的社区设置缺失字段（如果为空）
             if not default_community.location:
                 default_community.location = '北京市朝阳区柳芳南里29号'
-                logger.info("已为默认社区'安卡大家庭'设置地址")
+            if not default_community.location_lat:
+                default_community.location_lat = 39.901213
+            if not default_community.location_lon:
+                default_community.location_lon = 116.527067
+            if not default_community.province:
+                default_community.province = '北京市'
+            if not default_community.city:
+                default_community.city = '北京市'
+            if not default_community.district:
+                default_community.district = '朝阳区'
+            if not default_community.street:
+                default_community.street = '柳芳南里'
+            if not default_community.settings:
+                default_community.settings = '{"checkin_enabled": true, "event_notifications": true}'
+            logger.info("已为默认社区'安卡大家庭'补充缺失字段")
 
         # 检查并创建黑屋社区
         stmt = select(Community).where(Community.name == BLACKHOUSE_COMMUNITY_NAME)
@@ -112,17 +135,40 @@ def create_superadmin_and_default_community():
                 manager_id=superadmin.user_id,
                 status=1,
                 is_blackhouse=True,
-                location='北京市朝阳区柳芳南里29号'
+                location='北京市海淀区中关村大街1号',
+                location_lat=39.956073,
+                location_lon=116.307079,
+                province='北京市',
+                city='北京市',
+                district='海淀区',
+                street='中关村大街',
+                settings='{"checkin_enabled": false, "event_notifications": false, "restricted_mode": true}',
+                created_at=datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc),
+                updated_at=datetime(2024, 1, 2, 0, 0, 0, tzinfo=timezone.utc)
             )
             db.session.add(blackhouse_community)
             db.session.flush()  # 获取社区ID
             logger.info(f"黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'创建成功，ID: {blackhouse_community.community_id}")
         else:
             logger.info(f"黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'已存在")
-            # 为已存在的社区设置 location（如果为空）
+            # 为已存在的社区设置缺失字段（如果为空）
             if not blackhouse_community.location:
-                blackhouse_community.location = '北京市朝阳区柳芳南里29号'
-                logger.info(f"已为黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'设置地址")
+                blackhouse_community.location = '北京市海淀区中关村大街1号'
+            if not blackhouse_community.location_lat:
+                blackhouse_community.location_lat = 39.956073
+            if not blackhouse_community.location_lon:
+                blackhouse_community.location_lon = 116.307079
+            if not blackhouse_community.province:
+                blackhouse_community.province = '北京市'
+            if not blackhouse_community.city:
+                blackhouse_community.city = '北京市'
+            if not blackhouse_community.district:
+                blackhouse_community.district = '海淀区'
+            if not blackhouse_community.street:
+                blackhouse_community.street = '中关村大街'
+            if not blackhouse_community.settings:
+                blackhouse_community.settings = '{"checkin_enabled": false, "event_notifications": false, "restricted_mode": true}'
+            logger.info(f"已为黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'补充缺失字段")
 
         # 确保超级系统管理员的community_id设置为默认社区ID
         superadmin.community_id = default_community.community_id
