@@ -305,3 +305,45 @@ class TestCommunityContract:
 
         data = validate_response_structure(response)
         assert data["code"] == 0
+
+    def test_ankaji_community_users_contract(self, schema, base_client, auth_headers):
+        """测试获取安卡大家庭社区用户列表契约"""
+        # 安卡大家庭的固定ID为1
+        ankaji_community_id = 1
+
+        # 获取安卡大家庭社区的用户列表
+        response = base_client.get(f'/api/community/users',
+            query_string={'community_id': ankaji_community_id},
+            headers=auth_headers
+        )
+
+        # 验证响应结构
+        data = validate_response_structure(response)
+        assert data["code"] == 1
+
+        # 验证响应字段
+        response_data = data["data"]
+        assert "users" in response_data, "响应数据应包含 users 字段"
+        assert isinstance(response_data["users"], list), "users 应为列表类型"
+
+        # 验证分页字段
+        assert "total" in response_data, "响应数据应包含 total 字段"
+        assert "page" in response_data, "响应数据应包含 page 字段"
+        assert "page_size" in response_data, "响应数据应包含 page_size 字段"
+        assert "total_pages" in response_data, "响应数据应包含 total_pages 字段"
+
+        # 验证字段类型
+        assert isinstance(response_data["total"], int), "total 应为整数"
+        assert isinstance(response_data["page"], int), "page 应为整数"
+        assert isinstance(response_data["page_size"], int), "page_size 应为整数"
+        assert isinstance(response_data["total_pages"], int), "total_pages 应为整数"
+
+        # 验证至少有一个用户（超级管理员）
+        assert response_data["total"] >= 1, "安卡大家庭应至少有一个用户（超级管理员）"
+
+        # 如果有用户数据，验证用户字段结构
+        if len(response_data["users"]) > 0:
+            user = response_data["users"][0]
+            required_user_fields = ["user_id", "nickname", "role", "role_name"]
+            for field in required_user_fields:
+                assert field in user, f"用户对象应包含 {field} 字段"

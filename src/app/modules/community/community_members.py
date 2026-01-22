@@ -11,7 +11,6 @@ from app.shared.utils.auth import verify_token
 from wxcloudrun.utils.validators import _audit
 from app.application.use_cases.community import (
     CheckCommunityPermissionUseCase,
-    GetCommunityMembersUseCase,
     RemoveUserFromCommunityUseCase,
     AddUsersToCommunityUseCase,
     ListCommunityUsersUseCase
@@ -47,58 +46,30 @@ def get_community_users(community_id):
         role_filter = request.args.get('role', '')  # 可选的角色过滤
         keyword = request.args.get('keyword', '')  # 可选的关键字搜索
 
-        # 如果提供了角色过滤或关键字搜索，使用 ListCommunityUsersUseCase
-        if role_filter or keyword:
-            from app.application.use_cases.community.list_community_users_use_case import ListCommunityUsersUseCase
-            use_case = ListCommunityUsersUseCase()
-            result = use_case.execute(
-                community_id=community_id,
-                role=role_filter if role_filter else None,
-                keyword=keyword if keyword else None,
-                page=page,
-                page_size=per_page
-            )
+        # 统一使用 ListCommunityUsersUseCase（支持角色过滤和关键字搜索）
+        from app.application.use_cases.community.list_community_users_use_case import ListCommunityUsersUseCase
+        use_case = ListCommunityUsersUseCase()
+        
+        # 将 role 字符串转换为对应的角色值
+        role_value = None
+        if role_filter == 'staff':
+            role_value = 2  # 专员
+        elif role_filter == 'manager':
+            role_value = 3  # 主管
+        
+        result = use_case.execute(
+            community_id=community_id,
+            role=role_value,
+            keyword=keyword if keyword else None,
+            page=page,
+            page_size=per_page
+        )
 
-            if not result.is_success:
-                return make_err_response({}, result.message)
+        if not result.is_success:
+            return make_err_response({}, result.message)
 
-            current_app.logger.info(f'获取社区用户列表成功（过滤模式）: {community_id}, 共 {result.data["total"]} 个用户')
-            return make_succ_response(result.data)
-
-        # 否则使用原有的 GetCommunityMembersUseCase（保持向后兼容）
-        get_members_use_case = GetCommunityMembersUseCase()
-        members_result = get_members_use_case.execute(community_id, page, per_page)
-
-        if not members_result.is_success:
-            return make_err_response({}, members_result.message)
-
-        # 格式化用户信息
-        users_data = []
-        for user in members_result.data.get('members', []):
-            user_data = {
-                'user_id': int(user['user_id']),
-                'wechat_openid': '',  # get_community_members不返回此字段
-                'phone_number': user.get('phone_number', ''),
-                'nickname': user.get('nickname', ''),
-                'name': user.get('nickname', ''),  # 使用nickname作为name
-                'avatar_url': user.get('avatar_url', ''),
-                'role': '普通用户',  # 固定值，因为这些是普通用户
-                'status': 1,  # 固定值
-                'created_at': user.get('join_time'),  # 使用join_time作为created_at
-                'verification_status': 1  # 假设都已验证
-            }
-            users_data.append(user_data)
-
-        response_data = {
-            'users': users_data,
-            'total': members_result.data.get('total', 0),
-            'page': page,
-            'per_page': per_page,
-            'has_next': len(users_data) == per_page
-        }
-
-        current_app.logger.info(f'获取社区用户列表成功: {community_id}, 共 {len(users_data)} 个用户')
-        return make_succ_response(response_data)
+        current_app.logger.info(f'获取社区用户列表成功: {community_id}, 共 {result.data["total"]} 个用户')
+        return make_succ_response(result.data)
 
     except Exception as e:
         current_app.logger.error(f'获取社区用户列表失败: {str(e)}', exc_info=True)

@@ -31,7 +31,7 @@ class GetCommunityMembersUseCase(BaseUseCase):
                 return UseCaseResult.fail("社区ID不能为空")
 
             # 使用Repository获取成员列表
-            members_data, total = self.user_repo.get_community_members_paginated(
+            members_data, total = self.user_repository.get_community_members_paginated(
                 community_id, page, per_page
             )
 

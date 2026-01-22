@@ -171,6 +171,11 @@ def create_superadmin_and_default_community():
                 blackhouse_community.settings = '{"checkin_enabled": false, "event_notifications": false, "restricted_mode": true}'
             logger.info(f"已为黑屋社区'{BLACKHOUSE_COMMUNITY_NAME}'补充缺失字段")
 
+        # 先 commit session，确保 default_community 和 superadmin 已经保存到数据库
+        # 这样可以避免循环依赖问题
+        db.session.commit()
+        logger.info("已提交超级系统管理员和社区数据")
+
         # 检查并创建普通测试用户
         stmt = select(User).where(User.phone_number == '18122222222')
         normal_user = db.session.execute(stmt).scalar_one_or_none()
@@ -184,8 +189,8 @@ def create_superadmin_and_default_community():
             normal_user = User(
                 phone_number='18122222222',
                 phone_hash=phone_hash,
-                nickname='普通用户',
-                name='张三',
+                nickname='调试用户18122222222',
+                name='调试用户18122222222',
                 avatar_url='https://example.com/avatar/normal_user.png',
                 work_id='EMP0001',
                 address='北京市朝阳区柳芳南里30号',
@@ -225,11 +230,11 @@ def create_superadmin_and_default_community():
 
         # 确保超级系统管理员的community_id设置为默认社区ID
         superadmin.community_id = default_community.community_id
-        
+
         # 确保社区的管理员字段正确设置
         default_community.manager_id = superadmin.user_id
         blackhouse_community.manager_id = superadmin.user_id
-        
+
         # 确保在CommunityStaff表中设置主管关系
         # 检查并创建默认社区主管关系
         stmt = select(CommunityStaff).where(
