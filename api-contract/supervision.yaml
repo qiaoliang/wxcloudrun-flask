@@ -228,6 +228,30 @@ paths:
                                 format: date-time
                         total:
                           type: integer
+  /api/supervision/invitations/pending-count:
+    get:
+      tags:
+      - 监督模块
+      summary: 获取待处理邀请数量
+      description: 获取当前用户待处理的监督邀请数量（用于角标显示）
+      security:
+      - BearerAuth: []
+      responses:
+        '200':
+          description: 获取成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        pending_count:
+                          type: integer
+                          description: 待处理邀请数量
   /api/supervision/invitations/{invitation_id}/accept:
     post:
       tags:
@@ -332,6 +356,56 @@ paths:
                       properties:
                         message:
                           type: string
+  /api/supervision/invitations/{invitation_id}/withdraw:
+    post:
+      tags:
+      - 监督模块
+      summary: 撤回监督邀请
+      description: 撤回待确认的监督邀请（仅邀请发起者可操作）
+      security:
+      - BearerAuth: []
+      parameters:
+      - name: invitation_id
+        in: path
+        required: true
+        schema:
+          type: integer
+        description: 邀请ID
+      responses:
+        '200':
+          description: 撤回成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        invitation_id:
+                          type: integer
+                          description: 邀请ID
+                        status:
+                          type: string
+                          description: 状态（已撤回）
+                        withdrawn_at:
+                          type: string
+                          format: date-time
+                          description: 撤回时间
+        '403':
+          description: 无权限（不是邀请发起者）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '400':
+          description: 邀请状态不允许撤回（已处理或已过期）
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/supervision/invitations/batch-accept:
     post:
       tags:
@@ -373,6 +447,60 @@ paths:
                         failed_count:
                           type: integer
                           description: 失败数量
+                        failed_ids:
+                          type: array
+                          items:
+                            type: integer
+                          description: 失败的邀请ID列表
+  /api/supervision/invitations/batch-reject:
+    post:
+      tags:
+      - 监督模块
+      summary: 批量拒绝监督邀请
+      description: 批量拒绝多个监督邀请
+      security:
+      - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - invitation_ids
+              properties:
+                invitation_ids:
+                  type: array
+                  items:
+                    type: integer
+                  description: 邀请ID列表
+                reason:
+                  type: string
+                  description: 拒绝原因（可选）
+      responses:
+        '200':
+          description: 操作成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                - $ref: '#/components/schemas/StandardResponse'
+                - type: object
+                  properties:
+                    data:
+                      type: object
+                      properties:
+                        rejected_count:
+                          type: integer
+                          description: 成功拒绝数量
+                        failed_count:
+                          type: integer
+                          description: 失败数量
+                        failed_ids:
+                          type: array
+                          items:
+                            type: integer
+                          description: 失败的邀请ID列表
   /api/supervision/accept:
     post:
       deprecated: true
@@ -447,7 +575,7 @@ paths:
       tags:
       - 监督模块
       summary: 获取我监督的用户列表
-      description: 获取当前用户监督的所有用户列表
+      description: 获取当前用户监督的所有用户列表及其规则详情（仅返回活跃且已激活的监督关系）
       security:
       - BearerAuth: []
       parameters:
@@ -478,24 +606,44 @@ paths:
                       properties:
                         supervised_users:
                           type: array
+                          description: 被监督用户列表（按用户分组）
                           items:
                             type: object
                             properties:
                               user_id:
                                 type: integer
+                                description: 被监护人用户ID
                               nickname:
                                 type: string
+                                description: 被监护人昵称
                               avatar_url:
                                 type: string
-                              supervision_count:
-                                type: integer
-                              last_checkin:
-                                type: string
-                                format: date-time
-                              status:
-                                type: string
+                                description: 被监护人头像URL
+                              rules:
+                                type: array
+                                description: 该用户被监督的规则列表（仅包含活跃规则）
+                                items:
+                                  type: object
+                                  properties:
+                                    rule_id:
+                                      type: integer
+                                      description: 规则ID
+                                    rule_name:
+                                      type: integer
+                                      description: 规则名称
+                                    rule_icon:
+                                      type: string
+                                      description: 规则图标
+                                    created_at:
+                                      type: string
+                                      format: date-time
+                                      description: 监护关系创建时间
+                                    relation_id:
+                                      type: integer
+                                      description: 监督关系ID
                         total:
                           type: integer
+                          description: 用户总数
   /api/supervision/my_guardians:
     get:
       tags:

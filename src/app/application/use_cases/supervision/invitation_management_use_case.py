@@ -566,3 +566,199 @@ class InvitationManagementUseCase(BaseUseCase):
         #     message=message,
         #     type='invitation_rejected'
         # )
+
+    def batch_reject_invitations(self, invitation_ids: List[int], user_id: int) -> UseCaseResult:
+        """
+        批量拒绝邀请
+
+        Args:
+            invitation_ids: 邀请ID列表
+            user_id: 当前用户ID
+
+        Returns:
+            UseCaseResult: 执行结果，包含成功和失败数量
+        """
+        try:
+            # 1. 参数验证
+            if not invitation_ids:
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message='邀请ID列表不能为空'
+                )
+
+            if not user_id:
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message='用户ID不能为空'
+                )
+
+            if not isinstance(invitation_ids, list):
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message='邀请ID列表格式错误'
+                )
+
+            # 2. 去重
+            invitation_ids = list(set(invitation_ids))
+
+            # 3. 批量拒绝邀请
+            rejected_count = 0
+            failed_count = 0
+            failed_ids = []
+
+            for invitation_id in invitation_ids:
+                try:
+                    result = self.reject_invitation(invitation_id, user_id)
+                    if result.is_success:
+                        rejected_count += 1
+                    else:
+                        failed_count += 1
+                        failed_ids.append(invitation_id)
+                except Exception as e:
+                    self.logger.error(f'批量拒绝邀请失败: invitation_id={invitation_id}, error={str(e)}')
+                    failed_count += 1
+                    failed_ids.append(invitation_id)
+
+            self.logger.info(
+                f'批量拒绝邀请完成: user_id={user_id}, '
+                f'total={len(invitation_ids)}, rejected={rejected_count}, failed={failed_count}'
+            )
+
+            # 4. 构建响应消息
+            if rejected_count == 0:
+                message = '所有邀请拒绝失败'
+            elif failed_count == 0:
+                message = f'成功拒绝 {rejected_count} 个邀请'
+            else:
+                message = f'批量操作完成：成功 {rejected_count} 个，失败 {failed_count} 个'
+
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message=message,
+                data={
+                    'rejected_count': rejected_count,
+                    'failed_count': failed_count,
+                    'total_count': len(invitation_ids),
+                    'failed_ids': failed_ids
+                }
+            )
+
+        except Exception as e:
+            self.logger.error(f'批量拒绝邀请失败: {str(e)}', exc_info=True)
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message=f'批量拒绝邀请失败: {str(e)}'
+            )
+
+    def withdraw_invitation(self, invitation_id: int, operator_id: int) -> UseCaseResult:
+        """
+        撤回邀请
+
+        Args:
+            invitation_id: 邀请ID（关系ID）
+            operator_id: 操作者用户ID
+
+        Returns:
+            UseCaseResult: 执行结果
+        """
+        try:
+            # 1. 参数验证
+            if not invitation_id:
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message='邀请ID不能为空'
+                )
+
+            if not operator_id:
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message='用户ID不能为空'
+                )
+
+            # 2. 查找并验证邀请
+            invitation = self.supervision_relation_repository.find_by_id(invitation_id)
+            if not invitation:
+                return UseCaseResult(
+                    status=UseCaseStatus.NOT_FOUND,
+                    message='邀请不存在'
+                )
+
+            # 3. 验证权限（操作者必须是邀请发起者）
+            if invitation.solo_user_id != operator_id:
+                return UseCaseResult(
+                    status=UseCaseStatus.FORBIDDEN,
+                    message='您不是该邀请的发起者'
+                )
+
+            # 4. 验证状态（只有待处理的邀请可以撤回）
+            if invitation.status != self.STATUS_PENDING:
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message='邀请状态不允许撤回'
+                )
+
+            # 5. 验证是否过期
+            if invitation.invite_expires_at and invitation.invite_expires_at < datetime.now():
+                return UseCaseResult(
+                    status=UseCaseStatus.BUSINESS_ERROR,
+                    message='邀请已过期，无法撤回'
+                )
+
+            # 6. 更新邀请状态为已撤回（status=5）
+            # 注意：数据库约束中 status IN (0, 1, 2, 3, 4)，需要添加 status=5
+            # 这里暂时使用 status=4（已过期）作为替代，后续需要更新数据库约束
+            invitation.status = 4  # 暂时使用已过期状态表示已撤回
+            self.supervision_relation_repository.update(invitation)
+
+            # 7. 通知被邀请人邀请已撤回（可选）
+            self._notify_withdrawal(invitation)
+
+            self.logger.info(f'撤回邀请成功: invitation_id={invitation_id}, operator_id={operator_id}')
+
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='邀请已撤回',
+                data={
+                    'invitation_id': invitation_id,
+                    'status': invitation.status,
+                    'withdrawn_at': datetime.now().isoformat()
+                }
+            )
+
+        except Exception as e:
+            self.logger.error(f'撤回邀请失败: {str(e)}', exc_info=True)
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message=f'撤回邀请失败: {str(e)}'
+            )
+
+    def _notify_withdrawal(self, invitation: SupervisionRuleRelation) -> None:
+        """
+        通知被邀请人邀请已撤回
+
+        Args:
+            invitation: 邀请对象
+        """
+        # 获取邀请人信息
+        inviter = self.user_repository.find_by_id(invitation.solo_user_id)
+        if not inviter:
+            self.logger.warning(f'无法通知被邀请人：邀请人不存在, solo_user_id={invitation.solo_user_id}')
+            return
+
+        # 获取被邀请人信息
+        supervisor = self.user_repository.find_by_id(invitation.supervisor_user_id)
+        if not supervisor:
+            self.logger.warning(f'无法通知被邀请人：被邀请人不存在, supervisor_user_id={invitation.supervisor_user_id}')
+            return
+
+        # 获取规则信息
+        rule = self.checkin_rule_repository.find_by_id(invitation.rule_id)
+        rule_name = rule.rule_name if rule else '未知规则'
+
+        # TODO: 实现通知逻辑（站内消息、推送等）
+        message = f'{inviter.nickname} 撤回了监督 {rule_name} 的邀请'
+
+        self.logger.info(
+            f'通知被邀请人已撤回: inviter={inviter.nickname}, '
+            f'supervisor={supervisor.nickname}, rule={rule_name}'
+        )
