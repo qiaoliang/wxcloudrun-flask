@@ -78,7 +78,8 @@ app.register_blueprint(community_bp, url_prefix='/api')
 - `smart_test_runner.py` automatically selects optimal parallel config
 - Thread-safe test data generators ensure test isolation
 - pytest-xdist for parallel execution (up to 4 workers)
-- Three test types: unit, integration, e2e
+- Three test types: unit, integration, contract
+- MUST update openAPI-formated docs and contract test case while changing API endpoint
 
 ## Important Development Notes
 

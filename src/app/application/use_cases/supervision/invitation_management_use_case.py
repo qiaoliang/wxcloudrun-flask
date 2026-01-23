@@ -145,6 +145,119 @@ class InvitationManagementUseCase(BaseUseCase):
                 message=f'获取邀请列表失败: {str(e)}'
             )
 
+    def get_sent_invitations(
+        self,
+        user_id: int,
+        page: int = 1,
+        limit: int = 10,
+        status: Optional[int] = None
+    ) -> UseCaseResult:
+        """
+        获取用户发起的邀请列表（作为被监督人）
+
+        Args:
+            user_id: 用户ID
+            page: 页码（默认1）
+            limit: 每页数量（默认10）
+            status: 状态筛选（可选，值：1=待处理，2=已接受，3=已拒绝，4=已过期）
+
+        Returns:
+            UseCaseResult: 执行结果，包含邀请列表和分页信息
+        """
+        try:
+            # 1. 参数验证
+            if not user_id:
+                return UseCaseResult(
+                    status=UseCaseStatus.VALIDATION_ERROR,
+                    message='用户ID不能为空'
+                )
+
+            if page < 1:
+                page = 1
+            if limit < 1 or limit > 100:
+                limit = 10
+
+            # 2. 查询邀请列表
+            # 使用Repository查询被监督人发起的邀请
+            invitations = self.supervision_relation_repository.find_by_solo_user_id(user_id)
+
+            # 3. 状态筛选
+            if status is not None:
+                invitations = [inv for inv in invitations if inv.status == status]
+            # else: 不筛选，返回所有状态的邀请
+
+            # 4. 排序：按创建时间倒序（最新的在前）
+            invitations.sort(key=lambda x: x.created_at, reverse=True)
+
+            # 5. 分页
+            total = len(invitations)
+            offset = (page - 1) * limit
+            paginated_invitations = invitations[offset:offset + limit]
+
+            # 6. 转换为响应格式
+            invitation_list = []
+            for invitation in paginated_invitations:
+                # 获取被邀请人信息（监督人）
+                supervisor_user = self.user_repository.find_by_id(invitation.supervisor_user_id)
+                if not supervisor_user:
+                    continue
+
+                # 获取规则信息
+                rule = self.checkin_rule_repository.find_by_id(invitation.rule_id)
+                if not rule:
+                    continue
+
+                # 检查是否过期
+                is_expired = False
+                if invitation.invite_expires_at and invitation.invite_expires_at < datetime.now():
+                    is_expired = True
+
+                invitation_list.append({
+                    'relation_id': invitation.relation_id,
+                    'rule_info': {
+                        'rule_id': rule.rule_id,
+                        'rule_name': rule.rule_name,
+                        'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time and hasattr(rule.custom_time, 'strftime') else rule.custom_time,
+                        'frequency': 'daily'  # 简化处理
+                    },
+                    'invitee_info': {
+                        'user_id': supervisor_user.user_id,
+                        'nickname': supervisor_user.nickname,
+                        'avatar_url': supervisor_user.avatar_url,
+                        'community_name': supervisor_user.community.name if supervisor_user.community else None
+                    },
+                    'invitation_type': invitation.invitation_type or 'link',
+                    'status': invitation.status,
+                    'message': invitation.message,
+                    'created_at': invitation.created_at.isoformat() if invitation.created_at else None,
+                    'expires_at': invitation.invite_expires_at.isoformat() if invitation.invite_expires_at else None,
+                    'is_expired': is_expired
+                })
+
+            # 7. 计算总页数
+            total_pages = (total + limit - 1) // limit if total > 0 else 0
+
+            self.logger.info(f'获取发起的邀请列表成功: user_id={user_id}, count={len(invitation_list)}, total={total}')
+
+            return UseCaseResult(
+                status=UseCaseStatus.SUCCESS,
+                message='获取发起的邀请列表成功',
+                data={
+                    'invitations': invitation_list,
+                    'total': total,
+                    'page': page,
+                    'limit': limit,
+                    'total_pages': total_pages
+                }
+            )
+
+        except Exception as e:
+            self.logger.error(f'获取发起的邀请列表失败: {str(e)}', exc_info=True)
+            return UseCaseResult(
+                status=UseCaseStatus.FAILURE,
+                message=f'获取发起的邀请列表失败: {str(e)}'
+            )
+
     @transactional
     def accept_invitation(self, invitation_id: int, user_id: int) -> UseCaseResult:
         """

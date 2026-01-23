@@ -204,6 +204,60 @@ def get_supervision_invitations(decoded):
         return make_err_response({}, f'获取邀请列表失败: {str(e)}')
 
 
+@supervision_bp.route('/supervision/sent-invitations', methods=['GET'])
+@login_required
+def get_sent_invitations(decoded):
+    """
+    获取用户发起的邀请列表接口（作为被监督人）
+    查询参数：page（默认1）, limit（默认10）, status（可选）
+    返回：{ invitations, total, page, limit, total_pages }
+    """
+    current_app.logger.info('=== 开始获取发起的邀请列表 ===')
+
+    user_id = decoded.get('user_id')
+    get_user_use_case = GetUserByIdUseCase()
+    user_result = get_user_use_case.execute(user_id=user_id)
+    if not user_result.is_success:
+        current_app.logger.error(f'数据库中未找到user_id为 {user_id} 的用户')
+        return make_err_response({}, '用户不存在')
+    user = user_result.data
+
+    try:
+        # 获取查询参数
+        page = int(request.args.get('page', 1))
+        limit = int(request.args.get('limit', 10))
+        status = request.args.get('status')
+
+        # 转换状态参数
+        status_value = None
+        if status:
+            try:
+                status_value = int(status)
+            except ValueError:
+                return make_err_response({}, 'status参数格式错误')
+
+        # 使用邀请管理用例获取发起的邀请列表
+        from app.application.use_cases.supervision.invitation_management_use_case import InvitationManagementUseCase
+
+        service = InvitationManagementUseCase()
+        result = service.get_sent_invitations(
+            user_id=user.user_id,
+            page=page,
+            limit=limit,
+            status=status_value
+        )
+
+        if result.is_success:
+            current_app.logger.info(f'用户 {user.user_id} 获取发起的邀请列表成功')
+            return make_succ_response(result.data)
+        else:
+            return make_err_response({}, result.message)
+
+    except Exception as e:
+        current_app.logger.error(f'获取发起的邀请列表失败: {str(e)}', exc_info=True)
+        return make_err_response({}, f'获取发起的邀请列表失败: {str(e)}')
+
+
 @supervision_bp.route('/supervision/accept', methods=['POST'])
 @login_required
 def accept_supervision(decoded):
