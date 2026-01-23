@@ -312,14 +312,14 @@ def create_superadmin_and_default_community():
             db.session.flush()  # 获取用户ID
             logger.info(f"主管用户-1创建成功，ID: {manager_user_1.user_id}")
 
-            # 在CommunityStaff表中设置主管关系
+            # 在CommunityStaff表中设置专员关系
             staff_relation = CommunityStaff(
                 community_id=default_community.community_id,
                 user_id=manager_user_1.user_id,
-                role='manager'
+                role='staff'
             )
             db.session.add(staff_relation)
-            logger.info(f"为主管用户-1设置'安卡大家庭'社区主管关系")
+            logger.info(f"为主管用户-1设置'安卡大家庭'社区专员关系")
         else:
             logger.info(f"主管用户-1已存在，ID: {manager_user_1.user_id}")
 
