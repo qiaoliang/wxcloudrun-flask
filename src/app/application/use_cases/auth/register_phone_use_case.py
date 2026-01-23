@@ -148,6 +148,10 @@ class RegisterPhoneUseCase(BaseUseCase):
 
         nick = nickname or _gen_phone_nickname()
 
+        # 默认头像 URL
+        DEFAULT_AVATAR_URL = 'https://www.helloimg.com/i/2026/01/23/69737caaeb57a.png'
+        final_avatar_url = avatar_url or DEFAULT_AVATAR_URL
+
         # 如果没有提供密码，使用默认密码 F00000000（用于邀请链接注册的用户）
         default_password = password if password else 'F00000000'
 
@@ -160,7 +164,7 @@ class RegisterPhoneUseCase(BaseUseCase):
             phone_number=masked,  # 存储脱敏号码
             phone_hash=phone_hash,  # 哈希值使用原始号码
             nickname=nick,
-            avatar_url=avatar_url,
+            avatar_url=final_avatar_url,
             role=1,
             status=1,
             wechat_openid=None,

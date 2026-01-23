@@ -140,8 +140,9 @@ class LoginWeChatUseCase(BaseUseCase):
                 cleaned_nickname = cleaned_nickname[:50] + "..."
 
         # 处理头像
+        DEFAULT_AVATAR_URL = 'https://www.helloimg.com/i/2026/01/23/69737caaeb57a.png'
         if not avatar_url or not avatar_url.startswith(('http://', 'https://')):
-            cleaned_avatar = "https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0"
+            cleaned_avatar = DEFAULT_AVATAR_URL
         else:
             cleaned_avatar = avatar_url.strip()
 
@@ -217,7 +218,7 @@ class LoginWeChatUseCase(BaseUseCase):
             self.logger.error(f'创建用户失败: {str(e)}')
             # 使用最小可用信息重试
             fallback_nickname = f"用户_{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
-            fallback_avatar = "https://mmbiz.qpic.cn/mmbiz/icTdbqWNOwNRna42FI242Lcia07jQodd2FJGIYQfG0LAJGFxM4FbnQP6yfMxBgJ0F3YRqJCJ1aPAK2dQagdusBZg/0"
+            fallback_avatar = 'https://www.helloimg.com/i/2026/01/23/69737caaeb57a.png'
 
             user_data = User(
                 wechat_openid=openid,

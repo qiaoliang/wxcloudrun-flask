@@ -103,14 +103,14 @@ class InvitationManagementUseCase(BaseUseCase):
                     'relation_id': invitation.relation_id,
                     'rule_info': {
                         'rule_id': rule.rule_id,
-                        'rule_name': rule.rule_name,
+                        'rule_name': rule.rule_name or '全部规则',
                         'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time and hasattr(rule.custom_time, 'strftime') else rule.custom_time,
                         'frequency': 'daily'  # 简化处理
                     },
                     'inviter_info': {
                         'user_id': solo_user.user_id,
-                        'nickname': solo_user.nickname,
-                        'avatar_url': solo_user.avatar_url,
+                        'nickname': solo_user.nickname or '未知用户',
+                        'avatar_url': solo_user.avatar_url or '',
                         'community_name': solo_user.community.name if solo_user.community else None
                     },
                     'invitation_type': invitation.invitation_type or 'link',
@@ -216,14 +216,14 @@ class InvitationManagementUseCase(BaseUseCase):
                     'relation_id': invitation.relation_id,
                     'rule_info': {
                         'rule_id': rule.rule_id,
-                        'rule_name': rule.rule_name,
+                        'rule_name': rule.rule_name or '全部规则',
                         'checkin_time': rule.custom_time.strftime('%H:%M') if rule.custom_time and hasattr(rule.custom_time, 'strftime') else rule.custom_time,
                         'frequency': 'daily'  # 简化处理
                     },
                     'invitee_info': {
                         'user_id': supervisor_user.user_id,
-                        'nickname': supervisor_user.nickname,
-                        'avatar_url': supervisor_user.avatar_url,
+                        'nickname': supervisor_user.nickname or '未知用户',
+                        'avatar_url': supervisor_user.avatar_url or '',
                         'community_name': supervisor_user.community.name if supervisor_user.community else None
                     },
                     'invitation_type': invitation.invitation_type or 'link',
