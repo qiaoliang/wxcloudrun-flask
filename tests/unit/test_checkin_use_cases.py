@@ -635,8 +635,9 @@ class TestGetCheckinHistoryUseCase:
         """
         # Arrange
         user_id = test_user.user_id
-        start_date = (datetime.now() - timedelta(days=1)).strftime('%Y-%m-%d')
-        end_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+        # 使用 date 对象而非字符串，use_case 期望 date 对象
+        start_date = (datetime.now() - timedelta(days=1)).date()
+        end_date = (datetime.now() + timedelta(days=1)).date()
 
         # Act
         result = use_case.execute(user_id=user_id, start_date=start_date, end_date=end_date)

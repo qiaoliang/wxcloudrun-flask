@@ -23,16 +23,21 @@ class TestGetSupervisedUsersUseCase:
         # Arrange
         mock_user_repo = Mock()
         mock_relation_repo = Mock()
+        mock_rule_repo = Mock()
 
         mock_repo_factory.get_user_repository.return_value = mock_user_repo
         mock_repo_factory.get_supervision_relation_repository.return_value = mock_relation_repo
+        mock_repo_factory.get_checkin_rule_repository.return_value = mock_rule_repo
 
+        # 模拟监督关系（状态为2表示已激活）
         relation1 = Mock()
         relation1.solo_user_id = 2
         relation1.rule_id = 101
+        relation1.status = 2  # 已激活
         relation2 = Mock()
         relation2.solo_user_id = 3
         relation2.rule_id = 102
+        relation2.status = 2  # 已激活
 
         mock_relation_repo.find_by_supervisor_id.return_value = [relation1, relation2]
 
@@ -46,6 +51,22 @@ class TestGetSupervisedUsersUseCase:
         supervised_user2.avatar_url = 'avatar3.jpg'
 
         mock_user_repo.find_by_id.side_effect = lambda id: supervised_user1 if id == 2 else supervised_user2
+
+        # 模拟规则（状态为1表示已启用）
+        rule1 = Mock()
+        rule1.rule_id = 101
+        rule1.rule_name = 'Rule1'
+        rule1.status = 1  # 已启用
+        rule1.icon_url = 'icon1.png'
+        rule1.created_at = None
+        rule2 = Mock()
+        rule2.rule_id = 102
+        rule2.rule_name = 'Rule2'
+        rule2.status = 1  # 已启用
+        rule2.icon_url = 'icon2.png'
+        rule2.created_at = None
+
+        mock_rule_repo.find_by_id.side_effect = lambda id: rule1 if id == 101 else rule2
 
         use_case = GetSupervisedUsersUseCase()
 
