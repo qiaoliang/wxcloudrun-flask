@@ -84,6 +84,7 @@ class TestCommunityCheckinContract:
         for rule in response_data["rules"]:
             assert "community_rule_id" in rule
             assert "rule_name" in rule
+            assert "icon_url" in rule
             assert "description" in rule
             assert "checkin_time" in rule
             assert "repeat_days" in rule
@@ -92,6 +93,8 @@ class TestCommunityCheckinContract:
 
             assert isinstance(rule["community_rule_id"], int)
             assert isinstance(rule["rule_name"], str)
+            assert isinstance(rule["icon_url"], str)
+            assert rule["icon_url"], "icon_url 不能为空"
             assert isinstance(rule["repeat_days"], list)
             assert isinstance(rule["is_enabled"], bool)
 
