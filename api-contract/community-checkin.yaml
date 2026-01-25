@@ -241,7 +241,7 @@ paths:
                       properties:
                         rule_id:
                           type: integer
-                        message:
+                        rule_name:
                           type: string
     delete:
       tags:
@@ -272,8 +272,6 @@ paths:
                       properties:
                         rule_id:
                           type: integer
-                        message:
-                          type: string
   /api/community_checkin/rules/{rule_id}/enable:
     post:
       tags:
@@ -304,8 +302,11 @@ paths:
                       properties:
                         rule_id:
                           type: integer
-                        message:
+                        rule_name:
                           type: string
+                        status:
+                          type: integer
+                          description: 规则状态（1-启用）
   /api/community_checkin/rules/{rule_id}/disable:
     post:
       tags:
@@ -336,8 +337,11 @@ paths:
                       properties:
                         rule_id:
                           type: integer
-                        message:
+                        rule_name:
                           type: string
+                        status:
+                          type: integer
+                          description: 规则状态（0-禁用）
   /api/community_checkin/stats/{community_id}/daily-stats:
     get:
       tags:

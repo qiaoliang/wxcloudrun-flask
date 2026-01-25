@@ -31,37 +31,41 @@ paths:
                 - type: object
                   properties:
                     data:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          community_rule_id:
-                            type: integer
-                          rule_name:
-                            type: string
-                          icon_url:
-                            type: string
-                          frequency_type:
-                            type: integer
-                          time_slot_type:
-                            type: integer
-                          custom_time:
-                            type: string
-                          rule_source:
-                            type: string
-                            enum:
-                            - personal
-                            - community
-                          is_editable:
-                            type: boolean
-                          source_label:
-                            type: string
-                          community_name:
-                            type: string
-                          is_enabled:
-                            type: boolean
+                      type: object
+                      properties:
+                        rules:
+                          type: array
+                          description: 用户所有打卡规则列表
+                          items:
+                            type: object
+                            properties:
+                              rule_id:
+                                type: integer
+                              community_rule_id:
+                                type: integer
+                              rule_name:
+                                type: string
+                              icon_url:
+                                type: string
+                              frequency_type:
+                                type: integer
+                              time_slot_type:
+                                type: integer
+                              custom_time:
+                                type: string
+                              rule_source:
+                                type: string
+                                enum:
+                                - personal
+                                - community
+                              is_editable:
+                                type: boolean
+                              source_label:
+                                type: string
+                              community_name:
+                                type: string
+                              is_enabled:
+                                type: boolean
     delete:
       tags:
       - 用户打卡模块
@@ -305,18 +309,39 @@ paths:
                 - type: object
                   properties:
                     data:
-                      type: array
-                      items:
-                        type: object
-                        properties:
-                          rule_id:
-                            type: integer
-                          rule_source:
-                            type: string
-                          source_label:
-                            type: string
-                          community_name:
-                            type: string
+                      type: object
+                      properties:
+                        community_rules:
+                          type: array
+                          description: 社区规则来源信息
+                          items:
+                            type: object
+                            properties:
+                              rule_id:
+                                type: integer
+                              rule_name:
+                                type: string
+                              rule_source:
+                                type: string
+                              is_editable:
+                                type: boolean
+                                description: 是否可编辑
+                              community_name:
+                                type: string
+                        personal_rules:
+                          type: array
+                          description: 个人规则来源信息
+                          items:
+                            type: object
+                            properties:
+                              rule_id:
+                                type: integer
+                              rule_name:
+                                type: string
+                              rule_source:
+                                type: string
+                              is_editable:
+                                type: boolean
 components:
   schemas:
     StandardResponse:

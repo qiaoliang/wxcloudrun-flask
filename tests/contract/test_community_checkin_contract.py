@@ -255,7 +255,7 @@ class TestCommunityCheckinContract:
 
         response_data = data["data"]
         assert "rule_id" in response_data
-        assert "message" in response_data
+        assert "rule_name" in response_data
 
     # ==================== 删除社区打卡规则 ====================
 
@@ -285,7 +285,6 @@ class TestCommunityCheckinContract:
 
             response_data = data["data"]
             assert "rule_id" in response_data
-            assert "message" in response_data
 
     # ==================== 启用/禁用社区打卡规则 ====================
 
@@ -303,7 +302,9 @@ class TestCommunityCheckinContract:
 
         response_data = data["data"]
         assert "rule_id" in response_data
-        assert "message" in response_data
+        assert "rule_name" in response_data
+        assert "status" in response_data
+        assert response_data["status"] == 1
 
     def test_community_checkin_rule_disable_contract(self, schema, base_client, auth_headers, test_rule_id):
         """测试禁用社区打卡规则契约"""
@@ -319,7 +320,9 @@ class TestCommunityCheckinContract:
 
         response_data = data["data"]
         assert "rule_id" in response_data
-        assert "message" in response_data
+        assert "rule_name" in response_data
+        assert "status" in response_data
+        assert response_data["status"] == 0
 
     # ==================== 获取社区每日打卡统计 ====================
 

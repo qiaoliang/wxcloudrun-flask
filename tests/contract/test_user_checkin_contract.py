@@ -53,12 +53,13 @@ class TestUserCheckinContract:
         data = validate_response_structure(response)
         assert data["code"] == 1
 
-        # 验证响应是数组
+        # 验证响应数据结构
         response_data = data["data"]
-        assert isinstance(response_data, list)
+        assert "rules" in response_data
+        assert isinstance(response_data["rules"], list)
 
         # 验证规则字段
-        for rule in response_data:
+        for rule in response_data["rules"]:
             assert "rule_id" in rule
             assert "rule_name" in rule
             assert "frequency_type" in rule
@@ -339,8 +340,10 @@ class TestUserCheckinContract:
         assert data["code"] == 1
 
         response_data = data["data"]
-        assert isinstance(response_data, list)
-        assert len(response_data) == 0
+        assert "community_rules" in response_data
+        assert "personal_rules" in response_data
+        assert isinstance(response_data["community_rules"], list)
+        assert isinstance(response_data["personal_rules"], list)
 
     def test_user_checkin_rules_source_info_missing_rule_ids_contract(self, schema, base_client, auth_headers):
         """测试批量获取规则来源信息缺少rule_ids契约"""
