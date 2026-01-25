@@ -16,6 +16,9 @@ from app.shared.constants.roles import Role
 
 from const_default import DEFAULT_COMMUNITY_NAME,DEFAULT_COMMUNITY_ID,BLACKHOUSE_COMMUNITY_NAME
 
+# 规则图标默认URL - rule-icons中的第一个图标
+DEFAULT_RULE_ICON_URL = "https://www.helloimg.com/i/2026/01/23/697384ee118ee.png"
+
 
 def create_superadmin_and_default_community():
     """
@@ -212,7 +215,7 @@ def create_superadmin_and_default_community():
                 community_id=None,
                 rule_type='personal',
                 rule_name='早上吃药',
-                icon_url='https://example.com/icon/medicine.png',
+                icon_url=DEFAULT_RULE_ICON_URL,
                 frequency_type=0,  # 每天
                 time_slot_type=4,  # 早上
                 custom_time=time(8, 0, 0),  # 早上 8:00
@@ -264,7 +267,7 @@ def create_superadmin_and_default_community():
                 community_id=None,
                 rule_type='personal',
                 rule_name='晚上吃药',
-                icon_url='https://example.com/icon/medicine_night.png',
+                icon_url=DEFAULT_RULE_ICON_URL,
                 frequency_type=0,  # 每天
                 time_slot_type=6,  # 晚上
                 custom_time=time(20, 0, 0),  # 晚上 8:00
