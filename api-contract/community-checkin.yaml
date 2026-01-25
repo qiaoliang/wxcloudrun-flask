@@ -71,6 +71,9 @@ paths:
                                 type: integer
                               rule_name:
                                 type: string
+                              icon_url:
+                                type: string
+                                description: 规则图标URL
                               description:
                                 type: string
                               checkin_time:
