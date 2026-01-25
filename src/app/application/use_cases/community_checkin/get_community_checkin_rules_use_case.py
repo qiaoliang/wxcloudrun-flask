@@ -129,6 +129,7 @@ class GetCommunityCheckinRulesUseCase(BaseUseCase):
                     api_rule = {
                         'community_rule_id': rule_dict['community_rule_id'],
                         'rule_name': rule_dict['rule_name'],
+                        'icon_url': rule_dict.get('icon_url', ''),
                         'description': '',  # 模型没有description字段
                         'checkin_time': rule_dict.get('custom_time', ''),  # custom_time -> checkin_time
                         'repeat_days': repeat_days,
